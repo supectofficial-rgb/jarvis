@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.11" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\AppCore\Domain\OysterFx.AppCore.Domain.csproj" />
+    <ProjectReference Include="..\..\..\AppCore\Shared\OysterFx.AppCore.Shared.csproj" />
+    <ProjectReference Include="..\..\Auth\UserServices\OysterFx.Infra.Auth.UserServices.csproj" />
+    <ProjectReference Include="..\EventSourcing.Abstractions\OysterFx.Infra.Persistence.EventSourcing.Abstractions.csproj" />
+  </ItemGroup>
+  
+</Project>

@@ -1,0 +1,78 @@
+﻿@model Insurance.InventoryDashboard.Panel.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "داشبورد";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+}
+
+<main>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1>داشبورد نقش‌محور</h1>
+                <p class="text-muted">ماژول‌ها و زیرمنوها بر اساس نقش کاربر به‌صورت داینامیک نمایش داده می‌شوند.</p>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-2">کاربر واردشده: @Model.UserName</h5>
+                        <p class="text-muted mb-0">
+                            @if (Model.Roles.Count == 0)
+                            {
+                                <span>نقشی از JWT استخراج نشد. لطفاً Role Claim را در UserService بررسی کنید.</span>
+                            }
+                            else
+                            {
+                                <span>نقش‌های فعال: @string.Join("، ", Model.Roles)</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            @foreach (var module in Model.Modules)
+            {
+                <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title d-flex align-items-center">
+                                <i class="@module.Icon mr-2"></i>
+                                @module.Title
+                            </h5>
+                            <p class="text-muted">@(string.IsNullOrWhiteSpace(module.Description) ? "ماژول مدیریتی." : module.Description)</p>
+
+                            @if (!module.IsEnabled)
+                            {
+                                <span class="badge badge-warning">غیرفعال</span>
+                            }
+                            else
+                            {
+                                <div class="d-flex flex-wrap">
+                                    @foreach (var item in module.Items)
+                                    {
+                                        if (item.IsEnabled && !string.IsNullOrWhiteSpace(item.Route))
+                                        {
+                                            <a class="btn btn-outline-primary btn-sm mb-2 ml-2" href="@item.Route">@item.Title</a>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-outline-secondary btn-sm mb-2 ml-2" disabled>@item.Title</button>
+                                        }
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</main>

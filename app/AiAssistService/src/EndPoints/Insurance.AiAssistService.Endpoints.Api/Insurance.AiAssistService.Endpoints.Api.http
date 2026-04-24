@@ -1,0 +1,6 @@
+@Insurance.AiAssistService.Api_HostAddress = http://localhost:5244
+
+GET {{Insurance.AiAssistService.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

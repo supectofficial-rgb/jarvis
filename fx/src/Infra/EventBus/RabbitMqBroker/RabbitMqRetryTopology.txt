@@ -1,0 +1,7 @@
+﻿main.queue
+   ↓ fail
+retry.queue (TTL)
+   ↓
+main.queue
+   ↓ fail too many times
+dlq.queue

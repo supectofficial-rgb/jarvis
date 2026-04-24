@@ -1,0 +1,113 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Dashboard</h2>
+                <div>
+                    <span class="me-3">Welcome, <strong>@ViewBag.UserName</strong></span>
+                    <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-outline-danger">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Organizations</h5>
+                    <button type="button" class="btn btn-light btn-sm" id="btnGetOrganizations">
+                        <i class="bi bi-arrow-clockwise"></i> Load Organizations
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="loadingIndicator" class="text-center" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading organizations...</p>
+                    </div>
+                    
+                    <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
+                    
+                    <div id="organizationsTableContainer">
+                        <table class="table table-striped table-hover" id="organizationsTable" style="display: none;">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Business Key</th>
+                                    <th>Name</th>
+                                </tr>
+                            </thead>
+                            <tbody id="organizationsTableBody">
+                            </tbody>
+                        </table>
+                        <div id="noDataMessage" class="text-center text-muted mt-4">
+                            <p>Click "Load Organizations" to fetch data.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#btnGetOrganizations').click(function() {
+                loadOrganizations();
+            });
+        });
+
+        function loadOrganizations() {
+            $('#loadingIndicator').show();
+            $('#errorMessage').hide();
+            $('#organizationsTable').hide();
+            $('#noDataMessage').hide();
+            $('#btnGetOrganizations').prop('disabled', true);
+
+            $.ajax({
+                url: '@Url.Action("GetOrganizations", "Dashboard")',
+                type: 'POST',
+                success: function(response) {
+                    $('#loadingIndicator').hide();
+                    $('#btnGetOrganizations').prop('disabled', false);
+
+                    if (response.success && response.data) {
+                        if (response.data.length > 0) {
+                            var tbody = $('#organizationsTableBody');
+                            tbody.empty();
+                            
+                            response.data.forEach(function(org) {
+                                var row = '<tr>' +
+                                    '<td>' + org.businessKey + '</td>' +
+                                    '<td>' + (org.name || 'N/A') + '</td>' +
+                                    '</tr>';
+                                tbody.append(row);
+                            });
+                            
+                            $('#organizationsTable').show();
+                        } else {
+                            $('#noDataMessage').html('<p>No organizations found.</p>').show();
+                        }
+                    } else {
+                        $('#errorMessage').text(response.message || 'Failed to load organizations').show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#loadingIndicator').hide();
+                    $('#btnGetOrganizations').prop('disabled', false);
+                    $('#errorMessage').text('An error occurred: ' + error).show();
+                }
+            });
+        }
+    </script>
+}
+

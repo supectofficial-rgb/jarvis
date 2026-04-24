@@ -1,0 +1,54 @@
+@model Insurance.InventoryDashboard.Panel.Models.LoginViewModel
+@{
+    ViewData["Title"] = "ورود";
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+}
+
+<main>
+    <div class="container">
+        <div class="row h-100">
+            <div class="col-12 col-md-10 mx-auto my-auto">
+                <div class="card auth-card">
+                    <div class="position-relative image-side">
+                        <p class="text-white h2">مرکز کنترل موجودی</p>
+                        <p class="white mb-0">
+                            برای دسترسی به پنل نقش‌محور و عملیات انبار وارد شوید.
+                        </p>
+                    </div>
+                    <div class="form-side">
+                        <a asp-controller="Auth" asp-action="Login">
+                            <span class="logo-single"></span>
+                        </a>
+                        <h6 class="mb-4">ورود به سیستم</h6>
+
+                        <form asp-action="Login" method="post">
+                            @Html.AntiForgeryToken()
+                            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                            <label class="form-group has-float-label mb-4">
+                                <input asp-for="UserName" class="form-control" autocomplete="username" />
+                                <span>نام کاربری</span>
+                            </label>
+                            <span asp-validation-for="UserName" class="text-danger d-block mb-2"></span>
+
+                            <label class="form-group has-float-label mb-4">
+                                <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                                <span>رمز عبور</span>
+                            </label>
+                            <span asp-validation-for="Password" class="text-danger d-block mb-2"></span>
+
+                            <div class="d-flex justify-content-end align-items-center mt-4">
+                                <button class="btn btn-primary btn-lg btn-shadow" type="submit">ورود</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

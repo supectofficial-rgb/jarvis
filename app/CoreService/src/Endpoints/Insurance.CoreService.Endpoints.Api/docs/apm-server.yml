@@ -1,0 +1,20 @@
+apm-server:
+  host: "0.0.0.0:8200"
+  secret_token: "your_secret_token"
+  rum:
+    enabled: true
+  kibana:
+    enabled: false
+  capture_body: "all"
+  capture_headers: true
+  transaction_sample_rate: 1.0
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  username: "elastic"
+  password: "changeme"
+
+setup.kibana:
+  host: "kibana:5601"
+  username: "elastic"
+  password: "changeme"

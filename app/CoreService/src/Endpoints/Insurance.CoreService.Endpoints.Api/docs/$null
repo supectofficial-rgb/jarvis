@@ -1,0 +1,4 @@
+Error response from daemon: No such container: apm-server
+Error response from daemon: No such container: elasticsearch
+Error response from daemon: No such container: kibana
+Error response from daemon: No such container: setup

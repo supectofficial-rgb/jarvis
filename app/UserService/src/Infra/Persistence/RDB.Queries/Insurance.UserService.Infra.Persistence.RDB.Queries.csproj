@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\..\fx\src\Infra\Persistence\RDB.Queries\OysterFx.Infra.Persistence.RDB.Queries.csproj" />
+    <ProjectReference Include="..\..\..\AppCore\Shared\Insurance.UserService.AppCore.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

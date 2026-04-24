@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.11" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.11" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../../fx/src/AppCore/AppServices/OysterFx.AppCore.AppServices.csproj" />
+    <ProjectReference Include="../../../../../fx/src/Infra/EventBus/Abstractions/OysterFx.Infra.EventBus.Abstractions.csproj" />
+    <ProjectReference Include="../../../../../fx/src/Infra/EventBus/Contract.Events/OysterFx.Infra.EventBus.Contract.Events.csproj" />
+    <ProjectReference Include="../Domain/Insurance.GraphService.AppCore.Domain.csproj" />
+    <ProjectReference Include="../DomainServices/Insurance.GraphService.AppCore.DomainServices.csproj" />
+    <ProjectReference Include="../Shared/Insurance.GraphService.AppCore.Shared.csproj" />
+  </ItemGroup>
+</Project>

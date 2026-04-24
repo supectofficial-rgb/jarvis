@@ -1,0 +1,11 @@
+﻿{
+  "RabbitMqBroker": {
+    "Host": "localhost",
+    "Port": 5672,
+    "UserName": "guest",
+    "Password": "guest",
+    "VirtualHost": "/",
+    "Exchange": "insurnace.events",
+    "RetryLimit": 4
+  }
+}

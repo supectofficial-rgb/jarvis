@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\fx\src\AppCore\AppServices\OysterFx.AppCore.AppServices.csproj" />
+    <ProjectReference Include="..\..\..\..\CacheService\src\Infra\CallerService\Insurance.CacheService.Infra.CallerService.csproj" />
+    <ProjectReference Include="..\..\..\..\CoreService\src\Infra\InternalServices\UserApiCaller\Insurance.Infra.InternalServices.UserApiCaller.csproj" />
+    <ProjectReference Include="..\..\..\..\PanelPayamakService\src\Infra\Abstractions\Insurance.PanelPayamakService.Infra.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Infra\Persistence\RDB.Commands\Insurance.UserService.Infra.Persistence.RDB.Commands.csproj" />
+    <ProjectReference Include="..\Shared\Insurance.UserService.AppCore.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

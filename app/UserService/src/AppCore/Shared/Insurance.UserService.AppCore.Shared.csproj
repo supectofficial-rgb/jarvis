@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="AAA\Services\Dtos\" />
+    <Folder Include="OtpCodeContracts\OtpCodes\Queries\" />
+    <Folder Include="Permissions\Services\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\fx\src\AppCore\Shared\OysterFx.AppCore.Shared.csproj" />
+    <ProjectReference Include="..\Domain\Insurance.UserService.AppCore.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

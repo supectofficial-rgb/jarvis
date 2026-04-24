@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../../../fx/src/Infra/Persistence/RDB.Queries/OysterFx.Infra.Persistence.RDB.Queries.csproj" />
+    <ProjectReference Include="../../../AppCore/Domain/Insurance.InventoryService.AppCore.Domain.csproj" />
+    <ProjectReference Include="../../../AppCore/Shared/Insurance.InventoryService.AppCore.Shared.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../../../fx/src/Endpoints/OysterFx.Endpoints.Api/OysterFx.Endpoints.Api.csproj" />
+    <ProjectReference Include="../../../../CacheService/src/Infra/CallerService/Insurance.CacheService.Infra.CallerService.csproj" />
+    <ProjectReference Include="../../AppCore/AppServices/Insurance.AiAssistService.AppCore.AppServices.csproj" />
+    <ProjectReference Include="../../AppCore/DomainServices/Insurance.AiAssistService.AppCore.DomainServices.csproj" />
+    <ProjectReference Include="../../AppCore/Shared/Insurance.AiAssistService.AppCore.Shared.csproj" />
+    <ProjectReference Include="../../Infra/InternalServices/Llm/Insurance.AiAssistService.Infra.InternalServices.LLM.csproj" />
+    <ProjectReference Include="../../Infra/InternalServices/Stt/Insurance.AiAssistService.Infra.InternalServices.STT.csproj" />
+  </ItemGroup>
+
+</Project>

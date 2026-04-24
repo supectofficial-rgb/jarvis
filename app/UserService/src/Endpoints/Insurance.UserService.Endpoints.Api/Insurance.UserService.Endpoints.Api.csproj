@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <!-- Elastic APM -->
+    <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.27.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\fx\src\Endpoints\OysterFx.Endpoints.Api\OysterFx.Endpoints.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\..\fx\src\Infra\Auth\UserServices\OysterFx.Infra.Auth.UserServices.csproj" />
+    <ProjectReference Include="..\..\..\..\CacheService\src\Infra\CallerService\Insurance.CacheService.Infra.CallerService.csproj" />
+    <ProjectReference Include="..\..\..\..\CoreService\src\Infra\InternalServices\UserApiCaller\Insurance.Infra.InternalServices.UserApiCaller.csproj" />
+    <ProjectReference Include="..\..\..\..\PanelPayamakService\src\Infra\KavehNegarProvider\Insurance.PanelPayamakService.Infra.KavehNegarProvider.csproj" />
+    <ProjectReference Include="..\..\AppCore\AppServices\Insurance.UserService.AppCore.AppServices.csproj" />
+    <ProjectReference Include="..\..\AppCore\DomainServices\Insurance.UserService.AppCore.DomainServices.csproj" />
+    <ProjectReference Include="..\..\AppCore\Shared\Insurance.UserService.AppCore.Shared.csproj" />
+    <ProjectReference Include="..\..\Infra\Persistence\RDB.Commands\Insurance.UserService.Infra.Persistence.RDB.Commands.csproj" />
+    <ProjectReference Include="..\..\Infra\Persistence\RDB.Queries\Insurance.UserService.Infra.Persistence.RDB.Queries.csproj" />
+  </ItemGroup>
+
+</Project>

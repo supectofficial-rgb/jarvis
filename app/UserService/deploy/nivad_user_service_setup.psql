@@ -1,0 +1,11 @@
+\set ON_ERROR_STOP on
+
+SELECT 'CREATE DATABASE nivad_user_service WITH ENCODING ''UTF8'''
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM pg_database
+    WHERE datname = 'nivad_user_service'
+)\gexec
+
+\connect nivad_user_service
+\ir nivad_user_service_migration.sql

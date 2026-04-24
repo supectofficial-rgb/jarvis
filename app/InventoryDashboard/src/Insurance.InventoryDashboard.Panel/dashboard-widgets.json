@@ -1,0 +1,95 @@
+﻿{
+  "dashboard": [
+    {
+      "moduleId": "people_management",
+      "title": "مدیریت افراد",
+      "icon": "iconsminds-business-manwoman",
+      "isEnabled": false,
+      "description": "مدیریت کاربران، پرسوناها و پرمیشن‌ها (فعلا غیرفعال)",
+      "roles": [
+        "Admin"
+      ],
+      "items": [
+        {
+          "itemId": "users",
+          "title": "مدیریت کاربران",
+          "icon": "simple-icon-user",
+          "isEnabled": false,
+          "roles": [
+            "Admin"
+          ],
+          "description": "مدیریت کاربران و عضویت‌ها"
+        },
+        {
+          "itemId": "personas",
+          "title": "مدیریت پرسونا",
+          "icon": "simple-icon-people",
+          "isEnabled": false,
+          "roles": [
+            "Admin"
+          ],
+          "description": "مدیریت پرسونا و رول‌های سازمانی"
+        },
+        {
+          "itemId": "permissions",
+          "title": "مدیریت پرمیشن",
+          "icon": "simple-icon-lock",
+          "isEnabled": false,
+          "roles": [
+            "Admin"
+          ],
+          "description": "تعریف و انتساب پرمیشن‌ها"
+        }
+      ]
+    },
+    {
+      "moduleId": "catalog_management",
+      "title": "مدیریت دسته‌بندی و محصولات",
+      "icon": "iconsminds-box-with-folders",
+      "isEnabled": true,
+      "description": "مدیریت Category / Product / Variant",
+      "roles": [
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
+        {
+          "itemId": "categories",
+          "title": "مدیریت دسته‌بندی",
+          "icon": "simple-icon-folder",
+          "isEnabled": true,
+          "roles": [
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مدیریت Category، Attribute و Option",
+          "route": "/CategoryManagement/Categories"
+        },
+        {
+          "itemId": "products",
+          "title": "مدیریت محصولات",
+          "icon": "simple-icon-basket",
+          "isEnabled": true,
+          "roles": [
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مدیریت Product و Attributeهای مرتبط",
+          "route": "/ProductManagement/Products"
+        },
+        {
+          "itemId": "product_variants",
+          "title": "مدیریت واریانت‌ها",
+          "icon": "simple-icon-layers",
+          "isEnabled": true,
+          "roles": [
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مدیریت Variant و مقادیر Attribute",
+          "route": "/VariantManagement/Variants"
+        }
+      ]
+    }
+  ]
+}

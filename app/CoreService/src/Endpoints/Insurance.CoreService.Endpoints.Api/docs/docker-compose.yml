@@ -1,0 +1,79 @@
+version: '3.8'
+services:
+  elasticsearch:
+    image: elastic.hamdocker.ir/elasticsearch/elasticsearch:8.13.4
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - xpack.security.authc.anonymous.roles=anonymous
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ELASTIC_PASSWORD=changeme
+      - ELASTIC_USERNAME=elastic
+    ports:
+      - "9200:9200"
+    networks:
+      - elastic
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  # Fixed setup container with single-line command
+  setup:
+    image: curlimages/curl:latest
+    container_name: setup
+    command: 
+      - /bin/sh
+      - -c
+      - |
+        echo 'Waiting for Elasticsearch...'
+        until curl -s -f -u elastic:changeme http://elasticsearch:9200/_cluster/health; do
+          sleep 5;
+        done
+        echo 'Setting up kibana_system password...'
+        curl -s -X POST -u elastic:changeme 'http://elasticsearch:9200/_security/user/kibana_system/_password' -H 'Content-Type: application/json' -d '{"password":"changeme"}'
+        echo 'Kibana system password set successfully!'
+        echo 'Setup complete!'
+    networks:
+      - elastic
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    image: elastic.hamdocker.ir/kibana/kibana:8.13.4
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=changeme
+      - xpack.security.enabled=true
+      - xpack.encryptedSavedObjects.encryptionKey=H8j9L2k4M6n8P0q2R4s6U8w0Y2z4B6d8
+    ports:
+      - "5601:5601"
+    networks:
+      - elastic
+    depends_on:
+      - elasticsearch
+      - setup
+
+  apm-server:
+    image: elastic.hamdocker.ir/apm/apm-server:8.13.4
+    container_name: apm-server
+    volumes:
+      - ./apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+    ports:
+      - "8200:8200"
+    networks:
+      - elastic
+    depends_on:
+      - elasticsearch
+      - kibana
+    restart: on-failure:5
+
+volumes:
+  es_data:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge

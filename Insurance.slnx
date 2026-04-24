@@ -1,0 +1,227 @@
+﻿<Solution>
+  <Folder Name="/agw/" />
+  <Folder Name="/agw/src/">
+    <Project Path="agw/src/Insurance.agw.Yarp.Api/Insurance.agw.Yarp.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/" />
+  <Folder Name="/app/AiAssistService/" />
+  <Folder Name="/app/AiAssistService/src/" />
+  <Folder Name="/app/AiAssistService/src/AppCore/">
+    <Project Path="app/AiAssistService/src/AppCore/AppServices/Insurance.AiAssistService.AppCore.AppServices.csproj" />
+    <Project Path="app/AiAssistService/src/AppCore/Domain/Insurance.AiAssistService.AppCore.Domain.csproj" />
+    <Project Path="app/AiAssistService/src/AppCore/DomainServices/Insurance.AiAssistService.AppCore.DomainServices.csproj" />
+    <Project Path="app/AiAssistService/src/AppCore/Shared/Insurance.AiAssistService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/AiAssistService/src/Endpoints/">
+    <Project Path="app/AiAssistService/src/EndPoints/Insurance.AiAssistService.Endpoints.Api/Insurance.AiAssistService.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/AiAssistService/src/Infra/" />
+  <Folder Name="/app/AiAssistService/src/Infra/InternalServices/">
+    <Project Path="app/AiAssistService/src/Infra/InternalServices/Llm/Insurance.AiAssistService.Infra.InternalServices.LLM.csproj" />
+    <Project Path="app/AiAssistService/src/Infra/InternalServices/Stt/Insurance.AiAssistService.Infra.InternalServices.STT.csproj" />
+  </Folder>
+  <Folder Name="/app/AiAssistService/src/Infra/Persistence/" />
+  <Folder Name="/app/CacheService/" />
+  <Folder Name="/app/CacheService/src/" />
+  <Folder Name="/app/CacheService/src/AppCore/">
+    <Project Path="app/CacheService/src/AppCore/AppServices/Insurance.CacheService.AppCore.AppServices.csproj" />
+    <Project Path="app/CacheService/src/AppCore/Domain/Insurance.CacheService.AppCore.Domain.csproj" />
+    <Project Path="app/CacheService/src/AppCore/DomainServices/Insurance.CacheService.AppCore.DomainServices.csproj" />
+    <Project Path="app/CacheService/src/AppCore/Shared/Insurance.CacheService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/CacheService/src/Endpoints/">
+    <Project Path="app/CacheService/src/Endpoints/Insurance.CacheService.Endpoints.Api/Insurance.CacheService.Endpoints.Api.csproj" Id="67b26b23-8838-42e8-90ab-c0bb5a2e668c" />
+  </Folder>
+  <Folder Name="/app/CacheService/src/Infra/">
+    <Project Path="app/CacheService/src/Infra/CallerService/Insurance.CacheService.Infra.CallerService.csproj" />
+  </Folder>
+  <Folder Name="/app/CacheService/src/Infra/Persistence/">
+    <Project Path="app/CacheService/src/Infra/Persistence/Redis/Insurance.CacheService.Infra.Persistence.Redis.csproj" />
+  </Folder>
+  <Folder Name="/app/CoreService/" />
+  <Folder Name="/app/CoreService/src/">
+    <File Path="app/CoreService/src/Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/app/CoreService/src/AppCore/">
+    <Project Path="app/CoreService/src/AppCore/AppServices/Insurance.AppCore.AppServices.csproj" />
+    <Project Path="app/CoreService/src/AppCore/Domain/Insurance.AppCore.Domain.csproj" />
+    <Project Path="app/CoreService/src/AppCore/DomainServices/Insurance.AppCore.DomainServices.csproj" />
+    <Project Path="app/CoreService/src/AppCore/Shared/Insurance.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/CoreService/src/Endpoints/">
+    <Project Path="app/CoreService/src/Endpoints/Insurance.CoreService.Endpoints.Api/Insurance.CoreService.Endpoints.Api.csproj" Id="a2b1dea4-8b9c-4382-8c3d-732bcaecb403" />
+  </Folder>
+  <Folder Name="/app/CoreService/src/Infra/" />
+  <Folder Name="/app/CoreService/src/Infra/DistCache/" />
+  <Folder Name="/app/CoreService/src/Infra/DistCache/Redis/">
+    <Project Path="app/CoreService/src/Infra/DistCache/Redis/CacheSystem/Insurance.Infra.DistCache.Redis.CacheSystem.csproj" />
+    <Project Path="app/CoreService/src/Infra/DistCache/Redis/OtpManagement/Insurance.Infra.DistCache.Redis.OtpManagement.csproj" />
+    <Project Path="app/CoreService/src/Infra/DistCache/Redis/RateLimitSystem/Insurance.Infra.DistCache.Redis.RateLimitSystem.csproj" />
+    <Project Path="app/CoreService/src/Infra/DistCache/Redis/TokenVersionControl/Insurance.Infra.DistCache.Redis.TokenVersionControl.csproj" />
+  </Folder>
+  <Folder Name="/app/CoreService/src/Infra/InternalServices/">
+    <Project Path="app/CoreService/src/Infra/InternalServices/UserApiCaller/Insurance.Infra.InternalServices.UserApiCaller.csproj" />
+  </Folder>
+  <Folder Name="/app/CoreService/src/Infra/Persistence/">
+    <Project Path="app/CoreService/src/Infra/Persistence/Sql.Commands/Insurance.Infra.Persistence.Sql.Commands.csproj" />
+    <Project Path="app/CoreService/src/Infra/Persistence/Sql.Queries/Insurance.Infra.Persistence.Sql.Queries.csproj" />
+  </Folder>
+  <Folder Name="/app/HubService/" />
+  <Folder Name="/app/HubService/src/" />
+  <Folder Name="/app/HubService/src/AppCore/">
+    <Project Path="app/HubService/src/AppCore/AppServices/Insurance.HubService.AppCore.AppServices.csproj" />
+    <Project Path="app/HubService/src/AppCore/Domain/Insurance.HubService.AppCore.Domain.csproj" />
+    <Project Path="app/HubService/src/AppCore/DomainServices/Insurance.HubService.AppCore.DomainServices.csproj" />
+    <Project Path="app/HubService/src/AppCore/Shared/Insurance.HubService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/HubService/src/Endpoints/">
+    <Project Path="app/HubService/src/EndPoints/Insurance.HubService.Endpoints.Api/Insurance.HubService.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/HubService/src/Infra/" />
+  <Folder Name="/app/HubService/src/Infra/InternalServices/">
+    <Project Path="app/HubService/src/Infra/InternalServices/AiAssistantApiCaller/Insurance.HubService.Infra.InternalServices.AiAssistantApiCaller.csproj" />
+  </Folder>
+  <Folder Name="/app/HubService/src/Infra/Persistence/">
+    <Project Path="app/HubService/src/Infra/Persistence/RDB.Commands/Insurance.HubService.Infra.Persistence.RDB.Commands.csproj" />
+    <Project Path="app/HubService/src/Infra/Persistence/RDB.Queries/Insurance.HubService.Infra.Persistence.RDB.Queries.csproj" />
+  </Folder>
+  <Folder Name="/app/InventoryService/" />
+  <Folder Name="/app/InventoryService/src/" />
+  <Folder Name="/app/InventoryService/src/AppCore/">
+    <Project Path="app/InventoryService/src/AppCore/AppServices/Insurance.InventoryService.AppCore.AppServices.csproj" />
+    <Project Path="app/InventoryService/src/AppCore/Domain/Insurance.InventoryService.AppCore.Domain.csproj" />
+    <Project Path="app/InventoryService/src/AppCore/DomainServices/Insurance.InventoryService.AppCore.DomainServices.csproj" />
+    <Project Path="app/InventoryService/src/AppCore/Shared/Insurance.InventoryService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/InventoryService/src/Endpoints/">
+    <Project Path="app/InventoryService/src/Endpoints/Insurance.InventoryService.Endpoints.Api/Insurance.InventoryService.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/InventoryService/src/Infra/" />
+  <Folder Name="/app/InventoryService/src/Infra/InternalServices/">
+    <Project Path="app/InventoryService/src/Infra/InternalServices/GraphApiCaller/Insurance.InventoryService.Infra.InternalServices.GraphApiCaller.csproj" />
+  </Folder>
+  <Folder Name="/app/InventoryService/src/Infra/Persistence/">
+    <Project Path="app/InventoryService/src/Infra/Persistence/RDB.Commands/Insurance.InventoryService.Infra.Persistence.RDB.Commands.csproj" />
+    <Project Path="app/InventoryService/src/Infra/Persistence/RDB.Queries/Insurance.InventoryService.Infra.Persistence.RDB.Queries.csproj" />
+  </Folder>
+  <Folder Name="/app/DynamicStructureService/" />
+  <Folder Name="/app/DynamicStructureService/src/" />
+  <Folder Name="/app/DynamicStructureService/src/AppCore/">
+    <Project Path="app/DynamicStructureService/src/AppCore/AppServices/Insurance.DynamicStructureService.AppCore.AppServices.csproj" />
+    <Project Path="app/DynamicStructureService/src/AppCore/Domain/Insurance.DynamicStructureService.AppCore.Domain.csproj" />
+    <Project Path="app/DynamicStructureService/src/AppCore/DomainServices/Insurance.DynamicStructureService.AppCore.DomainServices.csproj" />
+    <Project Path="app/DynamicStructureService/src/AppCore/Shared/Insurance.DynamicStructureService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/DynamicStructureService/src/Endpoints/">
+    <Project Path="app/DynamicStructureService/src/Endpoints/Insurance.DynamicStructureService.Endpoints.Api/Insurance.DynamicStructureService.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/DynamicStructureService/src/Infra/" />
+  <Folder Name="/app/DynamicStructureService/src/Infra/Persistence/">
+    <Project Path="app/DynamicStructureService/src/Infra/Persistence/RDB.Commands/Insurance.DynamicStructureService.Infra.Persistence.RDB.Commands.csproj" />
+    <Project Path="app/DynamicStructureService/src/Infra/Persistence/RDB.Queries/Insurance.DynamicStructureService.Infra.Persistence.RDB.Queries.csproj" />
+  </Folder>
+  <Folder Name="/app/PageRuntimeService/" />
+  <Folder Name="/app/PageRuntimeService/src/" />
+  <Folder Name="/app/PageRuntimeService/src/AppCore/">
+    <Project Path="app/PageRuntimeService/src/AppCore/AppServices/Insurance.PageRuntimeService.AppCore.AppServices.csproj" />
+    <Project Path="app/PageRuntimeService/src/AppCore/Domain/Insurance.PageRuntimeService.AppCore.Domain.csproj" />
+    <Project Path="app/PageRuntimeService/src/AppCore/DomainServices/Insurance.PageRuntimeService.AppCore.DomainServices.csproj" />
+    <Project Path="app/PageRuntimeService/src/AppCore/Shared/Insurance.PageRuntimeService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/PageRuntimeService/src/Endpoints/">
+    <Project Path="app/PageRuntimeService/src/Endpoints/Insurance.PageRuntimeService.Endpoints.Api/Insurance.PageRuntimeService.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/PageRuntimeService/src/Infra/" />
+  <Folder Name="/app/PageRuntimeService/src/Infra/Persistence/">
+    <Project Path="app/PageRuntimeService/src/Infra/Persistence/RDB.Commands/Insurance.PageRuntimeService.Infra.Persistence.RDB.Commands.csproj" />
+    <Project Path="app/PageRuntimeService/src/Infra/Persistence/RDB.Queries/Insurance.PageRuntimeService.Infra.Persistence.RDB.Queries.csproj" />
+  </Folder>
+  <Folder Name="/app/GraphService/" />
+  <Folder Name="/app/GraphService/src/" />
+  <Folder Name="/app/GraphService/src/AppCore/">
+    <Project Path="app/GraphService/src/AppCore/AppServices/Insurance.GraphService.AppCore.AppServices.csproj" />
+    <Project Path="app/GraphService/src/AppCore/Domain/Insurance.GraphService.AppCore.Domain.csproj" />
+    <Project Path="app/GraphService/src/AppCore/DomainServices/Insurance.GraphService.AppCore.DomainServices.csproj" />
+    <Project Path="app/GraphService/src/AppCore/Shared/Insurance.GraphService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/GraphService/src/Endpoints/">
+    <Project Path="app/GraphService/src/Endpoints/Insurance.GraphService.Endpoints.Api/Insurance.GraphService.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/GraphService/src/Infra/" />
+  <Folder Name="/app/GraphService/src/Infra/InternalServices/">
+    <Project Path="app/GraphService/src/Infra/InternalServices/Neo4j/Insurance.GraphService.Infra.InternalServices.Neo4j.csproj" />
+  </Folder>
+  <Folder Name="/app/JobService/" />
+  <Folder Name="/app/JobService/src/">
+    <Project Path="app/JobService/src/Endpoints.Api/Insurance.JobService.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/app/PanelPayamakService/" />
+  <Folder Name="/app/PanelPayamakService/src/" />
+  <Folder Name="/app/PanelPayamakService/src/Infra/">
+    <Project Path="app/PanelPayamakService/src/Infra/Abstractions/Insurance.PanelPayamakService.Infra.Abstractions.csproj" />
+    <Project Path="app/PanelPayamakService/src/Infra/KavehNegarProvider/Insurance.PanelPayamakService.Infra.KavehNegarProvider.csproj" />
+  </Folder>
+  <Folder Name="/app/UserService/" />
+  <Folder Name="/app/UserService/src/" />
+  <Folder Name="/app/UserService/src/AppCore/">
+    <Project Path="app/UserService/src/AppCore/AppServices/Insurance.UserService.AppCore.AppServices.csproj" />
+    <Project Path="app/UserService/src/AppCore/Domain/Insurance.UserService.AppCore.Domain.csproj" />
+    <Project Path="app/UserService/src/AppCore/DomainServices/Insurance.UserService.AppCore.DomainServices.csproj" />
+    <Project Path="app/UserService/src/AppCore/Shared/Insurance.UserService.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/app/UserService/src/Endpoints/">
+    <Project Path="app/UserService/src/Endpoints/Insurance.UserService.Endpoints.Api/Insurance.UserService.Endpoints.Api.csproj" Id="47b0a200-ce75-4ee2-b9ab-09c90f8fa95b" />
+  </Folder>
+  <Folder Name="/app/UserService/src/Infra/" />
+  <Folder Name="/app/UserService/src/Infra/Persistence/">
+    <Project Path="app/UserService/src/Infra/Persistence/RDB.Commands/Insurance.UserService.Infra.Persistence.RDB.Commands.csproj" />
+    <Project Path="app/UserService/src/Infra/Persistence/RDB.Queries/Insurance.UserService.Infra.Persistence.RDB.Queries.csproj" />
+  </Folder>
+  <Folder Name="/app/ChatApp/" />
+  <Folder Name="/app/ChatApp/src/">
+    <Project Path="app/ChatApp/src/Insurance.ChatApp/Insurance.ChatApp.csproj" />
+  </Folder>
+  <Folder Name="/app/WebApp/">
+    <Project Path="app/WebApp/src/Insurance.WebApp.Panel/Insurance.WebApp.Panel.csproj" Id="cb4ddfd2-af4b-4ca0-808e-54c3c307d9a6" />
+  </Folder>
+  <Folder Name="/fx/" />
+  <Folder Name="/fx/src/" />
+  <Folder Name="/fx/src/AppCore/">
+    <Project Path="fx/src/AppCore/AppServices/OysterFx.AppCore.AppServices.csproj" />
+    <Project Path="fx/src/AppCore/Domain/OysterFx.AppCore.Domain.csproj" />
+    <Project Path="fx/src/AppCore/DomainServices/OysterFx.AppCore.DomainServices.csproj" />
+    <Project Path="fx/src/AppCore/Shared/OysterFx.AppCore.Shared.csproj" />
+  </Folder>
+  <Folder Name="/fx/src/Endpoints/">
+    <Project Path="fx/src/Endpoints/OysterFx.Endpoints.Api/OysterFx.Endpoints.Api.csproj" />
+  </Folder>
+  <Folder Name="/fx/src/Infra/" />
+  <Folder Name="/fx/src/Infra/Auth/">
+    <Project Path="fx/src/Infra/Auth/JwtServices/OysterFx.Infra.Auth.JwtServices.csproj" />
+    <Project Path="fx/src/Infra/Auth/UserServices/OysterFx.Infra.Auth.UserServices.csproj" />
+  </Folder>
+  <Folder Name="/fx/src/Infra/EventBus/">
+    <Project Path="fx/src/Infra/EventBus/Abstractions/OysterFx.Infra.EventBus.Abstractions.csproj" />
+    <Project Path="fx/src/Infra/EventBus/Contract.Events/OysterFx.Infra.EventBus.Contract.Events.csproj" />
+    <Project Path="fx/src/Infra/EventBus/DLQ/OysterFx.Infra.EventBus.DLQ.csproj" />
+    <Project Path="fx/src/Infra/EventBus/Inbox/OysterFx.Infra.EventBus.Inbox.csproj" />
+    <Project Path="fx/src/Infra/EventBus/Outbox/OysterFx.Infra.EventBus.Outbox.csproj" />
+    <Project Path="fx/src/Infra/EventBus/RabbitMqBroker/OysterFx.Infra.EventBus.RabbitMqBroker.csproj" />
+    <Project Path="fx/src/Infra/EventBus/Retries/OysterFx.Infra.EventBus.Retries.csproj" />
+  </Folder>
+  <Folder Name="/fx/src/Infra/Persistence/">
+    <Project Path="fx/src/Infra/Persistence/EventSourcing.Abstractions/OysterFx.Infra.Persistence.EventSourcing.Abstractions.csproj" />
+    <Project Path="fx/src/Infra/Persistence/RDB.Commands/OysterFx.Infra.Persistence.RDB.Commands.csproj" />
+    <Project Path="fx/src/Infra/Persistence/RDB.Queries/OysterFx.Infra.Persistence.RDB.Queries.csproj" />
+  </Folder>
+  <Folder Name="/fx/src/Infra/ServiceCom/">
+    <Project Path="fx/src/Infra/ServiceCom/ResutfulApi.Caller/OysterFx.Infra.ServiceCom.ResutfulApi.Caller.csproj" />
+  </Folder>
+</Solution>
+
+
+
+
+
+
+

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.2" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+    <!-- Yarp Reverse Proxy -->
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.1.0" />
+
+    <!-- Elastic APM -->
+    <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.27.0" />
+
+    <!-- JWT Authentication -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.2" />
+
+    <!-- Health Checks (برای مانیتورینگ) -->
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+
+    <!-- Consul Configuration Provider -->
+    <PackageReference Include="Winton.Extensions.Configuration.Consul" Version="3.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Extensions\Swagger\" />
+    <Folder Include="Middlewares\" />
+  </ItemGroup>
+</Project>

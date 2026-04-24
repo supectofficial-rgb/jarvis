@@ -1,0 +1,4 @@
+﻿Exchange: isurance.events (topic)
+Queue: {service}.{event}.queue
+DLQ: {service}.{event}.dlq
+Retry: {service}.{event}.retry

@@ -1,0 +1,1716 @@
+@using System
+@using System.Linq
+@using System.Text.Json
+@model Insurance.InventoryDashboard.Panel.Models.ProductManagementPageViewModel
+@{
+    ViewData["Title"] = "مدیریت محصولات";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var isEditMode = !string.IsNullOrWhiteSpace(Model.ProductForm.ProductId);
+    var hasSelectedProduct = !string.IsNullOrWhiteSpace(Model.SelectedProductId);
+
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var hasRestrictedActions = !Can("Catalog.Product.Create", "Catalog.Product.Update", "Product.Create", "Product.Update")
+        || !Can("Catalog.Product.Activate", "Product.Activate")
+        || !Can("Catalog.Product.Deactivate", "Product.Deactivate")
+        || !Can("Catalog.Product.Delete", "Product.Delete")
+        || !Can("Catalog.Product.ChangeCategory", "Product.ChangeCategory")
+        || !Can("Catalog.ProductAttributeValue.Set", "ProductAttributeValue.Set")
+        || !Can("Catalog.ProductAttributeValue.Remove", "ProductAttributeValue.Remove");
+    var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
+
+    var categoryLookup = Model.FlatCategories
+        .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+    string GetCategoryPath(string? categoryId)
+    {
+        if (string.IsNullOrWhiteSpace(categoryId) || !categoryLookup.TryGetValue(categoryId, out var current))
+        {
+            return "-";
+        }
+
+        var parts = new List<string>();
+        var guard = 0;
+        while (current is not null && guard < 1024)
+        {
+            parts.Add(current.Name);
+            if (string.IsNullOrWhiteSpace(current.ParentCategoryId) || !categoryLookup.TryGetValue(current.ParentCategoryId, out current))
+            {
+                break;
+            }
+            guard++;
+        }
+        parts.Reverse();
+        return string.Join(" / ", parts);
+    }
+
+    var selectedCategoryPath = GetCategoryPath(Model.SelectedCategoryId);
+    var selectedProductName = Model.SelectedProductDetails?.Name ?? Model.Products.FirstOrDefault(x => x.Id == Model.SelectedProductId)?.Name;
+    var selectedValues = (Model.SelectedProductDetails?.Attributes ?? new List<Insurance.InventoryDashboard.Panel.Models.ProductAttributeValueModel>())
+        .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(
+            x => x.Key,
+            x =>
+            {
+                var item = x.FirstOrDefault();
+                return item is null ? string.Empty : (!string.IsNullOrWhiteSpace(item.OptionValue) ? item.OptionValue : item.Value) ?? string.Empty;
+            },
+            StringComparer.OrdinalIgnoreCase);
+    var requiredProductAttributeCount = Model.EffectiveCategoryAttributes.Count(x => x.IsRequired);
+    var completedRequiredProductAttributeCount = Model.EffectiveCategoryAttributes.Count(x =>
+        x.IsRequired &&
+        selectedValues.TryGetValue(x.AttributeId, out var value) &&
+        !string.IsNullOrWhiteSpace(value));
+    var productCompletionPercent = requiredProductAttributeCount == 0
+        ? 100
+        : (int)Math.Round((completedRequiredProductAttributeCount * 100.0) / requiredProductAttributeCount);
+    var effectiveProductAttributeLookup = Model.EffectiveCategoryAttributes
+        .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+    bool IsProductScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
+    {
+        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
+        if (scope is "product" or "both")
+        {
+            return true;
+        }
+
+        if (scope == "variant")
+        {
+            return false;
+        }
+
+        return !attribute.IsVariantLevel;
+    }
+
+    bool IsVariantScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
+    {
+        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
+        if (scope is "variant" or "both")
+        {
+            return true;
+        }
+
+        if (scope == "product")
+        {
+            return false;
+        }
+
+        return attribute.IsVariantLevel;
+    }
+
+    var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
+        .Where(IsProductScopeAttribute)
+        .OrderBy(x => x.DisplayOrder)
+        .ThenBy(x => x.Name)
+        .ToList();
+
+    var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
+        .Where(IsVariantScopeAttribute)
+        .Where(x => x.IsVariantLevel)
+        .OrderBy(x => x.DisplayOrder)
+        .ThenBy(x => x.Name)
+        .ToList();
+}
+
+<main id="products-page"
+      class="catalog-page"
+      data-selected-product-id="@Model.SelectedProductId"
+      data-selected-category-id="@Model.SelectedCategoryId"
+      data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1>مدیریت محصولات</h1>
+                <p class="text-muted">مدیریت محصول، مقداردهی ویژگی‌ها و عملیات چرخه عمر.</p>
+                <div class="mb-3">
+                    <span class="badge badge-pill badge-outline-primary mb-1">هدف اصلی: مدیریت محصول</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">عملیات فرعی: ویژگی‌ها، چرخه عمر، تغییر دسته</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">کل محصولات: @Model.ProductTotalCount</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
+                    {
+                        <span class="badge badge-pill badge-outline-primary mb-1">مسیر دسته: @selectedCategoryPath</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(selectedProductName))
+                    {
+                        <span class="badge badge-pill badge-outline-primary mb-1">محصول منتخب: @selectedProductName</span>
+                    }
+                    <span class="badge badge-pill badge-outline-primary mb-1">تکمیل اجباری‌ها: @completedRequiredProductAttributeCount / @requiredProductAttributeCount</span>
+                </div>
+                <p class="small text-muted mb-3">
+                    راهنمای سریع: محصول را بسازید یا انتخاب کنید، سپس مقداردهی ویژگی‌ها را از بخش پایین فرم انجام دهید.
+                </p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage) || TempData["CatalogError"] is string)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-warning mb-3">
+                        @(TempData["CatalogError"] as string ?? Model.ErrorMessage)
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (TempData["CatalogSuccess"] is string successMessage)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-success mb-3">@successMessage</div>
+                </div>
+            </div>
+        }
+
+        @if (TempData["CatalogNotice"] is string noticeMessage)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-info mb-3">@noticeMessage</div>
+                </div>
+            </div>
+        }
+
+        @await Html.PartialAsync("~/Views/Shared/_CatalogPermissionNotice.cshtml", hasRestrictedActions)
+
+        <div class="row mb-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>وضعیت تکمیل اطلاعات محصول</strong>
+                            <span class="badge badge-pill @(productCompletionPercent >= 100 ? "badge-primary" : productCompletionPercent >= 70 ? "badge-outline-primary" : "badge-danger")">
+                                @productCompletionPercent%
+                            </span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar" role="progressbar" style="width:@productCompletionPercent%"></div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            فیلدهای اجباری تکمیل‌شده: @completedRequiredProductAttributeCount از @requiredProductAttributeCount
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.MissingRequiredProductAttributes.Count > 0)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-danger mb-3">
+                        ویژگی‌های اجباری محصول کامل نشده‌اند:
+                        @string.Join("، ", Model.MissingRequiredProductAttributes.Select(x => x.Name))
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">جستجو و فیلتر محصولات</h5>
+                        <form method="get" asp-action="Products" class="row" id="product-search-form" data-state-form>
+                            <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                            <div class="col-lg-4 col-md-6 mb-2">
+                                <label class="text-muted small">عبارت جستجو</label>
+                                <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام، اسکوی پایه یا شناسه..." />
+                            </div>
+                            <div class="col-lg-3 col-md-6 mb-2">
+                                <label class="text-muted small">فیلتر دسته‌بندی</label>
+                                <select name="categoryFilterId" class="form-control js-search-select" data-filter-label="دسته‌بندی" data-placeholder="انتخاب دسته">
+                                    <option value="">همه دسته‌بندی‌ها</option>
+                                    @foreach (var category in Model.FlatCategories)
+                                    {
+                                        <option value="@category.Id" selected="@(category.Id == Model.ProductCategoryFilterId ? "selected" : null)">@category.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-6 mb-2">
+                                <label class="text-muted small">وضعیت</label>
+                                <select name="statusFilter" class="form-control" data-filter-label="وضعیت">
+                                    <option value="">همه</option>
+                                    <option value="active" selected="@(string.Equals(Model.ProductStatusFilter, "active", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">فعال</option>
+                                    <option value="inactive" selected="@(string.Equals(Model.ProductStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">غیرفعال</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-6 mb-2">
+                                <label class="text-muted small">تعداد در صفحه</label>
+                                <select name="pageSize" class="form-control" data-filter-label="تعداد">
+                                    @foreach (var size in Model.ProductPageSizeOptions)
+                                    {
+                                        <option value="@size" selected="@(size == Model.ProductPageSize ? "selected" : null)">@size</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-6 mb-2">
+                                <label class="text-muted small">مرتب‌سازی</label>
+                                <select name="sort" class="form-control" data-filter-label="مرتب‌سازی">
+                                    <option value="">نام (صعودی)</option>
+                                    <option value="name_desc" selected="@(string.Equals(Model.ProductSort, "name_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">نام (نزولی)</option>
+                                    <option value="basesku_asc" selected="@(string.Equals(Model.ProductSort, "basesku_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">اسکوی پایه (صعودی)</option>
+                                    <option value="basesku_desc" selected="@(string.Equals(Model.ProductSort, "basesku_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">اسکوی پایه (نزولی)</option>
+                                    <option value="status_asc" selected="@(string.Equals(Model.ProductSort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (فعال اول)</option>
+                                    <option value="status_desc" selected="@(string.Equals(Model.ProductSort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (غیرفعال اول)</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-1 col-md-6 mb-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary btn-block">اعمال</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-5 mb-4">
+                <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="product-management-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-toggle="tab" href="#product-tab-main" role="tab">فرم محصول</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#product-tab-lifecycle" role="tab">چرخه عمر و دسته‌بندی</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#product-tab-attributes" role="tab">ویژگی‌های محصول</a>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="product-tab-main" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">@(isEditMode ? "ویرایش محصول" : "ایجاد محصول")</h5>
+                                    @if (isEditMode)
+                                    {
+                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                    }
+                                </div>
+
+                                <form asp-action="SaveProduct" method="post" id="product-upsert-form" data-loading-form data-dirty-watch>
+                                    @Html.AntiForgeryToken()
+                                    <input asp-for="ProductForm.ProductId" type="hidden" />
+                                    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+                                    <div class="form-group">
+                                        <label>نام محصول</label>
+                                        <input asp-for="ProductForm.Name" class="form-control" required maxlength="160" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>اسکوی پایه</label>
+                                        <input asp-for="ProductForm.BaseSku" class="form-control text-monospace" required maxlength="100" placeholder="مثال: PRD-BASE-0001" />
+                                        <small class="form-text text-muted">اسکوی پایه باید یکتا باشد.</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>دسته‌بندی</label>
+                                        <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته‌بندی محصول" required>
+                                            <option value="">انتخاب دسته‌بندی</option>
+                                            @foreach (var category in Model.FlatCategories)
+                                            {
+                                                <option value="@category.Id">@category.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>واحد پیش‌فرض</label>
+                                        <select asp-for="ProductForm.DefaultUomRef" class="form-control js-search-select" data-placeholder="انتخاب واحد پایه" required>
+                                            <option value="">انتخاب واحد</option>
+                                            @foreach (var uom in Model.UnitOfMeasures)
+                                            {
+                                                <option value="@uom.Id">@uom.Code - @uom.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>مرجع مالیات</label>
+                                        <input asp-for="ProductForm.TaxCategoryRef" class="form-control" />
+                                    </div>
+                                    <div class="custom-control custom-checkbox mt-2">
+                                        <input asp-for="ProductForm.IsActive" class="custom-control-input" />
+                                        <label class="custom-control-label" asp-for="ProductForm.IsActive">محصول فعال باشد</label>
+                                    </div>
+                                    <div class="form-group mt-3">
+                                        <label>توضیح</label>
+                                        <textarea asp-for="ProductForm.Description" class="form-control" rows="3" maxlength="500"></textarea>
+                                    </div>
+                                    <input asp-for="ProductForm.AutoVariantPayload" type="hidden" id="product-auto-variant-payload" />
+
+                                    @if (!isEditMode)
+                                    {
+                                        <div class="alert alert-light border mt-3 mb-3">
+                                            <strong class="d-block mb-2">تولید خودکار واریانت</strong>
+                                            <small class="text-muted d-block mb-0">
+                                                ویژگی‌های غیر واریانت‌ساز در سطح محصول ذخیره می‌شوند. ویژگی‌های واریانت‌ساز به‌صورت چندانتخابی گرفته شده و به ازای هر ترکیب، یک واریانت با نام و SKU خودکار ساخته می‌شود.
+                                            </small>
+                                        </div>
+
+                                        @if (string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
+                                        {
+                                            <div class="alert alert-warning">
+                                                ابتدا یک دسته‌بندی انتخاب کنید تا فرم ویژگی‌های محصول و واریانت‌ساز بارگذاری شود.
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="card mb-3">
+                                                <div class="card-body">
+                                                    <h6 class="card-title mb-3">ویژگی‌های محصول (غیر واریانت‌ساز)</h6>
+                                                    @if (autoCreateProductAttributes.Count == 0)
+                                                    {
+                                                        <div class="text-muted small">ویژگی محصولی تعریف نشده است.</div>
+                                                    }
+                                                    else
+                                                    {
+                                                        @foreach (var attr in autoCreateProductAttributes)
+                                                        {
+                                                            var hasOptions = attr.Options.Count > 0;
+                                                            <div class="form-group js-auto-product-attribute"
+                                                                 data-attribute-id="@attr.AttributeId"
+                                                                 data-attribute-name="@attr.Name"
+                                                                 data-data-type="@attr.DataType"
+                                                                 data-required="@(attr.IsRequired ? "true" : "false")">
+                                                                <label>@attr.Name (@attr.DataType) @(attr.IsRequired ? "*" : "")</label>
+                                                                @if (hasOptions)
+                                                                {
+                                                                    <select class="form-control js-search-select js-auto-product-value"
+                                                                            data-option-input="true"
+                                                                            name="AutoProductOption_@attr.AttributeId"
+                                                                            data-placeholder="انتخاب گزینه">
+                                                                        <option value="">انتخاب مقدار</option>
+                                                                        @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                                                        {
+                                                                            <option value="@option.Id"
+                                                                                    data-option-name="@option.OptionName"
+                                                                                    data-option-value="@option.OptionValue">
+                                                                                @option.OptionName (@option.OptionValue)
+                                                                            </option>
+                                                                        }
+                                                                    </select>
+                                                                }
+                                                                else
+                                                                {
+                                                                    var normalizedType = (attr.DataType ?? string.Empty).Trim().ToLowerInvariant();
+                                                                    if (normalizedType == "number")
+                                                                    {
+                                                                        <input type="number"
+                                                                               step="any"
+                                                                               class="form-control js-auto-product-value"
+                                                                               name="AutoProductValue_@attr.AttributeId"
+                                                                               placeholder="مقدار عددی" />
+                                                                    }
+                                                                    else if (normalizedType == "date")
+                                                                    {
+                                                                        <input type="date"
+                                                                               class="form-control js-auto-product-value"
+                                                                               name="AutoProductValue_@attr.AttributeId" />
+                                                                    }
+                                                                    else if (normalizedType == "boolean")
+                                                                    {
+                                                                        <select class="form-control js-auto-product-value"
+                                                                                name="AutoProductValue_@attr.AttributeId">
+                                                                            <option value="">انتخاب ویژگی</option>
+                                                                            <option value="true">بله</option>
+                                                                            <option value="false">خیر</option>
+                                                                        </select>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <input type="text"
+                                                                               class="form-control js-auto-product-value"
+                                                                               name="AutoProductValue_@attr.AttributeId"
+                                                                               placeholder="مقدار ویژگی" />
+                                                                    }
+                                                                }
+                                                                <small class="form-text text-muted">
+                                                                    @(attr.IsInherited ? $"ارث‌رسیده از {attr.SourceCategoryName}" : "مستقیم") -
+                                                                    @(attr.IsRequired ? "الزامی" : "اختیاری")
+                                                                </small>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <div class="card mb-3">
+                                                <div class="card-body">
+                                                    <h6 class="card-title mb-3">ویژگی‌های واریانت‌ساز (چندانتخابی)</h6>
+                                                    @if (autoCreateVariantBuilderAttributes.Count == 0)
+                                                    {
+                                                        <div class="text-muted small">ویژگی واریانت‌ساز تعریف نشده است.</div>
+                                                    }
+                                                    else
+                                                    {
+                                                        @foreach (var attr in autoCreateVariantBuilderAttributes)
+                                                        {
+                                                            <div class="form-group js-auto-variant-attribute"
+                                                                 data-attribute-id="@attr.AttributeId"
+                                                                 data-attribute-name="@attr.Name"
+                                                                 data-data-type="@attr.DataType"
+                                                                 data-display-order="@attr.DisplayOrder"
+                                                                 data-required="@(attr.IsRequired ? "true" : "false")">
+                                                                <label>@attr.Name @(attr.IsRequired ? "*" : "")</label>
+                                                                <select multiple
+                                                                        class="form-control js-search-select js-auto-variant-values"
+                                                                        name="AutoVariantOptions_@attr.AttributeId"
+                                                                        data-no-search="true"
+                                                                        data-placeholder="انتخاب چند گزینه">
+                                                                    @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                                                    {
+                                                                        <option value="@option.Id"
+                                                                                data-option-name="@option.OptionName"
+                                                                                data-option-value="@option.OptionValue"
+                                                                                data-option-display-order="@option.DisplayOrder">
+                                                                            @option.OptionName (@option.OptionValue)
+                                                                        </option>
+                                                                    }
+                                                                </select>
+                                                                <small class="form-text text-muted">
+                                                                    اولویت ویژگی: @attr.DisplayOrder - @(attr.IsRequired ? "الزامی" : "اختیاری")
+                                                                </small>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <div class="card mb-3">
+                                                <div class="card-body">
+                                                    <h6 class="card-title mb-2">پیش‌نمایش واریانت‌های قابل تولید</h6>
+                                                    <div id="auto-variant-preview-empty" class="text-muted small">
+                                                        گزینه‌های واریانت‌ساز را انتخاب کنید تا پیش‌نمایش نام و SKU ساخته شود.
+                                                    </div>
+                                                    <div id="auto-variant-preview-container" class="table-responsive" style="display:none;">
+                                                        <table class="table table-sm table-striped mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>#</th>
+                                                                    <th>نام واریانت</th>
+                                                                    <th>SKU</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="auto-variant-preview-body"></tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+
+                                    <div class="mt-3">
+                                        <button class="btn btn-primary" type="submit" @(Can("Catalog.Product.Create", "Catalog.Product.Update", "Product.Create", "Product.Update") ? null : "disabled")>
+                                            @(isEditMode ? "به‌روزرسانی محصول" : "ایجاد محصول")
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="product-tab-lifecycle" role="tabpanel">
+                        @if (hasSelectedProduct)
+                        {
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <h5 class="card-title">عملیات محصول</h5>
+                                    <form asp-action="ActivateProduct" method="post" class="d-inline" data-loading-form>
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>فعال</button>
+                                    </form>
+                                    <form asp-action="DeactivateProduct" method="post" class="d-inline" data-loading-form>
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>غیرفعال</button>
+                                    </form>
+                                    <form asp-action="DeleteProduct" method="post" class="d-inline" data-loading-form>
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف محصول" data-confirm="این محصول و تنظیمات مرتبط حذف شود؟ این عملیات قابل بازگشت نیست." @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>حذف</button>
+                                    </form>
+
+                                    <hr />
+
+                                    <form asp-action="ChangeProductCategory" method="post" id="product-category-change-form" data-loading-form data-dirty-watch>
+                                        @Html.AntiForgeryToken()
+                                        <input asp-for="ProductCategoryChangeForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                        <input asp-for="ProductCategoryChangeForm.CurrentCategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                        <div class="form-group mb-2">
+                                            <label>تغییر دسته‌بندی محصول</label>
+                                            <select asp-for="ProductCategoryChangeForm.NewCategoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته مقصد">
+                                                @foreach (var category in Model.FlatCategories)
+                                                {
+                                                    <option value="@category.Id">@category.Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="تغییر دسته‌بندی محصول" data-confirm="دسته‌بندی محصول تغییر کند؟ بعد از تغییر، ویژگی‌های اجباری ممکن است عوض شوند." @(Can("Catalog.Product.ChangeCategory", "Product.ChangeCategory") ? null : "disabled")>
+                                                تغییر دسته‌بندی
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <div class="alert alert-light mb-0">
+                                        <h6>محصولی برای عملیات انتخاب نشده است</h6>
+                                        <p class="mb-0 text-muted">ابتدا از لیست، یک محصول را انتخاب کنید تا عملیات چرخه عمر نمایش داده شود.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="tab-pane fade" id="product-tab-attributes" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">ویژگی‌های موثر دسته‌بندی</h5>
+                                @foreach (var group in Model.CategoryAttributeGroups)
+                                {
+                                    <div class="mb-3 pb-2 border-bottom">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <strong class="mr-2">@group.CategoryName</strong>
+                                            <span class="badge badge-pill @(group.IsCurrentCategory ? "badge-outline-secondary" : "badge-outline-primary")">
+                                                @(group.IsCurrentCategory ? "مستقیم" : "ارث‌رسیده")
+                                            </span>
+                                        </div>
+                                        <ul class="list-unstyled mb-0 small">
+                                            @foreach (var attr in group.Attributes)
+                                            {
+                                                <li class="mb-1">
+                                                    <strong>@attr.Name</strong>
+                                                    <span class="text-muted">(@attr.DataType / @attr.Scope) - @(attr.IsRequired ? "الزامی" : "اختیاری")</span>
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @if (hasSelectedProduct)
+                        {
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">ثبت مقدار ویژگی برای محصول</h5>
+                                    <form asp-action="SetProductAttributeValue" method="post" id="product-attribute-form" data-loading-form data-dirty-watch>
+                                        @Html.AntiForgeryToken()
+                                        <input asp-for="ProductAttributeForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                        <input asp-for="ProductAttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                        <div class="form-group">
+                                            <label>ویژگی</label>
+                                            <select asp-for="ProductAttributeForm.AttributeId" class="form-control js-search-select" id="product-attribute-select" data-placeholder="انتخاب ویژگی" required>
+                                                <option value="">انتخاب ویژگی</option>
+                                                @foreach (var attr in Model.EffectiveCategoryAttributes)
+                                                {
+                                                    var optionsJson = JsonSerializer.Serialize(attr.Options.Select(o => new { name = o.OptionName, value = o.OptionValue }));
+                                                    <option value="@attr.AttributeId"
+                                                            data-type="@attr.DataType"
+                                                            data-required="@(attr.IsRequired ? "true" : "false")"
+                                                            data-options='@optionsJson'>
+                                                        @attr.Name (@attr.DataType / @attr.Scope)
+                                                        @(attr.IsRequired ? " - الزامی" : " - اختیاری")
+                                                        @(attr.IsInherited ? $" - ارث‌رسیده از {attr.SourceCategoryName}" : " - مستقیم")
+                                                    </option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="form-group" id="product-value-text-group"><label>مقدار</label><input type="text" class="form-control" id="product-value-text" /></div>
+                                        <div class="form-group" id="product-value-number-group" style="display:none;"><label>مقدار عددی</label><input type="number" step="any" class="form-control" id="product-value-number" /></div>
+                                        <div class="form-group" id="product-value-date-group" style="display:none;"><label>تاریخ</label><input type="date" class="form-control" id="product-value-date" /></div>
+                                        <div class="form-group" id="product-value-boolean-group" style="display:none;">
+                                            <label class="d-block">مقدار بولی</label>
+                                            <div class="custom-control custom-switch mb-2">
+                                                <input type="checkbox" class="custom-control-input" id="product-value-boolean">
+                                                <label class="custom-control-label" for="product-value-boolean">بله / خیر</label>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-secondary btn-xs" id="product-value-boolean-clear">پاک کردن مقدار</button>
+                                        </div>
+                                        <div class="form-group" id="product-value-option-group" style="display:none;"><label>گزینه</label><select class="form-control js-search-select" id="product-value-option" data-no-search="true"></select></div>
+                                        <input asp-for="ProductAttributeForm.Value" type="hidden" id="product-value-hidden" />
+                                        <div class="mt-3">
+                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.ProductAttributeValue.Set", "ProductAttributeValue.Set") ? null : "disabled")>ثبت مقدار</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="alert alert-light mb-0">
+                                        <h6>محصولی انتخاب نشده است</h6>
+                                        <p class="mb-0 text-muted">برای ثبت مقدار ویژگی، ابتدا یک محصول را از لیست انتخاب کنید.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7 mb-4">
+                <div class="card mb-4">
+                    <div class="card-body" id="product-list-scope">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">لیست محصولات</h5>
+                            <span class="text-muted small">@Model.ProductTotalCount رکورد</span>
+                        </div>
+                        <form asp-action="ApplyProductBulkAction"
+                              method="post"
+                              class="form-inline mb-3"
+                              data-loading-form
+                              data-bulk-form
+                              data-bulk-scope="#product-list-scope">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="selectedIds" data-bulk-target />
+                            <input type="hidden" name="bulkAction" data-bulk-action-input />
+                            <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                            <input type="hidden" name="searchTerm" value="@Model.ProductSearchTerm" />
+                            <input type="hidden" name="categoryFilterId" value="@Model.ProductCategoryFilterId" />
+                            <input type="hidden" name="statusFilter" value="@Model.ProductStatusFilter" />
+                            <input type="hidden" name="sort" value="@Model.ProductSort" />
+                            <input type="hidden" name="page" value="@Model.ProductPage" />
+                            <input type="hidden" name="pageSize" value="@Model.ProductPageSize" />
+                            <div class="small text-muted mr-2 mb-2">
+                                تعداد انتخاب‌شده: <span data-bulk-count>0</span>
+                            </div>
+                            <div class="btn-group btn-group-sm mb-2">
+                                <button type="submit"
+                                        class="btn btn-outline-success btn-xs"
+                                        data-bulk-action="activate"
+                                        data-bulk-permission="@(Can("Catalog.Product.Activate", "Product.Activate") ? "allowed" : "denied")"
+                                        data-confirm-title="فعال‌سازی گروهی محصول"
+                                        data-confirm="محصولات انتخاب‌شده فعال شوند؟"
+                                        disabled
+                                        @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>
+                                    فعال‌سازی گروهی
+                                </button>
+                                <button type="submit"
+                                        class="btn btn-outline-warning btn-xs"
+                                        data-bulk-action="deactivate"
+                                        data-bulk-permission="@(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? "allowed" : "denied")"
+                                        data-confirm-title="غیرفعال‌سازی گروهی محصول"
+                                        data-confirm="محصولات انتخاب‌شده غیرفعال شوند؟"
+                                        disabled
+                                        @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>
+                                    غیرفعال‌سازی گروهی
+                                </button>
+                                <button type="submit"
+                                        class="btn btn-outline-danger btn-xs"
+                                        data-bulk-action="delete"
+                                        data-bulk-permission="@(Can("Catalog.Product.Delete", "Product.Delete") ? "allowed" : "denied")"
+                                        data-confirm-title="حذف گروهی محصول"
+                                        data-confirm="محصولات انتخاب‌شده حذف شوند؟ این عملیات غیرقابل بازگشت است."
+                                        disabled
+                                        @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
+                                    حذف گروهی
+                                </button>
+                            </div>
+                        </form>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th style="width:36px"><input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" /></th>
+                                        <th>نام</th>
+                                        <th>اسکوی پایه</th>
+                                        <th>وضعیت</th>
+                                        <th>دسته‌بندی</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.Products.Count == 0)
+                                    {
+                                        <tr>
+                                            <td colspan="6">
+                                                <div class="alert alert-light my-2">
+                                                    <h6>محصولی پیدا نشد</h6>
+                                                    <p class="mb-0 text-muted">جستجو یا فیلتر را تغییر دهید.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var product in Model.Products)
+                                        {
+                                            <tr>
+                                                <td><input type="checkbox" data-bulk-row value="@product.Id" aria-label="جزئیات @product.Name" /></td>
+                                                <td>@product.Name</td>
+                                                <td><span class="text-monospace">@product.BaseSku</span></td>
+                                                <td>
+                                                    <span class="badge badge-pill @(product.IsActive ? "badge-primary" : "badge-secondary")">
+                                                        @(product.IsActive ? "فعال" : "غیرفعال")
+                                                    </span>
+                                                </td>
+                                                <td>@(product.CategoryName ?? product.CategoryId)</td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <a class="btn btn-outline-primary btn-xs"
+                                                           asp-action="Products"
+                                                           asp-route-categoryId="@product.CategoryId"
+                                                           asp-route-productId="@product.Id"
+                                                           asp-route-searchTerm="@Model.ProductSearchTerm"
+                                                           asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
+                                                           asp-route-statusFilter="@Model.ProductStatusFilter"
+                                                           asp-route-sort="@Model.ProductSort"
+                                                           asp-route-page="@Model.ProductPage"
+                                                           asp-route-pageSize="@Model.ProductPageSize">جزئیات</a>
+                                                        <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                            <span class="sr-only">عملیات</span>
+                                                        </button>
+                                                        <div class="dropdown-menu dropdown-menu-right">
+                                                            <form asp-action="ActivateProduct" method="post" class="px-3 py-1" data-loading-form>
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="productId" value="@product.Id" />
+                                                                <input type="hidden" name="categoryId" value="@product.CategoryId" />
+                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>فعال‌سازی</button>
+                                                            </form>
+                                                            <form asp-action="DeactivateProduct" method="post" class="px-3 py-1" data-loading-form>
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="productId" value="@product.Id" />
+                                                                <input type="hidden" name="categoryId" value="@product.CategoryId" />
+                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>غیرفعال‌سازی</button>
+                                                            </form>
+                                                            <form asp-action="DeleteProduct" method="post" class="px-3 py-1" data-loading-form>
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="productId" value="@product.Id" />
+                                                                <input type="hidden" name="categoryId" value="@product.CategoryId" />
+                                                                <button type="submit"
+                                                                        class="btn btn-link text-danger p-0"
+                                                                        data-confirm-title="حذف محصول"
+                                                                        data-confirm="این محصول حذف شود؟ این عملیات قابل بازگشت نیست."
+                                                                        @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
+                                                                    حذف
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (Model.ProductTotalPages > 1)
+                        {
+                            <nav class="mt-3">
+                                <ul class="pagination pagination-sm mb-0">
+                                    @for (var i = 1; i <= Model.ProductTotalPages; i++)
+                                    {
+                                        <li class="page-item @(i == Model.ProductPage ? "active" : null)">
+                                            <a class="page-link"
+                                               asp-action="Products"
+                                               asp-route-categoryId="@Model.SelectedCategoryId"
+                                               asp-route-productId="@Model.SelectedProductId"
+                                               asp-route-searchTerm="@Model.ProductSearchTerm"
+                                               asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
+                                               asp-route-statusFilter="@Model.ProductStatusFilter"
+                                               asp-route-sort="@Model.ProductSort"
+                                               asp-route-page="@i"
+                                               asp-route-pageSize="@Model.ProductPageSize">@i</a>
+                                        </li>
+                                    }
+                                </ul>
+                            </nav>
+                        }
+                    </div>
+                </div>
+
+                <div class="card ">
+                    <div class="card-body">
+                        <h5 class="card-title">جزئیات محصول</h5>
+                        @if (Model.SelectedProductDetails is null)
+                        {
+                            <div class="alert alert-light mb-0">
+                                <h6>محصولی انتخاب نشده است</h6>
+                                <p class="mb-0 text-muted">از لیست محصولات، یک ردیف را برای مشاهده جزئیات انتخاب کنید.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="mb-1"><strong>نام:</strong> @Model.SelectedProductDetails.Name</p>
+                            <p class="mb-1"><strong>اسکوی پایه:</strong> <span class="text-monospace">@Model.SelectedProductDetails.BaseSku</span></p>
+                            <p class="mb-1">
+                                <strong>وضعیت:</strong>
+                                <span class="badge badge-pill @(Model.SelectedProductDetails.IsActive ? "badge-primary" : "badge-secondary")">
+                                    @(Model.SelectedProductDetails.IsActive ? "فعال" : "غیرفعال")
+                                </span>
+                            </p>
+                            <p class="mb-1"><strong>مرجع مالیات:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedProductDetails.TaxCategoryRef) ? "-" : Model.SelectedProductDetails.TaxCategoryRef)</p>
+                            <h6 class="mt-3">ویژگی‌های ثبت‌شده</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead><tr><th>ویژگی</th><th>مقدار</th><th>متادیتا</th><th></th></tr></thead>
+                                    <tbody>
+                                        @foreach (var attr in Model.SelectedProductDetails.Attributes)
+                                        {
+                                            effectiveProductAttributeLookup.TryGetValue(attr.AttributeId, out var attrMeta);
+                                            var currentValue = !string.IsNullOrWhiteSpace(attr.OptionValue)
+                                                ? attr.OptionValue
+                                                : attr.Value;
+                                            var optionDisplayName = !string.IsNullOrWhiteSpace(attr.OptionValue) && attrMeta is not null
+                                                ? attrMeta.Options.FirstOrDefault(o => string.Equals(o.OptionValue, attr.OptionValue, StringComparison.OrdinalIgnoreCase))?.OptionName
+                                                : null;
+                                            var displayValue = !string.IsNullOrWhiteSpace(optionDisplayName)
+                                                ? optionDisplayName
+                                                : currentValue;
+                                            <tr>
+                                                <td>@(attr.AttributeName ?? attr.AttributeId)</td>
+                                                <td>@(string.IsNullOrWhiteSpace(displayValue) ? "-" : displayValue)</td>
+                                                <td>
+                                                    @if (attrMeta is not null)
+                                                    {
+                                                        <span class="badge badge-pill @(attrMeta.IsRequired ? "badge-danger" : "badge-light")">@(attrMeta.IsRequired ? "الزامی" : "اختیاری")</span>
+                                                        <span class="badge badge-pill @(attrMeta.IsInherited ? "badge-outline-primary" : "badge-outline-secondary")">@(attrMeta.IsInherited ? "ارث‌رسیده" : "مستقیم")</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <button type="button"
+                                                            class="btn btn-outline-secondary btn-xs product-attribute-edit-btn"
+                                                            data-attribute-id="@attr.AttributeId"
+                                                            data-current-value="@currentValue"
+                                                            @(Can("Catalog.ProductAttributeValue.Set", "ProductAttributeValue.Set") ? null : "disabled")>
+                                                        ویرایش
+                                                    </button>
+                                                    <form asp-action="RemoveProductAttributeValue" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="productId" value="@Model.SelectedProductDetails.Id" />
+                                                        <input type="hidden" name="categoryId" value="@Model.SelectedProductDetails.CategoryId" />
+                                                        <input type="hidden" name="attributeId" value="@attr.AttributeId" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف مقدار ویژگی" data-confirm="مقدار این ویژگی از محصول حذف شود؟" @(Can("Catalog.ProductAttributeValue.Remove", "ProductAttributeValue.Remove") ? null : "disabled")>حذف</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var pageElement = document.getElementById('products-page');
+            var searchForm = document.getElementById('product-search-form');
+            var tabs = document.querySelectorAll('#product-management-tabs .nav-link');
+            var tabKey = 'catalog-products-active-tab-v1';
+            var stateKey = 'catalog-products-state-v2';
+            var draftStateKey = 'catalog-products-form-drafts-v1';
+            var submittedFormKey = 'catalog-products-last-submitted-form-v1';
+            var dirtyForms = new Set();
+            var watchedFormIds = ['product-upsert-form', 'product-category-change-form'];
+            var watchedForms = watchedFormIds
+                .map(function (formId) { return document.getElementById(formId); })
+                .filter(function (form) { return form instanceof HTMLFormElement; });
+            var productUpsertForm = document.getElementById('product-upsert-form');
+            var productCategoryField = document.getElementById('ProductForm_CategoryId');
+            var productNameField = document.getElementById('ProductForm_Name');
+            var productBaseSkuField = document.getElementById('ProductForm_BaseSku');
+            var autoPayloadField = document.getElementById('product-auto-variant-payload');
+            var autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
+            var autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
+            var autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
+            var isEditMode = !!(productUpsertForm && productUpsertForm.querySelector('[name="ProductForm.ProductId"]') && (productUpsertForm.querySelector('[name="ProductForm.ProductId"]').value || '').trim());
+
+            function readState() {
+                try {
+                    return JSON.parse(localStorage.getItem(stateKey) || '{}');
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            function writeState(nextState) {
+                localStorage.setItem(stateKey, JSON.stringify(nextState));
+            }
+
+            function readDrafts() {
+                try {
+                    return JSON.parse(localStorage.getItem(draftStateKey) || '{}');
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            function writeDrafts(nextDrafts) {
+                localStorage.setItem(draftStateKey, JSON.stringify(nextDrafts));
+            }
+
+            function captureFormDraft(form) {
+                var values = {};
+                form.querySelectorAll('input, textarea, select').forEach(function (field) {
+                    if (!field.name || field.name === '__RequestVerificationToken') {
+                        return;
+                    }
+
+                    if (field.type === 'checkbox') {
+                        values[field.name] = { type: 'checkbox', value: field.checked };
+                        return;
+                    }
+
+                    if (field.type === 'radio') {
+                        if (!values[field.name]) {
+                            values[field.name] = { type: 'radio', value: '' };
+                        }
+                        if (field.checked) {
+                            values[field.name].value = field.value || '';
+                        }
+                        return;
+                    }
+
+                    if (field.tagName === 'SELECT' && field.multiple) {
+                        values[field.name] = {
+                            type: 'multi',
+                            value: Array.from(field.selectedOptions || []).map(function (option) { return option.value || ''; })
+                        };
+                        return;
+                    }
+
+                    values[field.name] = { type: 'value', value: field.value || '' };
+                });
+
+                return values;
+            }
+
+            function applyFormDraft(form, values) {
+                if (!values || typeof values !== 'object') {
+                    return;
+                }
+
+                Object.keys(values).forEach(function (fieldName) {
+                    var meta = values[fieldName];
+                    if (!meta) {
+                        return;
+                    }
+
+                    if (meta.type === 'radio') {
+                        form.querySelectorAll('input[type="radio"][name="' + fieldName + '"]').forEach(function (radio) {
+                            radio.checked = (radio.value || '') === (meta.value || '');
+                        });
+                        return;
+                    }
+
+                    var field = form.querySelector('[name="' + fieldName + '"]');
+                    if (!field) {
+                        return;
+                    }
+
+                    if (meta.type === 'multi') {
+                        var selected = Array.isArray(meta.value) ? meta.value : [];
+                        Array.from(field.options || []).forEach(function (option) {
+                            option.selected = selected.indexOf(option.value) >= 0;
+                        });
+                        field.dispatchEvent(new Event('change', { bubbles: true }));
+                        return;
+                    }
+
+                    if (meta.type === 'checkbox') {
+                        field.checked = !!meta.value;
+                        return;
+                    }
+
+                    field.value = meta.value || '';
+                });
+            }
+
+            function saveFormDraft(form) {
+                var drafts = readDrafts();
+                drafts[form.id] = captureFormDraft(form);
+                writeDrafts(drafts);
+            }
+
+            function restoreFormDrafts() {
+                var drafts = readDrafts();
+                watchedForms.forEach(function (form) {
+                    applyFormDraft(form, drafts[form.id]);
+                });
+            }
+
+            function clearSubmittedDraftAfterSuccess() {
+                if (!@hasCatalogSuccess.ToString().ToLowerInvariant()) {
+                    return;
+                }
+
+                var submittedFormId = localStorage.getItem(submittedFormKey);
+                if (!submittedFormId) {
+                    return;
+                }
+
+                var drafts = readDrafts();
+                if (drafts && drafts[submittedFormId]) {
+                    delete drafts[submittedFormId];
+                    writeDrafts(drafts);
+                }
+
+                localStorage.removeItem(submittedFormKey);
+            }
+
+            function readField(formElement, name) {
+                var field = formElement ? formElement.querySelector('[name="' + name + '"]') : null;
+                return field ? (field.value || '') : '';
+            }
+
+            function setFieldIfMissing(formElement, name, value) {
+                if (!formElement || !value) {
+                    return;
+                }
+
+                var field = formElement.querySelector('[name="' + name + '"]');
+                if (!field) {
+                    return;
+                }
+
+                var params = new URLSearchParams(window.location.search);
+                if (params.has(name)) {
+                    return;
+                }
+
+                if (!field.value) {
+                    field.value = value;
+                }
+            }
+
+            function savePageState(extra) {
+                var current = readState();
+                var next = {
+                    selectedProductId: pageElement ? (pageElement.getAttribute('data-selected-product-id') || '') : '',
+                    selectedCategoryId: pageElement ? (pageElement.getAttribute('data-selected-category-id') || '') : '',
+                    filters: {
+                        searchTerm: readField(searchForm, 'searchTerm'),
+                        categoryFilterId: readField(searchForm, 'categoryFilterId'),
+                        statusFilter: readField(searchForm, 'statusFilter'),
+                        sort: readField(searchForm, 'sort'),
+                        pageSize: readField(searchForm, 'pageSize')
+                    },
+                    draft: current.draft || {}
+                };
+
+                if (extra && typeof extra === 'object') {
+                    next.draft = Object.assign({}, next.draft, extra);
+                }
+
+                writeState(next);
+            }
+
+            function restorePageState() {
+                var state = readState();
+                if (!state || !state.filters) {
+                    return;
+                }
+
+                setFieldIfMissing(searchForm, 'searchTerm', state.filters.searchTerm);
+                setFieldIfMissing(searchForm, 'categoryFilterId', state.filters.categoryFilterId);
+                setFieldIfMissing(searchForm, 'statusFilter', state.filters.statusFilter);
+                setFieldIfMissing(searchForm, 'sort', state.filters.sort);
+                setFieldIfMissing(searchForm, 'pageSize', state.filters.pageSize);
+            }
+
+            function normalizeSkuSegment(rawValue) {
+                var raw = (rawValue || '').toString().trim().toUpperCase();
+                if (!raw) {
+                    return '';
+                }
+
+                var normalized = raw.replace(/[^A-Z0-9_-]/g, '-');
+                normalized = normalized.replace(/-{2,}/g, '-');
+                normalized = normalized.replace(/^[-_]+|[-_]+$/g, '');
+                return normalized;
+            }
+
+            function buildVariantCombinations(dimensions) {
+                if (!Array.isArray(dimensions) || dimensions.length === 0) {
+                    return [];
+                }
+
+                var combinations = [[]];
+                dimensions.forEach(function (dimension) {
+                    var next = [];
+                    combinations.forEach(function (existing) {
+                        (dimension.options || []).forEach(function (option) {
+                            next.push(existing.concat([{
+                                attributeId: dimension.attributeId,
+                                attributeName: dimension.attributeName,
+                                attributeDisplayOrder: dimension.attributeDisplayOrder || 0,
+                                optionId: option.optionId,
+                                optionName: option.optionName,
+                                optionValue: option.optionValue,
+                                optionDisplayOrder: option.optionDisplayOrder || 0
+                            }]));
+                        });
+                    });
+                    combinations = next;
+                });
+
+                return combinations;
+            }
+
+            function collectAutoCreatePayload() {
+                var payload = {
+                    productAttributes: [],
+                    variantAttributes: []
+                };
+                var dimensions = [];
+                var validationErrors = [];
+
+                document.querySelectorAll('.js-auto-product-attribute').forEach(function (row) {
+                    var attributeId = (row.getAttribute('data-attribute-id') || '').trim();
+                    var attributeName = row.getAttribute('data-attribute-name') || attributeId;
+                    var dataType = (row.getAttribute('data-data-type') || '').trim().toLowerCase();
+                    var isRequired = (row.getAttribute('data-required') || '').toLowerCase() === 'true';
+                    var input = row.querySelector('.js-auto-product-value');
+                    if (!attributeId || !input) {
+                        return;
+                    }
+
+                    var optionId = '';
+                    var value = '';
+                    if (input.hasAttribute('data-option-input')) {
+                        optionId = (input.value || '').trim();
+                        if (optionId) {
+                            var selectedOption = input.options[input.selectedIndex];
+                            value = selectedOption ? (selectedOption.getAttribute('data-option-value') || selectedOption.value || '') : '';
+                        }
+                    } else if (dataType === 'boolean') {
+                        value = (input.value || '').trim();
+                    } else {
+                        value = (input.value || '').trim();
+                    }
+
+                    if (isRequired && !optionId && !value) {
+                        validationErrors.push('ویژگی الزامی "' + attributeName + '" باید مقدار داشته باشد.');
+                        return;
+                    }
+
+                    if (!optionId && !value) {
+                        return;
+                    }
+
+                    payload.productAttributes.push({
+                        attributeId: attributeId,
+                        value: value || null,
+                        optionId: optionId || null
+                    });
+                });
+
+                document.querySelectorAll('.js-auto-variant-attribute').forEach(function (row) {
+                    var attributeId = (row.getAttribute('data-attribute-id') || '').trim();
+                    var attributeName = row.getAttribute('data-attribute-name') || attributeId;
+                    var dataType = (row.getAttribute('data-data-type') || '').trim().toLowerCase();
+                    var displayOrder = parseInt(row.getAttribute('data-display-order') || '0', 10) || 0;
+                    var isRequired = (row.getAttribute('data-required') || '').toLowerCase() === 'true';
+                    var select = row.querySelector('.js-auto-variant-values');
+                    if (!attributeId || !select) {
+                        return;
+                    }
+
+                    if (dataType !== 'option') {
+                        if (isRequired) {
+                            validationErrors.push('ویژگی واریانت‌ساز "' + attributeName + '" باید از نوع گزینه‌ای (Option) باشد.');
+                        }
+                        return;
+                    }
+
+                    var selectedOptions = Array.from(select.selectedOptions || []);
+                    if (isRequired && selectedOptions.length === 0) {
+                        validationErrors.push('برای ویژگی الزامی "' + attributeName + '" حداقل یک گزینه انتخاب کنید.');
+                        return;
+                    }
+
+                    if (selectedOptions.length === 0) {
+                        return;
+                    }
+
+                    var optionIds = selectedOptions
+                        .map(function (option) { return (option.value || '').trim(); })
+                        .filter(function (optionId) { return !!optionId; });
+
+                    if (optionIds.length === 0) {
+                        return;
+                    }
+
+                    payload.variantAttributes.push({
+                        attributeId: attributeId,
+                        optionIds: optionIds
+                    });
+
+                    dimensions.push({
+                        attributeId: attributeId,
+                        attributeName: attributeName,
+                        attributeDisplayOrder: displayOrder,
+                        options: selectedOptions
+                            .map(function (option) {
+                                return {
+                                    optionId: (option.value || '').trim(),
+                                    optionName: (option.getAttribute('data-option-name') || option.textContent || '').trim(),
+                                    optionValue: (option.getAttribute('data-option-value') || option.value || '').trim(),
+                                    optionDisplayOrder: parseInt(option.getAttribute('data-option-display-order') || '0', 10) || 0
+                                };
+                            })
+                            .filter(function (option) { return !!option.optionId; })
+                    });
+                });
+
+                return {
+                    payload: payload,
+                    dimensions: dimensions,
+                    validationErrors: validationErrors
+                };
+            }
+
+            function renderAutoVariantPreview() {
+                if (!autoVariantPreviewContainer || !autoVariantPreviewBody || !autoVariantPreviewEmpty) {
+                    return;
+                }
+
+                if (isEditMode) {
+                    autoVariantPreviewContainer.style.display = 'none';
+                    autoVariantPreviewEmpty.style.display = '';
+                    return;
+                }
+
+                var result = collectAutoCreatePayload();
+                var baseSku = normalizeSkuSegment(productBaseSkuField ? productBaseSkuField.value : '');
+                var productName = (productNameField ? productNameField.value : '').trim();
+                var combinations = buildVariantCombinations(result.dimensions);
+
+                if (!baseSku || combinations.length === 0) {
+                    autoVariantPreviewBody.innerHTML = '';
+                    autoVariantPreviewContainer.style.display = 'none';
+                    autoVariantPreviewEmpty.style.display = '';
+                    return;
+                }
+
+                var usedSkus = {};
+                var rows = combinations.map(function (combination, index) {
+                    var ordered = combination.slice().sort(function (left, right) {
+                        if (left.attributeDisplayOrder !== right.attributeDisplayOrder) {
+                            return left.attributeDisplayOrder - right.attributeDisplayOrder;
+                        }
+                        if (left.attributeName < right.attributeName) return -1;
+                        if (left.attributeName > right.attributeName) return 1;
+                        if (left.optionDisplayOrder !== right.optionDisplayOrder) {
+                            return left.optionDisplayOrder - right.optionDisplayOrder;
+                        }
+                        return left.optionName.localeCompare(right.optionName);
+                    });
+
+                    var suffix = ordered
+                        .map(function (item) { return normalizeSkuSegment(item.optionValue); })
+                        .filter(function (token) { return !!token; })
+                        .join('-');
+                    var generatedSku = suffix ? (baseSku + '-' + suffix) : baseSku;
+                    var candidateSku = generatedSku;
+                    var sequence = 2;
+                    while (usedSkus[candidateSku.toUpperCase()]) {
+                        candidateSku = generatedSku + '-' + sequence;
+                        sequence++;
+                    }
+                    usedSkus[candidateSku.toUpperCase()] = true;
+
+                    var suffixName = ordered.map(function (item) { return item.optionName; }).join(' / ');
+                    var generatedName = suffixName ? ((productName || 'محصول') + ' - ' + suffixName) : (productName || 'محصول');
+
+                    return {
+                        index: index + 1,
+                        name: generatedName,
+                        sku: candidateSku
+                    };
+                });
+
+                autoVariantPreviewBody.innerHTML = rows.map(function (row) {
+                    return '<tr><td>' + row.index + '</td><td>' + row.name + '</td><td><span class="text-monospace">' + row.sku + '</span></td></tr>';
+                }).join('');
+
+                autoVariantPreviewEmpty.style.display = 'none';
+                autoVariantPreviewContainer.style.display = '';
+            }
+
+            function showTabByHref(href) {
+                if (!href) {
+                    return;
+                }
+
+                var target = document.querySelector('#product-management-tabs .nav-link[href="' + href + '"]');
+                if (target && window.jQuery) {
+                    window.jQuery(target).tab('show');
+                }
+            }
+
+            var attributeSelect = document.getElementById('product-attribute-select');
+            var textGroup = document.getElementById('product-value-text-group');
+            var textInput = document.getElementById('product-value-text');
+            var numberGroup = document.getElementById('product-value-number-group');
+            var numberInput = document.getElementById('product-value-number');
+            var dateGroup = document.getElementById('product-value-date-group');
+            var dateInput = document.getElementById('product-value-date');
+            var boolGroup = document.getElementById('product-value-boolean-group');
+            var boolInput = document.getElementById('product-value-boolean');
+            var boolClearButton = document.getElementById('product-value-boolean-clear');
+            var optionGroup = document.getElementById('product-value-option-group');
+            var optionSelect = document.getElementById('product-value-option');
+            var hiddenValue = document.getElementById('product-value-hidden');
+            var form = document.getElementById('product-attribute-form');
+            var booleanHasValue = false;
+
+            clearSubmittedDraftAfterSuccess();
+            restorePageState();
+            restoreFormDrafts();
+            tabs.forEach(function (tab) {
+                tab.addEventListener('shown.bs.tab', function () {
+                    var href = tab.getAttribute('href');
+                    if (href) {
+                        localStorage.setItem(tabKey, href);
+                    }
+                });
+            });
+            showTabByHref(localStorage.getItem(tabKey));
+
+            if (productCategoryField && productUpsertForm && !isEditMode) {
+                productCategoryField.addEventListener('change', function () {
+                    var selectedCategoryId = (productCategoryField.value || '').trim();
+                    if (!selectedCategoryId) {
+                        return;
+                    }
+
+                    var currentCategoryId = pageElement ? (pageElement.getAttribute('data-selected-category-id') || '').trim() : '';
+                    if (currentCategoryId && currentCategoryId.toLowerCase() === selectedCategoryId.toLowerCase()) {
+                        renderAutoVariantPreview();
+                        return;
+                    }
+
+                    saveFormDraft(productUpsertForm);
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('categoryId', selectedCategoryId);
+                    url.searchParams.delete('productId');
+                    window.location.assign(url.toString());
+                });
+            }
+
+            if (productUpsertForm) {
+                productUpsertForm.addEventListener('submit', function (event) {
+                    if (!autoPayloadField || isEditMode) {
+                        if (autoPayloadField) {
+                            autoPayloadField.value = '';
+                        }
+                        return;
+                    }
+
+                    var currentCategoryId = pageElement ? (pageElement.getAttribute('data-selected-category-id') || '').trim() : '';
+                    var selectedCategoryId = productCategoryField ? (productCategoryField.value || '').trim() : '';
+                    if (selectedCategoryId && currentCategoryId && selectedCategoryId.toLowerCase() !== currentCategoryId.toLowerCase()) {
+                        event.preventDefault();
+                        window.alert('برای بارگذاری ویژگی‌های دسته‌بندی جدید، ابتدا تغییر دسته‌بندی را ثبت کنید تا صفحه بازخوانی شود.');
+                        return;
+                    }
+
+                    var result = collectAutoCreatePayload();
+                    if (result.validationErrors.length > 0) {
+                        event.preventDefault();
+                        window.alert(result.validationErrors.join('\n'));
+                        return;
+                    }
+
+                    autoPayloadField.value = JSON.stringify(result.payload);
+                });
+            }
+
+            if (productNameField) {
+                productNameField.addEventListener('input', renderAutoVariantPreview);
+            }
+            if (productBaseSkuField) {
+                productBaseSkuField.addEventListener('input', renderAutoVariantPreview);
+            }
+            document.querySelectorAll('.js-auto-product-value, .js-auto-variant-values').forEach(function (input) {
+                input.addEventListener('change', renderAutoVariantPreview);
+                input.addEventListener('input', renderAutoVariantPreview);
+            });
+            renderAutoVariantPreview();
+
+            if (attributeSelect && hiddenValue && form) {
+                function parseOptions(optionElement) {
+                    var optionsData = optionElement ? optionElement.getAttribute('data-options') : null;
+                    try {
+                        var raw = optionsData ? JSON.parse(optionsData) : [];
+                        if (!Array.isArray(raw)) {
+                            return [];
+                        }
+
+                        return raw
+                            .map(function (item) {
+                                if (typeof item === 'string') {
+                                    return { name: item, value: item };
+                                }
+
+                                var name = ((item && (item.name || item.Name || item.value || item.Value)) || '').toString().trim();
+                                var value = ((item && (item.value || item.Value || item.name || item.Name)) || '').toString().trim();
+                                if (!value) {
+                                    return null;
+                                }
+
+                                return { name: name || value, value: value };
+                            })
+                            .filter(function (item) { return !!item; });
+                    } catch (e) {
+                        return [];
+                    }
+                }
+
+                function isTrueLike(rawValue) {
+                    var normalized = (rawValue || '').toString().trim().toLowerCase();
+                    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'بله';
+                }
+
+                function clearEditors() {
+                    [textGroup, numberGroup, dateGroup, boolGroup, optionGroup].forEach(function (group) {
+                        if (group) { group.style.display = 'none'; }
+                    });
+                }
+
+                function setHiddenValue() {
+                    var selectedOption = attributeSelect.options[attributeSelect.selectedIndex];
+                    if (!selectedOption || !selectedOption.value) { hiddenValue.value = ''; return; }
+
+                    var dataType = (selectedOption.getAttribute('data-type') || '').toLowerCase();
+                    var options = parseOptions(selectedOption);
+                    if (options.length > 0) hiddenValue.value = optionSelect.value || '';
+                    else if (dataType === 'number') hiddenValue.value = numberInput.value || '';
+                    else if (dataType === 'boolean') hiddenValue.value = booleanHasValue ? (boolInput.checked ? 'true' : 'false') : '';
+                    else if (dataType === 'date') hiddenValue.value = dateInput.value || '';
+                    else hiddenValue.value = textInput.value || '';
+
+                    savePageState({ productAttributeValue: hiddenValue.value, productAttributeId: attributeSelect.value || '' });
+                }
+
+                function renderValueEditor() {
+                    clearEditors();
+                    var selectedOption = attributeSelect.options[attributeSelect.selectedIndex];
+                    if (!selectedOption || !selectedOption.value) { hiddenValue.value = ''; return; }
+
+                    var dataType = (selectedOption.getAttribute('data-type') || '').toLowerCase();
+                    var options = parseOptions(selectedOption);
+                    if (options.length > 0) {
+                        optionGroup.style.display = '';
+                        optionSelect.innerHTML = '<option value="">انتخاب گزینه</option>';
+                        options.forEach(function (item) {
+                            var optionElement = document.createElement('option');
+                            optionElement.value = item.value;
+                            optionElement.textContent = item.name === item.value
+                                ? item.name
+                                : (item.name + ' (' + item.value + ')');
+                            optionSelect.appendChild(optionElement);
+                        });
+                    } else if (dataType === 'number') numberGroup.style.display = '';
+                    else if (dataType === 'boolean') {
+                        boolGroup.style.display = '';
+                        boolInput.checked = false;
+                        booleanHasValue = false;
+                    }
+                    else if (dataType === 'date') dateGroup.style.display = '';
+                    else textGroup.style.display = '';
+
+                    setHiddenValue();
+                }
+
+                function setEditorValue(rawValue) {
+                    var value = (rawValue || '').trim();
+                    var selectedOption = attributeSelect.options[attributeSelect.selectedIndex];
+                    if (!selectedOption || !selectedOption.value) {
+                        return;
+                    }
+
+                    var dataType = (selectedOption.getAttribute('data-type') || '').toLowerCase();
+                    var options = parseOptions(selectedOption);
+                    if (options.length > 0) {
+                        optionSelect.value = value;
+                        if (optionSelect.value !== value) {
+                            var matchedOption = options.find(function (item) {
+                                return (item.name || '').toLowerCase() === value.toLowerCase();
+                            });
+                            optionSelect.value = matchedOption ? matchedOption.value : '';
+                        }
+                    } else if (dataType === 'number') {
+                        numberInput.value = value;
+                    } else if (dataType === 'boolean') {
+                        if (!value) {
+                            boolInput.checked = false;
+                            booleanHasValue = false;
+                        } else {
+                            boolInput.checked = isTrueLike(value);
+                            booleanHasValue = true;
+                        }
+                    } else if (dataType === 'date') {
+                        dateInput.value = value;
+                    } else {
+                        textInput.value = value;
+                    }
+
+                    setHiddenValue();
+                }
+
+                attributeSelect.addEventListener('change', renderValueEditor);
+                [textInput, numberInput, dateInput, boolInput, optionSelect].forEach(function (input) {
+                    if (input) input.addEventListener('input', setHiddenValue);
+                    if (input) input.addEventListener('change', setHiddenValue);
+                });
+                if (boolInput) {
+                    boolInput.addEventListener('change', function () {
+                        booleanHasValue = true;
+                        setHiddenValue();
+                    });
+                }
+                if (boolClearButton) {
+                    boolClearButton.addEventListener('click', function () {
+                        boolInput.checked = false;
+                        booleanHasValue = false;
+                        setHiddenValue();
+                    });
+                }
+                form.addEventListener('submit', function (event) {
+                    setHiddenValue();
+                    var selectedOption = attributeSelect.options[attributeSelect.selectedIndex];
+                    if (!selectedOption || !selectedOption.value) {
+                        return;
+                    }
+
+                    var isRequired = selectedOption.getAttribute('data-required') === 'true';
+                    if (isRequired && (!hiddenValue.value || !hiddenValue.value.trim())) {
+                        event.preventDefault();
+                        window.alert('این ویژگی الزامی است و مقدار آن نباید خالی باشد.');
+                    }
+                });
+
+                document.querySelectorAll('.product-attribute-edit-btn').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        var attributeId = button.getAttribute('data-attribute-id');
+                        var currentValue = button.getAttribute('data-current-value') || '';
+                        if (!attributeId) {
+                            return;
+                        }
+
+                        showTabByHref('#product-tab-attributes');
+                        attributeSelect.value = attributeId;
+                        renderValueEditor();
+                        setEditorValue(currentValue);
+                        attributeSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                });
+
+                renderValueEditor();
+
+                var state = readState();
+                if (state && state.draft) {
+                    if (state.draft.productAttributeId) {
+                        attributeSelect.value = state.draft.productAttributeId;
+                        renderValueEditor();
+                    }
+                    if (state.draft.productAttributeValue) {
+                        setEditorValue(state.draft.productAttributeValue);
+                    }
+                }
+            }
+
+            if (searchForm) {
+                searchForm.querySelectorAll('input, select').forEach(function (field) {
+                    field.addEventListener('change', function () {
+                        savePageState();
+                    });
+                    field.addEventListener('input', function () {
+                        savePageState();
+                    });
+                });
+            }
+
+            document.querySelectorAll('form[data-loading-form]').forEach(function (formElement) {
+                formElement.addEventListener('submit', function (event) {
+                    savePageState();
+                    if (formElement.id && watchedFormIds.indexOf(formElement.id) >= 0) {
+                        saveFormDraft(formElement);
+                        localStorage.setItem(submittedFormKey, formElement.id);
+                    }
+                    formElement.querySelectorAll('button[type="submit"]').forEach(function (button) { button.setAttribute('disabled', 'disabled'); });
+                });
+            });
+
+            watchedForms.forEach(function (formElement) {
+                formElement.querySelectorAll('input, textarea, select').forEach(function (field) {
+                    field.addEventListener('change', function () {
+                        saveFormDraft(formElement);
+                    });
+                    field.addEventListener('input', function () {
+                        saveFormDraft(formElement);
+                    });
+                });
+            });
+
+            document.querySelectorAll('form[data-dirty-watch]').forEach(function (formElement) {
+                formElement.querySelectorAll('input, textarea, select').forEach(function (field) {
+                    field.addEventListener('change', function () {
+                        formElement.dataset.isDirty = 'true';
+                        dirtyForms.add(formElement);
+                    });
+                    field.addEventListener('input', function () {
+                        formElement.dataset.isDirty = 'true';
+                        dirtyForms.add(formElement);
+                    });
+                });
+
+                formElement.addEventListener('submit', function () {
+                    formElement.dataset.isDirty = 'false';
+                    dirtyForms.delete(formElement);
+                });
+            });
+
+            window.addEventListener('beforeunload', function (event) {
+                var hasDirty = Array.from(dirtyForms).some(function (formElement) {
+                    return formElement.dataset.isDirty === 'true';
+                });
+
+                if (!hasDirty) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.returnValue = '';
+            });
+        })();
+    </script>
+}
+
+
+

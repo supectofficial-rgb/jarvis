@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+	<ItemGroup>
+    <!-- Elastic APM -->
+    <PackageReference Include="Elastic.Apm" Version="1.27.0" />
+    <PackageReference Include="Elastic.Apm.AspNetCore" Version="1.27.0" />
+    <PackageReference Include="Elastic.Apm.EntityFrameworkCore" Version="1.27.0" />
+    <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.27.0" />
+    
+		<PackageReference Include="AspNetCore.HealthChecks.SqlServer" />
+		<PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
+		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+		<PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" />
+	</ItemGroup>
+	
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\fx\src\Endpoints\OysterFx.Endpoints.Api\OysterFx.Endpoints.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\CacheService\src\Infra\CallerService\Insurance.CacheService.Infra.CallerService.csproj" />
+    <ProjectReference Include="..\..\..\..\UserService\src\AppCore\Shared\Insurance.UserService.AppCore.Shared.csproj" />
+    <ProjectReference Include="..\..\AppCore\AppServices\Insurance.AppCore.AppServices.csproj" />
+    <ProjectReference Include="..\..\AppCore\Shared\Insurance.AppCore.Shared.csproj" />
+    <ProjectReference Include="..\..\Infra\InternalServices\UserApiCaller\Insurance.Infra.InternalServices.UserApiCaller.csproj" />
+    <ProjectReference Include="..\..\Infra\Persistence\Sql.Commands\Insurance.Infra.Persistence.Sql.Commands.csproj" />
+    <ProjectReference Include="..\..\Infra\Persistence\Sql.Queries\Insurance.Infra.Persistence.Sql.Queries.csproj" />
+  </ItemGroup>
+
+</Project>

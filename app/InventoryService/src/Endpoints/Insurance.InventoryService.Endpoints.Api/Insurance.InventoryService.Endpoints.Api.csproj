@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.27.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.11">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.11">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../../fx/src/Endpoints/OysterFx.Endpoints.Api/OysterFx.Endpoints.Api.csproj" />
+    <ProjectReference Include="../../../../../fx/src/Infra/EventBus/Outbox/OysterFx.Infra.EventBus.Outbox.csproj" />
+    <ProjectReference Include="../../../../../fx/src/Infra/EventBus/RabbitMqBroker/OysterFx.Infra.EventBus.RabbitMqBroker.csproj" />
+    <ProjectReference Include="../../AppCore/AppServices/Insurance.InventoryService.AppCore.AppServices.csproj" />
+    <ProjectReference Include="../../AppCore/DomainServices/Insurance.InventoryService.AppCore.DomainServices.csproj" />
+    <ProjectReference Include="../../AppCore/Shared/Insurance.InventoryService.AppCore.Shared.csproj" />
+    <ProjectReference Include="../../Infra/Persistence/RDB.Commands/Insurance.InventoryService.Infra.Persistence.RDB.Commands.csproj" />
+    <ProjectReference Include="../../Infra/Persistence/RDB.Queries/Insurance.InventoryService.Infra.Persistence.RDB.Queries.csproj" />
+    <ProjectReference Include="../../Infra/InternalServices/GraphApiCaller/Insurance.InventoryService.Infra.InternalServices.GraphApiCaller.csproj" />
+  </ItemGroup>
+</Project>

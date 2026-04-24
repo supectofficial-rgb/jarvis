@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>9.0.0</Version>
+    <Authors>Ali Jangjoo Rashid</Authors>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="9.0.11" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Scrutor" Version="5.0.2" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AppCore\AppServices\OysterFx.AppCore.AppServices.csproj" />
+    <ProjectReference Include="..\..\AppCore\DomainServices\OysterFx.AppCore.DomainServices.csproj" />
+    <ProjectReference Include="..\..\AppCore\Domain\OysterFx.AppCore.Domain.csproj" />
+    <ProjectReference Include="..\..\AppCore\Shared\OysterFx.AppCore.Shared.csproj" />
+    <ProjectReference Include="..\..\Infra\Persistence\RDB.Commands\OysterFx.Infra.Persistence.RDB.Commands.csproj" />
+    <ProjectReference Include="..\..\Infra\Persistence\RDB.Queries\OysterFx.Infra.Persistence.RDB.Queries.csproj" />
+  </ItemGroup>
+
+</Project>

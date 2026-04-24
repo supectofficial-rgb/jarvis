@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../../../fx/src/AppCore/DomainServices/OysterFx.AppCore.DomainServices.csproj" />
+    <ProjectReference Include="../Domain/Insurance.CacheService.AppCore.Domain.csproj" />
+    <ProjectReference Include="../Shared/Insurance.CacheService.AppCore.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

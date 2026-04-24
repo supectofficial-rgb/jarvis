@@ -1,0 +1,6 @@
+namespace Insurance.InventoryService.AppCore.Domain.SourceTracing.Events;
+
+using OysterFx.AppCore.Domain.Events;
+using OysterFx.AppCore.Domain.ValueObjects;
+
+public sealed record InventorySourceConsumptionCreatedEvent(BusinessKey InventorySourceConsumptionBusinessKey, DateTime OccurredOn) : IDomainEvent;

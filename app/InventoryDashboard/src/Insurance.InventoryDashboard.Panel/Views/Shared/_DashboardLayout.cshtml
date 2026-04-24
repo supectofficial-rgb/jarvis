@@ -1,0 +1,293 @@
+﻿@using System
+@using Insurance.InventoryDashboard.Panel.Models
+@{
+    var userDisplayName = ViewBag.UserDisplayName as string ?? "کاربر";
+    var menuModules = ViewBag.MenuModules as IReadOnlyList<DashboardMenuModule> ?? Array.Empty<DashboardMenuModule>();
+    var activeModuleId = ViewBag.ActiveModuleId as string;
+    var activeItemId = ViewBag.ActiveItemId as string;
+}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>@ViewData["Title"] - داشبورد انبار</title>
+    <link rel="shortcut icon" href="~/favicon.ico" />
+
+    <link rel="stylesheet" href="~/font/iconsmind-s/css/iconsminds.css" />
+    <link rel="stylesheet" href="~/font/simple-line-icons/css/simple-line-icons.css" />
+    <link rel="stylesheet" href="~/css/vendor/bootstrap.rtl.only.min.css" />
+    <link rel="stylesheet" href="~/css/vendor/perfect-scrollbar.css" />
+    <link rel="stylesheet" href="~/css/vendor/component-custom-switch.min.css" />
+    <link rel="stylesheet" href="~/css/vendor/select2.min.css" />
+    <link rel="stylesheet" href="~/css/vendor/select2-bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/dore.light.bluenavy.min.css" />
+    <link rel="stylesheet" href="~/css/main.css" />
+</head>
+<body id="app-container" class="menu-default show-spinner">
+    <nav class="navbar fixed-top">
+        <div class="d-flex align-items-center navbar-left">
+            <a href="#" class="menu-button d-none d-md-block">
+                <svg class="main" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 17">
+                    <rect x="0.48" y="0.5" width="7" height="1" />
+                    <rect x="0.48" y="7.5" width="7" height="1" />
+                    <rect x="0.48" y="15.5" width="7" height="1" />
+                </svg>
+                <svg class="sub" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 17">
+                    <rect x="1.56" y="0.5" width="16" height="1" />
+                    <rect x="1.56" y="7.5" width="16" height="1" />
+                    <rect x="1.56" y="15.5" width="16" height="1" />
+                </svg>
+            </a>
+
+            <a href="#" class="menu-button-mobile d-xs-block d-sm-block d-md-none">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 17">
+                    <rect x="0.5" y="0.5" width="25" height="1" />
+                    <rect x="0.5" y="7.5" width="25" height="1" />
+                    <rect x="0.5" y="15.5" width="25" height="1" />
+                </svg>
+            </a>
+
+            <a class="btn btn-sm btn-outline-primary mr-3 d-none d-md-inline-block"
+               asp-controller="Dashboard"
+               asp-action="Index">
+                پنل مدیریت
+            </a>
+        </div>
+
+        <a class="navbar-logo" asp-controller="Dashboard" asp-action="Index">
+            <span class="logo d-none d-xs-block"></span>
+            <span class="logo-mobile d-block d-xs-none"></span>
+        </a>
+
+        <div class="navbar-right">
+            <div class="user d-inline-block">
+                <button class="btn btn-empty p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <span class="name">@userDisplayName</span>
+                    <span>
+                        <img alt="پروفایل" src="~/img/profiles/l-1.jpg" />
+                    </span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right mt-3">
+                    <span class="dropdown-item disabled">@userDisplayName</span>
+                    <div class="dropdown-divider"></div>
+                    <form asp-controller="Auth" asp-action="Logout" method="post" class="px-3 py-2">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger btn-sm btn-block">خروج</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="menu">
+        <div class="main-menu">
+            <div class="scroll">
+                <ul class="list-unstyled">
+                    @for (var i = 0; i < menuModules.Count; i++)
+                    {
+                        var module = menuModules[i];
+                        var isActive = module.IsEnabled &&
+                                       (string.Equals(module.ModuleId, activeModuleId, StringComparison.OrdinalIgnoreCase)
+                                        || (string.IsNullOrWhiteSpace(activeModuleId) && i == 0));
+
+                        <li class="@(!module.IsEnabled ? "disabled-menu" : isActive ? "active" : null)">
+                            <a href="#@module.ModuleId">
+                                <i class="@module.Icon"></i>
+                                <span>@module.Title @(module.IsEnabled ? string.Empty : "(غیرفعال)")</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <div class="sub-menu">
+            <div class="scroll">
+                @for (var i = 0; i < menuModules.Count; i++)
+                {
+                    var module = menuModules[i];
+                    var isActiveModule = module.IsEnabled &&
+                                         (string.Equals(module.ModuleId, activeModuleId, StringComparison.OrdinalIgnoreCase)
+                                          || (string.IsNullOrWhiteSpace(activeModuleId) && i == 0));
+
+                    <ul class="list-unstyled @(isActiveModule ? "d-block" : null)" data-link="@module.ModuleId">
+                        @for (var j = 0; j < module.Items.Count; j++)
+                        {
+                            var menuItem = module.Items[j];
+                            var isActiveItem = module.IsEnabled &&
+                                               menuItem.IsEnabled &&
+                                               (string.Equals(menuItem.ItemId, activeItemId, StringComparison.OrdinalIgnoreCase)
+                                                || (string.IsNullOrWhiteSpace(activeItemId) && isActiveModule && j == 0));
+
+                            <li class="@(!menuItem.IsEnabled || !module.IsEnabled ? "disabled-menu" : isActiveItem ? "active" : null)">
+                                @if (module.IsEnabled && menuItem.IsEnabled)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(menuItem.Route))
+                                    {
+                                        <a href="@menuItem.Route">
+                                            <i class="@menuItem.Icon"></i>
+                                            <span class="d-inline-block">@menuItem.Title</span>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a asp-controller="Dashboard"
+                                           asp-action="Index"
+                                           asp-route-module="@module.ModuleId"
+                                           asp-route-item="@menuItem.ItemId">
+                                            <i class="@menuItem.Icon"></i>
+                                            <span class="d-inline-block">@menuItem.Title</span>
+                                        </a>
+                                    }
+                                }
+                                else
+                                {
+                                    <a href="javascript:void(0)">
+                                        <i class="@menuItem.Icon"></i>
+                                        <span class="d-inline-block">@menuItem.Title</span>
+                                    </a>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+
+    @RenderBody()
+
+    <div class="modal fade" id="globalConfirmModal" tabindex="-1" role="dialog" aria-labelledby="globalConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="globalConfirmModalLabel">تایید عملیات</h5>
+                    <button type="button" class="close p-0" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0" id="globalConfirmModalMessage">آیا از انجام این عملیات مطمئن هستید؟</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">انصراف</button>
+                    <button type="button" class="btn btn-danger" id="globalConfirmModalAccept">تایید</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/js/vendor/jquery-3.3.1.min.js"></script>
+    <script src="~/js/vendor/bootstrap.bundle.min.js"></script>
+    <script src="~/js/vendor/select2.full.js"></script>
+    <script src="~/js/vendor/perfect-scrollbar.min.js"></script>
+    <script src="~/js/vendor/mousetrap.min.js"></script>
+    <script src="~/js/dore.script.js"></script>
+    <script src="~/js/scripts.js"></script>
+    <script src="~/js/inventory-dashboard.ui.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var modalElement = document.getElementById('globalConfirmModal');
+            var titleElement = document.getElementById('globalConfirmModalLabel');
+            var messageElement = document.getElementById('globalConfirmModalMessage');
+            var confirmButton = document.getElementById('globalConfirmModalAccept');
+            if (!modalElement || !titleElement || !messageElement || !confirmButton) {
+                return;
+            }
+
+            var modal = null;
+            var useBootstrap5 = typeof bootstrap !== 'undefined' && bootstrap.Modal;
+            var useBootstrap4 = !useBootstrap5 && typeof window.jQuery !== 'undefined' && typeof window.jQuery.fn.modal === 'function';
+
+            if (useBootstrap5) {
+                modal = new bootstrap.Modal(modalElement);
+            }
+
+            var pending = null;
+
+            function getSubmitter(event) {
+                return event.submitter || document.activeElement;
+            }
+
+            function disableSubmitButtons(form) {
+                form.querySelectorAll('button[type="submit"]').forEach(function (button) {
+                    button.setAttribute('disabled', 'disabled');
+                });
+            }
+
+            document.addEventListener('submit', function (event) {
+                var form = event.target;
+                if (!(form instanceof HTMLFormElement) || !form.matches('form[data-loading-form]')) {
+                    return;
+                }
+
+                if (form.dataset.confirmBypass === 'true') {
+                    delete form.dataset.confirmBypass;
+                    return;
+                }
+
+                var submitter = getSubmitter(event);
+                var confirmText = submitter && submitter.getAttribute
+                    ? submitter.getAttribute('data-confirm')
+                    : null;
+                var confirmTitle = submitter && submitter.getAttribute
+                    ? submitter.getAttribute('data-confirm-title')
+                    : null;
+
+                if (confirmText) {
+                    event.preventDefault();
+                    pending = { form: form, submitter: submitter };
+                    titleElement.textContent = confirmTitle && confirmTitle.trim()
+                        ? confirmTitle
+                        : 'تایید عملیات';
+                    messageElement.textContent = confirmText;
+
+                    if (useBootstrap5) {
+                        modal.show();
+                    } else if (useBootstrap4) {
+                        window.jQuery(modalElement).modal('show');
+                    } else {
+                        if (window.confirm(confirmText)) {
+                            form.dataset.confirmBypass = 'true';
+                            form.requestSubmit(submitter instanceof HTMLElement ? submitter : undefined);
+                        }
+                        pending = null;
+                    }
+                    return;
+                }
+
+                disableSubmitButtons(form);
+            }, true);
+
+            confirmButton.addEventListener('click', function () {
+                if (!pending) {
+                    return;
+                }
+
+                var form = pending.form;
+                var submitter = pending.submitter;
+                form.dataset.confirmBypass = 'true';
+                if (useBootstrap5) {
+                    modal.hide();
+                } else if (useBootstrap4) {
+                    window.jQuery(modalElement).modal('hide');
+                }
+                form.requestSubmit(submitter instanceof HTMLElement ? submitter : undefined);
+                pending = null;
+            });
+
+            if (useBootstrap5) {
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    pending = null;
+                });
+            } else if (useBootstrap4) {
+                window.jQuery(modalElement).on('hidden.bs.modal', function () {
+                    pending = null;
+                });
+            }
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

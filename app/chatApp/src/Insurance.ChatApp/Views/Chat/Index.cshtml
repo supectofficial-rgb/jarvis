@@ -1,0 +1,65 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Insurance Chat App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/chat.css" />
+</head>
+<body>
+    <div class="aurora"></div>
+
+    <main class="chat-shell">
+        <aside class="chat-side">
+            <h1>Insurance Chat</h1>
+            <p class="subtitle">Hub-powered assistant for text and voice workflows.</p>
+
+            <div class="meta-block">
+                <span>Session</span>
+                <code id="sessionIdLabel">Not started</code>
+            </div>
+
+            <div class="meta-block">
+                <span>User</span>
+                <code id="userIdLabel">Loading...</code>
+            </div>
+
+            <div class="side-actions">
+                <button id="newChatBtn" class="btn btn-primary" type="button">Start New Chat</button>
+                <button id="reloadHistoryBtn" class="btn btn-secondary" type="button">Reload History</button>
+            </div>
+
+            <p id="connectionState" class="connection-state">Connecting...</p>
+        </aside>
+
+        <section class="chat-main">
+            <header class="chat-topbar">
+                <h2>Live Conversation</h2>
+                <span id="micState" class="mic-state">Mic idle</span>
+            </header>
+
+            <section id="messageList" class="message-list" aria-live="polite"></section>
+
+            <footer class="composer">
+                <textarea id="composerInput" rows="3" placeholder="Type your message... You can also use voice transcription."></textarea>
+
+                <div class="composer-actions">
+                    <button id="recordBtn" class="btn btn-secondary" type="button">Start Mic</button>
+                    <button id="stopRecordBtn" class="btn btn-ghost" type="button" disabled>Stop Mic</button>
+                    <button id="sendBtn" class="btn btn-primary" type="button">Send</button>
+                </div>
+
+                <p class="hint">Voice transcription fills the input. You can edit before sending.</p>
+            </footer>
+        </section>
+    </main>
+
+    <script src="~/js/chat.js"></script>
+</body>
+</html>
