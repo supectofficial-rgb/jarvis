@@ -68,6 +68,24 @@ services:
       retries: 10
     restart: unless-stopped
 
+  neo4j:
+    image: neo4j:5
+    container_name: insurance-neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j12345}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-neo4j12345} 'RETURN 1'"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
   consul:
     image: hashicorp/consul:1.19
     container_name: insurance-consul
@@ -208,7 +226,7 @@ services:
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=inventory_service;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
       ConnectionStrings__CommandDb: Host=postgres;Port=5432;Database=inventory_service;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
       ConnectionStrings__QueryDb: Host=postgres;Port=5432;Database=inventory_service;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
-      GraphService__Enabled: "false"
+      GraphService__Enabled: "true"
       RabbitMqBroker__Host: rabbitmq
       RabbitMqBroker__Port: "5672"
       RabbitMqBroker__UserName: ${RABBITMQ_USER:-guest}
@@ -227,6 +245,41 @@ services:
         condition: service_started
     ports:
       - "5216:8080"
+    restart: unless-stopped
+
+  graph-service:
+    build:
+      context: .
+      dockerfile: docker/graph-service.Dockerfile
+    image: insurance/graph-service:latest
+    container_name: insurance-graph-service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      Neo4j__Uri: bolt://neo4j:7687
+      Neo4j__User: ${NEO4J_USER:-neo4j}
+      Neo4j__Password: ${NEO4J_PASSWORD:-neo4j12345}
+      EventBus__Provider: RabbitMq
+      RabbitMqBroker__Host: rabbitmq
+      RabbitMqBroker__Port: "5672"
+      RabbitMqBroker__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMqBroker__Password: ${RABBITMQ_PASSWORD:-guest}
+      RabbitMqBroker__VirtualHost: /
+      RabbitMqBroker__Exchange: insurance.events
+      RabbitMqBroker__RetryLimit: "4"
+      ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServiceName: graph-service
+      ElasticApm__Environment: production
+      ElasticApm__Enabled: "true"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      apm-server:
+        condition: service_started
+    ports:
+      - "5220:8080"
     restart: unless-stopped
 
   api-gateway:
@@ -253,6 +306,8 @@ services:
       inventory-api:
         condition: service_started
       cache-api:
+        condition: service_started
+      graph-service:
         condition: service_started
     ports:
       - "8080:8080"
@@ -281,4 +336,5 @@ volumes:
   redis_data:
   consul_data:
   elasticsearch_data:
-
+  neo4j_data:
+  neo4j_logs:

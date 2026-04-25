@@ -14,7 +14,8 @@
   "ApiKeys": {
     "user-service-route": "ABC",
     "inventory-service-route": "ABC",
-    "cache-service-route": "ABC"
+    "cache-service-route": "ABC",
+    "graph-service-route": "ABC"
   },
   "AllowedHosts": "*",
   "Consul": {
@@ -60,6 +61,16 @@
           "ApiKey": "cache-service-api-key"
         },
         "Order": 3
+      },
+      "graph-service-route": {
+        "ClusterId": "graph-service-cluster",
+        "Match": {
+          "Path": "/api/GraphService/{**catch-all}"
+        },
+        "Metadata": {
+          "ApiKey": "graph-service-api-key"
+        },
+        "Order": 4
       }
     },
     "Clusters": {
@@ -81,6 +92,13 @@
         "Destinations": {
           "cache-service-destination": {
             "Address": "http://cache-api:8080/"
+          }
+        }
+      },
+      "graph-service-cluster": {
+        "Destinations": {
+          "graph-service-destination": {
+            "Address": "http://graph-service:8080/"
           }
         }
       }
