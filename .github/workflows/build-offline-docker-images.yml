@@ -1,0 +1,53 @@
+name: Build & Export Docker Images for Offline Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-offline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate docker compose
+        run: docker compose config
+
+      - name: Pull infrastructure images
+        run: docker compose pull --ignore-buildable
+
+      - name: Build application images
+        run: docker compose build
+
+      - name: Export compose image list
+        run: |
+          docker compose config --images | sort -u > docker-images.txt
+          echo "Images that will be exported:"
+          cat docker-images.txt
+
+      - name: Save Docker images as tar.gz
+        run: |
+          mkdir -p docker-tar
+          while IFS= read -r IMAGE; do
+            [ -z "$IMAGE" ] && continue
+            FILE_NAME="$(echo "$IMAGE" | tr '/:' '__')"
+            echo "Saving $IMAGE -> docker-tar/${FILE_NAME}.tar.gz"
+            docker save "$IMAGE" | gzip > "docker-tar/${FILE_NAME}.tar.gz"
+          done < docker-images.txt
+          cp docker-images.txt docker-tar/docker-images.txt
+
+      - name: Upload Docker images as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images-offline
+          path: docker-tar/
+          if-no-files-found: error
+          retention-days: 7
+
