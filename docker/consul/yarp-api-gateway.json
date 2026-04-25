@@ -1,0 +1,90 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Yarp": "Information"
+    }
+  },
+  "Jwt": {
+    "SecretKey": "Your-Very-Long-Secret-Key-At-Least-32-Characters-Long",
+    "Issuer": "YourApp",
+    "Audience": "YourAppClients"
+  },
+  "ApiKeys": {
+    "user-service-route": "ABC",
+    "inventory-service-route": "ABC",
+    "cache-service-route": "ABC"
+  },
+  "AllowedHosts": "*",
+  "Consul": {
+    "Enabled": true,
+    "Address": "http://consul:8500",
+    "Key": "yarp-api-gateway/appsettings.json",
+    "Token": ""
+  },
+  "ElasticApm": {
+    "ServerUrl": "http://apm-server:8200",
+    "ServiceName": "api-gateway",
+    "Environment": "production",
+    "Enabled": true
+  },
+  "ReverseProxy": {
+    "Routes": {
+      "user-service-route": {
+        "ClusterId": "user-service-cluster",
+        "Match": {
+          "Path": "/api/UserService/{**catch-all}"
+        },
+        "Metadata": {
+          "ApiKey": "user-service-api-key"
+        },
+        "Order": 1
+      },
+      "inventory-service-route": {
+        "ClusterId": "inventory-service-cluster",
+        "Match": {
+          "Path": "/api/InventoryService/{**catch-all}"
+        },
+        "Metadata": {
+          "ApiKey": "inventory-service-api-key"
+        },
+        "Order": 2
+      },
+      "cache-service-route": {
+        "ClusterId": "cache-service-cluster",
+        "Match": {
+          "Path": "/api/CacheService/{**catch-all}"
+        },
+        "Metadata": {
+          "ApiKey": "cache-service-api-key"
+        },
+        "Order": 3
+      }
+    },
+    "Clusters": {
+      "user-service-cluster": {
+        "Destinations": {
+          "user-service-destination": {
+            "Address": "http://user-api:8080/"
+          }
+        }
+      },
+      "inventory-service-cluster": {
+        "Destinations": {
+          "inventory-service-destination": {
+            "Address": "http://inventory-api:8080/"
+          }
+        }
+      },
+      "cache-service-cluster": {
+        "Destinations": {
+          "cache-service-destination": {
+            "Address": "http://cache-api:8080/"
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,284 @@
+name: insurance
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: insurance-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-inventory_service}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-inventory_service}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: insurance-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@insurance.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+
+  redis-stack:
+    image: redis/redis-stack:latest
+    container_name: insurance-redis-stack
+    environment:
+      REDIS_ARGS: "--requirepass ${REDIS_PASSWORD:-123}"
+    ports:
+      - "6379:6379"
+      - "8001:8001"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-123}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: insurance-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  consul:
+    image: hashicorp/consul:1.19
+    container_name: insurance-consul
+    command: agent -server -bootstrap-expect=1 -client=0.0.0.0 -ui
+    ports:
+      - "8500:8500"
+    volumes:
+      - consul_data:/consul/data
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  consul-config-loader:
+    image: hashicorp/consul:1.19
+    container_name: insurance-consul-config-loader
+    depends_on:
+      consul:
+        condition: service_healthy
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
+    volumes:
+      - ./docker/consul:/config:ro
+    command: sh -c "consul kv put yarp-api-gateway/appsettings.json @/config/yarp-api-gateway.json"
+    restart: "no"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.4}
+    container_name: insurance-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: ${ELASTIC_JAVA_OPTS:--Xms512m -Xmx512m}
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.13.4}
+    container_name: insurance-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:${ELASTIC_VERSION:-8.13.4}
+    container_name: insurance-apm-server
+    command:
+      - apm-server
+      - -e
+      - -E
+      - output.elasticsearch.hosts=["http://elasticsearch:9200"]
+      - -E
+      - apm-server.host=0.0.0.0:8200
+      - -E
+      - apm-server.secret_token=
+      - -E
+      - apm-server.auth.anonymous.enabled=true
+    ports:
+      - "8200:8200"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  cache-api:
+    build:
+      context: .
+      dockerfile: docker/cache-api.Dockerfile
+    image: insurance/cache-api:latest
+    container_name: insurance-cache-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Redis: redis-stack:6379,password=${REDIS_PASSWORD:-123}
+      ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServiceName: cache-api
+      ElasticApm__Environment: production
+      ElasticApm__Enabled: "true"
+    depends_on:
+      redis-stack:
+        condition: service_healthy
+      apm-server:
+        condition: service_started
+    ports:
+      - "5290:8080"
+    restart: unless-stopped
+
+  user-api:
+    build:
+      context: .
+      dockerfile: docker/user-api.Dockerfile
+    image: insurance/user-api:latest
+    container_name: insurance-user-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=nivadUserDB;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      CacheApi__BaseUrl: http://cache-api:8080/
+      ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServiceName: user-api
+      ElasticApm__Environment: production
+      ElasticApm__Enabled: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      cache-api:
+        condition: service_started
+      apm-server:
+        condition: service_started
+    ports:
+      - "5194:8080"
+    restart: unless-stopped
+
+  inventory-api:
+    build:
+      context: .
+      dockerfile: docker/inventory-api.Dockerfile
+    image: insurance/inventory-api:latest
+    container_name: insurance-inventory-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=inventory_service;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      ConnectionStrings__CommandDb: Host=postgres;Port=5432;Database=inventory_service;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      ConnectionStrings__QueryDb: Host=postgres;Port=5432;Database=inventory_service;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      GraphService__Enabled: "false"
+      RabbitMqBroker__Host: rabbitmq
+      RabbitMqBroker__Port: "5672"
+      RabbitMqBroker__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMqBroker__Password: ${RABBITMQ_PASSWORD:-guest}
+      ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServerUrls: http://apm-server:8200
+      ElasticApm__ServiceName: inventory-api
+      ElasticApm__Environment: production
+      ElasticApm__Enabled: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      apm-server:
+        condition: service_started
+    ports:
+      - "5216:8080"
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/api-gateway.Dockerfile
+    image: insurance/api-gateway:latest
+    container_name: insurance-api-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      Consul__Enabled: "true"
+      Consul__Address: http://consul:8500
+      Consul__Key: yarp-api-gateway/appsettings.json
+      ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServiceName: api-gateway
+      ElasticApm__Environment: production
+      ElasticApm__Enabled: "true"
+    depends_on:
+      consul-config-loader:
+        condition: service_completed_successfully
+      user-api:
+        condition: service_started
+      inventory-api:
+        condition: service_started
+      cache-api:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  inventory-dashboard:
+    build:
+      context: .
+      dockerfile: docker/inventory-dashboard.Dockerfile
+    image: insurance/inventory-dashboard:latest
+    container_name: insurance-inventory-dashboard
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ApiGateway__BaseUrl: http://api-gateway:8080
+    depends_on:
+      api-gateway:
+        condition: service_started
+    ports:
+      - "8090:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+  redis_data:
+  consul_data:
+  elasticsearch_data:
+

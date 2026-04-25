@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.git/
+**/.dotnet/
+**/.dotnet-cli/
+**/.dotnet-home/
+**/.nuget/
+**/*.user
+**/*.suo
+**/*.log
+**/src.zip
+
