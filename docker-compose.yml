@@ -23,6 +23,8 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: insurance-pgadmin
+    profiles:
+      - tools
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@insurance.local}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
@@ -64,8 +66,9 @@ services:
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
-      timeout: 5s
-      retries: 10
+      timeout: 15s
+      retries: 30
+      start_period: 2m
     restart: unless-stopped
 
   neo4j:
@@ -82,8 +85,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-neo4j12345} 'RETURN 1'"]
       interval: 10s
-      timeout: 10s
-      retries: 20
+      timeout: 30s
+      retries: 30
+      start_period: 5m
     restart: unless-stopped
 
   consul:
@@ -111,11 +115,19 @@ services:
       CONSUL_HTTP_ADDR: http://consul:8500
     volumes:
       - ./docker/consul:/config:ro
-    command: sh -c "consul kv put yarp-api-gateway/appsettings.json @/config/yarp-api-gateway.json"
+    command: >
+      sh -ec '
+        test -s /config/yarp-api-gateway.json;
+        for i in $$(seq 1 30); do
+          consul kv put yarp-api-gateway/appsettings.json @/config/yarp-api-gateway.json && exit 0;
+          sleep 2;
+        done;
+        exit 1
+      '
     restart: "no"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.4}
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
     container_name: insurance-elasticsearch
     environment:
       discovery.type: single-node
@@ -133,7 +145,7 @@ services:
     restart: unless-stopped
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.13.4}
+    image: docker.elastic.co/kibana/kibana:8.13.4
     container_name: insurance-kibana
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
@@ -145,7 +157,7 @@ services:
     restart: unless-stopped
 
   apm-server:
-    image: docker.elastic.co/apm/apm-server:${ELASTIC_VERSION:-8.13.4}
+    image: docker.elastic.co/apm/apm-server:8.13.4
     container_name: insurance-apm-server
     command:
       - apm-server
@@ -197,6 +209,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
+      Database__ApplyMigrationsOnStartup: "true"
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=nivadUserDB;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
       CacheApi__BaseUrl: http://cache-api:8080/
       ElasticApm__ServerUrl: http://apm-server:8200

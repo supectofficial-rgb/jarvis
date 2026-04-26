@@ -151,8 +151,11 @@ builder.Services.AddAutoPermissionPolicies(options =>
 
 var app = builder.Build();
 app.UseMiddleware<ApiKeyMiddleware>();
-await app.Services.UsePermissionPoliciesAsync();
-if (app.Environment.IsDevelopment())
+
+var applyMigrations = app.Environment.IsDevelopment()
+    || app.Configuration.GetValue<bool>("Database__ApplyMigrationsOnStartup");
+
+if (applyMigrations)
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<InsuranceUserServiceDbContext>();
@@ -168,6 +171,8 @@ if (app.Environment.IsDevelopment())
         Console.WriteLine($"Error applying database migrations: {ex.Message}");
     }
 }
+
+await app.Services.UsePermissionPoliciesAsync();
 
 // Configure W3C Activity format for distributed tracing
 Activity.DefaultIdFormat = ActivityIdFormat.W3C;
