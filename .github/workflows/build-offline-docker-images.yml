@@ -32,22 +32,147 @@ jobs:
           echo "Images that will be exported:"
           cat docker-images.txt
 
-      - name: Save Docker images as tar.gz
+      - name: Save Docker images as separate archives
         run: |
-          mkdir -p docker-tar
+          set -euo pipefail
+          mkdir -p docker-artifacts
           while IFS= read -r IMAGE; do
             [ -z "$IMAGE" ] && continue
             FILE_NAME="$(echo "$IMAGE" | tr '/:' '__')"
-            echo "Saving $IMAGE -> docker-tar/${FILE_NAME}.tar.gz"
-            docker save "$IMAGE" | gzip > "docker-tar/${FILE_NAME}.tar.gz"
+            mkdir -p "docker-artifacts/${FILE_NAME}"
+            echo "$IMAGE" > "docker-artifacts/${FILE_NAME}/image.txt"
+            echo "Saving $IMAGE -> docker-artifacts/${FILE_NAME}/${FILE_NAME}.tar.gz"
+            docker image inspect "$IMAGE" > /dev/null
+            docker save "$IMAGE" | gzip > "docker-artifacts/${FILE_NAME}/${FILE_NAME}.tar.gz"
+            test -s "docker-artifacts/${FILE_NAME}/${FILE_NAME}.tar.gz"
           done < docker-images.txt
-          cp docker-images.txt docker-tar/docker-images.txt
+          mkdir -p docker-artifacts/manifest
+          cp docker-images.txt docker-artifacts/manifest/docker-images.txt
 
-      - name: Upload Docker images as artifact
+      - name: Upload manifest
         uses: actions/upload-artifact@v4
         with:
-          name: docker-images-offline
-          path: docker-tar/
+          name: docker-images-manifest
+          path: docker-artifacts/manifest/
           if-no-files-found: error
           retention-days: 7
 
+      - name: Upload api-gateway image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-insurance-api-gateway
+          path: docker-artifacts/insurance__api-gateway__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload cache-api image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-insurance-cache-api
+          path: docker-artifacts/insurance__cache-api__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload graph-service image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-insurance-graph-service
+          path: docker-artifacts/insurance__graph-service__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload inventory-api image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-insurance-inventory-api
+          path: docker-artifacts/insurance__inventory-api__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload inventory-dashboard image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-insurance-inventory-dashboard
+          path: docker-artifacts/insurance__inventory-dashboard__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload user-api image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-insurance-user-api
+          path: docker-artifacts/insurance__user-api__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload postgres image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-postgres
+          path: docker-artifacts/postgres__16/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload pgadmin image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-pgadmin
+          path: docker-artifacts/dpage__pgadmin4__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload redis-stack image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-redis-stack
+          path: docker-artifacts/redis__redis-stack__latest/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload rabbitmq image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-rabbitmq
+          path: docker-artifacts/rabbitmq__3-management/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload consul image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-consul
+          path: docker-artifacts/hashicorp__consul__1.19/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload elasticsearch image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-elasticsearch
+          path: docker-artifacts/docker.elastic.co__elasticsearch__elasticsearch__8.13.4/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload kibana image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-kibana
+          path: docker-artifacts/docker.elastic.co__kibana__kibana__8.13.4/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload apm-server image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-apm-server
+          path: docker-artifacts/docker.elastic.co__apm__apm-server__8.13.4/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload neo4j image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-neo4j
+          path: docker-artifacts/neo4j__5/
+          if-no-files-found: error
+          retention-days: 7
