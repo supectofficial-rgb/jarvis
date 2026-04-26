@@ -7,8 +7,65 @@ on:
       - main
 
 jobs:
-  build-offline:
+  export-image:
+    name: Export ${{ matrix.artifact }}
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact: insurance-api-gateway
+            image: insurance/api-gateway:latest
+            service: api-gateway
+            mode: build
+          - artifact: insurance-cache-api
+            image: insurance/cache-api:latest
+            service: cache-api
+            mode: build
+          - artifact: insurance-graph-service
+            image: insurance/graph-service:latest
+            service: graph-service
+            mode: build
+          - artifact: insurance-inventory-api
+            image: insurance/inventory-api:latest
+            service: inventory-api
+            mode: build
+          - artifact: insurance-inventory-dashboard
+            image: insurance/inventory-dashboard:latest
+            service: inventory-dashboard
+            mode: build
+          - artifact: insurance-user-api
+            image: insurance/user-api:latest
+            service: user-api
+            mode: build
+          - artifact: postgres
+            image: postgres:16
+            mode: pull
+          - artifact: pgadmin
+            image: dpage/pgadmin4:latest
+            mode: pull
+          - artifact: redis-stack
+            image: redis/redis-stack:latest
+            mode: pull
+          - artifact: rabbitmq
+            image: rabbitmq:3-management
+            mode: pull
+          - artifact: consul
+            image: hashicorp/consul:1.19
+            mode: pull
+          - artifact: elasticsearch
+            image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+            mode: pull
+          - artifact: kibana
+            image: docker.elastic.co/kibana/kibana:8.13.4
+            mode: pull
+          - artifact: apm-server
+            image: docker.elastic.co/apm/apm-server:8.13.4
+            mode: pull
+          - artifact: neo4j
+            image: neo4j:5
+            mode: pull
 
     steps:
       - name: Checkout code
@@ -17,162 +74,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Show disk space
+        run: df -h
+
       - name: Validate docker compose
         run: docker compose config
 
-      - name: Pull infrastructure images
-        run: docker compose pull --ignore-buildable
+      - name: Build application image
+        if: matrix.mode == 'build'
+        run: docker compose build ${{ matrix.service }}
 
-      - name: Build application images
-        run: docker compose build
+      - name: Pull infrastructure image
+        if: matrix.mode == 'pull'
+        run: docker pull ${{ matrix.image }}
 
-      - name: Export compose image list
-        run: |
-          docker compose config --images | sort -u > docker-images.txt
-          echo "Images that will be exported:"
-          cat docker-images.txt
-
-      - name: Save Docker images as separate archives
+      - name: Save image as tar.gz
         run: |
           set -euo pipefail
-          mkdir -p docker-artifacts
-          while IFS= read -r IMAGE; do
-            [ -z "$IMAGE" ] && continue
-            FILE_NAME="$(echo "$IMAGE" | tr '/:' '__')"
-            mkdir -p "docker-artifacts/${FILE_NAME}"
-            echo "$IMAGE" > "docker-artifacts/${FILE_NAME}/image.txt"
-            echo "Saving $IMAGE -> docker-artifacts/${FILE_NAME}/${FILE_NAME}.tar.gz"
-            docker image inspect "$IMAGE" > /dev/null
-            docker save "$IMAGE" | gzip > "docker-artifacts/${FILE_NAME}/${FILE_NAME}.tar.gz"
-            test -s "docker-artifacts/${FILE_NAME}/${FILE_NAME}.tar.gz"
-          done < docker-images.txt
-          mkdir -p docker-artifacts/manifest
-          cp docker-images.txt docker-artifacts/manifest/docker-images.txt
+          mkdir -p docker-image
+          echo "${{ matrix.image }}" > docker-image/image.txt
+          docker image inspect "${{ matrix.image }}" > /dev/null
+          docker save "${{ matrix.image }}" | gzip > "docker-image/${{ matrix.artifact }}.tar.gz"
+          test -s "docker-image/${{ matrix.artifact }}.tar.gz"
+          ls -lh docker-image
 
-      - name: Upload manifest
+      - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docker-images-manifest
-          path: docker-artifacts/manifest/
+          name: docker-image-${{ matrix.artifact }}
+          path: docker-image/
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload api-gateway image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-insurance-api-gateway
-          path: docker-artifacts/insurance__api-gateway__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload cache-api image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-insurance-cache-api
-          path: docker-artifacts/insurance__cache-api__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload graph-service image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-insurance-graph-service
-          path: docker-artifacts/insurance__graph-service__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload inventory-api image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-insurance-inventory-api
-          path: docker-artifacts/insurance__inventory-api__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload inventory-dashboard image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-insurance-inventory-dashboard
-          path: docker-artifacts/insurance__inventory-dashboard__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload user-api image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-insurance-user-api
-          path: docker-artifacts/insurance__user-api__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload postgres image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-postgres
-          path: docker-artifacts/postgres__16/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload pgadmin image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-pgadmin
-          path: docker-artifacts/dpage__pgadmin4__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload redis-stack image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-redis-stack
-          path: docker-artifacts/redis__redis-stack__latest/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload rabbitmq image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-rabbitmq
-          path: docker-artifacts/rabbitmq__3-management/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload consul image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-consul
-          path: docker-artifacts/hashicorp__consul__1.19/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload elasticsearch image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-elasticsearch
-          path: docker-artifacts/docker.elastic.co__elasticsearch__elasticsearch__8.13.4/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload kibana image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-kibana
-          path: docker-artifacts/docker.elastic.co__kibana__kibana__8.13.4/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload apm-server image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-apm-server
-          path: docker-artifacts/docker.elastic.co__apm__apm-server__8.13.4/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload neo4j image
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-neo4j
-          path: docker-artifacts/neo4j__5/
-          if-no-files-found: error
-          retention-days: 7
