@@ -212,6 +212,9 @@ services:
       Database__ApplyMigrationsOnStartup: "true"
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=nivadUserDB;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
       CacheApi__BaseUrl: http://cache-api:8080/
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-Your-Very-Long-Secret-Key-At-Least-32-Characters-Long}
+      Jwt__Issuer: ${JWT_ISSUER:-YourApp}
+      Jwt__Audience: ${JWT_AUDIENCE:-YourAppClients}
       ElasticApm__ServerUrl: http://apm-server:8200
       ElasticApm__ServiceName: user-api
       ElasticApm__Environment: production
@@ -244,6 +247,10 @@ services:
       RabbitMqBroker__Port: "5672"
       RabbitMqBroker__UserName: ${RABBITMQ_USER:-guest}
       RabbitMqBroker__Password: ${RABBITMQ_PASSWORD:-guest}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-Your-Very-Long-Secret-Key-At-Least-32-Characters-Long}
+      Jwt__Issuer: ${JWT_ISSUER:-YourApp}
+      Jwt__Audience: ${JWT_AUDIENCE:-YourAppClients}
+      CacheApi__BaseUrl: http://cache-api:8080/
       ElasticApm__ServerUrl: http://apm-server:8200
       ElasticApm__ServerUrls: http://apm-server:8200
       ElasticApm__ServiceName: inventory-api
@@ -252,6 +259,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      cache-api:
+        condition: service_started
       rabbitmq:
         condition: service_healthy
       apm-server:

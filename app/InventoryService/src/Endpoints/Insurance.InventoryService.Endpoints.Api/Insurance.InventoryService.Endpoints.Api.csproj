@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.27.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.11">
@@ -23,6 +24,7 @@
     <ProjectReference Include="../../../../../fx/src/Endpoints/OysterFx.Endpoints.Api/OysterFx.Endpoints.Api.csproj" />
     <ProjectReference Include="../../../../../fx/src/Infra/EventBus/Outbox/OysterFx.Infra.EventBus.Outbox.csproj" />
     <ProjectReference Include="../../../../../fx/src/Infra/EventBus/RabbitMqBroker/OysterFx.Infra.EventBus.RabbitMqBroker.csproj" />
+    <ProjectReference Include="../../../../CacheService/src/Infra/CallerService/Insurance.CacheService.Infra.CallerService.csproj" />
     <ProjectReference Include="../../AppCore/AppServices/Insurance.InventoryService.AppCore.AppServices.csproj" />
     <ProjectReference Include="../../AppCore/DomainServices/Insurance.InventoryService.AppCore.DomainServices.csproj" />
     <ProjectReference Include="../../AppCore/Shared/Insurance.InventoryService.AppCore.Shared.csproj" />

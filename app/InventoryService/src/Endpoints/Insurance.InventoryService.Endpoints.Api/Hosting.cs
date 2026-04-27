@@ -1,6 +1,8 @@
 ﻿namespace Insurance.InventoryService.Endpoints.Api;
 
 using Elastic.Apm.NetCoreAll;
+using Insurance.CacheService.Infra.CallerService.Models;
+using Insurance.InventoryService.Endpoints.Api.Authorization;
 using Insurance.InventoryService.Endpoints.Api.Extensions.Db;
 using Insurance.InventoryService.Infra.InternalServices.GraphApiCaller.Models;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands;
@@ -23,6 +25,8 @@ public static class Hosting
         builder.Services.AddAllElasticApm();
         builder.Services.AddOysterFxApiCore("OysterFx", "Insurance", "Insurance.InventoryService");
         builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddInventoryJwtAuthentication(builder.Configuration);
+        builder.Services.AddCacheServices(builder.Configuration);
         builder.Services.AddDatabase(builder.Configuration);
         builder.Services.AddGraphProjectionServices(builder.Configuration);
         builder.Services.AddRabbitMqProducer(builder.Configuration);
@@ -55,8 +59,10 @@ public static class Hosting
         Activity.ForceDefaultIdFormat = true;
         app.UseAllElasticApm(app.Configuration);
         app.UseHttpsRedirection();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapHealthChecks("/health", new HealthCheckOptions());
-        app.MapControllers();
+        app.MapControllers().RequireAuthorization();
         return app;
     }
 }

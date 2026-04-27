@@ -37,10 +37,12 @@ using OysterFx.Endpoints.Api.Controllers;
 public class CategoryController : OysterFxController
 {
     [HttpPost]
+    [RequirePermission("Inventory.Category.Create", "Catalog.Category.Create")]
     public Task<IActionResult> Create([FromBody] CreateCategoryCommand command)
         => SendCommand<CreateCategoryCommand, CreateCategoryCommandResult>(command);
 
     [HttpPut("{categoryBusinessKey:guid}")]
+    [RequirePermission("Inventory.Category.Update", "Catalog.Category.Update")]
     public Task<IActionResult> Update([FromRoute] Guid categoryBusinessKey, [FromBody] UpdateCategoryCommand command)
     {
         command.CategoryBusinessKey = categoryBusinessKey;
@@ -48,6 +50,7 @@ public class CategoryController : OysterFxController
     }
 
     [HttpPost("{categoryBusinessKey:guid}/move")]
+    [RequirePermission("Inventory.Category.Move", "Catalog.Category.Move")]
     public Task<IActionResult> Move([FromRoute] Guid categoryBusinessKey, [FromBody] MoveCategoryCommand command)
     {
         command.CategoryBusinessKey = categoryBusinessKey;
@@ -55,21 +58,25 @@ public class CategoryController : OysterFxController
     }
 
     [HttpPost("{categoryBusinessKey:guid}/activate")]
+    [RequirePermission("Inventory.Category.Update", "Catalog.Category.Activate")]
     public Task<IActionResult> Activate([FromRoute] Guid categoryBusinessKey)
         => SendCommand<ActivateCategoryCommand, ActivateCategoryCommandResult>(
             new ActivateCategoryCommand { CategoryBusinessKey = categoryBusinessKey });
 
     [HttpPost("{categoryBusinessKey:guid}/deactivate")]
+    [RequirePermission("Inventory.Category.Update", "Catalog.Category.Deactivate")]
     public Task<IActionResult> Deactivate([FromRoute] Guid categoryBusinessKey)
         => SendCommand<DeactivateCategoryCommand, DeactivateCategoryCommandResult>(
             new DeactivateCategoryCommand { CategoryBusinessKey = categoryBusinessKey });
 
     [HttpDelete("{categoryBusinessKey:guid}")]
+    [RequirePermission("Inventory.Category.Delete", "Catalog.Category.Delete")]
     public Task<IActionResult> Delete([FromRoute] Guid categoryBusinessKey)
         => SendCommand<DeleteCategoryCommand, DeleteCategoryCommandResult>(
             new DeleteCategoryCommand { CategoryBusinessKey = categoryBusinessKey });
 
     [HttpPost("{categoryBusinessKey:guid}/attribute-rules")]
+    [RequirePermission("Inventory.CategoryAttributeRule.Assign", "Catalog.Category.Rule.Assign")]
     public Task<IActionResult> AddAttributeRule([FromRoute] Guid categoryBusinessKey, [FromBody] AddCategoryAttributeRuleCommand command)
     {
         command.CategoryBusinessKey = categoryBusinessKey;
@@ -77,6 +84,7 @@ public class CategoryController : OysterFxController
     }
 
     [HttpPut("{categoryBusinessKey:guid}/attribute-rules/{attributeRef:guid}")]
+    [RequirePermission("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update")]
     public Task<IActionResult> UpdateAttributeRule(
         [FromRoute] Guid categoryBusinessKey,
         [FromRoute] Guid attributeRef,
@@ -88,6 +96,7 @@ public class CategoryController : OysterFxController
     }
 
     [HttpPost("{categoryBusinessKey:guid}/attribute-rules/{attributeRef:guid}/activate")]
+    [RequirePermission("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Activate")]
     public Task<IActionResult> ActivateAttributeRule([FromRoute] Guid categoryBusinessKey, [FromRoute] Guid attributeRef)
         => SendCommand<ActivateCategoryAttributeRuleCommand, ActivateCategoryAttributeRuleCommandResult>(
             new ActivateCategoryAttributeRuleCommand
@@ -97,6 +106,7 @@ public class CategoryController : OysterFxController
             });
 
     [HttpPost("{categoryBusinessKey:guid}/attribute-rules/{attributeRef:guid}/deactivate")]
+    [RequirePermission("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Deactivate")]
     public Task<IActionResult> DeactivateAttributeRule([FromRoute] Guid categoryBusinessKey, [FromRoute] Guid attributeRef)
         => SendCommand<DeactivateCategoryAttributeRuleCommand, DeactivateCategoryAttributeRuleCommandResult>(
             new DeactivateCategoryAttributeRuleCommand
@@ -106,6 +116,7 @@ public class CategoryController : OysterFxController
             });
 
     [HttpDelete("{categoryBusinessKey:guid}/attribute-rules/{attributeRef:guid}")]
+    [RequirePermission("Inventory.CategoryAttributeRule.Remove", "Catalog.Category.Rule.Remove")]
     public Task<IActionResult> RemoveAttributeRule([FromRoute] Guid categoryBusinessKey, [FromRoute] Guid attributeRef)
         => SendCommand<RemoveCategoryAttributeRuleCommand, RemoveCategoryAttributeRuleCommandResult>(
             new RemoveCategoryAttributeRuleCommand
