@@ -2,70 +2,155 @@ name: Build & Export Docker Images for Offline Deployment
 
 on:
   workflow_dispatch:
+    inputs:
+      build_scope:
+        description: changed or all buildable microservices
+        required: true
+        default: changed
+        type: choice
+        options:
+          - changed
+          - all
+      include_infra:
+        description: also export infrastructure images
+        required: true
+        default: false
+        type: boolean
   push:
     branches:
       - main
 
 jobs:
+  detect-images:
+    name: Detect changed images
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_images: ${{ steps.set-matrix.outputs.has_images }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          separator: "\n"
+
+      - name: Build export matrix
+        id: set-matrix
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BUILD_SCOPE: ${{ inputs.build_scope || 'changed' }}
+          INCLUDE_INFRA: ${{ inputs.include_infra || 'false' }}
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t changed_files <<< "$CHANGED_FILES"
+
+          add_item() {
+            local artifact="$1"
+            local image="$2"
+            local service="$3"
+            local mode="$4"
+            matrix_items+=("{\"artifact\":\"${artifact}\",\"image\":\"${image}\",\"service\":\"${service}\",\"mode\":\"${mode}\"}")
+          }
+
+          has_match() {
+            local pattern="$1"
+            for file in "${changed_files[@]}"; do
+              [[ -z "$file" ]] && continue
+              if [[ "$file" == $pattern ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          matrix_items=()
+          shared_docker_changed=false
+
+          if has_match "docker-compose.yml" || has_match ".dockerignore" || has_match ".github/workflows/build-offline-docker-images.yml"; then
+            shared_docker_changed=true
+          fi
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$BUILD_SCOPE" == "all" ]]; then
+            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
+            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
+            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
+            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
+            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+          elif [[ "$shared_docker_changed" == "true" ]]; then
+            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
+            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
+            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
+            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
+            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+          else
+            if has_match "agw/*" || has_match "docker/api-gateway.Dockerfile" || has_match "docker/consul/*"; then
+              add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
+            fi
+
+            if has_match "app/CacheService/*" || has_match "docker/cache-api.Dockerfile" || has_match "fx/*"; then
+              add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            fi
+
+            if has_match "app/GraphService/*" || has_match "docker/graph-service.Dockerfile" || has_match "fx/*"; then
+              add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
+            fi
+
+            if has_match "app/InventoryService/*" || has_match "docker/inventory-api.Dockerfile" || has_match "fx/*"; then
+              add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
+            fi
+
+            if has_match "app/InventoryDashboard/*" || has_match "docker/inventory-dashboard.Dockerfile"; then
+              add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
+            fi
+
+            if has_match "app/UserService/*" || has_match "docker/user-api.Dockerfile" || has_match "fx/*" || has_match "app/PanelPayamakService/*"; then
+              add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+            fi
+          fi
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$INCLUDE_INFRA" == "true" ]]; then
+            add_item "postgres" "postgres:16" "" "pull"
+            add_item "pgadmin" "dpage/pgadmin4:latest" "" "pull"
+            add_item "redis-stack" "redis/redis-stack:latest" "" "pull"
+            add_item "rabbitmq" "rabbitmq:3-management" "" "pull"
+            add_item "consul" "hashicorp/consul:1.19" "" "pull"
+            add_item "elasticsearch" "docker.elastic.co/elasticsearch/elasticsearch:8.13.4" "" "pull"
+            add_item "kibana" "docker.elastic.co/kibana/kibana:8.13.4" "" "pull"
+            add_item "apm-server" "docker.elastic.co/apm/apm-server:8.13.4" "" "pull"
+            add_item "neo4j" "neo4j:5" "" "pull"
+          fi
+
+          if [[ ${#matrix_items[@]} -eq 0 ]]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'has_images=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matrix_json=$(printf '%s\n' "${matrix_items[@]}" | jq -s '{include: .}')
+          echo "matrix=${matrix_json}" >> "$GITHUB_OUTPUT"
+          echo 'has_images=true' >> "$GITHUB_OUTPUT"
+          echo "$matrix_json"
+
   export-image:
     name: Export ${{ matrix.artifact }}
+    needs: detect-images
+    if: needs.detect-images.outputs.has_images == 'true'
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - artifact: insurance-api-gateway
-            image: insurance/api-gateway:latest
-            service: api-gateway
-            mode: build
-          - artifact: insurance-cache-api
-            image: insurance/cache-api:latest
-            service: cache-api
-            mode: build
-          - artifact: insurance-graph-service
-            image: insurance/graph-service:latest
-            service: graph-service
-            mode: build
-          - artifact: insurance-inventory-api
-            image: insurance/inventory-api:latest
-            service: inventory-api
-            mode: build
-          - artifact: insurance-inventory-dashboard
-            image: insurance/inventory-dashboard:latest
-            service: inventory-dashboard
-            mode: build
-          - artifact: insurance-user-api
-            image: insurance/user-api:latest
-            service: user-api
-            mode: build
-          - artifact: postgres
-            image: postgres:16
-            mode: pull
-          - artifact: pgadmin
-            image: dpage/pgadmin4:latest
-            mode: pull
-          - artifact: redis-stack
-            image: redis/redis-stack:latest
-            mode: pull
-          - artifact: rabbitmq
-            image: rabbitmq:3-management
-            mode: pull
-          - artifact: consul
-            image: hashicorp/consul:1.19
-            mode: pull
-          - artifact: elasticsearch
-            image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
-            mode: pull
-          - artifact: kibana
-            image: docker.elastic.co/kibana/kibana:8.13.4
-            mode: pull
-          - artifact: apm-server
-            image: docker.elastic.co/apm/apm-server:8.13.4
-            mode: pull
-          - artifact: neo4j
-            image: neo4j:5
-            mode: pull
+      matrix: ${{ fromJson(needs.detect-images.outputs.matrix) }}
 
     steps:
       - name: Checkout code
@@ -78,6 +163,7 @@ jobs:
         run: df -h
 
       - name: Validate docker compose
+        if: matrix.mode == 'build'
         run: docker compose config
 
       - name: Build application image
@@ -89,6 +175,7 @@ jobs:
         run: docker pull ${{ matrix.image }}
 
       - name: Save image as tar.gz
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p docker-image
@@ -106,3 +193,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  nothing-to-build:
+    name: Nothing to build
+    needs: detect-images
+    if: needs.detect-images.outputs.has_images != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: No changed microservice images
+        run: echo "No changed microservice image detected for this run."
