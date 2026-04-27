@@ -137,7 +137,7 @@ jobs:
             exit 0
           fi
 
-          matrix_json=$(printf '%s\n' "${matrix_items[@]}" | jq -s '{include: .}')
+          matrix_json=$(printf '%s\n' "${matrix_items[@]}" | jq -cs '{include: .}')
           echo "matrix=${matrix_json}" >> "$GITHUB_OUTPUT"
           echo 'has_images=true' >> "$GITHUB_OUTPUT"
           echo "$matrix_json"
