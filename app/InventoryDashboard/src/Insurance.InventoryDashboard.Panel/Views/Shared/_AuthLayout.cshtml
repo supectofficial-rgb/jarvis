@@ -6,21 +6,21 @@
     <title>@ViewData["Title"] - داشبورد انبار</title>
     <link rel="shortcut icon" href="@Url.Content("~/favicon.ico")" />
 
-    <link rel="stylesheet" href="@Url.Content("~/font/iconsmind-s/css/iconsminds.css")" />
-    <link rel="stylesheet" href="@Url.Content("~/font/simple-line-icons/css/simple-line-icons.css")" />
-    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.min.css")" />
-    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.rtl.only.min.css")" />
-    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap-float-label.min.css")" />
-    <link rel="stylesheet" href="@Url.Content("~/css/main.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/font/iconsmind-s/css/iconsminds.css")" asp-append-version="true" />
+    <link rel="stylesheet" href="@Url.Content("~/font/simple-line-icons/css/simple-line-icons.css")" asp-append-version="true" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.min.css")" asp-append-version="true" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.rtl.only.min.css")" asp-append-version="true" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap-float-label.min.css")" asp-append-version="true" />
+    <link rel="stylesheet" href="@Url.Content("~/css/main.css")" asp-append-version="true" />
 </head>
 <body class="background show-spinner no-footer">
     <div class="fixed-background"></div>
     @RenderBody()
 
-    <script src="@Url.Content("~/js/vendor/jquery-3.3.1.min.js")"></script>
-    <script src="@Url.Content("~/js/vendor/bootstrap.bundle.min.js")"></script>
-    <script src="@Url.Content("~/js/dore.script.js")"></script>
-    <script src="@Url.Content("~/js/scripts.js")"></script>
+    <script src="@Url.Content("~/js/vendor/jquery-3.3.1.min.js")" asp-append-version="true"></script>
+    <script src="@Url.Content("~/js/vendor/bootstrap.bundle.min.js")" asp-append-version="true"></script>
+    <script src="@Url.Content("~/js/dore.script.js")" asp-append-version="true"></script>
+    <script src="@Url.Content("~/js/scripts.js")" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

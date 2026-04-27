@@ -4187,7 +4187,7 @@
         couldBeTap = false;
       };
 
-      // TODO: Listen to the original target. http://youtu.be/DujfpXOKUp8?t=13m8s
+      // TODO: Listen to the original target.
       this.on('touchleave', noTap);
       this.on('touchcancel', noTap);
 
@@ -10327,7 +10327,7 @@
         // passed in
         var script = document_1.createElement('script');
 
-        script.src = this.options_['vtt.js'] || 'https://vjs.zencdn.net/vttjs/0.14.1/vtt.min.js';
+        script.src = this.options_['vtt.js'] || '/js/vendor/vtt.min.js';
         script.onload = function () {
           /**
            * Fired when vtt.js is loaded.

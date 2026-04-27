@@ -78,7 +78,7 @@ html {
   --separator-color: #424242; }
 
 body {
-  font-family: "Nunito", sans-serif;
+  font-family: "yekan", sans-serif;
   font-size: 0.8rem;
   font-weight: 400;
   color: #8f8f8f;
@@ -336,7 +336,7 @@ a {
 p {
   font-size: 0.85rem;
   line-height: 1.3rem;
-  font-family: "Nunito", sans-serif; }
+  font-family: "yekan", sans-serif; }
 
 .text-large {
   font-size: 1.9rem !important; }
@@ -5083,7 +5083,7 @@ a.ck.ck-button.ck-on:not(.ck-disabled):hover {
     background-color: #1b1a19; }
 
 .context-menu-item span {
-  font-family: "Nunito", sans-serif;
+  font-family: "yekan", sans-serif;
   font-size: 0.8rem;
   font-weight: 400;
   margin-left: 0.5rem;
@@ -6885,7 +6885,7 @@ footer.page-footer {
       .landing-page .landing-page-nav .navbar-nav .nav-item > a,
       .landing-page .landing-page-nav .navbar-nav .nav-item > .dropdown > a {
         color: #d0d0d0;
-        font-family: Nunito, sans-serif;
+        font-family: yekan, sans-serif;
         font-size: 1rem;
         display: inline-block;
         margin-top: 0; }

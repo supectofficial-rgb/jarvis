@@ -31,6 +31,15 @@ function loadStyle(href, callback) {
   }
 }
 
+function getThemeCssPath(theme) {
+  var mainCss = document.querySelector('link[href$="/css/main.css"], link[href$="css/main.css"]');
+  if (!mainCss) {
+    return "/css/" + theme;
+  }
+
+  return mainCss.getAttribute("href").replace(/main\.css(\?.*)?$/, "") + theme;
+}
+
 /* 02. Theme Selector, Layout Direction And Initializer */
 (function ($) {
   if ($().dropzone) {
@@ -128,7 +137,7 @@ function loadStyle(href, callback) {
   $(".radius-radio[data-radius='" + radius + "']").attr("checked", true);
   $("#switchDark").attr("checked", theme.indexOf("dark") > 0 ? true : false);
 
-  loadStyle("css/" + theme, onStyleComplete);
+  loadStyle(getThemeCssPath(theme), onStyleComplete);
   function onStyleComplete() {
     setTimeout(onStyleCompleteDelayed, 300);
   }
