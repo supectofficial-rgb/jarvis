@@ -16,7 +16,8 @@ public interface ITokenService
         IEnumerable<MembershipDto> memberships,
         BusinessKey? activeMembershipKey,
         BusinessKey? activeOrganizationKey,
-        IEnumerable<BusinessKey> activeRoleBusinessKeys);
+        IEnumerable<BusinessKey> activeRoleBusinessKeys,
+        IEnumerable<string>? activeRoleNames = null);
 
     /// <summary>
     /// ایجاد توکن برای کاربر با یک سازمان و نقش مشخص (MembershipKey)

@@ -7,15 +7,27 @@
       "isEnabled": false,
       "description": "مدیریت کاربران، پرسوناها و پرمیشن‌ها (فعلا غیرفعال)",
       "roles": [
+        "SysAdmin",
         "Admin"
       ],
       "items": [
+        {
+          "itemId": "organizations",
+          "title": "مدیریت سازمان‌ها",
+          "icon": "simple-icon-organization",
+          "isEnabled": false,
+          "roles": [
+            "SysAdmin"
+          ],
+          "description": "تعریف و مدیریت سازمان‌ها"
+        },
         {
           "itemId": "users",
           "title": "مدیریت کاربران",
           "icon": "simple-icon-user",
           "isEnabled": false,
           "roles": [
+            "SysAdmin",
             "Admin"
           ],
           "description": "مدیریت کاربران و عضویت‌ها"
@@ -26,6 +38,7 @@
           "icon": "simple-icon-people",
           "isEnabled": false,
           "roles": [
+            "SysAdmin",
             "Admin"
           ],
           "description": "مدیریت پرسونا و رول‌های سازمانی"
@@ -36,9 +49,10 @@
           "icon": "simple-icon-lock",
           "isEnabled": false,
           "roles": [
+            "SysAdmin",
             "Admin"
           ],
-          "description": "تعریف و انتساب پرمیشن‌ها"
+          "description": "تعریف پرمیشن‌ها و نقش‌های سازمانی"
         }
       ]
     },
@@ -49,6 +63,7 @@
       "isEnabled": true,
       "description": "مدیریت Category / Product / Variant",
       "roles": [
+        "SysAdmin",
         "Admin",
         "InventoryManager"
       ],
@@ -59,6 +74,7 @@
           "icon": "simple-icon-folder",
           "isEnabled": true,
           "roles": [
+            "SysAdmin",
             "Admin",
             "InventoryManager"
           ],
@@ -71,6 +87,7 @@
           "icon": "simple-icon-basket",
           "isEnabled": true,
           "roles": [
+            "SysAdmin",
             "Admin",
             "InventoryManager"
           ],
@@ -83,6 +100,7 @@
           "icon": "simple-icon-layers",
           "isEnabled": true,
           "roles": [
+            "SysAdmin",
             "Admin",
             "InventoryManager"
           ],

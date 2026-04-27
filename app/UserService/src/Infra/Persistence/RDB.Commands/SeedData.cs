@@ -64,7 +64,7 @@ public static class SeedData
             new { Id = 1L, BusinessKey = BusinessKey.FromGuid(Permission1BusinessKey), Code = "Role.Create", Scope = RoleScope.System, Description = "ایجاد نقش", IsActive = true },
             new { Id = 2L, BusinessKey = BusinessKey.FromGuid(Permission2BusinessKey), Code = "Role.AssignPermission", Scope = RoleScope.System, Description = "تخصیص دسترسی به نقش", IsActive = true },
             new { Id = 3L, BusinessKey = BusinessKey.FromGuid(Permission3BusinessKey), Code = "Role.RemovePermission", Scope = RoleScope.System, Description = "حذف دسترسی از نقش", IsActive = true },
-            new { Id = 4L, BusinessKey = BusinessKey.FromGuid(Permission4BusinessKey), Code = "Permission.Create", Scope = RoleScope.System, Description = "ایجاد دسترسی", IsActive = true },
+            new { Id = 4L, BusinessKey = BusinessKey.FromGuid(Permission4BusinessKey), Code = "Permission.Create.System", Scope = RoleScope.System, Description = "ایجاد دسترسی سیستمی", IsActive = true },
             new { Id = 5L, BusinessKey = BusinessKey.FromGuid(Permission5BusinessKey), Code = "Organization.Create", Scope = RoleScope.System, Description = "تعریف سازمان", IsActive = true },
             new { Id = 6L, BusinessKey = BusinessKey.FromGuid(Permission6BusinessKey), Code = "Organization.GetAll", Scope = RoleScope.System, Description = "مشاهده لیست سازمانها", IsActive = true },
             new { Id = 7L, BusinessKey = BusinessKey.FromGuid(Permission7BusinessKey), Code = "Membership.Create", Scope = RoleScope.System, Description = "ایجاد Membership", IsActive = true },

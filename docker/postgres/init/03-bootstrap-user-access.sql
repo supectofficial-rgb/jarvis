@@ -13,6 +13,20 @@ VALUES
     (1101, 'Panel.PeopleManagement.View', 2, 'View people management panel', true, '00000000-0000-0000-0000-000000001101'),
     (1102, 'Panel.Catalog.View', 2, 'View catalog management panel', true, '00000000-0000-0000-0000-000000001102'),
     (1103, 'Panel.Inventory.View', 2, 'View inventory management panel', true, '00000000-0000-0000-0000-000000001103'),
+    (1104, 'Panel.OrganizationManagement.View', 1, 'View organization management panel', true, '00000000-0000-0000-0000-000000001104'),
+
+    (1150, 'Organization.Create', 1, 'Create organizations', true, '00000000-0000-0000-0000-000000001150'),
+    (1151, 'Organization.Update', 1, 'Update organizations', true, '00000000-0000-0000-0000-000000001151'),
+    (1152, 'Organization.GetAll', 1, 'View organizations', true, '00000000-0000-0000-0000-000000001152'),
+    (1153, 'Permission.Create.System', 1, 'Create system permissions', true, '00000000-0000-0000-0000-000000001153'),
+    (1160, 'User.Create', 2, 'Create organization users', true, '00000000-0000-0000-0000-000000001160'),
+    (1161, 'User.Update', 2, 'Update organization users', true, '00000000-0000-0000-0000-000000001161'),
+    (1162, 'Membership.Create', 2, 'Create organization memberships', true, '00000000-0000-0000-0000-000000001162'),
+    (1163, 'Membership.AssignRole', 2, 'Assign organization roles to memberships', true, '00000000-0000-0000-0000-000000001163'),
+    (1164, 'Permission.Create.Organization', 2, 'Create organization permissions', true, '00000000-0000-0000-0000-000000001164'),
+    (1170, 'Role.Create', 2, 'Create organization roles', true, '00000000-0000-0000-0000-000000001170'),
+    (1171, 'Role.AssignPermission', 2, 'Assign organization permissions to roles', true, '00000000-0000-0000-0000-000000001171'),
+    (1172, 'Role.RemovePermission', 2, 'Remove organization permissions from roles', true, '00000000-0000-0000-0000-000000001172'),
 
     (1200, 'Catalog.Category.View', 2, 'View catalog categories', true, '00000000-0000-0000-0000-000000001200'),
     (1201, 'Catalog.Category.Create', 2, 'Create catalog categories', true, '00000000-0000-0000-0000-000000001201'),
@@ -36,6 +50,7 @@ VALUES
     (1301, 'Inventory.Product.Create', 3, 'Create products through API', true, '00000000-0000-0000-0000-000000001301'),
     (1302, 'Inventory.Product.Update', 3, 'Update products through API', true, '00000000-0000-0000-0000-000000001302'),
     (1303, 'Inventory.Product.Delete', 3, 'Delete products through API', true, '00000000-0000-0000-0000-000000001303'),
+    (1304, 'Permission.Create.Application', 3, 'Create application permissions', true, '00000000-0000-0000-0000-000000001304'),
     (1310, 'Inventory.ProductVariant.Read', 3, 'Read product variants through API', true, '00000000-0000-0000-0000-000000001310'),
     (1311, 'Inventory.ProductVariant.Create', 3, 'Create product variants through API', true, '00000000-0000-0000-0000-000000001311'),
     (1312, 'Inventory.ProductVariant.Update', 3, 'Update product variants through API', true, '00000000-0000-0000-0000-000000001312'),
@@ -53,9 +68,13 @@ ON CONFLICT ("Id") DO NOTHING;
 
 INSERT INTO "Roles" ("Id", "TenantId", "BusinessKey", "Scope", "Name", "NormalizedName", "ConcurrencyStamp")
 VALUES
-    (1000, 'TENANT_00000000-0000-0000-0000-000000002000', '00000000-0000-0000-0000-000000003000', 1, 'SystemAdmin', 'SYSTEMADMIN', '00000000-0000-0000-0000-000000003000'),
-    (1001, 'TENANT_00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000003001', 2, 'NivadOrganizationAdmin', 'NIVADORGANIZATIONADMIN', '00000000-0000-0000-0000-000000003001')
-ON CONFLICT ("Id") DO NOTHING;
+    (1000, 'TENANT_00000000-0000-0000-0000-000000002000', '00000000-0000-0000-0000-000000003000', 1, 'SysAdmin', 'SYSADMIN', '00000000-0000-0000-0000-000000003000'),
+    (1001, 'TENANT_00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000003001', 2, 'Admin', 'ADMIN', '00000000-0000-0000-0000-000000003001')
+ON CONFLICT ("Id") DO UPDATE
+SET "Name" = EXCLUDED."Name",
+    "NormalizedName" = EXCLUDED."NormalizedName",
+    "Scope" = EXCLUDED."Scope",
+    "TenantId" = EXCLUDED."TenantId";
 
 INSERT INTO "Users" ("Id", "MobileNumber", "Code", "FullName", "City", "Province", "MaxAllowedExpertiseAmount", "MaxAllowedDailyCaseReferral", "MaxAllowedOpenCases", "BusinessKey")
 VALUES
@@ -93,8 +112,26 @@ ON CONFLICT ("Id") DO NOTHING;
 
 INSERT INTO "RolePermissions" ("Id", "RoleBusinessKey", "PermissionBusinessKey", "AppRoleId", "BusinessKey")
 VALUES
-    (1000, '00000000-0000-0000-0000-000000003000', '00000000-0000-0000-0000-000000001000', 1000, '00000000-0000-0000-0000-000000009000'),
-    (1001, '00000000-0000-0000-0000-000000003001', '00000000-0000-0000-0000-000000001001', 1001, '00000000-0000-0000-0000-000000009001')
+    (1000, '00000000-0000-0000-0000-000000003000', '00000000-0000-0000-0000-000000001000', 1000, '00000000-0000-0000-0000-000000009000')
+ON CONFLICT ("Id") DO NOTHING;
+
+DELETE FROM "RolePermissions"
+WHERE "RoleBusinessKey" = '00000000-0000-0000-0000-000000003001'
+  AND "PermissionBusinessKey" = '00000000-0000-0000-0000-000000001001';
+
+INSERT INTO "RolePermissions" ("Id", "RoleBusinessKey", "PermissionBusinessKey", "AppRoleId", "BusinessKey")
+SELECT
+    200000 + p."Id",
+    '00000000-0000-0000-0000-000000003001',
+    p."BusinessKey",
+    1001,
+    (
+        '00000000-0000-0001-' ||
+        lpad(to_hex(p."Id"::bigint), 12, '0')
+    )::uuid
+FROM "Permissions" p
+WHERE p."Scope" IN (2, 3)
+  AND p."Code" <> '*'
 ON CONFLICT ("Id") DO NOTHING;
 
 COMMIT;

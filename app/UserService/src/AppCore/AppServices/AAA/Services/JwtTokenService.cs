@@ -37,7 +37,8 @@ public class JwtTokenService : ITokenService
         IEnumerable<MembershipDto> memberships,
         BusinessKey? activeMembershipKey,
         BusinessKey? activeOrganizationKey,
-        IEnumerable<BusinessKey> activeRoleBusinessKeys)
+        IEnumerable<BusinessKey> activeRoleBusinessKeys,
+        IEnumerable<string>? activeRoleNames = null)
     {
         var claims = new List<Claim>
         {
@@ -74,6 +75,18 @@ public class JwtTokenService : ITokenService
         if (normalizedActiveRoleKeys.Any())
         {
             claims.Add(new Claim("activeRoleBusinessKeys", string.Join(',', normalizedActiveRoleKeys)));
+        }
+
+        var normalizedActiveRoleNames = activeRoleNames?
+            .Where(role => !string.IsNullOrWhiteSpace(role))
+            .Select(role => role.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
+
+        foreach (var roleName in normalizedActiveRoleNames)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, roleName));
+            claims.Add(new Claim("role", roleName));
         }
 
         if (memberships != null)

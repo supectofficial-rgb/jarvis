@@ -61,7 +61,7 @@ public class DataSeedCommandHandler(ICommandBus commandBus) : CommandHandler<Dat
         new { Code = "Role.Create", Description = "ایجاد نقش" },
         new { Code = "Role.AssignPermission", Description = "تخصیص دسترسی به نقش" },
         new { Code = "Role.RemovePermission", Description = "حذف دسترسی از نقش" },
-        new { Code = "Permission.Create", Description = "ایجاد دسترسی" },
+        new { Code = "Permission.Create.System", Description = "ایجاد دسترسی سیستمی" },
         new { Code = "Organization.Create", Description = "تعریف سازمان" },
         new { Code = "Organization.GetAll", Description = "مشاهده لیست سازمانها" },
         new { Code = "Membership.Create", Description = "ایجاد Membership" },

@@ -102,6 +102,12 @@ public class LoginCompletionService : ILoginCompletionService
             .Distinct()
             .ToList();
 
+        var activeRoleNames = await _dbContext.Roles
+            .Where(role => activeRoleKeys.Contains(role.BusinessKey) && role.Name != null)
+            .Select(role => role.Name!)
+            .Distinct()
+            .ToListAsync();
+
         var rolePermissionPairs = await _dbContext.RolePermissions
             .Where(rp => allRoleKeys.Contains(rp.RoleBusinessKey))
             .Join(
@@ -143,7 +149,8 @@ public class LoginCompletionService : ILoginCompletionService
             membershipDtos,
             activeMembership?.BusinessKey,
             activeMembership?.OrganizationBusinessKey,
-            activeRoleKeys);
+            activeRoleKeys,
+            activeRoleNames);
 
         var activePermissionCodes = activeRoleKeys
             .SelectMany(roleKey => rolePermissionMap.TryGetValue(roleKey, out var codes)
@@ -159,6 +166,7 @@ public class LoginCompletionService : ILoginCompletionService
             User = user,
             Memberships = membershipDtos,
             Permissions = activePermissionCodes,
+            Roles = activeRoleNames,
             ActiveMembershipBusinessKey = activeMembership?.BusinessKey.Value,
             ActiveOrganizationBusinessKey = activeMembership?.OrganizationBusinessKey.Value,
             ActiveRoleBusinessKeys = activeRoleKeys.Select(role => role.Value).ToList()

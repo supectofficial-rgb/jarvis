@@ -1091,7 +1091,9 @@ public abstract partial class CatalogManagementController
     private bool IsAuthorizedFor(string token, params string[] aliases)
     {
         var roles = ResolveRolesFromSession(token);
-        if (roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase)))
+        if (roles.Any(x =>
+            string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }

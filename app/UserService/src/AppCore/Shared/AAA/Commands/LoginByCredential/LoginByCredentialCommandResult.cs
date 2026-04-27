@@ -10,6 +10,7 @@ public class LoginByCredentialCommandResult
     public Account User { get; set; } = null!;
     public List<MembershipDto> Memberships { get; set; } = new();
     public List<string> Permissions { get; set; } = new();
+    public List<string> Roles { get; set; } = new();
 
     public Guid? ActiveMembershipBusinessKey { get; set; }
     public Guid? ActiveOrganizationBusinessKey { get; set; }

@@ -12,17 +12,17 @@ using OysterFx.Endpoints.Api.Controllers;
 [Route("api/UserService/[controller]")]
 public class PermissionController : OysterFxController
 {
-    [Authorize(Policy = "Permission.Create")]
+    [Authorize(Policy = "Permission.Create.System")]
     [HttpPost("create-system")]
     public async Task<IActionResult> CreateSystemPermission([FromBody] CreateSystemPermissionCommand command)
         => await SendCommand<CreateSystemPermissionCommand, Guid>(command);
 
-    [Authorize(Policy = "Permission.Create")]
+    [Authorize(Policy = "Permission.Create.Organization")]
     [HttpPost("create-organization")]
     public async Task<IActionResult> CreateOrganizationPermission([FromBody] CreateOrganizationPermissionCommand command)
         => await SendCommand<CreateOrganizationPermissionCommand, Guid>(command);
 
-    [Authorize(Policy = "Permission.Create")]
+    [Authorize(Policy = "Permission.Create.Application")]
     [HttpPost("create-application")]
     public async Task<IActionResult> CreateApplicationPermission([FromBody] CreateApplicationPermissionCommand command)
         => await SendCommand<CreateApplicationPermissionCommand, Guid>(command);
