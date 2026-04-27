@@ -12,18 +12,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
     <title>@ViewData["Title"] - داشبورد انبار</title>
-    <link rel="shortcut icon" href="~/favicon.ico" />
+    <link rel="shortcut icon" href="@Url.Content("~/favicon.ico")" />
 
-    <link rel="stylesheet" href="~/font/iconsmind-s/css/iconsminds.css" />
-    <link rel="stylesheet" href="~/font/simple-line-icons/css/simple-line-icons.css" />
-    <link rel="stylesheet" href="~/css/vendor/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/vendor/bootstrap.rtl.only.min.css" />
-    <link rel="stylesheet" href="~/css/vendor/perfect-scrollbar.css" />
-    <link rel="stylesheet" href="~/css/vendor/component-custom-switch.min.css" />
-    <link rel="stylesheet" href="~/css/vendor/select2.min.css" />
-    <link rel="stylesheet" href="~/css/vendor/select2-bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/dore.light.bluenavy.min.css" />
-    <link rel="stylesheet" href="~/css/main.css" />
+    <link rel="stylesheet" href="@Url.Content("~/font/iconsmind-s/css/iconsminds.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/font/simple-line-icons/css/simple-line-icons.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.rtl.only.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/perfect-scrollbar.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/component-custom-switch.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/select2.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/select2-bootstrap.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/dore.light.bluenavy.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/main.css")" />
 </head>
 <body id="app-container" class="menu-default show-spinner">
     <nav class="navbar fixed-top">
@@ -66,7 +66,7 @@
                 <button class="btn btn-empty p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <span class="name">@userDisplayName</span>
                     <span>
-                        <img alt="پروفایل" src="~/img/profiles/l-1.jpg" />
+                        <img alt="پروفایل" src="@Url.Content("~/img/profiles/l-1.jpg")" />
                     </span>
                 </button>
                 <div class="dropdown-menu dropdown-menu-right mt-3">
@@ -179,14 +179,14 @@
         </div>
     </div>
 
-    <script src="~/js/vendor/jquery-3.3.1.min.js"></script>
-    <script src="~/js/vendor/bootstrap.bundle.min.js"></script>
-    <script src="~/js/vendor/select2.full.js"></script>
-    <script src="~/js/vendor/perfect-scrollbar.min.js"></script>
-    <script src="~/js/vendor/mousetrap.min.js"></script>
-    <script src="~/js/dore.script.js"></script>
-    <script src="~/js/scripts.js"></script>
-    <script src="~/js/inventory-dashboard.ui.js" asp-append-version="true"></script>
+    <script src="@Url.Content("~/js/vendor/jquery-3.3.1.min.js")"></script>
+    <script src="@Url.Content("~/js/vendor/bootstrap.bundle.min.js")"></script>
+    <script src="@Url.Content("~/js/vendor/select2.full.js")"></script>
+    <script src="@Url.Content("~/js/vendor/perfect-scrollbar.min.js")"></script>
+    <script src="@Url.Content("~/js/vendor/mousetrap.min.js")"></script>
+    <script src="@Url.Content("~/js/dore.script.js")"></script>
+    <script src="@Url.Content("~/js/scripts.js")"></script>
+    <script src="@Url.Content("~/js/inventory-dashboard.ui.js")"></script>
     <script>
         (function () {
             var modalElement = document.getElementById('globalConfirmModal');

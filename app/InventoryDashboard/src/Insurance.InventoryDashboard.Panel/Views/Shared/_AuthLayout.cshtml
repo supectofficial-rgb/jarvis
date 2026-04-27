@@ -4,23 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
     <title>@ViewData["Title"] - داشبورد انبار</title>
-    <link rel="shortcut icon" href="~/favicon.ico" />
+    <link rel="shortcut icon" href="@Url.Content("~/favicon.ico")" />
 
-    <link rel="stylesheet" href="~/font/iconsmind-s/css/iconsminds.css" />
-    <link rel="stylesheet" href="~/font/simple-line-icons/css/simple-line-icons.css" />
-    <link rel="stylesheet" href="~/css/vendor/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/vendor/bootstrap.rtl.only.min.css" />
-    <link rel="stylesheet" href="~/css/vendor/bootstrap-float-label.min.css" />
-    <link rel="stylesheet" href="~/css/main.css" />
+    <link rel="stylesheet" href="@Url.Content("~/font/iconsmind-s/css/iconsminds.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/font/simple-line-icons/css/simple-line-icons.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap.rtl.only.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/vendor/bootstrap-float-label.min.css")" />
+    <link rel="stylesheet" href="@Url.Content("~/css/main.css")" />
 </head>
 <body class="background show-spinner no-footer">
     <div class="fixed-background"></div>
     @RenderBody()
 
-    <script src="~/js/vendor/jquery-3.3.1.min.js"></script>
-    <script src="~/js/vendor/bootstrap.bundle.min.js"></script>
-    <script src="~/js/dore.script.js"></script>
-    <script src="~/js/scripts.js"></script>
+    <script src="@Url.Content("~/js/vendor/jquery-3.3.1.min.js")"></script>
+    <script src="@Url.Content("~/js/vendor/bootstrap.bundle.min.js")"></script>
+    <script src="@Url.Content("~/js/dore.script.js")"></script>
+    <script src="@Url.Content("~/js/scripts.js")"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
