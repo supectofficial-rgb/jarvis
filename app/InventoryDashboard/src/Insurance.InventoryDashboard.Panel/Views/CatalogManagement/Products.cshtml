@@ -201,7 +201,7 @@
                                 @productCompletionPercent%
                             </span>
                         </div>
-                        <div class="progress" style="height:10px;">
+                        <div class="progress">
                             <div class="progress-bar" role="progressbar" style="width:@productCompletionPercent%"></div>
                         </div>
                         <small class="text-muted d-block mt-2">
@@ -499,7 +499,7 @@
                                                     <div id="auto-variant-preview-empty" class="text-muted small">
                                                         گزینه‌های واریانت‌ساز را انتخاب کنید تا پیش‌نمایش نام و SKU ساخته شود.
                                                     </div>
-                                                    <div id="auto-variant-preview-container" class="table-responsive" style="display:none;">
+                                                    <div id="auto-variant-preview-container" class="table-responsive d-none">
                                                         <table class="table table-sm table-striped mb-0">
                                                             <thead>
                                                                 <tr>
@@ -641,9 +641,9 @@
                                             </select>
                                         </div>
                                         <div class="form-group" id="product-value-text-group"><label>مقدار</label><input type="text" class="form-control" id="product-value-text" /></div>
-                                        <div class="form-group" id="product-value-number-group" style="display:none;"><label>مقدار عددی</label><input type="number" step="any" class="form-control" id="product-value-number" /></div>
-                                        <div class="form-group" id="product-value-date-group" style="display:none;"><label>تاریخ</label><input type="date" class="form-control" id="product-value-date" /></div>
-                                        <div class="form-group" id="product-value-boolean-group" style="display:none;">
+                                        <div class="form-group d-none" id="product-value-number-group"><label>مقدار عددی</label><input type="number" step="any" class="form-control" id="product-value-number" /></div>
+                                        <div class="form-group d-none" id="product-value-date-group"><label>تاریخ</label><input type="date" class="form-control" id="product-value-date" /></div>
+                                        <div class="form-group d-none" id="product-value-boolean-group">
                                             <label class="d-block">مقدار بولی</label>
                                             <div class="custom-control custom-switch mb-2">
                                                 <input type="checkbox" class="custom-control-input" id="product-value-boolean">
@@ -651,7 +651,7 @@
                                             </div>
                                             <button type="button" class="btn btn-outline-secondary btn-xs" id="product-value-boolean-clear">پاک کردن مقدار</button>
                                         </div>
-                                        <div class="form-group" id="product-value-option-group" style="display:none;"><label>گزینه</label><select class="form-control js-search-select" id="product-value-option" data-no-search="true"></select></div>
+                                        <div class="form-group d-none" id="product-value-option-group"><label>گزینه</label><select class="form-control js-search-select" id="product-value-option" data-no-search="true"></select></div>
                                         <input asp-for="ProductAttributeForm.Value" type="hidden" id="product-value-hidden" />
                                         <div class="mt-3">
                                             <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.ProductAttributeValue.Set", "ProductAttributeValue.Set") ? null : "disabled")>ثبت مقدار</button>
@@ -738,7 +738,7 @@
                             <table class="table table-sm table-striped">
                                 <thead>
                                     <tr>
-                                        <th style="width:36px"><input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" /></th>
+                                        <th><input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" /></th>
                                         <th>نام</th>
                                         <th>اسکوی پایه</th>
                                         <th>وضعیت</th>
@@ -1299,8 +1299,8 @@
                 }
 
                 if (isEditMode) {
-                    autoVariantPreviewContainer.style.display = 'none';
-                    autoVariantPreviewEmpty.style.display = '';
+                    autoVariantPreviewContainer.classList.add('d-none');
+                    autoVariantPreviewEmpty.classList.remove('d-none');
                     return;
                 }
 
@@ -1311,8 +1311,8 @@
 
                 if (!baseSku || combinations.length === 0) {
                     autoVariantPreviewBody.innerHTML = '';
-                    autoVariantPreviewContainer.style.display = 'none';
-                    autoVariantPreviewEmpty.style.display = '';
+                    autoVariantPreviewContainer.classList.add('d-none');
+                    autoVariantPreviewEmpty.classList.remove('d-none');
                     return;
                 }
 
@@ -1357,8 +1357,8 @@
                     return '<tr><td>' + row.index + '</td><td>' + row.name + '</td><td><span class="text-monospace">' + row.sku + '</span></td></tr>';
                 }).join('');
 
-                autoVariantPreviewEmpty.style.display = 'none';
-                autoVariantPreviewContainer.style.display = '';
+                autoVariantPreviewEmpty.classList.add('d-none');
+                autoVariantPreviewContainer.classList.remove('d-none');
             }
 
             function showTabByHref(href) {
@@ -1498,7 +1498,7 @@
 
                 function clearEditors() {
                     [textGroup, numberGroup, dateGroup, boolGroup, optionGroup].forEach(function (group) {
-                        if (group) { group.style.display = 'none'; }
+                        if (group) { group.classList.add('d-none'); }
                     });
                 }
 
@@ -1525,7 +1525,7 @@
                     var dataType = (selectedOption.getAttribute('data-type') || '').toLowerCase();
                     var options = parseOptions(selectedOption);
                     if (options.length > 0) {
-                        optionGroup.style.display = '';
+                        optionGroup.classList.remove('d-none');
                         optionSelect.innerHTML = '<option value="">انتخاب گزینه</option>';
                         options.forEach(function (item) {
                             var optionElement = document.createElement('option');
@@ -1535,14 +1535,14 @@
                                 : (item.name + ' (' + item.value + ')');
                             optionSelect.appendChild(optionElement);
                         });
-                    } else if (dataType === 'number') numberGroup.style.display = '';
+                    } else if (dataType === 'number') numberGroup.classList.remove('d-none');
                     else if (dataType === 'boolean') {
-                        boolGroup.style.display = '';
+                        boolGroup.classList.remove('d-none');
                         boolInput.checked = false;
                         booleanHasValue = false;
                     }
-                    else if (dataType === 'date') dateGroup.style.display = '';
-                    else textGroup.style.display = '';
+                    else if (dataType === 'date') dateGroup.classList.remove('d-none');
+                    else textGroup.classList.remove('d-none');
 
                     setHiddenValue();
                 }

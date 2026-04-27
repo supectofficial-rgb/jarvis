@@ -367,7 +367,7 @@
                                             <table class="table table-sm table-striped">
                                                 <thead>
                                                     <tr>
-                                                        <th style="width:36px">
+                                                        <th>
                                                             <input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" />
                                                         </th>
                                                         <th>کد</th>
@@ -407,7 +407,8 @@
                                                                 </td>
                                                                 <td><span class="text-monospace">@category.Code</span></td>
                                                                 <td>
-                                                                    <span class="category-depth-line" style="display:inline-block;padding-right:@(depth * 16)px">
+                                                                    <span class="d-inline-block">
+                                                                        @Html.Raw(string.Concat(Enumerable.Repeat("&nbsp;", depth * 4)))
                                                                         @if (hasChildren)
                                                                         {
                                                                             <button type="button"

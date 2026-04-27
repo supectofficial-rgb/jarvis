@@ -1,6 +1,7 @@
 BEGIN;
 
 -- Bootstrap RBAC data.
+-- Login username for both bootstrap accounts is the mobile number.
 -- Password for both bootstrap accounts is intended to be changed immediately.
 -- Current password hash is for: 1qaz!QAZ
 
@@ -78,22 +79,31 @@ SET "Name" = EXCLUDED."Name",
 
 INSERT INTO "Users" ("Id", "MobileNumber", "Code", "FullName", "City", "Province", "MaxAllowedExpertiseAmount", "MaxAllowedDailyCaseReferral", "MaxAllowedOpenCases", "BusinessKey")
 VALUES
-    (1000, NULL, 'SYS-ADMIN', 'System Administrator', NULL, NULL, 0, 0, 0, '00000000-0000-0000-0000-000000004000'),
-    (1001, NULL, 'NIVAD-ADMIN', 'Nivad Organization Administrator', NULL, NULL, 0, 0, 0, '00000000-0000-0000-0000-000000004001')
-ON CONFLICT ("Id") DO NOTHING;
+    (1000, '09194594505', 'SYS-ADMIN', 'System Administrator', NULL, NULL, 0, 0, 0, '00000000-0000-0000-0000-000000004000'),
+    (1001, '09121111111', 'NIVAD-ADMIN', 'Nivad Organization Administrator', NULL, NULL, 0, 0, 0, '00000000-0000-0000-0000-000000004001')
+ON CONFLICT ("Id") DO UPDATE
+SET "MobileNumber" = EXCLUDED."MobileNumber",
+    "Code" = EXCLUDED."Code",
+    "FullName" = EXCLUDED."FullName",
+    "BusinessKey" = EXCLUDED."BusinessKey";
 
 INSERT INTO "AspNetUsers" (
     "Id", "UserBusinessKey", "UserName", "NormalizedUserName", "Email", "NormalizedEmail", "EmailConfirmed",
     "PasswordHash", "SecurityStamp", "ConcurrencyStamp", "PhoneNumber", "PhoneNumberConfirmed",
     "TwoFactorEnabled", "LockoutEnd", "LockoutEnabled", "AccessFailedCount")
 VALUES
-    (1000, '00000000-0000-0000-0000-000000004000', 'admin', 'ADMIN', 'admin@nivad.local', 'ADMIN@NIVAD.LOCAL', true,
+    (1000, '00000000-0000-0000-0000-000000004000', '09194594505', '09194594505', 'admin@nivad.local', 'ADMIN@NIVAD.LOCAL', true,
      'AQAAAAIAAYagAAAAEGi5xfPdoTX8bPTrU/LYgT7k5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Q==',
      '00000000-0000-0000-0000-000000005000', '00000000-0000-0000-0000-000000006000', NULL, false, false, NULL, false, 0),
-    (1001, '00000000-0000-0000-0000-000000004001', 'nivad.admin', 'NIVAD.ADMIN', 'admin@nivad.ir', 'ADMIN@NIVAD.IR', true,
+    (1001, '00000000-0000-0000-0000-000000004001', '09121111111', '09121111111', 'admin@nivad.ir', 'ADMIN@NIVAD.IR', true,
      'AQAAAAIAAYagAAAAEGi5xfPdoTX8bPTrU/LYgT7k5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Q==',
      '00000000-0000-0000-0000-000000005001', '00000000-0000-0000-0000-000000006001', NULL, false, false, NULL, false, 0)
-ON CONFLICT ("Id") DO NOTHING;
+ON CONFLICT ("Id") DO UPDATE
+SET "UserBusinessKey" = EXCLUDED."UserBusinessKey",
+    "UserName" = EXCLUDED."UserName",
+    "NormalizedUserName" = EXCLUDED."NormalizedUserName",
+    "Email" = EXCLUDED."Email",
+    "NormalizedEmail" = EXCLUDED."NormalizedEmail";
 
 INSERT INTO "AspNetUserRoles" ("UserId", "RoleId")
 VALUES
@@ -126,7 +136,7 @@ SELECT
     p."BusinessKey",
     1001,
     (
-        '00000000-0000-0001-' ||
+        '00000000-0000-0001-0000-' ||
         lpad(to_hex(p."Id"::bigint), 12, '0')
     )::uuid
 FROM "Permissions" p
