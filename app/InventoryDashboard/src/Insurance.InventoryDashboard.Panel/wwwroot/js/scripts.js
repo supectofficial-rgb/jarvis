@@ -32,12 +32,14 @@ function loadStyle(href, callback) {
 }
 
 function getThemeCssPath(theme) {
-  var mainCss = document.querySelector('link[href$="/css/main.css"], link[href$="css/main.css"]');
+  var mainCss = document.querySelector(
+    'link[href$="/css/main.css"], link[href*="/css/main.css?"], link[href$="css/main.css"], link[href*="css/main.css?"]'
+  );
   if (!mainCss) {
     return "/css/" + theme;
   }
 
-  return mainCss.getAttribute("href").replace(/main\.css(\?.*)?$/, "") + theme;
+  return new URL(theme, mainCss.href).toString();
 }
 
 /* 02. Theme Selector, Layout Direction And Initializer */
