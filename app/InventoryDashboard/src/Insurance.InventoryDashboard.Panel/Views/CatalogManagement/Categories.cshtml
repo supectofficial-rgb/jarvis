@@ -153,7 +153,7 @@
                 <div class="tab-content">
                     <div class="tab-pane show active" id="category-tab" role="tabpanel">
                         <div class="row">
-                            <div class="col-lg-5 mb-4">
+                            <div class="col-12 mb-4">
                                 <div class="card mb-4">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -229,35 +229,9 @@
                                         </div>
                                     </div>
                                 }
-
-                                <div class="card mt-4 ">
-                                    <div class="card-body">
-                                        <h6 class="card-title mb-2">نمای پنل جزئیات دسته‌بندی</h6>
-                                        @if (selectedCategory is null)
-                                        {
-                                            <div class="alert alert-light mb-0">
-                                                <h6>دسته‌ای انتخاب نشده است</h6>
-                                                <p class="mb-0 text-muted">از جدول سمت راست یک دسته را انتخاب کنید.</p>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <p class="mb-1"><strong>نام:</strong> @selectedCategory.Name</p>
-                                            <p class="mb-1"><strong>کد:</strong> <span class="text-monospace">@selectedCategory.Code</span></p>
-                                            <p class="mb-1"><strong>مسیر:</strong> @selectedCategoryPath</p>
-                                            <p class="mb-1"><strong>زیرمجموعه مستقیم:</strong> @selectedCategoryChildrenCount</p>
-                                            <p class="mb-0">
-                                                <strong>وضعیت:</strong>
-                                                <span class="badge badge-pill @(selectedCategory.IsActive ? "badge-primary" : "badge-secondary")">
-                                                    @(selectedCategory.IsActive ? "فعال" : "غیرفعال")
-                                                </span>
-                                            </p>
-                                        }
-                                    </div>
-                                </div>
                             </div>
 
-                            <div class="col-lg-7 mb-4">
+                            <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body" id="category-list-scope">
                                         <h5 class="card-title mb-3">لیست دسته‌بندی‌ها</h5>
@@ -495,12 +469,39 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-12 mb-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-title mb-2">نمای پنل جزئیات دسته‌بندی</h6>
+                                        @if (selectedCategory is null)
+                                        {
+                                            <div class="alert alert-light mb-0">
+                                                <h6>دسته‌ای انتخاب نشده است</h6>
+                                                <p class="mb-0 text-muted">از جدول دسته‌بندی‌ها یک دسته را انتخاب کنید.</p>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="mb-1"><strong>نام:</strong> @selectedCategory.Name</p>
+                                            <p class="mb-1"><strong>کد:</strong> <span class="text-monospace">@selectedCategory.Code</span></p>
+                                            <p class="mb-1"><strong>مسیر:</strong> @selectedCategoryPath</p>
+                                            <p class="mb-1"><strong>زیرمجموعه مستقیم:</strong> @selectedCategoryChildrenCount</p>
+                                            <p class="mb-0">
+                                                <strong>وضعیت:</strong>
+                                                <span class="badge badge-pill @(selectedCategory.IsActive ? "badge-primary" : "badge-secondary")">
+                                                    @(selectedCategory.IsActive ? "فعال" : "غیرفعال")
+                                                </span>
+                                            </p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <div class="tab-pane" id="attribute-tab" role="tabpanel">
                         <div class="row">
-                            <div class="col-lg-5 mb-4">
+                            <div class="col-12 mb-4">
                                 <div class="card mb-4">
                                     <div class="card-body">
                                         <h5 class="card-title">ایجاد ویژگی</h5>
@@ -617,7 +618,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-lg-7 mb-4">
+                            <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body">
                                         <h5 class="card-title">ویژگی‌ها و گزینه‌ها</h5>
@@ -754,7 +755,7 @@
 
                     <div class="tab-pane" id="rule-tab" role="tabpanel">
                         <div class="row">
-                            <div class="col-lg-5 mb-4">
+                            <div class="col-12 mb-4">
                                 <div class="card mb-4">
                                     <div class="card-body">
                                         <h5 class="card-title">اختصاص ویژگی به دسته‌بندی</h5>
@@ -830,7 +831,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-lg-7 mb-4">
+                            <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body">
                                         <h5 class="card-title">قوانین دسته‌بندی</h5>
