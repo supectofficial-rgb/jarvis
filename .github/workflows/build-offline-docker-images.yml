@@ -175,6 +175,7 @@ jobs:
         run: docker pull ${{ matrix.image }}
 
       - name: Save image as tar.gz
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set -euo pipefail
@@ -186,12 +187,13 @@ jobs:
           ls -lh docker-image
 
       - name: Upload image artifact
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-${{ matrix.artifact }}
           path: docker-image/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   nothing-to-build:
     name: Nothing to build
