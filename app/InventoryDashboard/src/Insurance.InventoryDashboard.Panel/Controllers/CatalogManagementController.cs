@@ -78,6 +78,8 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetCategoryAttributesAsync(selectedCategoryId, token, includeInherited: true, includeInactive: true)
             : new ApiResponse<List<AttributeDefinitionModel>> { IsSuccess = true, Data = new List<AttributeDefinitionModel>() };
 
+        var allAttributesResult = await _apiService.GetActiveAttributeDefinitionsAsync(token);
+
         var rulesResult = !string.IsNullOrWhiteSpace(selectedCategoryId)
             ? await _apiService.GetCategoryAttributeRulesAsync(selectedCategoryId, token, includeInherited: true, includeInactive: true)
             : new ApiResponse<List<CategoryAttributeRuleModel>> { IsSuccess = true, Data = new List<CategoryAttributeRuleModel>() };
@@ -99,6 +101,7 @@ public abstract partial class CatalogManagementController : Controller
             Categories = categories,
             FlatCategories = flatCategories,
             FilteredFlatCategories = pagedCategories,
+            AllAttributes = allAttributesResult.Data ?? new List<AttributeDefinitionModel>(),
             CategoryAttributes = attributesResult.Data ?? new List<AttributeDefinitionModel>(),
             CategoryAttributeRules = rulesResult.Data ?? new List<CategoryAttributeRuleModel>(),
             CategorySearchTerm = searchTerm,
@@ -109,7 +112,7 @@ public abstract partial class CatalogManagementController : Controller
             CategoryTotalCount = totalCount,
             CategoryTotalPages = totalPages,
             CategoryPageSizeOptions = PageSizeOptions,
-            ErrorMessage = JoinErrors(categoriesResult.ErrorMessage, attributesResult.ErrorMessage, rulesResult.ErrorMessage),
+            ErrorMessage = JoinErrors(categoriesResult.ErrorMessage, attributesResult.ErrorMessage, allAttributesResult.ErrorMessage, rulesResult.ErrorMessage),
             CategoryForm = new CategoryUpsertForm
             {
                 CategoryId = selectedCategory?.Id,
@@ -452,6 +455,7 @@ public abstract partial class CatalogManagementController : Controller
         var allProducts = productsResult.Data ?? new List<ProductSummaryModel>();
         var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
         var unitOfMeasures = uomLookupResult.Data ?? new List<UnitOfMeasureLookupModel>();
+        var uomById = unitOfMeasures.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
 
         foreach (var product in allProducts)
         {
@@ -470,6 +474,18 @@ public abstract partial class CatalogManagementController : Controller
         var productDetailsResult = !string.IsNullOrWhiteSpace(selectedProductId)
             ? await _apiService.GetProductDetailsWithAttributesAsync(selectedProductId, token)
             : new ApiResponse<ProductDetailsModel> { IsSuccess = true };
+
+        var productVariantsResult = !string.IsNullOrWhiteSpace(selectedProductId)
+            ? await _apiService.GetProductVariantsByProductIdAsync(selectedProductId, token, includeInactive: true)
+            : new ApiResponse<List<ProductVariantSummaryModel>> { IsSuccess = true, Data = new List<ProductVariantSummaryModel>() };
+        var productVariants = productVariantsResult.Data ?? new List<ProductVariantSummaryModel>();
+        foreach (var variant in productVariants)
+        {
+            if (uomById.TryGetValue(variant.BaseUomRef, out var uom))
+            {
+                variant.BaseUom = $"{uom.Code} - {uom.Name}";
+            }
+        }
 
         var selectedCategoryId = categoryId
             ?? productDetailsResult.Data?.CategoryId
@@ -506,6 +522,8 @@ public abstract partial class CatalogManagementController : Controller
 
             Products = pagedProducts,
             SelectedProductDetails = productDetailsResult.Data,
+            ProductVariants = productVariants,
+            ProductVariantTotalCount = productVariants.Count,
             UnitOfMeasures = unitOfMeasures,
 
             CategoryAttributeGroups = attributeGroups,
@@ -527,6 +545,7 @@ public abstract partial class CatalogManagementController : Controller
                 productsResult.ErrorMessage,
                 uomLookupResult.ErrorMessage,
                 productDetailsResult.ErrorMessage,
+                productVariantsResult.ErrorMessage,
                 attributesError),
 
             ProductForm = new ProductUpsertForm
@@ -572,17 +591,30 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
         }
 
+        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
+        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
+        var selectedCategory = flatCategories.FirstOrDefault(c => string.Equals(c.Id, form.CategoryId, StringComparison.OrdinalIgnoreCase));
+        if (selectedCategory is null)
+        {
+            TempData["CatalogError"] = "دسته‌بندی انتخاب‌شده معتبر نیست.";
+            return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
+        }
+
+        if (string.IsNullOrWhiteSpace(form.ProductId))
+        {
+            var categoryProductsResult = await _apiService.SearchProductsAsync(token, categoryId: form.CategoryId);
+            form.BaseSku = GenerateProductNumber(selectedCategory, categoryProductsResult.Data ?? new List<ProductSummaryModel>());
+        }
+
         if (!TryValidateModel(form))
         {
             TempData["CatalogError"] = ExtractModelError(ModelState);
             return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
         }
 
-        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
-        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
-        if (!flatCategories.Any(c => string.Equals(c.Id, form.CategoryId, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(form.ProductId) && string.IsNullOrWhiteSpace(form.BaseSku))
         {
-            TempData["CatalogError"] = "دسته‌بندی انتخاب‌شده معتبر نیست.";
+            TempData["CatalogError"] = "شماره محصول برای ویرایش معتبر نیست. صفحه را بازخوانی و دوباره تلاش کنید.";
             return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
         }
 
@@ -1739,6 +1771,49 @@ public abstract partial class CatalogManagementController : Controller
 
         normalized = normalized.Trim('-', '_');
         return normalized;
+    }
+
+    private static string GenerateProductNumber(CategoryNodeModel category, IReadOnlyList<ProductSummaryModel> existingProducts)
+    {
+        var prefix = NormalizeSkuSegment(category.Code);
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            prefix = NormalizeSkuSegment(category.Name);
+        }
+
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            prefix = "PRD";
+        }
+
+        var nextSequence = existingProducts
+            .Select(x => TryReadProductNumberSequence(x.BaseSku, prefix))
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+
+        return $"{prefix}-{nextSequence:000000}";
+    }
+
+    private static int? TryReadProductNumberSequence(string? productNumber, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(productNumber))
+        {
+            return null;
+        }
+
+        var normalized = NormalizeSkuSegment(productNumber);
+        var normalizedPrefix = NormalizeSkuSegment(prefix);
+        var expectedStart = normalizedPrefix + "-";
+        if (!normalized.StartsWith(expectedStart, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var suffix = normalized[expectedStart.Length..];
+        var firstSegment = suffix.Split('-', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return int.TryParse(firstSegment, out var sequence) ? sequence : null;
     }
 
     private static bool TryValidateAttributeValue(EffectiveAttributeViewModel attribute, string rawValue, out string errorMessage)

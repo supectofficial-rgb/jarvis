@@ -152,6 +152,13 @@
 
                 <div class="tab-content">
                     <div class="tab-pane show active" id="category-tab" role="tabpanel">
+                        <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-section-tabs">
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#category-section-edit" role="tab">ایجاد / ویرایش</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#category-section-list" role="tab">لیست دسته‌بندی‌ها</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#category-section-details" role="tab">جزئیات</a></li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane show active" id="category-section-edit" role="tabpanel">
                         <div class="row">
                             <div class="col-12 mb-4">
                                 <div class="card mb-4">
@@ -230,7 +237,11 @@
                                     </div>
                                 }
                             </div>
+                        </div>
+                            </div>
 
+                            <div class="tab-pane" id="category-section-list" role="tabpanel">
+                        <div class="row">
                             <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body" id="category-list-scope">
@@ -280,7 +291,7 @@
                                         <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
                                             <div class="btn-group btn-group-sm mb-2">
                                                 <button type="button" class="btn btn-outline-secondary" data-tree-expand-all>بازکردن همه</button>
-                                                <button type="button" class="btn btn-outline-secondary" data-tree-collapse-all>بستنن همه</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-tree-collapse-all>بستن همه</button>
                                             </div>
                                             <span class="small text-muted mb-2">برای عملیات گروهی، چند ردیف را انتخاب کنید.</span>
                                         </div>
@@ -469,6 +480,10 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                            </div>
+                            <div class="tab-pane" id="category-section-details" role="tabpanel">
+                        <div class="row">
                             <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body">
@@ -497,14 +512,23 @@
                                 </div>
                             </div>
                         </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="tab-pane" id="attribute-tab" role="tabpanel">
+                        <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">ساخت سریع / ویرایش / گزینه</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">ویژگی‌های دسته و گزینه‌ها</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-all" role="tab">بانک کل ویژگی‌ها</a></li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane show active" id="attribute-section-form" role="tabpanel">
                         <div class="row">
                             <div class="col-12 mb-4">
                                 <div class="card mb-4">
                                     <div class="card-body">
-                                        <h5 class="card-title">ایجاد ویژگی</h5>
+                                        <h5 class="card-title">ساخت سریع ویژگی و اتصال به دسته فعلی</h5>
                                         <form asp-action="CreateCategoryAttribute" method="post" id="create-category-attribute-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <input asp-for="AttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
@@ -544,9 +568,9 @@
                                             <input asp-for="AttributeUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
                                             <input asp-for="AttributeUpdateForm.AttributeId" type="hidden" id="attribute-update-id" />
                                             <div class="form-group">
-                                                <label>ویژگی انتخاب‌شده</label>
+                                                <label>ویژگی انتخاب‌شده در دسته فعلی</label>
                                                 <input id="attribute-update-selected" type="text" class="form-control" readonly value="@Model.CategoryAttributes.FirstOrDefault(x => x.Id == Model.AttributeUpdateForm.AttributeId)?.Name" />
-                                                <small class="form-text text-muted">از جدول سمت راست روی «ویرایش» بزنید.</small>
+                                                <small class="form-text text-muted">از تب ویژگی‌های دسته روی «ویرایش» بزنید.</small>
                                             </div>
                                             <div class="form-group"><label>کد</label><input asp-for="AttributeUpdateForm.Code" class="form-control" required /></div>
                                             <div class="form-group"><label>نام</label><input asp-for="AttributeUpdateForm.Name" class="form-control" required /></div>
@@ -617,11 +641,15 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                            </div>
 
+                            <div class="tab-pane" id="attribute-section-bank" role="tabpanel">
+                        <div class="row">
                             <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body">
-                                        <h5 class="card-title">ویژگی‌ها و گزینه‌ها</h5>
+                                        <h5 class="card-title">ویژگی‌های متصل به دسته و گزینه‌ها</h5>
                                         <div class="table-responsive">
                                             <table class="table table-sm table-hover">
                                                 <thead>
@@ -751,9 +779,67 @@
                                 </div>
                             </div>
                         </div>
+                            </div>
+                            <div class="tab-pane" id="attribute-section-all" role="tabpanel">
+                        <div class="row">
+                            <div class="col-12 mb-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">بانک کل ویژگی‌ها</h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>نام</th>
+                                                        <th>کد</th>
+                                                        <th>نوع</th>
+                                                        <th>سطح اعمال</th>
+                                                        <th>وضعیت</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @if (Model.AllAttributes.Count == 0)
+                                                    {
+                                                        <tr>
+                                                            <td colspan="5">
+                                                                <div class="alert alert-light my-2">
+                                                                    <h6>ویژگی فعالی در بانک وجود ندارد</h6>
+                                                                    <p class="mb-0 text-muted">از تب ساخت سریع یک ویژگی بسازید یا ویژگی‌های غیرفعال را فعال کنید.</p>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                    else
+                                                    {
+                                                        @foreach (var attr in Model.AllAttributes.OrderBy(x => x.Name))
+                                                        {
+                                                            <tr>
+                                                                <td>@attr.Name</td>
+                                                                <td><span class="text-monospace">@attr.Code</span></td>
+                                                                <td>@attr.DataType</td>
+                                                                <td>@attr.Scope</td>
+                                                                <td>@(attr.IsActive ? "فعال" : "غیرفعال")</td>
+                                                            </tr>
+                                                        }
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="tab-pane" id="rule-tab" role="tabpanel">
+                        <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="rule-section-tabs">
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#rule-section-edit" role="tab">اختصاص / ویرایش</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-section-list" role="tab">قوانین فعلی</a></li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane show active" id="rule-section-edit" role="tabpanel">
                         <div class="row">
                             <div class="col-12 mb-4">
                                 <div class="card mb-4">
@@ -773,12 +859,16 @@
                                             </div>
                                             <div class="form-group">
                                                 <label>ویژگی</label>
-                                                <select asp-for="AssignForm.AttributeId" class="form-control js-search-select" data-placeholder="انتخاب ویژگی قانون">
-                                                    @foreach (var attr in Model.CategoryAttributes)
+                                                <select asp-for="AssignForm.AttributeId" class="form-control js-search-select" data-placeholder="جستجو در بانک ویژگی‌ها">
+                                                    @foreach (var attr in Model.AllAttributes.OrderBy(x => x.Name))
                                                     {
-                                                        <option value="@attr.Id">@attr.Name (@attr.DataType)</option>
+                                                        <option value="@attr.Id">@attr.Name (@attr.Code / @attr.DataType)</option>
                                                     }
                                                 </select>
+                                                @if (Model.AllAttributes.Count == 0)
+                                                {
+                                                    <small class="form-text text-warning">ابتدا یک ویژگی بسازید تا در بانک ویژگی‌ها قابل انتخاب شود.</small>
+                                                }
                                             </div>
                                             <div class="form-group">
                                                 <label>ترتیب نمایش</label>
@@ -830,7 +920,11 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                            </div>
 
+                            <div class="tab-pane" id="rule-section-list" role="tabpanel">
+                        <div class="row">
                             <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body">
@@ -905,6 +999,8 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
                             </div>
                         </div>
                     </div>

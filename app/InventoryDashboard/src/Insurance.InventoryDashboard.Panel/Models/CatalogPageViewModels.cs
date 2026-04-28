@@ -14,6 +14,7 @@ public sealed class CategoryManagementPageViewModel
     public IReadOnlyList<CategoryNodeModel> Categories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<CategoryNodeModel> FlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<CategoryNodeModel> FilteredFlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
+    public IReadOnlyList<AttributeDefinitionModel> AllAttributes { get; set; } = Array.Empty<AttributeDefinitionModel>();
     public IReadOnlyList<AttributeDefinitionModel> CategoryAttributes { get; set; } = Array.Empty<AttributeDefinitionModel>();
     public IReadOnlyList<CategoryAttributeRuleModel> CategoryAttributeRules { get; set; } = Array.Empty<CategoryAttributeRuleModel>();
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
@@ -52,6 +53,8 @@ public sealed class ProductManagementPageViewModel
 
     public IReadOnlyList<ProductSummaryModel> Products { get; set; } = Array.Empty<ProductSummaryModel>();
     public ProductDetailsModel? SelectedProductDetails { get; set; }
+    public IReadOnlyList<ProductVariantSummaryModel> ProductVariants { get; set; } = Array.Empty<ProductVariantSummaryModel>();
+    public int ProductVariantTotalCount { get; set; }
     public IReadOnlyList<UnitOfMeasureLookupModel> UnitOfMeasures { get; set; } = Array.Empty<UnitOfMeasureLookupModel>();
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
 
@@ -311,8 +314,7 @@ public sealed class ProductUpsertForm
     [StringLength(160, ErrorMessage = "نام محصول نمی‌تواند بیشتر از ۱۶۰ کاراکتر باشد.")]
     public string Name { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "BaseSku الزامی است.")]
-    [StringLength(100, ErrorMessage = "BaseSku نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.")]
+    [StringLength(100, ErrorMessage = "شماره محصول نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.")]
     public string BaseSku { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "انتخاب دسته‌بندی الزامی است.")]

@@ -343,6 +343,21 @@ public sealed class ApiService : IApiService
             },
             token);
 
+    public async Task<ApiResponse<List<AttributeDefinitionModel>>> GetActiveAttributeDefinitionsAsync(string token)
+    {
+        var result = await GetQueryAsync<AttributeDefinitionsQueryResultDto>(
+            $"{InventoryApiPrefix}/AttributeDefinition/active",
+            token,
+            "Loading active attribute definitions failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<AttributeDefinitionModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        var mapped = result.Data?.Items.Select(MapAttributeDefinitionListItem).ToList() ?? new List<AttributeDefinitionModel>();
+        return new ApiResponse<List<AttributeDefinitionModel>> { IsSuccess = true, Data = mapped };
+    }
+
     public Task<ApiResponse<bool>> AddCategoryAttributeRuleAsync(string categoryId, AddCategoryAttributeRuleRequest request, string token)
     {
         var payload = new
@@ -840,6 +855,151 @@ public sealed class ApiService : IApiService
         return new ApiResponse<List<VariantUomConversionModel>> { IsSuccess = true, Data = mapped };
     }
 
+    public Task<ApiResponse<bool>> CreateWarehouseAsync(UpsertWarehouseRequest request, string token)
+    {
+        var payload = new
+        {
+            Code = NormalizeCode(request.Code, request.Name, "WH"),
+            Name = request.Name.Trim()
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/Warehouse", payload, token, "Creating warehouse failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdateWarehouseAsync(string warehouseId, UpsertWarehouseRequest request, string token)
+    {
+        var payload = new
+        {
+            Code = NormalizeCode(request.Code, request.Name, "WH"),
+            Name = request.Name.Trim(),
+            IsActive = request.IsActive
+        };
+
+        return PutCommandAsync($"{InventoryApiPrefix}/Warehouse/{warehouseId}", payload, token, "Updating warehouse failed.");
+    }
+
+    public Task<ApiResponse<bool>> ActivateWarehouseAsync(string warehouseId, string token) =>
+        PostCommandAsync($"{InventoryApiPrefix}/Warehouse/{warehouseId}/activate", new { }, token, "Activating warehouse failed.");
+
+    public Task<ApiResponse<bool>> DeactivateWarehouseAsync(string warehouseId, string token) =>
+        PostCommandAsync($"{InventoryApiPrefix}/Warehouse/{warehouseId}/deactivate", new { }, token, "Deactivating warehouse failed.");
+
+    public Task<ApiResponse<bool>> DeleteWarehouseAsync(string warehouseId, string token) =>
+        DeleteCommandAsync($"{InventoryApiPrefix}/Warehouse/{warehouseId}", token, "Deleting warehouse failed.");
+
+    public Task<ApiResponse<WarehouseSearchResultModel>> SearchWarehousesAsync(
+        string token,
+        string? code = null,
+        string? name = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/Warehouse/search",
+            ("Code", code),
+            ("Name", name),
+            ("IsActive", isActive?.ToString().ToLowerInvariant()),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        return GetQueryAsync<WarehouseSearchResultModel>(route, token, "Loading warehouses failed.");
+    }
+
+    public async Task<ApiResponse<List<WarehouseLookupItemModel>>> GetWarehouseLookupAsync(string token, bool includeInactive = true)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/Warehouse/lookup",
+            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+        var result = await GetQueryAsync<WarehouseLookupQueryResultDto>(route, token, "Loading warehouse lookup failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<WarehouseLookupItemModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        return new ApiResponse<List<WarehouseLookupItemModel>> { IsSuccess = true, Data = result.Data?.Items ?? new List<WarehouseLookupItemModel>() };
+    }
+
+    public async Task<ApiResponse<WarehouseWithLocationsModel>> GetWarehouseWithLocationsAsync(string warehouseId, string token, bool includeInactiveLocations = true)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/Warehouse/{warehouseId}/with-locations",
+            ("includeInactiveLocations", includeInactiveLocations.ToString().ToLowerInvariant()));
+        var result = await GetQueryAsync<WarehouseWithLocationsQueryResultDto>(route, token, "Loading warehouse details failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<WarehouseWithLocationsModel> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        return new ApiResponse<WarehouseWithLocationsModel> { IsSuccess = true, Data = result.Data?.Item };
+    }
+
+    public Task<ApiResponse<bool>> CreateLocationAsync(UpsertLocationRequest request, string token)
+    {
+        var payload = new
+        {
+            WarehouseRef = ParseNullableGuid(request.WarehouseId),
+            LocationCode = NormalizeCode(request.LocationCode, request.LocationCode, "LOC"),
+            LocationType = request.LocationType.Trim(),
+            Aisle = NormalizeOptional(request.Aisle),
+            Rack = NormalizeOptional(request.Rack),
+            Shelf = NormalizeOptional(request.Shelf),
+            Bin = NormalizeOptional(request.Bin)
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/Location", payload, token, "Creating location failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdateLocationAsync(string locationId, UpsertLocationRequest request, string token)
+    {
+        var payload = new
+        {
+            WarehouseRef = ParseNullableGuid(request.WarehouseId),
+            LocationCode = NormalizeCode(request.LocationCode, request.LocationCode, "LOC"),
+            LocationType = request.LocationType.Trim(),
+            Aisle = NormalizeOptional(request.Aisle),
+            Rack = NormalizeOptional(request.Rack),
+            Shelf = NormalizeOptional(request.Shelf),
+            Bin = NormalizeOptional(request.Bin),
+            IsActive = request.IsActive
+        };
+
+        return PutCommandAsync($"{InventoryApiPrefix}/Location/{locationId}", payload, token, "Updating location failed.");
+    }
+
+    public Task<ApiResponse<bool>> ActivateLocationAsync(string locationId, string token) =>
+        PostCommandAsync($"{InventoryApiPrefix}/Location/{locationId}/activate", new { }, token, "Activating location failed.");
+
+    public Task<ApiResponse<bool>> DeactivateLocationAsync(string locationId, string token) =>
+        PostCommandAsync($"{InventoryApiPrefix}/Location/{locationId}/deactivate", new { }, token, "Deactivating location failed.");
+
+    public Task<ApiResponse<bool>> DeleteLocationAsync(string locationId, string token) =>
+        DeleteCommandAsync($"{InventoryApiPrefix}/Location/{locationId}", token, "Deleting location failed.");
+
+    public Task<ApiResponse<bool>> MoveLocationToWarehouseAsync(string locationId, string targetWarehouseId, string token) =>
+        PostCommandAsync($"{InventoryApiPrefix}/Location/{locationId}/move-warehouse/{targetWarehouseId}", new { }, token, "Moving location failed.");
+
+    public Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(
+        string token,
+        string? warehouseId = null,
+        string? locationCode = null,
+        string? locationType = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/Location/search",
+            ("WarehouseRef", warehouseId),
+            ("LocationCode", locationCode),
+            ("LocationType", locationType),
+            ("IsActive", isActive?.ToString().ToLowerInvariant()),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        return GetQueryAsync<LocationSearchResultModel>(route, token, "Loading locations failed.");
+    }
+
     public async Task<ApiResponse<List<UnitOfMeasureLookupModel>>> GetUnitOfMeasureLookupAsync(string token)
     {
         var route = BuildRouteWithQuery($"{InventoryApiPrefix}/UnitOfMeasure/lookup", ("includeInactive", "false"));
@@ -903,6 +1063,19 @@ public sealed class ApiService : IApiService
                 DisplayOrder = option.DisplayOrder,
                 IsActive = option.IsActive
             }).ToList()
+        };
+    }
+
+    private static AttributeDefinitionModel MapAttributeDefinitionListItem(AttributeDefinitionListItemDto item)
+    {
+        return new AttributeDefinitionModel
+        {
+            Id = item.AttributeDefinitionBusinessKey.ToString("D"),
+            Code = item.Code,
+            Name = item.Name,
+            DataType = item.DataType,
+            Scope = item.Scope,
+            IsActive = item.IsActive
         };
     }
 
@@ -1046,6 +1219,11 @@ public sealed class ApiService : IApiService
     private static Guid? ParseNullableGuid(string? value)
     {
         return Guid.TryParse(value, out var guid) ? guid : null;
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private static string BuildRouteWithQuery(string route, params (string Key, string? Value)[] queryItems)
@@ -1233,6 +1411,22 @@ public sealed class ApiService : IApiService
         public List<CategoryAttributeRuleItemDto> Items { get; set; } = new();
     }
 
+    private sealed class AttributeDefinitionsQueryResultDto
+    {
+        public List<AttributeDefinitionListItemDto> Items { get; set; } = new();
+    }
+
+    private sealed class AttributeDefinitionListItemDto
+    {
+        public Guid AttributeDefinitionBusinessKey { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string DataType { get; set; } = string.Empty;
+        public string Scope { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public int OptionCount { get; set; }
+    }
+
     private sealed class CategoryAttributeItemDto
     {
         public Guid AttributeRef { get; set; }
@@ -1394,6 +1588,16 @@ public sealed class ApiService : IApiService
         public decimal Factor { get; set; }
         public string RoundingMode { get; set; } = string.Empty;
         public bool IsBasePath { get; set; }
+    }
+
+    private sealed class WarehouseLookupQueryResultDto
+    {
+        public List<WarehouseLookupItemModel> Items { get; set; } = new();
+    }
+
+    private sealed class WarehouseWithLocationsQueryResultDto
+    {
+        public WarehouseWithLocationsModel? Item { get; set; }
     }
 
     private sealed class UnitOfMeasureLookupQueryResultDto

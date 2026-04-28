@@ -233,7 +233,7 @@
                             <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                             <div class="col-lg-4 col-md-6 mb-2">
                                 <label class="text-muted small">عبارت جستجو</label>
-                                <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام، اسکوی پایه یا شناسه..." />
+                                <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام، شماره محصول یا شناسه..." />
                             </div>
                             <div class="col-lg-3 col-md-6 mb-2">
                                 <label class="text-muted small">فیلتر دسته‌بندی</label>
@@ -267,8 +267,8 @@
                                 <select name="sort" class="form-control" data-filter-label="مرتب‌سازی">
                                     <option value="">نام (صعودی)</option>
                                     <option value="name_desc" selected="@(string.Equals(Model.ProductSort, "name_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">نام (نزولی)</option>
-                                    <option value="basesku_asc" selected="@(string.Equals(Model.ProductSort, "basesku_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">اسکوی پایه (صعودی)</option>
-                                    <option value="basesku_desc" selected="@(string.Equals(Model.ProductSort, "basesku_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">اسکوی پایه (نزولی)</option>
+                                    <option value="basesku_asc" selected="@(string.Equals(Model.ProductSort, "basesku_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">شماره محصول (صعودی)</option>
+                                    <option value="basesku_desc" selected="@(string.Equals(Model.ProductSort, "basesku_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">شماره محصول (نزولی)</option>
                                     <option value="status_asc" selected="@(string.Equals(Model.ProductSort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (فعال اول)</option>
                                     <option value="status_desc" selected="@(string.Equals(Model.ProductSort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (غیرفعال اول)</option>
                                 </select>
@@ -294,6 +294,9 @@
                     <li class="nav-item">
                         <a class="nav-link" data-toggle="tab" href="#product-tab-attributes" role="tab">ویژگی‌های محصول</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#product-tab-variants" role="tab">واریانت‌های محصول</a>
+                    </li>
                 </ul>
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="product-tab-main" role="tabpanel">
@@ -316,18 +319,29 @@
                                         <label>نام محصول</label>
                                         <input asp-for="ProductForm.Name" class="form-control" required maxlength="160" />
                                     </div>
-                                    <div class="form-group">
-                                        <label>اسکوی پایه</label>
-                                        <input asp-for="ProductForm.BaseSku" class="form-control text-monospace" required maxlength="100" placeholder="مثال: PRD-BASE-0001" />
-                                        <small class="form-text text-muted">اسکوی پایه باید یکتا باشد.</small>
-                                    </div>
+                                    <input asp-for="ProductForm.BaseSku" type="hidden" />
+                                    @if (isEditMode)
+                                    {
+                                        <div class="form-group">
+                                            <label>شماره محصول</label>
+                                            <div class="form-control-plaintext text-monospace">@Model.ProductForm.BaseSku</div>
+                                            <small class="form-text text-muted">شماره محصول توسط سیستم تولید شده و به عنوان شناسه خانواده محصول ثابت می‌ماند.</small>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="alert alert-light border mb-3">
+                                            <strong class="d-block mb-1">شماره محصول</strong>
+                                            <small class="text-muted">بعد از ذخیره، سیستم شماره محصول را بر اساس کد دسته‌بندی تولید می‌کند.</small>
+                                        </div>
+                                    }
                                     <div class="form-group">
                                         <label>دسته‌بندی</label>
                                         <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته‌بندی محصول" required>
                                             <option value="">انتخاب دسته‌بندی</option>
                                             @foreach (var category in Model.FlatCategories)
                                             {
-                                                <option value="@category.Id">@category.Name</option>
+                                                <option value="@category.Id" data-category-code="@category.Code">@category.Name</option>
                                             }
                                         </select>
                                     </div>
@@ -672,6 +686,93 @@
                             </div>
                         }
                     </div>
+                    <div class="tab-pane fade" id="product-tab-variants" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h5 class="card-title mb-1">واریانت‌های این محصول</h5>
+                                        <p class="text-muted small mb-0">
+                                            واریانت‌ها از ترکیب ویژگی‌های واریانت‌ساز همین محصول ساخته می‌شوند و برای عملیات جزئی‌تر از صفحه واریانت قابل مدیریت هستند.
+                                        </p>
+                                    </div>
+                                    @if (hasSelectedProduct)
+                                    {
+                                        <div class="text-right">
+                                            <span class="badge badge-pill badge-outline-primary mb-2">@Model.ProductVariantTotalCount واریانت</span>
+                                            <div>
+                                                <a class="btn btn-outline-primary btn-sm"
+                                                   asp-action="Variants"
+                                                   asp-route-productId="@Model.SelectedProductId">
+                                                    مدیریت کامل واریانت‌ها
+                                                </a>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+
+                                @if (!hasSelectedProduct)
+                                {
+                                    <div class="alert alert-light mb-0">
+                                        <h6>محصولی انتخاب نشده است</h6>
+                                        <p class="mb-0 text-muted">ابتدا یک محصول را از لیست انتخاب کنید تا واریانت‌های همان محصول اینجا نمایش داده شود.</p>
+                                    </div>
+                                }
+                                else if (Model.ProductVariants.Count == 0)
+                                {
+                                    <div class="alert alert-light mb-0">
+                                        <h6>واریانتی برای این محصول ثبت نشده است</h6>
+                                        <p class="mb-0 text-muted">اگر محصول را با ویژگی‌های واریانت‌ساز چندانتخابی بسازید، سیستم واریانت‌ها را خودکار تولید می‌کند.</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>SKU</th>
+                                                    <th>بارکد</th>
+                                                    <th>واحد پایه</th>
+                                                    <th>رهگیری</th>
+                                                    <th>وضعیت</th>
+                                                    <th class="text-right">عملیات</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var variant in Model.ProductVariants)
+                                                {
+                                                    <tr>
+                                                        <td><span class="text-monospace">@variant.Sku</span></td>
+                                                        <td>@(string.IsNullOrWhiteSpace(variant.Barcode) ? "-" : variant.Barcode)</td>
+                                                        <td>@(string.IsNullOrWhiteSpace(variant.BaseUom) ? variant.BaseUomRef : variant.BaseUom)</td>
+                                                        <td>@(string.IsNullOrWhiteSpace(variant.TrackingPolicy) ? "-" : variant.TrackingPolicy)</td>
+                                                        <td>
+                                                            <span class="badge badge-pill @(variant.IsActive ? "badge-primary" : "badge-secondary")">
+                                                                @(variant.IsActive ? "فعال" : "غیرفعال")
+                                                            </span>
+                                                            @if (variant.InventoryMovementLocked)
+                                                            {
+                                                                <span class="badge badge-pill badge-outline-warning">دارای گردش</span>
+                                                            }
+                                                        </td>
+                                                        <td class="text-right">
+                                                            <a class="btn btn-outline-primary btn-xs"
+                                                               asp-action="Variants"
+                                                               asp-route-productId="@variant.ProductId"
+                                                               asp-route-variantId="@variant.Id">
+                                                                جزئیات
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -740,7 +841,7 @@
                                     <tr>
                                         <th><input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" /></th>
                                         <th>نام</th>
-                                        <th>اسکوی پایه</th>
+                                        <th>شماره محصول</th>
                                         <th>وضعیت</th>
                                         <th>دسته‌بندی</th>
                                         <th></th>
@@ -788,6 +889,11 @@
                                                             <span class="sr-only">عملیات</span>
                                                         </button>
                                                         <div class="dropdown-menu dropdown-menu-right">
+                                                            <a class="dropdown-item"
+                                                               asp-action="Variants"
+                                                               asp-route-productId="@product.Id">
+                                                                واریانت‌ها
+                                                            </a>
                                                             <form asp-action="ActivateProduct" method="post" class="px-3 py-1" data-loading-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="productId" value="@product.Id" />
@@ -859,7 +965,7 @@
                         else
                         {
                             <p class="mb-1"><strong>نام:</strong> @Model.SelectedProductDetails.Name</p>
-                            <p class="mb-1"><strong>اسکوی پایه:</strong> <span class="text-monospace">@Model.SelectedProductDetails.BaseSku</span></p>
+                            <p class="mb-1"><strong>شماره محصول:</strong> <span class="text-monospace">@Model.SelectedProductDetails.BaseSku</span></p>
                             <p class="mb-1">
                                 <strong>وضعیت:</strong>
                                 <span class="badge badge-pill @(Model.SelectedProductDetails.IsActive ? "badge-primary" : "badge-secondary")">
@@ -1180,6 +1286,22 @@
                 return combinations;
             }
 
+            function getProductNumberPreview() {
+                var savedValue = normalizeSkuSegment(productBaseSkuField ? productBaseSkuField.value : '');
+                if (savedValue) {
+                    return savedValue;
+                }
+
+                if (!productCategoryField || productCategoryField.selectedIndex < 0) {
+                    return 'PRD-AUTO';
+                }
+
+                var selectedOption = productCategoryField.options[productCategoryField.selectedIndex];
+                var categoryCode = selectedOption ? (selectedOption.getAttribute('data-category-code') || selectedOption.textContent || '') : '';
+                var prefix = normalizeSkuSegment(categoryCode);
+                return prefix ? (prefix + '-AUTO') : 'PRD-AUTO';
+            }
+
             function collectAutoCreatePayload() {
                 var payload = {
                     productAttributes: [],
@@ -1305,7 +1427,7 @@
                 }
 
                 var result = collectAutoCreatePayload();
-                var baseSku = normalizeSkuSegment(productBaseSkuField ? productBaseSkuField.value : '');
+                var baseSku = getProductNumberPreview();
                 var productName = (productNameField ? productNameField.value : '').trim();
                 var combinations = buildVariantCombinations(result.dimensions);
 

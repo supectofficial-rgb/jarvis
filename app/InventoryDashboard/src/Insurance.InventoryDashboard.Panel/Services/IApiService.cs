@@ -41,6 +41,7 @@ public interface IApiService
     Task<ApiResponse<bool>> DeactivateAttributeOptionAsync(string attributeId, string optionId, string token);
     Task<ApiResponse<bool>> DeleteAttributeOptionAsync(string attributeId, string optionId, string token);
     Task<ApiResponse<bool>> AssignAttributeToCategoryAsync(string categoryId, string attributeId, string token);
+    Task<ApiResponse<List<AttributeDefinitionModel>>> GetActiveAttributeDefinitionsAsync(string token);
     Task<ApiResponse<List<AttributeDefinitionModel>>> GetCategoryAttributesAsync(string categoryId, string token, bool includeInherited = false, bool includeInactive = false);
     Task<ApiResponse<List<AttributeOptionModel>>> GetAttributeOptionsByAttributeIdAsync(string attributeId, string token, bool onlyActive = false);
 
@@ -73,6 +74,22 @@ public interface IApiService
     Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(string productId, string token, bool includeInactive = true);
     Task<ApiResponse<ProductVariantDetailsModel>> GetProductVariantFullDetailsAsync(string variantId, string token);
     Task<ApiResponse<List<VariantUomConversionModel>>> GetVariantUomConversionsByVariantIdAsync(string variantId, string token);
+
+    Task<ApiResponse<bool>> CreateWarehouseAsync(UpsertWarehouseRequest request, string token);
+    Task<ApiResponse<bool>> UpdateWarehouseAsync(string warehouseId, UpsertWarehouseRequest request, string token);
+    Task<ApiResponse<bool>> ActivateWarehouseAsync(string warehouseId, string token);
+    Task<ApiResponse<bool>> DeactivateWarehouseAsync(string warehouseId, string token);
+    Task<ApiResponse<bool>> DeleteWarehouseAsync(string warehouseId, string token);
+    Task<ApiResponse<WarehouseSearchResultModel>> SearchWarehousesAsync(string token, string? code = null, string? name = null, bool? isActive = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<List<WarehouseLookupItemModel>>> GetWarehouseLookupAsync(string token, bool includeInactive = true);
+    Task<ApiResponse<WarehouseWithLocationsModel>> GetWarehouseWithLocationsAsync(string warehouseId, string token, bool includeInactiveLocations = true);
+    Task<ApiResponse<bool>> CreateLocationAsync(UpsertLocationRequest request, string token);
+    Task<ApiResponse<bool>> UpdateLocationAsync(string locationId, UpsertLocationRequest request, string token);
+    Task<ApiResponse<bool>> ActivateLocationAsync(string locationId, string token);
+    Task<ApiResponse<bool>> DeactivateLocationAsync(string locationId, string token);
+    Task<ApiResponse<bool>> DeleteLocationAsync(string locationId, string token);
+    Task<ApiResponse<bool>> MoveLocationToWarehouseAsync(string locationId, string targetWarehouseId, string token);
+    Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, string? locationType = null, bool? isActive = null, int page = 1, int pageSize = 20);
 
     Task<ApiResponse<List<UnitOfMeasureLookupModel>>> GetUnitOfMeasureLookupAsync(string token);
 }

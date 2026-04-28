@@ -35,6 +35,7 @@ public sealed class CatalogApiService : ICatalogApiService
     public Task<ApiResponse<bool>> DeactivateAttributeOptionAsync(string attributeId, string optionId, string token) => _apiService.DeactivateAttributeOptionAsync(attributeId, optionId, token);
     public Task<ApiResponse<bool>> DeleteAttributeOptionAsync(string attributeId, string optionId, string token) => _apiService.DeleteAttributeOptionAsync(attributeId, optionId, token);
     public Task<ApiResponse<bool>> AssignAttributeToCategoryAsync(string categoryId, string attributeId, string token) => _apiService.AssignAttributeToCategoryAsync(categoryId, attributeId, token);
+    public Task<ApiResponse<List<AttributeDefinitionModel>>> GetActiveAttributeDefinitionsAsync(string token) => _apiService.GetActiveAttributeDefinitionsAsync(token);
     public Task<ApiResponse<List<AttributeDefinitionModel>>> GetCategoryAttributesAsync(string categoryId, string token, bool includeInherited = false, bool includeInactive = false) => _apiService.GetCategoryAttributesAsync(categoryId, token, includeInherited, includeInactive);
     public Task<ApiResponse<List<AttributeOptionModel>>> GetAttributeOptionsByAttributeIdAsync(string attributeId, string token, bool onlyActive = false) => _apiService.GetAttributeOptionsByAttributeIdAsync(attributeId, token, onlyActive);
     public Task<ApiResponse<CreateProductResultModel>> CreateProductWithResultAsync(UpsertProductRequest request, string token) => _apiService.CreateProductWithResultAsync(request, token);

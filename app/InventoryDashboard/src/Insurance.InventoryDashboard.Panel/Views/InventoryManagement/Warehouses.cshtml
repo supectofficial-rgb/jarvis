@@ -1,0 +1,529 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.WarehouseManagementPageViewModel
+@{
+    ViewData["Title"] = "مدیریت انبار";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var isWarehouseEditMode = !string.IsNullOrWhiteSpace(Model.WarehouseForm.WarehouseId);
+    var isLocationEditMode = !string.IsNullOrWhiteSpace(Model.LocationForm.LocationId);
+    var selectedWarehouseName = Model.SelectedWarehouseDetails?.Name
+        ?? Model.Warehouses.FirstOrDefault(x => x.WarehouseBusinessKey == Model.SelectedWarehouseId)?.Name;
+    string WarehouseName(string? warehouseId)
+    {
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return "-";
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
+        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
+    }
+}
+
+<main id="warehouses-page" class="catalog-page">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-4">
+                    <h1>مدیریت انبار</h1>
+                    <p class="text-muted">تعریف انبارها و لوکیشن‌هایی که بعداً در اسناد موجودی استفاده می‌شوند.</p>
+                    <div>
+                        <span class="badge badge-pill badge-outline-primary mb-1">انبارها: @Model.WarehouseTotalCount</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">لوکیشن‌های فیلترشده: @Model.LocationTotalCount</span>
+                        @if (!string.IsNullOrWhiteSpace(selectedWarehouseName))
+                        {
+                            <span class="badge badge-pill badge-outline-secondary mb-1">انبار منتخب: @selectedWarehouseName</span>
+                        }
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                {
+                    <div class="alert alert-warning">@Model.ErrorMessage</div>
+                }
+                @if (TempData.ContainsKey("CatalogError"))
+                {
+                    <div class="alert alert-danger">@TempData["CatalogError"]</div>
+                }
+                @if (TempData.ContainsKey("CatalogSuccess"))
+                {
+                    <div class="alert alert-success">@TempData["CatalogSuccess"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 mb-4">
+                <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="warehouse-management-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-toggle="tab" href="#warehouse-tab-form" role="tab">فرم انبار</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#warehouse-tab-location" role="tab">فرم لوکیشن</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#warehouse-tab-details" role="tab">جزئیات انبار</a>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="warehouse-tab-form" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">@(isWarehouseEditMode ? "ویرایش انبار" : "ایجاد انبار")</h5>
+                                    @if (isWarehouseEditMode)
+                                    {
+                                        <a asp-action="Warehouses" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                    }
+                                </div>
+                                <form asp-action="SaveWarehouse" method="post" data-loading-form data-dirty-watch>
+                                    @Html.AntiForgeryToken()
+                                    <input asp-for="WarehouseForm.WarehouseId" type="hidden" />
+                                    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                    <div class="form-group">
+                                        <label>کد انبار</label>
+                                        <input asp-for="WarehouseForm.Code" class="form-control text-monospace" required maxlength="50" placeholder="مثال: MAIN" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>نام انبار</label>
+                                        <input asp-for="WarehouseForm.Name" class="form-control" required maxlength="160" />
+                                    </div>
+                                    <div class="custom-control custom-checkbox mt-2">
+                                        <input asp-for="WarehouseForm.IsActive" class="custom-control-input" />
+                                        <label class="custom-control-label" asp-for="WarehouseForm.IsActive">انبار فعال باشد</label>
+                                    </div>
+                                    <button class="btn btn-primary mt-3" type="submit" @(Can("Inventory.Warehouse.Create", "Inventory.Warehouse.Update", "Warehouse.Create", "Warehouse.Update") ? null : "disabled")>
+                                        @(isWarehouseEditMode ? "به‌روزرسانی انبار" : "ایجاد انبار")
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="warehouse-tab-location" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">@(isLocationEditMode ? "ویرایش لوکیشن" : "ایجاد لوکیشن")</h5>
+                                    @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
+                                    {
+                                        <a asp-action="Warehouses" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs">ایجاد لوکیشن جدید</a>
+                                    }
+                                </div>
+                                <form asp-action="SaveLocation" method="post" data-loading-form data-dirty-watch>
+                                    @Html.AntiForgeryToken()
+                                    <input asp-for="LocationForm.LocationId" type="hidden" />
+                                    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                    <div class="form-group">
+                                        <label>انبار</label>
+                                        <select asp-for="LocationForm.WarehouseId" class="form-control js-search-select" data-placeholder="انتخاب انبار" required>
+                                            <option value="">انتخاب انبار</option>
+                                            @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>کد لوکیشن</label>
+                                        <input asp-for="LocationForm.LocationCode" class="form-control text-monospace" required maxlength="80" placeholder="مثال: A-01-03" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label>نوع لوکیشن</label>
+                                        <select asp-for="LocationForm.LocationType" class="form-control js-search-select" data-no-search="true">
+                                            <option value="Storage">Storage</option>
+                                            <option value="Picking">Picking</option>
+                                            <option value="Receiving">Receiving</option>
+                                            <option value="Return">Return</option>
+                                            <option value="Quarantine">Quarantine</option>
+                                            <option value="Damaged">Damaged</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group col-md-3">
+                                            <label>راهرو</label>
+                                            <input asp-for="LocationForm.Aisle" class="form-control" maxlength="40" />
+                                        </div>
+                                        <div class="form-group col-md-3">
+                                            <label>رک</label>
+                                            <input asp-for="LocationForm.Rack" class="form-control" maxlength="40" />
+                                        </div>
+                                        <div class="form-group col-md-3">
+                                            <label>طبقه</label>
+                                            <input asp-for="LocationForm.Shelf" class="form-control" maxlength="40" />
+                                        </div>
+                                        <div class="form-group col-md-3">
+                                            <label>باکس</label>
+                                            <input asp-for="LocationForm.Bin" class="form-control" maxlength="40" />
+                                        </div>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mt-2">
+                                        <input asp-for="LocationForm.IsActive" class="custom-control-input" />
+                                        <label class="custom-control-label" asp-for="LocationForm.IsActive">لوکیشن فعال باشد</label>
+                                    </div>
+                                    <button class="btn btn-primary mt-3" type="submit" @(Can("Inventory.Location.Create", "Inventory.Location.Update", "Location.Create", "Location.Update") ? null : "disabled")>
+                                        @(isLocationEditMode ? "به‌روزرسانی لوکیشن" : "ایجاد لوکیشن")
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="warehouse-tab-details" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">جزئیات انبار</h5>
+                                @if (Model.SelectedWarehouseDetails is null)
+                                {
+                                    <div class="alert alert-light mb-0">انبار منتخب برای نمایش جزئیات وجود ندارد.</div>
+                                }
+                                else
+                                {
+                                    <p class="mb-1"><strong>کد:</strong> <span class="text-monospace">@Model.SelectedWarehouseDetails.Code</span></p>
+                                    <p class="mb-1"><strong>نام:</strong> @Model.SelectedWarehouseDetails.Name</p>
+                                    <p class="mb-3">
+                                        <strong>وضعیت:</strong>
+                                        <span class="badge badge-pill @(Model.SelectedWarehouseDetails.IsActive ? "badge-primary" : "badge-secondary")">
+                                            @(Model.SelectedWarehouseDetails.IsActive ? "فعال" : "غیرفعال")
+                                        </span>
+                                    </p>
+                                    <h6 class="mb-2">لوکیشن‌های این انبار</h6>
+                                    @if (Model.SelectedWarehouseDetails.Locations.Count == 0)
+                                    {
+                                        <div class="text-muted small">لوکیشنی برای این انبار ثبت نشده است.</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>کد</th>
+                                                        <th>نوع</th>
+                                                        <th>راهرو/رک/طبقه/باکس</th>
+                                                        <th>وضعیت</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var location in Model.SelectedWarehouseDetails.Locations)
+                                                    {
+                                                        <tr>
+                                                            <td><span class="text-monospace">@location.LocationCode</span></td>
+                                                            <td>@location.LocationType</td>
+                                                            <td>@($"{location.Aisle ?? "-"} / {location.Rack ?? "-"} / {location.Shelf ?? "-"} / {location.Bin ?? "-"}")</td>
+                                                            <td>
+                                                                <span class="badge badge-pill @(location.IsActive ? "badge-primary" : "badge-secondary")">
+                                                                    @(location.IsActive ? "فعال" : "غیرفعال")
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">لیست انبارها</h5>
+                            <span class="text-muted small">@Model.WarehouseTotalCount رکورد</span>
+                        </div>
+                        <form asp-action="Warehouses" method="get" class="form-row mb-3">
+                            <input type="hidden" name="warehouseId" value="@Model.SelectedWarehouseId" />
+                            <div class="form-group col-md-3">
+                                <label>کد</label>
+                                <input name="warehouseCode" value="@Model.WarehouseCodeFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>نام</label>
+                                <input name="warehouseName" value="@Model.WarehouseNameFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>وضعیت</label>
+                                <select name="warehouseStatus" class="form-control">
+                                    <option value="">همه</option>
+                                    <option value="active" selected="@(Model.WarehouseStatusFilter == "active" ? "selected" : null)">فعال</option>
+                                    <option value="inactive" selected="@(Model.WarehouseStatusFilter == "inactive" ? "selected" : null)">غیرفعال</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>تعداد</label>
+                                <select name="warehousePageSize" class="form-control">
+                                    @foreach (var size in Model.PageSizeOptions)
+                                    {
+                                        <option value="@size" selected="@(Model.WarehousePageSize == size ? "selected" : null)">@size</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2 d-flex align-items-end">
+                                <button class="btn btn-outline-primary btn-block" type="submit">اعمال</button>
+                            </div>
+                        </form>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>کد</th>
+                                        <th>نام</th>
+                                        <th>وضعیت</th>
+                                        <th class="text-right">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.Warehouses.Count == 0)
+                                    {
+                                        <tr><td colspan="4" class="text-center text-muted">انباری پیدا نشد.</td></tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var warehouse in Model.Warehouses)
+                                        {
+                                            <tr>
+                                                <td><span class="text-monospace">@warehouse.Code</span></td>
+                                                <td>@warehouse.Name</td>
+                                                <td>
+                                                    <span class="badge badge-pill @(warehouse.IsActive ? "badge-primary" : "badge-secondary")">
+                                                        @(warehouse.IsActive ? "فعال" : "غیرفعال")
+                                                    </span>
+                                                </td>
+                                                <td class="text-right">
+                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@warehouse.WarehouseBusinessKey">جزئیات</a>
+                                                    <form asp-action="ActivateWarehouse" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
+                                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Warehouse.Activate", "Warehouse.Activate") ? null : "disabled")>فعال</button>
+                                                    </form>
+                                                    <form asp-action="DeactivateWarehouse" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
+                                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Warehouse.Deactivate", "Warehouse.Deactivate") ? null : "disabled")>غیرفعال</button>
+                                                    </form>
+                                                    <form asp-action="DeleteWarehouse" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
+                                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف انبار" data-confirm="این انبار حذف شود؟" @(Can("Inventory.Warehouse.Delete", "Warehouse.Delete") ? null : "disabled")>حذف</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (Model.WarehouseTotalPages > 1)
+                        {
+                            <nav class="mt-3">
+                                <ul class="pagination pagination-sm mb-0">
+                                    @for (var i = 1; i <= Model.WarehouseTotalPages; i++)
+                                    {
+                                        <li class="page-item @(i == Model.WarehousePage ? "active" : null)">
+                                            <a class="page-link"
+                                               asp-action="Warehouses"
+                                               asp-route-warehouseId="@Model.SelectedWarehouseId"
+                                               asp-route-warehouseCode="@Model.WarehouseCodeFilter"
+                                               asp-route-warehouseName="@Model.WarehouseNameFilter"
+                                               asp-route-warehouseStatus="@Model.WarehouseStatusFilter"
+                                               asp-route-locationCode="@Model.LocationCodeFilter"
+                                               asp-route-locationType="@Model.LocationTypeFilter"
+                                               asp-route-locationStatus="@Model.LocationStatusFilter"
+                                               asp-route-warehousePage="@i"
+                                               asp-route-warehousePageSize="@Model.WarehousePageSize"
+                                               asp-route-locationPage="@Model.LocationPage"
+                                               asp-route-locationPageSize="@Model.LocationPageSize">@i</a>
+                                        </li>
+                                    }
+                                </ul>
+                            </nav>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">لیست لوکیشن‌ها</h5>
+                            <span class="text-muted small">@Model.LocationTotalCount رکورد</span>
+                        </div>
+                        <form asp-action="Warehouses" method="get" class="form-row mb-3">
+                            <div class="form-group col-md-3">
+                                <label>انبار</label>
+                                <select name="warehouseId" class="form-control js-search-select">
+                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.SelectedWarehouseId ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>کد لوکیشن</label>
+                                <input name="locationCode" value="@Model.LocationCodeFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>نوع</label>
+                                <input name="locationType" value="@Model.LocationTypeFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>وضعیت</label>
+                                <select name="locationStatus" class="form-control">
+                                    <option value="">همه</option>
+                                    <option value="active" selected="@(Model.LocationStatusFilter == "active" ? "selected" : null)">فعال</option>
+                                    <option value="inactive" selected="@(Model.LocationStatusFilter == "inactive" ? "selected" : null)">غیرفعال</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-1">
+                                <label>تعداد</label>
+                                <select name="locationPageSize" class="form-control">
+                                    @foreach (var size in Model.PageSizeOptions)
+                                    {
+                                        <option value="@size" selected="@(Model.LocationPageSize == size ? "selected" : null)">@size</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2 d-flex align-items-end">
+                                <button class="btn btn-outline-primary btn-block" type="submit">اعمال</button>
+                            </div>
+                        </form>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>کد</th>
+                                        <th>انبار</th>
+                                        <th>نوع</th>
+                                        <th>راهرو/رک/طبقه/باکس</th>
+                                        <th>وضعیت</th>
+                                        <th class="text-right">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.Locations.Count == 0)
+                                    {
+                                        <tr><td colspan="6" class="text-center text-muted">لوکیشنی پیدا نشد.</td></tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var location in Model.Locations)
+                                        {
+                                            <tr>
+                                                <td><span class="text-monospace">@location.LocationCode</span></td>
+                                                <td>@WarehouseName(location.WarehouseRef)</td>
+                                                <td>@location.LocationType</td>
+                                                <td>@($"{location.Aisle ?? "-"} / {location.Rack ?? "-"} / {location.Shelf ?? "-"} / {location.Bin ?? "-"}")</td>
+                                                <td>
+                                                    <span class="badge badge-pill @(location.IsActive ? "badge-primary" : "badge-secondary")">
+                                                        @(location.IsActive ? "فعال" : "غیرفعال")
+                                                    </span>
+                                                </td>
+                                                <td class="text-right">
+                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey">ویرایش</a>
+                                                    <form asp-action="ActivateLocation" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
+                                                        <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
+                                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Location.Activate", "Location.Activate") ? null : "disabled")>فعال</button>
+                                                    </form>
+                                                    <form asp-action="DeactivateLocation" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
+                                                        <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
+                                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Location.Deactivate", "Location.Deactivate") ? null : "disabled")>غیرفعال</button>
+                                                    </form>
+                                                    <form asp-action="DeleteLocation" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
+                                                        <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
+                                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف لوکیشن" data-confirm="این لوکیشن حذف شود؟" @(Can("Inventory.Location.Delete", "Location.Delete") ? null : "disabled")>حذف</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (Model.LocationTotalPages > 1)
+                        {
+                            <nav class="mt-3">
+                                <ul class="pagination pagination-sm mb-0">
+                                    @for (var i = 1; i <= Model.LocationTotalPages; i++)
+                                    {
+                                        <li class="page-item @(i == Model.LocationPage ? "active" : null)">
+                                            <a class="page-link"
+                                               asp-action="Warehouses"
+                                               asp-route-warehouseId="@Model.SelectedWarehouseId"
+                                               asp-route-warehouseCode="@Model.WarehouseCodeFilter"
+                                               asp-route-warehouseName="@Model.WarehouseNameFilter"
+                                               asp-route-warehouseStatus="@Model.WarehouseStatusFilter"
+                                               asp-route-locationCode="@Model.LocationCodeFilter"
+                                               asp-route-locationType="@Model.LocationTypeFilter"
+                                               asp-route-locationStatus="@Model.LocationStatusFilter"
+                                               asp-route-warehousePage="@Model.WarehousePage"
+                                               asp-route-warehousePageSize="@Model.WarehousePageSize"
+                                               asp-route-locationPage="@i"
+                                               asp-route-locationPageSize="@Model.LocationPageSize">@i</a>
+                                        </li>
+                                    }
+                                </ul>
+                            </nav>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var tabKey = 'inventory-warehouses-active-tab';
+            var tabs = document.querySelectorAll('#warehouse-management-tabs .nav-link');
+            function showTab(href) {
+                if (!href || !window.jQuery) return;
+                var target = document.querySelector('#warehouse-management-tabs .nav-link[href="' + href + '"]');
+                if (target) {
+                    window.jQuery(target).tab('show');
+                }
+            }
+
+            tabs.forEach(function (tab) {
+                tab.addEventListener('shown.bs.tab', function () {
+                    var href = tab.getAttribute('href');
+                    if (href) {
+                        localStorage.setItem(tabKey, href);
+                    }
+                });
+            });
+
+            showTab(localStorage.getItem(tabKey));
+        })();
+    </script>
+}

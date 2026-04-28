@@ -108,6 +108,33 @@
           "route": "/VariantManagement/Variants"
         }
       ]
+    },
+    {
+      "moduleId": "inventory_management",
+      "title": "مدیریت انبار",
+      "icon": "iconsminds-warehouse",
+      "isEnabled": true,
+      "description": "مدیریت Warehouse / Location و زیرساخت اسناد موجودی",
+      "roles": [
+        "SysAdmin",
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
+        {
+          "itemId": "warehouses",
+          "title": "انبار و لوکیشن",
+          "icon": "simple-icon-home",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "تعریف انبارها و محل‌های نگهداری",
+          "route": "/InventoryManagement/Warehouses"
+        }
+      ]
     }
   ]
 }

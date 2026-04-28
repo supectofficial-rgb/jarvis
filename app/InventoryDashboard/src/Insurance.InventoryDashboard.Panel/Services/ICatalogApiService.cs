@@ -28,6 +28,7 @@ public interface ICatalogApiService
     Task<ApiResponse<bool>> DeactivateAttributeOptionAsync(string attributeId, string optionId, string token);
     Task<ApiResponse<bool>> DeleteAttributeOptionAsync(string attributeId, string optionId, string token);
     Task<ApiResponse<bool>> AssignAttributeToCategoryAsync(string categoryId, string attributeId, string token);
+    Task<ApiResponse<List<AttributeDefinitionModel>>> GetActiveAttributeDefinitionsAsync(string token);
     Task<ApiResponse<List<AttributeDefinitionModel>>> GetCategoryAttributesAsync(string categoryId, string token, bool includeInherited = false, bool includeInactive = false);
     Task<ApiResponse<List<AttributeOptionModel>>> GetAttributeOptionsByAttributeIdAsync(string attributeId, string token, bool onlyActive = false);
 
