@@ -20,4 +20,32 @@ public class InventorySourceBalanceCommandRepository
             .Include(x => x.Consumptions)
             .FirstOrDefaultAsync(x => x.BusinessKey.Value == sourceBalanceBusinessKey);
     }
+
+    public Task<List<InventorySourceBalance>> GetOpenByBucketAsync(
+        Guid variantRef,
+        Guid sellerRef,
+        Guid warehouseRef,
+        Guid locationRef,
+        Guid qualityStatusRef,
+        string? lotBatchNo,
+        Guid? serialRef)
+    {
+        var normalizedLotBatchNo = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
+
+        return _dbContext.InventorySourceBalances
+            .Include(x => x.Allocations)
+            .Include(x => x.Consumptions)
+            .Where(x =>
+                x.Status == InventorySourceBalanceStatus.Open &&
+                x.VariantRef == variantRef &&
+                x.SellerRef == sellerRef &&
+                x.WarehouseRef == warehouseRef &&
+                x.LocationRef == locationRef &&
+                x.QualityStatusRef == qualityStatusRef &&
+                x.LotBatchNo == normalizedLotBatchNo &&
+                x.SerialRef == serialRef)
+            .OrderBy(x => x.OpenedAt)
+            .ThenBy(x => x.Id)
+            .ToListAsync();
+    }
 }

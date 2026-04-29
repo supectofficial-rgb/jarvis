@@ -5,4 +5,11 @@ using OysterFx.AppCore.Shared.Commands;
 
 public interface ISellerVariantPriceCommandRepository : ICommandRepository<SellerVariantPrice, long>
 {
+    Task<SellerVariantPrice?> GetByBusinessKeyAsync(Guid sellerVariantPriceBusinessKey);
+    Task<bool> ExistsByPricingKeyAsync(
+        Guid sellerRef,
+        Guid variantRef,
+        Guid priceTypeRef,
+        Guid priceChannelRef,
+        Guid? exceptBusinessKey = null);
 }

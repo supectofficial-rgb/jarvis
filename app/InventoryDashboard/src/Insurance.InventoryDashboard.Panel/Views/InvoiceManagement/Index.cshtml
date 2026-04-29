@@ -1,0 +1,163 @@
+@model Insurance.InventoryDashboard.Panel.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "مدیریت فاکتور و پیش‌فاکتور";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+}
+
+<main id="invoice-management-page" class="catalog-page">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1>مدیریت فاکتور و پیش‌فاکتور</h1>
+                <p class="text-muted">فاکتور سند مالی است؛ فعلا این صفحه جای UI و جریان انتخاب واریانت را آماده می‌کند.</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 mb-4">
+                <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="invoice-management-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-toggle="tab" href="#proforma-tab" role="tab">پیش‌فاکتور</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#invoice-tab" role="tab">فاکتور</a>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="proforma-tab" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3">جستجوی واریانت با اتریبیوت</h5>
+                                <div class="form-row">
+                                    <div class="form-group col-lg-3 col-md-6">
+                                        <label>نام یا SKU</label>
+                                        <input id="proforma-variant-search" class="form-control" placeholder="نام محصول، SKU یا بارکد..." />
+                                    </div>
+                                    <div class="form-group col-lg-2 col-md-6">
+                                        <label>دسته‌بندی</label>
+                                        <select class="form-control">
+                                            <option>همه دسته‌بندی‌ها</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-lg-2 col-md-6">
+                                        <label>اتریبیوت</label>
+                                        <select class="form-control">
+                                            <option>انتخاب اتریبیوت</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-lg-2 col-md-6">
+                                        <label>مقدار</label>
+                                        <input class="form-control" placeholder="مثلا رنگ، سایز..." />
+                                    </div>
+                                    <div class="form-group col-lg-1 col-md-6">
+                                        <label>تعداد</label>
+                                        <input id="proforma-quantity" class="form-control" type="number" min="1" value="1" />
+                                    </div>
+                                    <div class="form-group col-lg-2 col-md-6 d-flex align-items-end">
+                                        <button id="proforma-add-variant" class="btn btn-primary btn-block" type="button">افزودن</button>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>واریانت</th>
+                                                <th>تعداد</th>
+                                                <th>قیمت پیشنهادی</th>
+                                                <th class="text-right">عملیات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="proforma-lines">
+                                            <tr data-empty-row>
+                                                <td colspan="4" class="text-center text-muted">هنوز آیتمی به پیش‌فاکتور اضافه نشده است.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="mt-3">
+                                    <button class="btn btn-primary" type="button" disabled>ثبت پیش‌فاکتور</button>
+                                    <button class="btn btn-outline-primary" type="button" disabled>تبدیل به فاکتور</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="invoice-tab" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3">فاکتور</h5>
+                                <div class="alert alert-light mb-0">
+                                    پیاده‌سازی کامل فاکتور به ماژول مالی، مالیات، پرداخت و احتمالا اتصال به سند خروج انبار وابسته است.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var tabKey = 'invoice-management-active-tab';
+            document.querySelectorAll('#invoice-management-tabs .nav-link').forEach(function (tab) {
+                tab.addEventListener('shown.bs.tab', function () {
+                    localStorage.setItem(tabKey, tab.getAttribute('href') || '');
+                });
+            });
+
+            var activeTab = localStorage.getItem(tabKey);
+            if (activeTab && window.jQuery) {
+                var target = document.querySelector('#invoice-management-tabs .nav-link[href="' + activeTab + '"]');
+                if (target) {
+                    window.jQuery(target).tab('show');
+                }
+            }
+
+            var searchInput = document.getElementById('proforma-variant-search');
+            var quantityInput = document.getElementById('proforma-quantity');
+            var addButton = document.getElementById('proforma-add-variant');
+            var linesBody = document.getElementById('proforma-lines');
+
+            addButton.addEventListener('click', function () {
+                var variantText = (searchInput.value || '').trim();
+                if (!variantText) {
+                    searchInput.focus();
+                    return;
+                }
+
+                var emptyRow = linesBody.querySelector('[data-empty-row]');
+                if (emptyRow) {
+                    emptyRow.remove();
+                }
+
+                var quantity = Math.max(parseFloat(quantityInput.value || '1'), 1);
+                var row = document.createElement('tr');
+                row.innerHTML =
+                    '<td>' + variantText + '</td>' +
+                    '<td>' + quantity + '</td>' +
+                    '<td><input class="form-control form-control-sm" type="number" min="0" placeholder="0" /></td>' +
+                    '<td class="text-right"><button class="btn btn-outline-danger btn-xs" type="button">حذف</button></td>';
+                row.querySelector('button').addEventListener('click', function () {
+                    row.remove();
+                    if (!linesBody.children.length) {
+                        linesBody.innerHTML = '<tr data-empty-row><td colspan="4" class="text-center text-muted">هنوز آیتمی به پیش‌فاکتور اضافه نشده است.</td></tr>';
+                    }
+                });
+                linesBody.appendChild(row);
+                searchInput.value = '';
+                quantityInput.value = '1';
+                searchInput.focus();
+            });
+        })();
+    </script>
+}

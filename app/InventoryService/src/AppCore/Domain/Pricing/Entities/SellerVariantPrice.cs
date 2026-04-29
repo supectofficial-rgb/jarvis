@@ -89,6 +89,8 @@ public sealed class SellerVariantPrice : AggregateRoot
         Amount = amount;
     }
 
+    public void ChangeCurrency(string currency) => Currency = NormalizeRequired(currency, nameof(currency)).ToUpperInvariant();
+
     public void ChangeMinQty(decimal minQty)
     {
         if (minQty < 0)
@@ -132,6 +134,8 @@ public sealed class SellerVariantPrice : AggregateRoot
         if (existing is not null)
             _offers.Remove(existing);
     }
+
+    public void ClearOffers() => _offers.Clear();
 
     private static string NormalizeRequired(string value, string paramName)
     {

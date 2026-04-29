@@ -4,64 +4,33 @@
       "moduleId": "people_management",
       "title": "مدیریت افراد",
       "icon": "iconsminds-business-manwoman",
-      "isEnabled": false,
-      "description": "مدیریت کاربران، پرسوناها و پرمیشن‌ها (فعلا غیرفعال)",
+      "isEnabled": true,
+      "description": "مدیریت افراد و دسترسی‌ها",
       "roles": [
         "SysAdmin",
         "Admin"
       ],
       "items": [
         {
-          "itemId": "organizations",
-          "title": "مدیریت سازمان‌ها",
-          "icon": "simple-icon-organization",
-          "isEnabled": false,
-          "roles": [
-            "SysAdmin"
-          ],
-          "description": "تعریف و مدیریت سازمان‌ها"
-        },
-        {
-          "itemId": "users",
-          "title": "مدیریت کاربران",
+          "itemId": "people",
+          "title": "مدیریت افراد",
           "icon": "simple-icon-user",
-          "isEnabled": false,
+          "isEnabled": true,
           "roles": [
             "SysAdmin",
             "Admin"
           ],
-          "description": "مدیریت کاربران و عضویت‌ها"
-        },
-        {
-          "itemId": "personas",
-          "title": "مدیریت پرسونا",
-          "icon": "simple-icon-people",
-          "isEnabled": false,
-          "roles": [
-            "SysAdmin",
-            "Admin"
-          ],
-          "description": "مدیریت پرسونا و رول‌های سازمانی"
-        },
-        {
-          "itemId": "permissions",
-          "title": "مدیریت پرمیشن",
-          "icon": "simple-icon-lock",
-          "isEnabled": false,
-          "roles": [
-            "SysAdmin",
-            "Admin"
-          ],
-          "description": "تعریف پرمیشن‌ها و نقش‌های سازمانی"
+          "description": "مدیریت کاربران، پرسوناها و پرمیشن‌ها",
+          "route": "/Dashboard?module=people_management&item=people"
         }
       ]
     },
     {
-      "moduleId": "catalog_management",
-      "title": "مدیریت دسته‌بندی و محصولات",
+      "moduleId": "category_management",
+      "title": "مدیریت دسته‌بندی",
       "icon": "iconsminds-box-with-folders",
       "isEnabled": true,
-      "description": "مدیریت Category / Product / Variant",
+      "description": "مدیریت دسته‌بندی، اتریبیوت، آپشن و اتریبیوت‌های مرتبط با دسته‌بندی",
       "roles": [
         "SysAdmin",
         "Admin",
@@ -82,8 +51,61 @@
           "route": "/CategoryManagement/Categories"
         },
         {
+          "itemId": "attributes",
+          "title": "اتریبیوت",
+          "icon": "simple-icon-list",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "تعریف و ویرایش اتریبیوت‌ها",
+          "route": "/CategoryManagement/Categories#attribute-tab"
+        },
+        {
+          "itemId": "options",
+          "title": "آپشن",
+          "icon": "simple-icon-options",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مدیریت گزینه‌های اتریبیوت‌ها",
+          "route": "/CategoryManagement/Categories#attribute-tab"
+        },
+        {
+          "itemId": "category_attribute_rules",
+          "title": "اتریبیوت‌های دسته‌بندی",
+          "icon": "simple-icon-link",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "لیست اتریبیوت‌های مرتبط با دسته‌بندی",
+          "route": "/CategoryManagement/Categories#rule-tab"
+        }
+      ]
+    },
+    {
+      "moduleId": "product_management",
+      "title": "مدیریت محصول",
+      "icon": "iconsminds-cube-molecule",
+      "isEnabled": true,
+      "description": "مدیریت Product و Variant",
+      "roles": [
+        "SysAdmin",
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
+        {
           "itemId": "products",
-          "title": "مدیریت محصولات",
+          "title": "مدیریت محصول",
           "icon": "simple-icon-basket",
           "isEnabled": true,
           "roles": [
@@ -96,7 +118,7 @@
         },
         {
           "itemId": "product_variants",
-          "title": "مدیریت واریانت‌ها",
+          "title": "مدیریت واریانت",
           "icon": "simple-icon-layers",
           "isEnabled": true,
           "roles": [
@@ -123,7 +145,7 @@
       "items": [
         {
           "itemId": "warehouses",
-          "title": "انبار و لوکیشن",
+          "title": "مدیریت انبار",
           "icon": "simple-icon-home",
           "isEnabled": true,
           "roles": [
@@ -133,6 +155,126 @@
           ],
           "description": "تعریف انبارها و محل‌های نگهداری",
           "route": "/InventoryManagement/Warehouses"
+        },
+        {
+          "itemId": "locations",
+          "title": "مدیریت لوکیشن",
+          "icon": "simple-icon-location-pin",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "تعریف لوکیشن‌های مختلف برای هر انبار",
+          "route": "/InventoryManagement/Warehouses?activeItem=locations#warehouse-tab-location"
+        }
+      ]
+    },
+    {
+      "moduleId": "inventory_documents",
+      "title": "مدیریت اسناد",
+      "icon": "iconsminds-file-clipboard-file--text",
+      "isEnabled": true,
+      "description": "ثبت و پیگیری اسناد انبار با انتخاب مجموعه‌ای از واریانت‌ها",
+      "roles": [
+        "SysAdmin",
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
+        {
+          "itemId": "documents",
+          "title": "مدیریت اسناد",
+          "icon": "simple-icon-docs",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت سند انبار و افزودن واریانت با کد یا نام",
+          "route": "/InventoryDocuments/Documents"
+        }
+      ]
+    },
+    {
+      "moduleId": "pricing_management",
+      "title": "مدیریت قیمت",
+      "icon": "iconsminds-coins",
+      "isEnabled": true,
+      "description": "مدیریت نوع قیمت، کانال قیمت و قیمت‌گذاری واریانت‌های دارای موجودی",
+      "roles": [
+        "SysAdmin",
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
+        {
+          "itemId": "price_types",
+          "title": "مدیریت نوع قیمت",
+          "icon": "simple-icon-tag",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "تعریف تایپ‌های قیمت مثل فروش عادی، عمده یا همکار",
+          "route": "/PricingManagement/Index?item=price_types#price-types-tab"
+        },
+        {
+          "itemId": "price_channels",
+          "title": "مدیریت کانال قیمت",
+          "icon": "simple-icon-share",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "تعریف چنل‌های قیمت مثل سایت، حضوری یا نماینده",
+          "route": "/PricingManagement/Index?item=price_channels#price-channels-tab"
+        },
+        {
+          "itemId": "variant_prices",
+          "title": "قیمت‌گذاری واریانت",
+          "icon": "simple-icon-wallet",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت قیمت برای واریانت‌هایی که بالانس ورودی دارند",
+          "route": "/PricingManagement/Index?item=variant_prices#variant-prices-tab"
+        }
+      ]
+    },
+    {
+      "moduleId": "invoice_management",
+      "title": "مدیریت فاکتور و پیش‌فاکتور",
+      "icon": "iconsminds-receipt-4",
+      "isEnabled": true,
+      "description": "جایگاه ماژول مالی آینده؛ فعلا UI تب‌دار و جستجوی واریانت برای پیش‌فاکتور",
+      "roles": [
+        "SysAdmin",
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
+        {
+          "itemId": "invoices",
+          "title": "فاکتور و پیش‌فاکتور",
+          "icon": "simple-icon-calculator",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مدیریت تب‌دار فاکتور و پیش‌فاکتور",
+          "route": "/InvoiceManagement/Index"
         }
       ]
     }

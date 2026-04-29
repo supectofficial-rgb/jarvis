@@ -59,7 +59,7 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Index", "Dashboard");
         }
         var modules = await _dashboardConfigService.GetMenuByRolesAsync(roles, cancellationToken);
-        var menu = ResolveMenu(modules, "catalog_management", "categories");
+        var menu = ResolveMenu(modules, "category_management", "categories");
 
         var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
         var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
@@ -445,7 +445,7 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Index", "Dashboard");
         }
         var modules = await _dashboardConfigService.GetMenuByRolesAsync(roles, cancellationToken);
-        var menu = ResolveMenu(modules, "catalog_management", "products");
+        var menu = ResolveMenu(modules, "product_management", "products");
 
         var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
         var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
@@ -968,7 +968,7 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Index", "Dashboard");
         }
         var modules = await _dashboardConfigService.GetMenuByRolesAsync(roles, cancellationToken);
-        var menu = ResolveMenu(modules, "catalog_management", "product_variants");
+        var menu = ResolveMenu(modules, "product_management", "product_variants");
 
         var productsResult = await _apiService.SearchProductsAsync(token);
         var products = productsResult.Data ?? new List<ProductSummaryModel>();

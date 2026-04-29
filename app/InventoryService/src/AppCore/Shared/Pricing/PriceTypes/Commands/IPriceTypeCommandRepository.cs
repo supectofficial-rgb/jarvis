@@ -5,5 +5,6 @@ using OysterFx.AppCore.Shared.Commands;
 
 public interface IPriceTypeCommandRepository : ICommandRepository<PriceType, long>
 {
+    Task<PriceType?> GetByBusinessKeyAsync(Guid priceTypeBusinessKey);
     Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null);
 }

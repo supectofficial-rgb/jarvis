@@ -1,0 +1,150 @@
+@model Insurance.InventoryDashboard.Panel.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "مدیریت اسناد";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+}
+
+<main id="inventory-documents-page" class="catalog-page">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1>مدیریت اسناد انبار</h1>
+                <p class="text-muted">ثبت سند انبار با انتخاب چند واریانت از روی کد، SKU، بارکد یا نام محصول.</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">ثبت سند</h5>
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label>نوع سند</label>
+                                <select class="form-control">
+                                    <option>رسید ورود</option>
+                                    <option>حواله خروج</option>
+                                    <option>انتقال بین لوکیشن</option>
+                                    <option>اصلاح موجودی</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>انبار مبدا / مقصد</label>
+                                <select class="form-control">
+                                    <option>انتخاب انبار</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>لوکیشن</label>
+                                <select class="form-control">
+                                    <option>انتخاب لوکیشن</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>تاریخ سند</label>
+                                <input class="form-control" type="date" />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>تامین‌کننده</label>
+                                <input class="form-control" value="مالک سیستم (Owner Seller)" readonly />
+                            </div>
+                            <div class="form-group col-md-8">
+                                <label>یادداشت تامین</label>
+                                <input class="form-control" value="در این مرحله همه اسناد ورود با سلر مالک سیستم ثبت می‌شوند." readonly />
+                            </div>
+                        </div>
+
+                        <div class="form-row align-items-end">
+                            <div class="form-group col-lg-7">
+                                <label>جستجوی واریانت</label>
+                                <input id="document-variant-search" class="form-control" placeholder="کد واریانت، SKU، بارکد یا نام محصول..." />
+                            </div>
+                            <div class="form-group col-lg-2">
+                                <label>تعداد</label>
+                                <input id="document-variant-quantity" class="form-control" type="number" min="1" value="1" />
+                            </div>
+                            <div class="form-group col-lg-3">
+                                <button id="document-add-variant" class="btn btn-primary btn-block" type="button">افزودن به سند</button>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>واریانت</th>
+                                        <th>تعداد</th>
+                                        <th>لوکیشن</th>
+                                        <th class="text-right">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="document-lines">
+                                    <tr data-empty-row>
+                                        <td colspan="4" class="text-center text-muted">هنوز واریانتی به سند اضافه نشده است.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3">
+                            <button class="btn btn-primary" type="button" disabled>ثبت نهایی سند</button>
+                            <button class="btn btn-outline-secondary" type="button" disabled>ذخیره پیش‌نویس</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('document-variant-search');
+            var quantityInput = document.getElementById('document-variant-quantity');
+            var addButton = document.getElementById('document-add-variant');
+            var linesBody = document.getElementById('document-lines');
+
+            function removeEmptyRow() {
+                var emptyRow = linesBody.querySelector('[data-empty-row]');
+                if (emptyRow) {
+                    emptyRow.remove();
+                }
+            }
+
+            addButton.addEventListener('click', function () {
+                var variantText = (searchInput.value || '').trim();
+                if (!variantText) {
+                    searchInput.focus();
+                    return;
+                }
+
+                removeEmptyRow();
+                var quantity = Math.max(parseFloat(quantityInput.value || '1'), 1);
+                var row = document.createElement('tr');
+                row.innerHTML =
+                    '<td>' + variantText + '</td>' +
+                    '<td>' + quantity + '</td>' +
+                    '<td><select class="form-control form-control-sm"><option>انتخاب لوکیشن</option></select></td>' +
+                    '<td class="text-right"><button class="btn btn-outline-danger btn-xs" type="button">حذف</button></td>';
+                row.querySelector('button').addEventListener('click', function () {
+                    row.remove();
+                    if (!linesBody.children.length) {
+                        linesBody.innerHTML = '<tr data-empty-row><td colspan="4" class="text-center text-muted">هنوز واریانتی به سند اضافه نشده است.</td></tr>';
+                    }
+                });
+                linesBody.appendChild(row);
+                searchInput.value = '';
+                quantityInput.value = '1';
+                searchInput.focus();
+            });
+        })();
+    </script>
+}

@@ -32,6 +32,7 @@ public sealed class InventoryManagementController : Controller
         string? locationCode,
         string? locationType,
         string? locationStatus,
+        string? activeItem,
         int warehousePage = 1,
         int warehousePageSize = 10,
         int locationPage = 1,
@@ -51,7 +52,10 @@ public sealed class InventoryManagementController : Controller
         }
 
         var modules = await _dashboardConfigService.GetMenuByRolesAsync(roles, cancellationToken);
-        var menu = ResolveMenu(modules, "inventory_management", "warehouses");
+        var menu = ResolveMenu(
+            modules,
+            "inventory_management",
+            string.Equals(activeItem, "locations", StringComparison.OrdinalIgnoreCase) ? "locations" : "warehouses");
 
         warehousePageSize = NormalizePageSize(warehousePageSize);
         locationPageSize = NormalizePageSize(locationPageSize);
