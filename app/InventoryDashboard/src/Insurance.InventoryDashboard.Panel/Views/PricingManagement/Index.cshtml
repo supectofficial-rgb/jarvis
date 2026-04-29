@@ -1,4 +1,4 @@
-@model Insurance.InventoryDashboard.Panel.Models.DashboardViewModel
+@model Insurance.InventoryDashboard.Panel.Models.PricingPageViewModel
 @{
     ViewData["Title"] = "مدیریت قیمت";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
@@ -6,6 +6,20 @@
     ViewBag.MenuModules = Model.Modules;
     ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
     ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var priceTypeNames = Model.PriceTypeLookup.ToDictionary(x => x.PriceTypeBusinessKey, x => $"{x.Name} ({x.Code})");
+    var priceChannelNames = Model.PriceChannelLookup.ToDictionary(x => x.PriceChannelBusinessKey, x => $"{x.Name} ({x.Code})");
+    var sellerNames = Model.Sellers.ToDictionary(x => x.SellerBusinessKey, x => $"{x.Name} ({x.Code})");
+    var availableBuckets = Model.AvailableBuckets
+        .GroupBy(x => new { x.SellerRef, x.VariantRef })
+        .Select(x => new
+        {
+            x.Key.SellerRef,
+            x.Key.VariantRef,
+            QuantityOnHand = x.Sum(item => item.QuantityOnHand)
+        })
+        .OrderByDescending(x => x.QuantityOnHand)
+        .ToList();
 }
 
 <main id="pricing-management-page" class="catalog-page">
@@ -16,6 +30,15 @@
                 <p class="text-muted">تعریف نوع قیمت، کانال قیمت و قیمت‌گذاری واریانت‌هایی که بالانس قابل فروش دارند.</p>
             </div>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+        {
+            <div class="alert alert-success">@Model.StatusMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">@Model.ErrorMessage</div>
+        }
 
         <div class="row">
             <div class="col-12 mb-4">
@@ -35,65 +58,119 @@
                     <div class="tab-pane fade show active" id="variant-prices-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">قیمت‌گذاری واریانت‌های دارای بالانس</h5>
-                                <div class="form-row">
-                                    <div class="form-group col-lg-3 col-md-6">
-                                        <label>جستجوی واریانت</label>
-                                        <input id="price-variant-search" class="form-control" placeholder="کد، SKU، بارکد یا نام محصول..." />
+                                <h5 class="card-title mb-3">ثبت قیمت برای بالانس قابل فروش</h5>
+                                <form asp-action="CreateVariantPrice" method="post" data-loading-form>
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="SellerRef" id="variant-price-seller-ref" />
+                                    <input type="hidden" name="VariantRef" id="variant-price-variant-ref" />
+                                    <div class="form-row">
+                                        <div class="form-group col-lg-3 col-md-6">
+                                            <label>بالانس / واریانت</label>
+                                            <select id="variant-price-bucket" class="form-control" required>
+                                                <option value="">انتخاب کنید...</option>
+                                                @foreach (var bucket in availableBuckets)
+                                                {
+                                                    var sellerTitle = sellerNames.TryGetValue(bucket.SellerRef, out var sellerName) ? sellerName : bucket.SellerRef.ToString("D");
+                                                    <option value="@bucket.SellerRef|@bucket.VariantRef">
+                                                        @sellerTitle - @bucket.VariantRef.ToString("D") - موجودی @bucket.QuantityOnHand
+                                                    </option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-lg-2 col-md-6">
+                                            <label>نوع قیمت</label>
+                                            <select class="form-control" name="PriceTypeRef" required>
+                                                <option value="">انتخاب کنید...</option>
+                                                @foreach (var priceType in Model.PriceTypeLookup)
+                                                {
+                                                    <option value="@priceType.PriceTypeBusinessKey">@priceType.Name (@priceType.Code)</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-lg-2 col-md-6">
+                                            <label>کانال</label>
+                                            <select class="form-control" name="PriceChannelRef" required>
+                                                <option value="">انتخاب کنید...</option>
+                                                @foreach (var channel in Model.PriceChannelLookup)
+                                                {
+                                                    <option value="@channel.PriceChannelBusinessKey">@channel.Name (@channel.Code)</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-lg-2 col-md-6">
+                                            <label>قیمت</label>
+                                            <input class="form-control" name="Amount" type="number" min="1" step="0.01" required />
+                                        </div>
+                                        <div class="form-group col-lg-1 col-md-4">
+                                            <label>ارز</label>
+                                            <input class="form-control" name="Currency" value="IRR" maxlength="8" required />
+                                        </div>
+                                        <div class="form-group col-lg-1 col-md-4">
+                                            <label>حداقل</label>
+                                            <input class="form-control" name="MinQty" type="number" min="1" step="0.01" value="1" required />
+                                        </div>
+                                        <div class="form-group col-lg-1 col-md-4">
+                                            <label>اولویت</label>
+                                            <input class="form-control" name="Priority" type="number" value="0" />
+                                        </div>
                                     </div>
-                                    <div class="form-group col-lg-2 col-md-6">
-                                        <label>نوع قیمت</label>
-                                        <select class="form-control">
-                                            <option>فروش عادی</option>
-                                            <option>عمده</option>
-                                            <option>همکار</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-lg-2 col-md-6">
-                                        <label>کانال</label>
-                                        <select class="form-control">
-                                            <option>سایت</option>
-                                            <option>حضوری</option>
-                                            <option>نماینده</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-lg-2 col-md-6">
-                                        <label>قیمت</label>
-                                        <input id="variant-price-amount" class="form-control" type="number" min="0" placeholder="0" />
-                                    </div>
-                                    <div class="form-group col-lg-3 col-md-12">
-                                        <label>تامین‌کننده</label>
-                                        <input class="form-control" value="مالک سیستم (Owner Seller)" readonly />
-                                    </div>
-                                </div>
+                                    <button class="btn btn-primary" type="submit">ثبت قیمت</button>
+                                </form>
+                            </div>
+                        </div>
 
-                                <div class="alert alert-light">
-                                    لیست نهایی باید از بالانس‌های باز انبار خوانده شود تا فقط واریانت‌هایی قیمت بگیرند که موجودی قابل فروش دارند.
-                                </div>
-
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3">قیمت‌های ثبت‌شده</h5>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped mb-0">
                                         <thead>
                                             <tr>
                                                 <th>واریانت</th>
-                                                <th>بالانس</th>
+                                                <th>تامین‌کننده</th>
                                                 <th>نوع قیمت</th>
                                                 <th>کانال</th>
                                                 <th>قیمت</th>
+                                                <th>فعال</th>
                                                 <th class="text-right">عملیات</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="variant-price-lines">
-                                            <tr data-empty-row>
-                                                <td colspan="6" class="text-center text-muted">هنوز قیمت جدیدی برای واریانت انتخاب نشده است.</td>
-                                            </tr>
+                                        <tbody>
+                                            @if (Model.VariantPrices.Items.Count == 0)
+                                            {
+                                                <tr>
+                                                    <td colspan="7" class="text-center text-muted">هنوز قیمت واریانتی ثبت نشده است.</td>
+                                                </tr>
+                                            }
+                                            @foreach (var price in Model.VariantPrices.Items)
+                                            {
+                                                <tr>
+                                                    <form asp-action="UpdateVariantPrice" asp-route-id="@price.SellerVariantPriceBusinessKey" method="post" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="SellerRef" value="@price.SellerRef" />
+                                                        <input type="hidden" name="VariantRef" value="@price.VariantRef" />
+                                                        <input type="hidden" name="PriceTypeRef" value="@price.PriceTypeRef" />
+                                                        <input type="hidden" name="PriceChannelRef" value="@price.PriceChannelRef" />
+                                                        <input type="hidden" name="Currency" value="@price.Currency" />
+                                                        <input type="hidden" name="MinQty" value="@price.MinQty" />
+                                                        <input type="hidden" name="Priority" value="@price.Priority" />
+                                                        <td>@price.VariantRef.ToString("D")</td>
+                                                        <td>@(sellerNames.TryGetValue(price.SellerRef, out var seller) ? seller : price.SellerRef.ToString("D"))</td>
+                                                        <td>@(priceTypeNames.TryGetValue(price.PriceTypeRef, out var type) ? type : price.PriceTypeRef.ToString("D"))</td>
+                                                        <td>@(priceChannelNames.TryGetValue(price.PriceChannelRef, out var channel) ? channel : price.PriceChannelRef.ToString("D"))</td>
+                                                        <td><input class="form-control form-control-sm" name="Amount" type="number" min="1" step="0.01" value="@price.Amount" /></td>
+                                                        <td>
+                                                            <input type="checkbox" name="IsActive" value="true" @(price.IsActive ? "checked" : null) />
+                                                            <input type="hidden" name="IsActive" value="false" />
+                                                        </td>
+                                                        <td class="text-right">
+                                                            <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
+                                                        </td>
+                                                    </form>
+                                                </tr>
+                                            }
                                         </tbody>
                                     </table>
-                                </div>
-
-                                <div class="mt-3">
-                                    <button id="add-variant-price" class="btn btn-primary" type="button">افزودن قیمت</button>
-                                    <button class="btn btn-outline-primary" type="button" disabled>ثبت نهایی قیمت‌ها</button>
                                 </div>
                             </div>
                         </div>
@@ -103,18 +180,53 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <h5 class="card-title mb-3">نوع قیمت</h5>
-                                <div class="form-row">
-                                    <div class="form-group col-md-4">
-                                        <label>کد</label>
-                                        <input class="form-control" placeholder="Retail / Wholesale" />
+                                <form asp-action="CreatePriceType" method="post" data-loading-form>
+                                    @Html.AntiForgeryToken()
+                                    <div class="form-row">
+                                        <div class="form-group col-md-4">
+                                            <label>کد</label>
+                                            <input class="form-control" name="Code" placeholder="Retail / Wholesale" />
+                                        </div>
+                                        <div class="form-group col-md-5">
+                                            <label>عنوان</label>
+                                            <input class="form-control" name="Name" placeholder="فروش عادی" required />
+                                        </div>
+                                        <div class="form-group col-md-3 d-flex align-items-end">
+                                            <button class="btn btn-primary btn-block" type="submit">ثبت نوع قیمت</button>
+                                        </div>
                                     </div>
-                                    <div class="form-group col-md-4">
-                                        <label>عنوان</label>
-                                        <input class="form-control" placeholder="فروش عادی" />
-                                    </div>
-                                    <div class="form-group col-md-4 d-flex align-items-end">
-                                        <button class="btn btn-primary btn-block" type="button" disabled>ثبت نوع قیمت</button>
-                                    </div>
+                                </form>
+
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-sm table-striped mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>کد</th>
+                                                <th>عنوان</th>
+                                                <th>فعال</th>
+                                                <th class="text-right">عملیات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var priceType in Model.PriceTypes.Items)
+                                            {
+                                                <tr>
+                                                    <form asp-action="UpdatePriceType" asp-route-id="@priceType.PriceTypeBusinessKey" method="post" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <td><input class="form-control form-control-sm" name="Code" value="@priceType.Code" /></td>
+                                                        <td><input class="form-control form-control-sm" name="Name" value="@priceType.Name" required /></td>
+                                                        <td>
+                                                            <input type="checkbox" name="IsActive" value="true" @(priceType.IsActive ? "checked" : null) />
+                                                            <input type="hidden" name="IsActive" value="false" />
+                                                        </td>
+                                                        <td class="text-right">
+                                                            <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
+                                                        </td>
+                                                    </form>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -124,18 +236,53 @@
                         <div class="card">
                             <div class="card-body">
                                 <h5 class="card-title mb-3">کانال قیمت</h5>
-                                <div class="form-row">
-                                    <div class="form-group col-md-4">
-                                        <label>کد</label>
-                                        <input class="form-control" placeholder="Web / Store / Partner" />
+                                <form asp-action="CreatePriceChannel" method="post" data-loading-form>
+                                    @Html.AntiForgeryToken()
+                                    <div class="form-row">
+                                        <div class="form-group col-md-4">
+                                            <label>کد</label>
+                                            <input class="form-control" name="Code" placeholder="Web / Store / Partner" />
+                                        </div>
+                                        <div class="form-group col-md-5">
+                                            <label>عنوان</label>
+                                            <input class="form-control" name="Name" placeholder="سایت" required />
+                                        </div>
+                                        <div class="form-group col-md-3 d-flex align-items-end">
+                                            <button class="btn btn-primary btn-block" type="submit">ثبت کانال قیمت</button>
+                                        </div>
                                     </div>
-                                    <div class="form-group col-md-4">
-                                        <label>عنوان</label>
-                                        <input class="form-control" placeholder="سایت" />
-                                    </div>
-                                    <div class="form-group col-md-4 d-flex align-items-end">
-                                        <button class="btn btn-primary btn-block" type="button" disabled>ثبت کانال قیمت</button>
-                                    </div>
+                                </form>
+
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-sm table-striped mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>کد</th>
+                                                <th>عنوان</th>
+                                                <th>فعال</th>
+                                                <th class="text-right">عملیات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var channel in Model.PriceChannels.Items)
+                                            {
+                                                <tr>
+                                                    <form asp-action="UpdatePriceChannel" asp-route-id="@channel.PriceChannelBusinessKey" method="post" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <td><input class="form-control form-control-sm" name="Code" value="@channel.Code" /></td>
+                                                        <td><input class="form-control form-control-sm" name="Name" value="@channel.Name" required /></td>
+                                                        <td>
+                                                            <input type="checkbox" name="IsActive" value="true" @(channel.IsActive ? "checked" : null) />
+                                                            <input type="hidden" name="IsActive" value="false" />
+                                                        </td>
+                                                        <td class="text-right">
+                                                            <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
+                                                        </td>
+                                                    </form>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -155,43 +302,17 @@
                 window.jQuery(activeItemTab).tab('show');
             }
 
-            var addButton = document.getElementById('add-variant-price');
-            var variantSearch = document.getElementById('price-variant-search');
-            var priceAmount = document.getElementById('variant-price-amount');
-            var linesBody = document.getElementById('variant-price-lines');
+            var bucketSelect = document.getElementById('variant-price-bucket');
+            var sellerInput = document.getElementById('variant-price-seller-ref');
+            var variantInput = document.getElementById('variant-price-variant-ref');
+            if (!bucketSelect || !sellerInput || !variantInput) {
+                return;
+            }
 
-            addButton.addEventListener('click', function () {
-                var variantText = (variantSearch.value || '').trim();
-                if (!variantText) {
-                    variantSearch.focus();
-                    return;
-                }
-
-                var emptyRow = linesBody.querySelector('[data-empty-row]');
-                if (emptyRow) {
-                    emptyRow.remove();
-                }
-
-                var amount = Math.max(parseFloat(priceAmount.value || '0'), 0);
-                var row = document.createElement('tr');
-                row.innerHTML =
-                    '<td>' + variantText + '</td>' +
-                    '<td>دارای بالانس</td>' +
-                    '<td>فروش عادی</td>' +
-                    '<td>سایت</td>' +
-                    '<td>' + amount + '</td>' +
-                    '<td class="text-right"><button class="btn btn-outline-danger btn-xs" type="button">حذف</button></td>';
-                row.querySelector('button').addEventListener('click', function () {
-                    row.remove();
-                    if (!linesBody.children.length) {
-                        linesBody.innerHTML = '<tr data-empty-row><td colspan="6" class="text-center text-muted">هنوز قیمت جدیدی برای واریانت انتخاب نشده است.</td></tr>';
-                    }
-                });
-
-                linesBody.appendChild(row);
-                variantSearch.value = '';
-                priceAmount.value = '';
-                variantSearch.focus();
+            bucketSelect.addEventListener('change', function () {
+                var parts = (bucketSelect.value || '').split('|');
+                sellerInput.value = parts.length === 2 ? parts[0] : '';
+                variantInput.value = parts.length === 2 ? parts[1] : '';
             });
         })();
     </script>

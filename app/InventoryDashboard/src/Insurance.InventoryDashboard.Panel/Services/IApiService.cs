@@ -92,4 +92,21 @@ public interface IApiService
     Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, string? locationType = null, bool? isActive = null, int page = 1, int pageSize = 20);
 
     Task<ApiResponse<List<UnitOfMeasureLookupModel>>> GetUnitOfMeasureLookupAsync(string token);
+
+    Task<ApiResponse<PriceTypeSearchResultModel>> SearchPriceTypesAsync(string token, string? code = null, string? name = null, bool? isActive = null, int page = 1, int pageSize = 50);
+    Task<ApiResponse<PriceTypeLookupResultModel>> GetPriceTypeLookupAsync(string token, bool includeInactive = false);
+    Task<ApiResponse<bool>> CreatePriceTypeAsync(UpsertPriceTypeRequest request, string token);
+    Task<ApiResponse<bool>> UpdatePriceTypeAsync(Guid priceTypeId, UpsertPriceTypeRequest request, string token);
+
+    Task<ApiResponse<PriceChannelSearchResultModel>> SearchPriceChannelsAsync(string token, string? code = null, string? name = null, bool? isActive = null, int page = 1, int pageSize = 50);
+    Task<ApiResponse<PriceChannelLookupResultModel>> GetPriceChannelLookupAsync(string token, bool includeInactive = false);
+    Task<ApiResponse<bool>> CreatePriceChannelAsync(UpsertPriceChannelRequest request, string token);
+    Task<ApiResponse<bool>> UpdatePriceChannelAsync(Guid priceChannelId, UpsertPriceChannelRequest request, string token);
+
+    Task<ApiResponse<SellerVariantPriceSearchResultModel>> SearchSellerVariantPricesAsync(string token, Guid? sellerRef = null, Guid? variantRef = null, Guid? priceTypeRef = null, Guid? priceChannelRef = null, bool? isActive = null, int page = 1, int pageSize = 50);
+    Task<ApiResponse<bool>> CreateSellerVariantPriceAsync(UpsertSellerVariantPriceRequest request, string token);
+    Task<ApiResponse<bool>> UpdateSellerVariantPriceAsync(Guid sellerVariantPriceId, UpsertSellerVariantPriceRequest request, string token);
+
+    Task<ApiResponse<SellerLookupResultModel>> GetSellerLookupAsync(string token, bool includeInactive = false);
+    Task<ApiResponse<StockDetailBucketResultModel>> GetAvailableStockBucketsAsync(string token, Guid? variantRef = null, Guid? sellerRef = null, decimal minQuantity = 0);
 }

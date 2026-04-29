@@ -1019,6 +1019,167 @@ public sealed class ApiService : IApiService
         return new ApiResponse<List<UnitOfMeasureLookupModel>> { IsSuccess = true, Data = mapped };
     }
 
+    public Task<ApiResponse<PriceTypeSearchResultModel>> SearchPriceTypesAsync(
+        string token,
+        string? code = null,
+        string? name = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 50)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/PriceType/search",
+            ("Code", code),
+            ("Name", name),
+            ("IsActive", isActive?.ToString().ToLowerInvariant()),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        return GetQueryAsync<PriceTypeSearchResultModel>(route, token, "Loading price types failed.");
+    }
+
+    public Task<ApiResponse<PriceTypeLookupResultModel>> GetPriceTypeLookupAsync(string token, bool includeInactive = false)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/PriceType/lookup",
+            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+
+        return GetQueryAsync<PriceTypeLookupResultModel>(route, token, "Loading price type lookup failed.");
+    }
+
+    public Task<ApiResponse<bool>> CreatePriceTypeAsync(UpsertPriceTypeRequest request, string token)
+    {
+        var payload = new
+        {
+            Code = NormalizeCode(request.Code, request.Name, "PRICE_TYPE"),
+            Name = request.Name.Trim()
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/PriceType", payload, token, "Creating price type failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdatePriceTypeAsync(Guid priceTypeId, UpsertPriceTypeRequest request, string token)
+    {
+        var payload = new
+        {
+            Code = NormalizeCode(request.Code, request.Name, "PRICE_TYPE"),
+            Name = request.Name.Trim(),
+            IsActive = request.IsActive
+        };
+
+        return PutCommandAsync($"{InventoryApiPrefix}/PriceType/{priceTypeId:D}", payload, token, "Updating price type failed.");
+    }
+
+    public Task<ApiResponse<PriceChannelSearchResultModel>> SearchPriceChannelsAsync(
+        string token,
+        string? code = null,
+        string? name = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 50)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/PriceChannel/search",
+            ("Code", code),
+            ("Name", name),
+            ("IsActive", isActive?.ToString().ToLowerInvariant()),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        return GetQueryAsync<PriceChannelSearchResultModel>(route, token, "Loading price channels failed.");
+    }
+
+    public Task<ApiResponse<PriceChannelLookupResultModel>> GetPriceChannelLookupAsync(string token, bool includeInactive = false)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/PriceChannel/lookup",
+            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+
+        return GetQueryAsync<PriceChannelLookupResultModel>(route, token, "Loading price channel lookup failed.");
+    }
+
+    public Task<ApiResponse<bool>> CreatePriceChannelAsync(UpsertPriceChannelRequest request, string token)
+    {
+        var payload = new
+        {
+            Code = NormalizeCode(request.Code, request.Name, "PRICE_CHANNEL"),
+            Name = request.Name.Trim()
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/PriceChannel", payload, token, "Creating price channel failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdatePriceChannelAsync(Guid priceChannelId, UpsertPriceChannelRequest request, string token)
+    {
+        var payload = new
+        {
+            Code = NormalizeCode(request.Code, request.Name, "PRICE_CHANNEL"),
+            Name = request.Name.Trim(),
+            IsActive = request.IsActive
+        };
+
+        return PutCommandAsync($"{InventoryApiPrefix}/PriceChannel/{priceChannelId:D}", payload, token, "Updating price channel failed.");
+    }
+
+    public Task<ApiResponse<SellerVariantPriceSearchResultModel>> SearchSellerVariantPricesAsync(
+        string token,
+        Guid? sellerRef = null,
+        Guid? variantRef = null,
+        Guid? priceTypeRef = null,
+        Guid? priceChannelRef = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 50)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/SellerVariantPrice/search",
+            ("SellerRef", sellerRef?.ToString("D")),
+            ("VariantRef", variantRef?.ToString("D")),
+            ("PriceTypeRef", priceTypeRef?.ToString("D")),
+            ("PriceChannelRef", priceChannelRef?.ToString("D")),
+            ("IsActive", isActive?.ToString().ToLowerInvariant()),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        return GetQueryAsync<SellerVariantPriceSearchResultModel>(route, token, "Loading variant prices failed.");
+    }
+
+    public Task<ApiResponse<bool>> CreateSellerVariantPriceAsync(UpsertSellerVariantPriceRequest request, string token)
+    {
+        var payload = BuildSellerVariantPricePayload(request, includeRefs: true);
+        return PostCommandAsync($"{InventoryApiPrefix}/SellerVariantPrice", payload, token, "Creating variant price failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdateSellerVariantPriceAsync(Guid sellerVariantPriceId, UpsertSellerVariantPriceRequest request, string token)
+    {
+        var payload = BuildSellerVariantPricePayload(request, includeRefs: false);
+        return PutCommandAsync($"{InventoryApiPrefix}/SellerVariantPrice/{sellerVariantPriceId:D}", payload, token, "Updating variant price failed.");
+    }
+
+    public Task<ApiResponse<SellerLookupResultModel>> GetSellerLookupAsync(string token, bool includeInactive = false)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/Seller/lookup",
+            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+
+        return GetQueryAsync<SellerLookupResultModel>(route, token, "Loading sellers failed.");
+    }
+
+    public Task<ApiResponse<StockDetailBucketResultModel>> GetAvailableStockBucketsAsync(
+        string token,
+        Guid? variantRef = null,
+        Guid? sellerRef = null,
+        decimal minQuantity = 0)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/StockDetail/available-buckets",
+            ("VariantRef", variantRef?.ToString("D")),
+            ("SellerRef", sellerRef?.ToString("D")),
+            ("MinQuantity", minQuantity.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+        return GetQueryAsync<StockDetailBucketResultModel>(route, token, "Loading available stock buckets failed.");
+    }
+
     private static CategoryNodeModel MapCategoryTreeNode(CategoryTreeItemDto item)
     {
         var children = item.Children
@@ -1193,6 +1354,41 @@ public sealed class ApiService : IApiService
             })
             .Where(x => x.AttributeRef != Guid.Empty)
             .ToList<object>();
+    }
+
+    private static object BuildSellerVariantPricePayload(UpsertSellerVariantPriceRequest request, bool includeRefs)
+    {
+        var common = new
+        {
+            Amount = request.Amount,
+            Currency = string.IsNullOrWhiteSpace(request.Currency) ? "IRR" : request.Currency.Trim().ToUpperInvariant(),
+            MinQty = request.MinQty <= 0 ? 1 : request.MinQty,
+            Priority = request.Priority,
+            EffectiveFrom = request.EffectiveFrom,
+            EffectiveTo = request.EffectiveTo,
+            IsActive = request.IsActive,
+            Offers = request.Offers ?? new List<SellerVariantPriceOfferInputModel>()
+        };
+
+        if (!includeRefs)
+        {
+            return common;
+        }
+
+        return new
+        {
+            request.SellerRef,
+            request.VariantRef,
+            request.PriceTypeRef,
+            request.PriceChannelRef,
+            common.Amount,
+            common.Currency,
+            common.MinQty,
+            common.Priority,
+            common.EffectiveFrom,
+            common.EffectiveTo,
+            common.Offers
+        };
     }
 
     private static Guid ParseGuidOrEmpty(string? value)
