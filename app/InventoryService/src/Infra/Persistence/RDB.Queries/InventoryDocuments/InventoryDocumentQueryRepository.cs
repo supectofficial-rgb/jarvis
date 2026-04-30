@@ -71,7 +71,9 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
                 ToQualityStatusRef = x.ToQualityStatusRef,
                 LotBatchNo = x.LotBatchNo,
                 ReasonCode = x.ReasonCode,
-                AdjustmentDirection = x.AdjustmentDirection?.ToString()
+                AdjustmentDirection = x.AdjustmentDirection.HasValue
+                    ? x.AdjustmentDirection.Value.ToString()
+                    : null
             })
             .ToListAsync();
 
