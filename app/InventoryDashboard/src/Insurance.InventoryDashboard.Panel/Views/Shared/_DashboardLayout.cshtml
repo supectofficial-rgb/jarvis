@@ -189,6 +189,31 @@
     <script src="@Url.Content("~/js/inventory-dashboard.ui.js")" asp-append-version="true"></script>
     <script>
         (function () {
+            function showOnlySubMenu(moduleId) {
+                document.querySelectorAll('.sub-menu ul[data-link]').forEach(function (list) {
+                    var isTarget = list.getAttribute('data-link') === moduleId;
+                    list.classList.toggle('d-block', isTarget);
+                    list.style.display = isTarget ? 'block' : 'none';
+                });
+            }
+
+            document.querySelectorAll('.main-menu a[href^="#"]').forEach(function (link) {
+                link.addEventListener('click', function () {
+                    var moduleId = (link.getAttribute('href') || '').replace(/^#/, '');
+                    if (moduleId) {
+                        showOnlySubMenu(moduleId);
+                    }
+                });
+            });
+
+            var activeList = document.querySelector('.sub-menu ul.d-block[data-link]');
+            if (activeList) {
+                showOnlySubMenu(activeList.getAttribute('data-link'));
+            }
+        })();
+    </script>
+    <script>
+        (function () {
             var modalElement = document.getElementById('globalConfirmModal');
             var titleElement = document.getElementById('globalConfirmModalLabel');
             var messageElement = document.getElementById('globalConfirmModalMessage');

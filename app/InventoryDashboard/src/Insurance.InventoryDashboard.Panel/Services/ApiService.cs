@@ -770,20 +770,48 @@ public sealed class ApiService : IApiService
             return new ApiResponse<List<ProductVariantSummaryModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
         }
 
-        var mapped = result.Data?.Items.Select(item => new ProductVariantSummaryModel
-        {
-            Id = item.VariantBusinessKey.ToString("D"),
-            ProductId = item.ProductRef.ToString("D"),
-            Sku = item.VariantSku,
-            Barcode = item.Barcode,
-            TrackingPolicy = item.TrackingPolicy,
-            BaseUomRef = item.BaseUomRef.ToString("D"),
-            BaseUom = item.BaseUomRef.ToString("D"),
-            IsActive = item.IsActive,
-            InventoryMovementLocked = item.InventoryMovementLocked
-        }).ToList() ?? new List<ProductVariantSummaryModel>();
+        var mapped = MapVariantListItems(result.Data?.Items ?? new List<VariantListItemDto>());
 
         return new ApiResponse<List<ProductVariantSummaryModel>> { IsSuccess = true, Data = mapped };
+    }
+
+    public async Task<ApiResponse<ProductVariantSearchResultModel>> SearchProductVariantsAsync(
+        string token,
+        string? searchTerm = null,
+        string? productId = null,
+        string? categoryId = null,
+        string? attributeOptionIds = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 10)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/ProductVariant/search",
+            ("SearchTerm", searchTerm),
+            ("ProductRef", productId),
+            ("CategoryRef", categoryId),
+            ("AttributeOptionRefs", attributeOptionIds),
+            ("IsActive", isActive?.ToString().ToLowerInvariant()),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        var result = await GetQueryAsync<SearchVariantsQueryResultDto>(route, token, "Loading variants failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<ProductVariantSearchResultModel> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        return new ApiResponse<ProductVariantSearchResultModel>
+        {
+            IsSuccess = true,
+            Data = new ProductVariantSearchResultModel
+            {
+                TotalCount = result.Data?.TotalCount ?? 0,
+                Page = result.Data?.Page ?? Math.Max(page, 1),
+                PageSize = result.Data?.PageSize ?? Math.Clamp(pageSize, 1, 200),
+                Items = MapVariantListItems(result.Data?.Items ?? new List<VariantListItemDto>())
+            }
+        };
     }
 
     public async Task<ApiResponse<ProductVariantDetailsModel>> GetProductVariantFullDetailsAsync(string variantId, string token)
@@ -853,6 +881,25 @@ public sealed class ApiService : IApiService
         }).ToList() ?? new List<VariantUomConversionModel>();
 
         return new ApiResponse<List<VariantUomConversionModel>> { IsSuccess = true, Data = mapped };
+    }
+
+    public async Task<ApiResponse<List<VariantInventoryTransactionModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token)
+    {
+        var result = await GetQueryAsync<ItemsQueryResultDto<VariantInventoryTransactionModel>>(
+            $"{InventoryApiPrefix}/InventoryTransaction/by-variant/{variantId}",
+            token,
+            "Loading variant inventory documents failed.");
+
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<VariantInventoryTransactionModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        return new ApiResponse<List<VariantInventoryTransactionModel>>
+        {
+            IsSuccess = true,
+            Data = result.Data?.Items ?? new List<VariantInventoryTransactionModel>()
+        };
     }
 
     public Task<ApiResponse<bool>> CreateWarehouseAsync(UpsertWarehouseRequest request, string token)
@@ -984,6 +1031,10 @@ public sealed class ApiService : IApiService
         string? warehouseId = null,
         string? locationCode = null,
         string? locationType = null,
+        string? aisle = null,
+        string? rack = null,
+        string? shelf = null,
+        string? bin = null,
         bool? isActive = null,
         int page = 1,
         int pageSize = 20)
@@ -993,6 +1044,10 @@ public sealed class ApiService : IApiService
             ("WarehouseRef", warehouseId),
             ("LocationCode", locationCode),
             ("LocationType", locationType),
+            ("Aisle", aisle),
+            ("Rack", rack),
+            ("Shelf", shelf),
+            ("Bin", bin),
             ("IsActive", isActive?.ToString().ToLowerInvariant()),
             ("Page", Math.Max(page, 1).ToString()),
             ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
@@ -1017,6 +1072,93 @@ public sealed class ApiService : IApiService
         }).ToList() ?? new List<UnitOfMeasureLookupModel>();
 
         return new ApiResponse<List<UnitOfMeasureLookupModel>> { IsSuccess = true, Data = mapped };
+    }
+
+    public Task<ApiResponse<QualityStatusLookupResultModel>> GetQualityStatusLookupAsync(string token, bool includeInactive = false)
+    {
+        var route = BuildRouteWithQuery($"{InventoryApiPrefix}/QualityStatus/lookup", ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+        return GetQueryAsync<QualityStatusLookupResultModel>(route, token, "Loading quality statuses failed.");
+    }
+
+    public Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(
+        string token,
+        string? documentNo = null,
+        string? documentType = null,
+        string? status = null,
+        string? warehouseId = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/InventoryDocument/search",
+            ("DocumentNo", documentNo),
+            ("DocumentType", documentType),
+            ("Status", status),
+            ("WarehouseRef", warehouseId),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        return GetQueryAsync<InventoryDocumentSearchResultModel>(route, token, "Loading inventory documents failed.");
+    }
+
+    public Task<ApiResponse<Guid>> CreateInventoryDocumentAsync(InventoryDocumentForm form, IReadOnlyList<InventoryDocumentLineForm> lines, string token)
+    {
+        var payloadLines = lines.Select(line =>
+        {
+            var qty = Math.Abs(line.Quantity);
+            return new
+            {
+                VariantRef = ParseNullableGuid(line.VariantId),
+                Qty = qty,
+                UomRef = ParseNullableGuid(line.BaseUomRef),
+                BaseQty = qty,
+                BaseUomRef = ParseNullableGuid(line.BaseUomRef),
+                SourceLocationRef = ParseNullableGuid(line.SourceLocationId),
+                DestinationLocationRef = ParseNullableGuid(line.DestinationLocationId),
+                QualityStatusRef = ParseNullableGuid(line.QualityStatusId),
+                LotBatchNo = NormalizeOptional(line.LotBatchNo),
+                ReasonCode = NormalizeOptional(line.ReasonCode ?? form.ReasonCode),
+                AdjustmentDirection = NormalizeOptional(line.AdjustmentDirection)
+            };
+        }).ToList();
+
+        var payload = new
+        {
+            DocumentNo = NormalizeOptional(form.DocumentNo),
+            WarehouseRef = ParseNullableGuid(form.WarehouseId),
+            SellerRef = ParseNullableGuid(form.SellerId),
+            OccurredAt = form.OccurredAt == default ? DateTime.UtcNow : form.OccurredAt,
+            ReasonCode = NormalizeOptional(form.ReasonCode),
+            Lines = payloadLines
+        };
+
+        var route = (form.DocumentType ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "issue" => $"{InventoryApiPrefix}/InventoryDocument/issue",
+            "transfer" => $"{InventoryApiPrefix}/InventoryDocument/transfer",
+            "adjustment" => $"{InventoryApiPrefix}/InventoryDocument/adjustment",
+            _ => $"{InventoryApiPrefix}/InventoryDocument/receipt"
+        };
+
+        return PostCommandWithDataAsync<Guid>(route, payload, token, "Creating inventory document failed.");
+    }
+
+    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(Guid documentBusinessKey, string token) =>
+        PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentBusinessKey:D}/post", new { }, token, "Posting inventory document failed.");
+
+    public async Task<ApiResponse<List<InventoryDocumentLineItemModel>>> GetInventoryDocumentLinesAsync(Guid documentBusinessKey, string token)
+    {
+        var result = await GetQueryAsync<ItemsQueryResultDto<InventoryDocumentLineItemModel>>(
+            $"{InventoryApiPrefix}/InventoryDocument/{documentBusinessKey:D}/lines",
+            token,
+            "Loading inventory document lines failed.");
+
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<InventoryDocumentLineItemModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        return new ApiResponse<List<InventoryDocumentLineItemModel>> { IsSuccess = true, Data = result.Data?.Items ?? new List<InventoryDocumentLineItemModel>() };
     }
 
     public Task<ApiResponse<PriceTypeSearchResultModel>> SearchPriceTypesAsync(
@@ -1276,6 +1418,20 @@ public sealed class ApiService : IApiService
             IsActive = item.IsActive
         };
     }
+
+    private static List<ProductVariantSummaryModel> MapVariantListItems(IEnumerable<VariantListItemDto> items)
+        => items.Select(item => new ProductVariantSummaryModel
+        {
+            Id = item.VariantBusinessKey.ToString("D"),
+            ProductId = item.ProductRef.ToString("D"),
+            Sku = item.VariantSku,
+            Barcode = item.Barcode,
+            TrackingPolicy = item.TrackingPolicy,
+            BaseUomRef = item.BaseUomRef.ToString("D"),
+            BaseUom = item.BaseUomRef.ToString("D"),
+            IsActive = item.IsActive,
+            InventoryMovementLocked = item.InventoryMovementLocked
+        }).ToList();
 
     private static string NormalizeAttributeDataType(string? dataType)
     {
@@ -1728,6 +1884,19 @@ public sealed class ApiService : IApiService
     private sealed class VariantsByProductQueryResultDto
     {
         public List<VariantListItemDto> Items { get; set; } = new();
+    }
+
+    private sealed class SearchVariantsQueryResultDto
+    {
+        public int TotalCount { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+        public List<VariantListItemDto> Items { get; set; } = new();
+    }
+
+    private sealed class ItemsQueryResultDto<T>
+    {
+        public List<T> Items { get; set; } = new();
     }
 
     private sealed class VariantListItemDto

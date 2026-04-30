@@ -109,6 +109,30 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
             locations = locations.Where(x => x.LocationType == locationType);
         }
 
+        if (!string.IsNullOrWhiteSpace(query.Aisle))
+        {
+            var aisle = query.Aisle.Trim();
+            locations = locations.Where(x => x.Aisle != null && x.Aisle.Contains(aisle));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Rack))
+        {
+            var rack = query.Rack.Trim();
+            locations = locations.Where(x => x.Rack != null && x.Rack.Contains(rack));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Shelf))
+        {
+            var shelf = query.Shelf.Trim();
+            locations = locations.Where(x => x.Shelf != null && x.Shelf.Contains(shelf));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Bin))
+        {
+            var bin = query.Bin.Trim();
+            locations = locations.Where(x => x.Bin != null && x.Bin.Contains(bin));
+        }
+
         if (query.IsActive.HasValue)
             locations = locations.Where(x => x.IsActive == query.IsActive.Value);
 

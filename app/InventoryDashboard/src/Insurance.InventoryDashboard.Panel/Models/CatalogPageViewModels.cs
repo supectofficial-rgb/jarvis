@@ -10,6 +10,7 @@ public sealed class CategoryManagementPageViewModel
     public DashboardMenuModule? ActiveModule { get; set; }
     public DashboardMenuItem? ActiveItem { get; set; }
 
+    public bool IsCategoryCreateMode { get; set; }
     public string? SelectedCategoryId { get; set; }
     public IReadOnlyList<CategoryNodeModel> Categories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<CategoryNodeModel> FlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
@@ -46,6 +47,7 @@ public sealed class ProductManagementPageViewModel
     public DashboardMenuModule? ActiveModule { get; set; }
     public DashboardMenuItem? ActiveItem { get; set; }
 
+    public bool IsProductCreateMode { get; set; }
     public string? SelectedCategoryId { get; set; }
     public string? SelectedProductId { get; set; }
     public IReadOnlyList<CategoryNodeModel> Categories { get; set; } = Array.Empty<CategoryNodeModel>();
@@ -87,9 +89,13 @@ public sealed class VariantManagementPageViewModel
     public DashboardMenuModule? ActiveModule { get; set; }
     public DashboardMenuItem? ActiveItem { get; set; }
 
+    public bool IsVariantCreateMode { get; set; }
     public string? SelectedProductId { get; set; }
     public string? SelectedVariantId { get; set; }
+    public string? SelectedCategoryId { get; set; }
 
+    public IReadOnlyList<CategoryNodeModel> Categories { get; set; } = Array.Empty<CategoryNodeModel>();
+    public IReadOnlyList<CategoryNodeModel> FlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<ProductSummaryModel> Products { get; set; } = Array.Empty<ProductSummaryModel>();
     public IReadOnlyList<ProductVariantSummaryModel> Variants { get; set; } = Array.Empty<ProductVariantSummaryModel>();
     public ProductVariantDetailsModel? SelectedVariantDetails { get; set; }
@@ -102,6 +108,8 @@ public sealed class VariantManagementPageViewModel
     public IReadOnlyList<EffectiveAttributeViewModel> MissingRequiredVariantAttributes { get; set; } = Array.Empty<EffectiveAttributeViewModel>();
 
     public string? VariantSearchTerm { get; set; }
+    public string? VariantCategoryFilterId { get; set; }
+    public string? VariantAttributeOptionFilterIds { get; set; }
     public string? VariantTrackingFilter { get; set; }
     public string? VariantStatusFilter { get; set; }
     public string? SelectedAttributeTypeFilter { get; set; }

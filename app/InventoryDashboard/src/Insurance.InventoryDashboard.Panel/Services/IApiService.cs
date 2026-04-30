@@ -72,8 +72,10 @@ public interface IApiService
     Task<ApiResponse<bool>> UpsertVariantUomConversionAsync(string variantId, UpsertVariantUomConversionRequest request, string token);
     Task<ApiResponse<bool>> RemoveVariantUomConversionAsync(string variantId, string fromUomRef, string toUomRef, string token);
     Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(string productId, string token, bool includeInactive = true);
+    Task<ApiResponse<ProductVariantSearchResultModel>> SearchProductVariantsAsync(string token, string? searchTerm = null, string? productId = null, string? categoryId = null, string? attributeOptionIds = null, bool? isActive = null, int page = 1, int pageSize = 10);
     Task<ApiResponse<ProductVariantDetailsModel>> GetProductVariantFullDetailsAsync(string variantId, string token);
     Task<ApiResponse<List<VariantUomConversionModel>>> GetVariantUomConversionsByVariantIdAsync(string variantId, string token);
+    Task<ApiResponse<List<VariantInventoryTransactionModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token);
 
     Task<ApiResponse<bool>> CreateWarehouseAsync(UpsertWarehouseRequest request, string token);
     Task<ApiResponse<bool>> UpdateWarehouseAsync(string warehouseId, UpsertWarehouseRequest request, string token);
@@ -89,9 +91,14 @@ public interface IApiService
     Task<ApiResponse<bool>> DeactivateLocationAsync(string locationId, string token);
     Task<ApiResponse<bool>> DeleteLocationAsync(string locationId, string token);
     Task<ApiResponse<bool>> MoveLocationToWarehouseAsync(string locationId, string targetWarehouseId, string token);
-    Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, string? locationType = null, bool? isActive = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, string? locationType = null, string? aisle = null, string? rack = null, string? shelf = null, string? bin = null, bool? isActive = null, int page = 1, int pageSize = 20);
 
     Task<ApiResponse<List<UnitOfMeasureLookupModel>>> GetUnitOfMeasureLookupAsync(string token);
+    Task<ApiResponse<QualityStatusLookupResultModel>> GetQualityStatusLookupAsync(string token, bool includeInactive = false);
+    Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(string token, string? documentNo = null, string? documentType = null, string? status = null, string? warehouseId = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<Guid>> CreateInventoryDocumentAsync(InventoryDocumentForm form, IReadOnlyList<InventoryDocumentLineForm> lines, string token);
+    Task<ApiResponse<bool>> PostInventoryDocumentAsync(Guid documentBusinessKey, string token);
+    Task<ApiResponse<List<InventoryDocumentLineItemModel>>> GetInventoryDocumentLinesAsync(Guid documentBusinessKey, string token);
 
     Task<ApiResponse<PriceTypeSearchResultModel>> SearchPriceTypesAsync(string token, string? code = null, string? name = null, bool? isActive = null, int page = 1, int pageSize = 50);
     Task<ApiResponse<PriceTypeLookupResultModel>> GetPriceTypeLookupAsync(string token, bool includeInactive = false);

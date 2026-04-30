@@ -327,12 +327,25 @@ public abstract partial class CatalogManagementController
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
+        if (!AllowedAttributeDataTypes.Contains(form.DataType))
+        {
+            TempData["CatalogError"] = "نوع داده اتریبیوت نامعتبر است.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (!AllowedAttributeScopes.Contains(form.Scope))
+        {
+            TempData["CatalogError"] = "سطح اعمال اتریبیوت نامعتبر است.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
         var request = new UpdateAttributeDefinitionRequest
         {
-            Code = form.Code,
-            Name = form.Name,
-            DataType = form.DataType,
-            Scope = form.Scope,
+            Code = form.Code.Trim(),
+            Name = form.Name.Trim(),
+            DataType = form.DataType.Trim(),
+            Scope = form.Scope.Trim(),
+            DisplayOrder = form.DisplayOrder,
             IsActive = form.IsActive
         };
 

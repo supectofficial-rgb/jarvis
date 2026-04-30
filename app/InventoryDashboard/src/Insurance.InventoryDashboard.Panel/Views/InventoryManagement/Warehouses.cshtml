@@ -23,6 +23,9 @@
 
     var isWarehouseEditMode = !string.IsNullOrWhiteSpace(Model.WarehouseForm.WarehouseId);
     var isLocationEditMode = !string.IsNullOrWhiteSpace(Model.LocationForm.LocationId);
+    var activeSurface = Model.ActiveItem?.ItemId ?? "warehouses";
+    var showLocations = string.Equals(activeSurface, "locations", StringComparison.OrdinalIgnoreCase);
+    var showWarehouses = !showLocations;
     var selectedWarehouseName = Model.SelectedWarehouseDetails?.Name
         ?? Model.Warehouses.FirstOrDefault(x => x.WarehouseBusinessKey == Model.SelectedWarehouseId)?.Name;
     string WarehouseName(string? warehouseId)
@@ -36,6 +39,16 @@
         return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
     }
 }
+
+<style>
+    .inventory-section-tabs .nav-link {
+        cursor: pointer;
+    }
+
+    .inventory-status-action {
+        display: none !important;
+    }
+</style>
 
 <main id="warehouses-page" class="catalog-page">
     <div class="container-fluid">
@@ -71,12 +84,12 @@
 
         <div class="row">
             <div class="col-12 mb-4">
-                <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="warehouse-management-tabs">
+                <ul class="nav nav-tabs separator-tabs ml-0 mb-4 d-none" role="tablist" id="warehouse-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-toggle="tab" href="#warehouse-tab-form" role="tab">فرم انبار</a>
+                        <a class="nav-link @(showWarehouses ? "active" : null)" data-toggle="tab" href="#warehouse-tab-form" role="tab">فرم انبار</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#warehouse-tab-location" role="tab">فرم لوکیشن</a>
+                        <a class="nav-link @(showLocations ? "active" : null)" data-toggle="tab" href="#warehouse-tab-location" role="tab">فرم لوکیشن</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-toggle="tab" href="#warehouse-tab-details" role="tab">جزئیات انبار</a>
@@ -84,8 +97,16 @@
                 </ul>
 
                 <div class="tab-content">
-                    <div class="tab-pane fade show active" id="warehouse-tab-form" role="tabpanel">
-                        <div class="card mb-4">
+                    <div class="tab-pane fade @(showWarehouses ? "show active" : null)" id="warehouse-tab-form" role="tabpanel">
+                        <ul class="nav nav-tabs separator-tabs ml-0 mb-4 inventory-section-tabs" role="tablist" data-section-tabs>
+                            <li class="nav-item">
+                                <a class="nav-link active" data-section-target="#warehouse-section-create">افزودن انبار</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-section-target="#warehouse-section-search">جستجو و لیست انبارها</a>
+                            </li>
+                        </ul>
+                        <div class="card mb-4 inventory-section-pane" id="warehouse-section-create">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h5 class="card-title mb-0">@(isWarehouseEditMode ? "ویرایش انبار" : "ایجاد انبار")</h5>
@@ -118,14 +139,22 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane fade" id="warehouse-tab-location" role="tabpanel">
-                        <div class="card mb-4">
+                    <div class="tab-pane fade @(showLocations ? "show active" : null)" id="warehouse-tab-location" role="tabpanel">
+                        <ul class="nav nav-tabs separator-tabs ml-0 mb-4 inventory-section-tabs" role="tablist" data-section-tabs>
+                            <li class="nav-item">
+                                <a class="nav-link active" data-section-target="#location-section-create">افزودن لوکیشن</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-section-target="#location-section-search">جستجو و لیست لوکیشن‌ها</a>
+                            </li>
+                        </ul>
+                        <div class="card mb-4 inventory-section-pane" id="location-section-create">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h5 class="card-title mb-0">@(isLocationEditMode ? "ویرایش لوکیشن" : "ایجاد لوکیشن")</h5>
                                     @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
                                     {
-                                        <a asp-action="Warehouses" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs">ایجاد لوکیشن جدید</a>
+                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs">ایجاد لوکیشن جدید</a>
                                     }
                                 </div>
                                 <form asp-action="SaveLocation" method="post" data-loading-form data-dirty-watch>
@@ -247,7 +276,7 @@
                 </div>
             </div>
 
-            <div class="col-12 mb-4">
+            <div class="col-12 mb-4 inventory-section-pane d-none @(showWarehouses ? null : "d-none")" id="warehouse-section-search">
                 <div class="card mb-4">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -313,13 +342,13 @@
                                                     </span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@warehouse.WarehouseBusinessKey">جزئیات</a>
-                                                    <form asp-action="ActivateWarehouse" method="post" class="d-inline" data-loading-form>
+                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@warehouse.WarehouseBusinessKey">ویرایش</a>
+                                                    <form asp-action="ActivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form>
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
                                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Warehouse.Activate", "Warehouse.Activate") ? null : "disabled")>فعال</button>
                                                     </form>
-                                                    <form asp-action="DeactivateWarehouse" method="post" class="d-inline" data-loading-form>
+                                                    <form asp-action="DeactivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form>
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
                                                         <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Warehouse.Deactivate", "Warehouse.Deactivate") ? null : "disabled")>غیرفعال</button>
@@ -351,6 +380,10 @@
                                                asp-route-warehouseStatus="@Model.WarehouseStatusFilter"
                                                asp-route-locationCode="@Model.LocationCodeFilter"
                                                asp-route-locationType="@Model.LocationTypeFilter"
+                                               asp-route-locationAisle="@Model.LocationAisleFilter"
+                                               asp-route-locationRack="@Model.LocationRackFilter"
+                                               asp-route-locationShelf="@Model.LocationShelfFilter"
+                                               asp-route-locationBin="@Model.LocationBinFilter"
                                                asp-route-locationStatus="@Model.LocationStatusFilter"
                                                asp-route-warehousePage="@i"
                                                asp-route-warehousePageSize="@Model.WarehousePageSize"
@@ -365,17 +398,18 @@
                 </div>
             </div>
 
-            <div class="col-12 mb-4">
+            <div class="col-12 mb-4 inventory-section-pane d-none @(showLocations ? null : "d-none")" id="location-section-search">
                 <div class="card mb-4">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="card-title mb-0">لیست لوکیشن‌ها</h5>
                             <span class="text-muted small">@Model.LocationTotalCount رکورد</span>
                         </div>
-                        <form asp-action="Warehouses" method="get" class="form-row mb-3">
+                        <form asp-action="Locations" method="get" class="form-row mb-3">
                             <div class="form-group col-md-3">
                                 <label>انبار</label>
                                 <select name="warehouseId" class="form-control js-search-select">
+                                    <option value="">همه انبارها</option>
                                     @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                     {
                                         <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.SelectedWarehouseId ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
@@ -389,6 +423,22 @@
                             <div class="form-group col-md-2">
                                 <label>نوع</label>
                                 <input name="locationType" value="@Model.LocationTypeFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>راهرو</label>
+                                <input name="locationAisle" value="@Model.LocationAisleFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>رک</label>
+                                <input name="locationRack" value="@Model.LocationRackFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>طبقه</label>
+                                <input name="locationShelf" value="@Model.LocationShelfFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>باکس</label>
+                                <input name="locationBin" value="@Model.LocationBinFilter" class="form-control" />
                             </div>
                             <div class="form-group col-md-2">
                                 <label>وضعیت</label>
@@ -443,14 +493,14 @@
                                                     </span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey">ویرایش</a>
-                                                    <form asp-action="ActivateLocation" method="post" class="d-inline" data-loading-form>
+                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey">ویرایش</a>
+                                                    <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form>
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                         <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
                                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Location.Activate", "Location.Activate") ? null : "disabled")>فعال</button>
                                                     </form>
-                                                    <form asp-action="DeactivateLocation" method="post" class="d-inline" data-loading-form>
+                                                    <form asp-action="DeactivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form>
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                         <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
@@ -477,13 +527,17 @@
                                     {
                                         <li class="page-item @(i == Model.LocationPage ? "active" : null)">
                                             <a class="page-link"
-                                               asp-action="Warehouses"
+                                               asp-action="Locations"
                                                asp-route-warehouseId="@Model.SelectedWarehouseId"
                                                asp-route-warehouseCode="@Model.WarehouseCodeFilter"
                                                asp-route-warehouseName="@Model.WarehouseNameFilter"
                                                asp-route-warehouseStatus="@Model.WarehouseStatusFilter"
                                                asp-route-locationCode="@Model.LocationCodeFilter"
                                                asp-route-locationType="@Model.LocationTypeFilter"
+                                               asp-route-locationAisle="@Model.LocationAisleFilter"
+                                               asp-route-locationRack="@Model.LocationRackFilter"
+                                               asp-route-locationShelf="@Model.LocationShelfFilter"
+                                               asp-route-locationBin="@Model.LocationBinFilter"
                                                asp-route-locationStatus="@Model.LocationStatusFilter"
                                                asp-route-warehousePage="@Model.WarehousePage"
                                                asp-route-warehousePageSize="@Model.WarehousePageSize"
@@ -523,7 +577,29 @@
                 });
             });
 
-            showTab(localStorage.getItem(tabKey));
+            document.querySelectorAll('[data-section-tabs]').forEach(function (tabList) {
+                var links = tabList.querySelectorAll('[data-section-target]');
+                links.forEach(function (link) {
+                    link.addEventListener('click', function () {
+                        var targetSelector = link.getAttribute('data-section-target');
+                        var target = targetSelector ? document.querySelector(targetSelector) : null;
+                        if (!target) {
+                            return;
+                        }
+
+                        links.forEach(function (item) { item.classList.remove('active'); });
+                        link.classList.add('active');
+
+                        var prefix = targetSelector.indexOf('#location-') === 0 ? 'location-' : 'warehouse-';
+                        document.querySelectorAll('.inventory-section-pane[id^="' + prefix + '"]').forEach(function (pane) {
+                            pane.classList.add('d-none');
+                        });
+                        target.classList.remove('d-none');
+                    });
+                });
+            });
+
+            showTab('@(showLocations ? "#warehouse-tab-location" : "#warehouse-tab-form")');
         })();
     </script>
 }

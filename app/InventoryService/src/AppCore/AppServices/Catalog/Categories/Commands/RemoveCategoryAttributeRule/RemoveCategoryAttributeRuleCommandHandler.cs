@@ -26,6 +26,10 @@ public class RemoveCategoryAttributeRuleCommandHandler : CommandHandler<RemoveCa
         if (category is null)
             return Fail("Category was not found.");
 
+        var hasProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: false);
+        if (hasProducts)
+            return Fail("Category attribute rule cannot be removed because products exist for this category.");
+
         var currentSchemaVersionRef = category.CurrentSchemaVersionRef;
         var createNewSchemaVersion = await _productRepository.ExistsByCategorySchemaVersionRefAsync(currentSchemaVersionRef);
 

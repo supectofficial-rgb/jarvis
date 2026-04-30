@@ -11,7 +11,9 @@
     var isEditMode = !string.IsNullOrWhiteSpace(Model.CategoryForm.CategoryId);
 
     var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase));
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
     bool Can(params string[] names)
     {
         if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
@@ -93,7 +95,35 @@
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
+    var activeSurface = Model.ActiveItem?.ItemId ?? "categories";
+    var showCategories = string.Equals(activeSurface, "categories", StringComparison.OrdinalIgnoreCase);
+    var showAttributes = string.Equals(activeSurface, "attributes", StringComparison.OrdinalIgnoreCase);
+    var showRules = string.Equals(activeSurface, "category_attribute_rules", StringComparison.OrdinalIgnoreCase);
+    var localRules = Model.CategoryAttributeRules.Where(x => !x.IsInherited).ToList();
 }
+
+<style>
+    #category-section-tabs a[href="#category-section-details"],
+    #category-section-details,
+    #move-category-card,
+    #category-list-scope [data-bulk-form],
+    #category-list-scope table th:first-child,
+    #category-list-scope table td:first-child,
+    #rule-modal-required,
+    label[for="rule-modal-required"],
+    #rule-modal-overridden,
+    label[for="rule-modal-overridden"],
+    #rule-modal-active,
+    label[for="rule-modal-active"],
+    #RuleForm_IsRequired,
+    label[for="RuleForm_IsRequired"],
+    #RuleForm_IsOverridden,
+    label[for="RuleForm_IsOverridden"],
+    #RuleForm_IsActive,
+    label[for="RuleForm_IsActive"] {
+        display: none !important;
+    }
+</style>
 
 <main id="categories-page"
       class="catalog-page"
@@ -144,14 +174,14 @@
 
         <div class="row">
             <div class="col-12">
-                <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-tabs">
-                    <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#category-tab" role="tab">دسته‌بندی</a></li>
-                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-tab" role="tab">ویژگی و گزینه</a></li>
-                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-tab" role="tab">قوانین ویژگی</a></li>
+                <ul class="nav nav-tabs separator-tabs mb-4 d-none" role="tablist" id="category-tabs">
+                    <li class="nav-item"><a class="nav-link @(showCategories ? "active" : null)" data-toggle="tab" href="#category-tab" role="tab">دسته‌بندی</a></li>
+                    <li class="nav-item"><a class="nav-link @(showAttributes ? "active" : null)" data-toggle="tab" href="#attribute-tab" role="tab">ویژگی و گزینه</a></li>
+                    <li class="nav-item"><a class="nav-link @(showRules ? "active" : null)" data-toggle="tab" href="#rule-tab" role="tab">قوانین ویژگی</a></li>
                 </ul>
 
                 <div class="tab-content">
-                    <div class="tab-pane show active" id="category-tab" role="tabpanel">
+                    <div class="tab-pane @(showCategories ? "show active" : null)" id="category-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-section-tabs">
                             <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#category-section-edit" role="tab">ایجاد / ویرایش</a></li>
                             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#category-section-list" role="tab">لیست دسته‌بندی‌ها</a></li>
@@ -167,7 +197,7 @@
                                             <h5 class="card-title mb-0">@(isEditMode ? "ویرایش دسته‌بندی" : "ایجاد دسته‌بندی")</h5>
                                             @if (isEditMode)
                                             {
-                                                <a asp-action="Categories" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                                <a asp-action="Categories" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
                                             }
                                         </div>
 
@@ -211,9 +241,9 @@
                                     </div>
                                 </div>
 
-                                @if (!string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
+                                @if (isEditMode && !string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
                                 {
-                                    <div class="card">
+                                    <div class="card" id="move-category-card">
                                         <div class="card-body">
                                             <h5 class="card-title">انتقال دسته‌بندی</h5>
                                             <form asp-action="MoveCategory" method="post" id="move-category-form" data-loading-form data-dirty-watch>
@@ -516,7 +546,7 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane" id="attribute-tab" role="tabpanel">
+                    <div class="tab-pane @(showAttributes ? "show active" : null)" id="attribute-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
                             <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">ساخت سریع / ویرایش / گزینه</a></li>
                             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">ویژگی‌های دسته و گزینه‌ها</a></li>
@@ -574,8 +604,18 @@
                                             </div>
                                             <div class="form-group"><label>کد</label><input asp-for="AttributeUpdateForm.Code" class="form-control" required /></div>
                                             <div class="form-group"><label>نام</label><input asp-for="AttributeUpdateForm.Name" class="form-control" required /></div>
-                                            <div class="form-group"><label>نوع داده</label><input asp-for="AttributeUpdateForm.DataType" class="form-control" required /></div>
-                                            <div class="form-group"><label>سطح اعمال</label><input asp-for="AttributeUpdateForm.Scope" class="form-control" required /></div>
+                                            <div class="form-group">
+                                                <label>نوع داده</label>
+                                                <select asp-for="AttributeUpdateForm.DataType" class="form-control js-search-select" data-no-search="true" required>
+                                                    <option value="Text">متن</option><option value="Number">عدد</option><option value="Boolean">بولی</option><option value="Date">تاریخ</option><option value="Option">گزینه‌ای</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>سطح اعمال</label>
+                                                <select asp-for="AttributeUpdateForm.Scope" class="form-control js-search-select" data-no-search="true" required>
+                                                    <option value="Both">هر دو</option><option value="Product">محصول</option><option value="Variant">واریانت</option>
+                                                </select>
+                                            </div>
                                             <div class="form-group"><label>اولویت نمایش</label><input asp-for="AttributeUpdateForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
                                             <div class="custom-control custom-checkbox mt-2">
                                                 <input asp-for="AttributeUpdateForm.IsRequired" class="custom-control-input" />
@@ -833,7 +873,7 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane" id="rule-tab" role="tabpanel">
+                    <div class="tab-pane @(showRules ? "show active" : null)" id="rule-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="rule-section-tabs">
                             <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#rule-section-edit" role="tab">اختصاص / ویرایش</a></li>
                             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-section-list" role="tab">قوانین فعلی</a></li>
@@ -904,9 +944,16 @@
                                             <div class="form-group">
                                                 <label>ویژگی</label>
                                                 <select asp-for="RuleForm.AttributeId" class="form-control js-search-select" data-placeholder="انتخاب ویژگی قانون">
-                                                    @foreach (var rule in Model.CategoryAttributeRules.Where(x => !x.IsInherited))
+                                                    @foreach (var rule in localRules)
                                                     {
-                                                        <option value="@rule.AttributeId">@rule.AttributeName</option>
+                                                        <option value="@rule.AttributeId"
+                                                                data-rule-display-order="@rule.RuleDisplayOrder"
+                                                                data-rule-required="@(rule.RuleIsRequired ? "true" : "false")"
+                                                                data-rule-variant="@(rule.RuleIsVariant ? "true" : "false")"
+                                                                data-rule-overridden="@(rule.RuleIsOverridden ? "true" : "false")"
+                                                                data-rule-active="@(rule.RuleIsActive ? "true" : "false")">
+                                                            @rule.AttributeName
+                                                        </option>
                                                     }
                                                 </select>
                                             </div>
@@ -915,7 +962,11 @@
                                             <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariant" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariant">سطح واریانت</label></div>
                                             <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsOverridden" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsOverridden">بازنویسی‌شده</label></div>
                                             <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsActive" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsActive">فعال</label></div>
-                                            <button class="btn btn-outline-primary mt-3" type="submit" @(Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") ? null : "disabled")>به‌روزرسانی قانون</button>
+                                            @if (localRules.Count == 0)
+                                            {
+                                                <small class="form-text text-warning">قانون مستقیمی برای ویرایش وجود ندارد.</small>
+                                            }
+                                            <button class="btn btn-outline-primary mt-3" type="submit" @((Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") && localRules.Count > 0) ? null : "disabled")>به‌روزرسانی قانون</button>
                                         </form>
                                     </div>
                                 </div>
@@ -1022,30 +1073,30 @@
             <div class="modal-body">
                 <form asp-action="UpdateCategoryAttributeRule" method="post" id="rule-modal-form" data-loading-form data-dirty-watch>
                     @Html.AntiForgeryToken()
-                    <input type="hidden" name="CategoryId" id="rule-modal-category-id" value="@Model.SelectedCategoryId" />
-                    <input type="hidden" name="AttributeId" id="rule-modal-attribute-id" />
+                    <input type="hidden" name="RuleForm.CategoryId" id="rule-modal-category-id" value="@Model.SelectedCategoryId" />
+                    <input type="hidden" name="RuleForm.AttributeId" id="rule-modal-attribute-id" />
                     <div class="form-group">
                         <label>ویژگی</label>
                         <input type="text" id="rule-modal-attribute-name" class="form-control" readonly />
                     </div>
                     <div class="form-group">
                         <label>ترتیب نمایش</label>
-                        <input type="number" name="DisplayOrder" id="rule-modal-display-order" min="0" class="form-control" />
+                        <input type="number" name="RuleForm.DisplayOrder" id="rule-modal-display-order" min="0" class="form-control" />
                     </div>
                     <div class="custom-control custom-checkbox">
-                        <input type="checkbox" name="IsRequired" id="rule-modal-required" class="custom-control-input" />
+                        <input type="checkbox" name="RuleForm.IsRequired" id="rule-modal-required" class="custom-control-input" />
                         <label class="custom-control-label" for="rule-modal-required">الزامی</label>
                     </div>
                     <div class="custom-control custom-checkbox mt-2">
-                        <input type="checkbox" name="IsVariant" id="rule-modal-variant" class="custom-control-input" />
+                        <input type="checkbox" name="RuleForm.IsVariant" id="rule-modal-variant" class="custom-control-input" />
                         <label class="custom-control-label" for="rule-modal-variant">سطح واریانت</label>
                     </div>
                     <div class="custom-control custom-checkbox mt-2">
-                        <input type="checkbox" name="IsOverridden" id="rule-modal-overridden" class="custom-control-input" />
+                        <input type="checkbox" name="RuleForm.IsOverridden" id="rule-modal-overridden" class="custom-control-input" />
                         <label class="custom-control-label" for="rule-modal-overridden">بازنویسی‌شده</label>
                     </div>
                     <div class="custom-control custom-checkbox mt-2">
-                        <input type="checkbox" name="IsActive" id="rule-modal-active" class="custom-control-input" />
+                        <input type="checkbox" name="RuleForm.IsActive" id="rule-modal-active" class="custom-control-input" />
                         <label class="custom-control-label" for="rule-modal-active">فعال</label>
                     </div>
                     <div class="mt-3">
@@ -1201,7 +1252,7 @@
                 });
             });
 
-            var activeTab = localStorage.getItem(tabKey);
+            var activeTab = '@(showAttributes ? "#attribute-tab" : showRules ? "#rule-tab" : "#category-tab")';
             if (activeTab) {
                 var target = document.querySelector('#category-tabs .nav-link[href="' + activeTab + '"]');
                 if (target && window.jQuery) {
@@ -1338,6 +1389,10 @@
                     if (attributeUpdateDisplayName) attributeUpdateDisplayName.value = button.getAttribute('data-attribute-name') || '';
                     if (attributeUpdateDataType) attributeUpdateDataType.value = button.getAttribute('data-attribute-datatype') || '';
                     if (attributeUpdateScope) attributeUpdateScope.value = button.getAttribute('data-attribute-scope') || '';
+                    if (window.jQuery) {
+                        if (attributeUpdateDataType) window.jQuery(attributeUpdateDataType).trigger('change');
+                        if (attributeUpdateScope) window.jQuery(attributeUpdateScope).trigger('change');
+                    }
                     if (attributeUpdateDisplayOrder) attributeUpdateDisplayOrder.value = button.getAttribute('data-attribute-display-order') || '0';
                     if (attributeUpdateIsRequired) attributeUpdateIsRequired.checked = (button.getAttribute('data-attribute-is-required') || '').toLowerCase() === 'true';
                     if (attributeUpdateIsVariant) attributeUpdateIsVariant.checked = (button.getAttribute('data-attribute-is-variant') || '').toLowerCase() === 'true';
@@ -1418,6 +1473,34 @@
             var ruleModalVariant = document.getElementById('rule-modal-variant');
             var ruleModalOverridden = document.getElementById('rule-modal-overridden');
             var ruleModalActive = document.getElementById('rule-modal-active');
+            var ruleEditSelect = document.getElementById('RuleForm_AttributeId');
+            var ruleEditDisplayOrder = document.getElementById('RuleForm_DisplayOrder');
+            var ruleEditRequired = document.getElementById('RuleForm_IsRequired');
+            var ruleEditVariant = document.getElementById('RuleForm_IsVariant');
+            var ruleEditOverridden = document.getElementById('RuleForm_IsOverridden');
+            var ruleEditActive = document.getElementById('RuleForm_IsActive');
+
+            function applyRuleOptionToEditForm() {
+                if (!ruleEditSelect) {
+                    return;
+                }
+
+                var selected = ruleEditSelect.options[ruleEditSelect.selectedIndex];
+                if (!selected) {
+                    return;
+                }
+
+                if (ruleEditDisplayOrder) ruleEditDisplayOrder.value = selected.getAttribute('data-rule-display-order') || '0';
+                if (ruleEditRequired) ruleEditRequired.checked = (selected.getAttribute('data-rule-required') || '').toLowerCase() === 'true';
+                if (ruleEditVariant) ruleEditVariant.checked = (selected.getAttribute('data-rule-variant') || '').toLowerCase() === 'true';
+                if (ruleEditOverridden) ruleEditOverridden.checked = (selected.getAttribute('data-rule-overridden') || '').toLowerCase() === 'true';
+                if (ruleEditActive) ruleEditActive.checked = (selected.getAttribute('data-rule-active') || '').toLowerCase() === 'true';
+            }
+
+            if (ruleEditSelect) {
+                ruleEditSelect.addEventListener('change', applyRuleOptionToEditForm);
+                applyRuleOptionToEditForm();
+            }
 
             document.querySelectorAll('.rule-modal-edit-btn').forEach(function (button) {
                 button.addEventListener('click', function () {

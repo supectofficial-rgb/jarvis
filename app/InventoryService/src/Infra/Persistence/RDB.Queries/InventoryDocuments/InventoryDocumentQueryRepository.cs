@@ -4,6 +4,7 @@ using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.Common;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetByBusinessKey;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetLinesByDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.SearchInventoryDocuments;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryDocuments.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,39 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
             .FirstOrDefaultAsync(x => x.DocumentNo == normalized);
 
         return item is null ? null : ToListItem(item);
+    }
+
+    public async Task<GetInventoryDocumentLinesByDocumentQueryResult> GetLinesByDocumentAsync(Guid documentBusinessKey)
+    {
+        var document = await _dbContext.InventoryDocuments
+            .FirstOrDefaultAsync(x => x.BusinessKey == documentBusinessKey);
+
+        if (document is null)
+            return new GetInventoryDocumentLinesByDocumentQueryResult();
+
+        var lines = await _dbContext.InventoryDocumentLines
+            .Where(x => x.InventoryDocumentId == document.Id)
+            .OrderBy(x => x.Id)
+            .Select(x => new InventoryDocumentLineListItem
+            {
+                LineBusinessKey = x.BusinessKey,
+                VariantRef = x.VariantRef,
+                Qty = x.Qty,
+                UomRef = x.UomRef,
+                BaseQty = x.BaseQty,
+                BaseUomRef = x.BaseUomRef,
+                SourceLocationRef = x.SourceLocationRef,
+                DestinationLocationRef = x.DestinationLocationRef,
+                QualityStatusRef = x.QualityStatusRef,
+                FromQualityStatusRef = x.FromQualityStatusRef,
+                ToQualityStatusRef = x.ToQualityStatusRef,
+                LotBatchNo = x.LotBatchNo,
+                ReasonCode = x.ReasonCode,
+                AdjustmentDirection = x.AdjustmentDirection?.ToString()
+            })
+            .ToListAsync();
+
+        return new GetInventoryDocumentLinesByDocumentQueryResult { Items = lines };
     }
 
     public async Task<SearchInventoryDocumentsQueryResult> SearchAsync(SearchInventoryDocumentsQuery query)

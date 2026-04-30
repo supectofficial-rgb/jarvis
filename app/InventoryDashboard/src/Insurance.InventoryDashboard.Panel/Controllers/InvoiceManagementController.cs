@@ -16,6 +16,17 @@ public sealed class InvoiceManagementController : Controller
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
+        => await ShowInvoicePageAsync("proformas", cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> Proformas(CancellationToken cancellationToken = default)
+        => await ShowInvoicePageAsync("proformas", cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> Invoices(CancellationToken cancellationToken = default)
+        => await ShowInvoicePageAsync("invoices", cancellationToken);
+
+    private async Task<IActionResult> ShowInvoicePageAsync(string activeItemId, CancellationToken cancellationToken)
     {
         var token = HttpContext.Session.GetString("Token");
         if (string.IsNullOrWhiteSpace(token))
@@ -32,7 +43,7 @@ public sealed class InvoiceManagementController : Controller
             Modules = modules,
             ActiveModule = modules.FirstOrDefault(x => string.Equals(x.ModuleId, "invoice_management", StringComparison.OrdinalIgnoreCase)),
         };
-        model.ActiveItem = model.ActiveModule?.Items.FirstOrDefault(x => string.Equals(x.ItemId, "invoices", StringComparison.OrdinalIgnoreCase));
+        model.ActiveItem = model.ActiveModule?.Items.FirstOrDefault(x => string.Equals(x.ItemId, activeItemId, StringComparison.OrdinalIgnoreCase));
 
         ViewBag.UserDisplayName = model.UserName;
         ViewBag.MenuModules = model.Modules;

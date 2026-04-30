@@ -115,6 +115,29 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         if (query.ProductRef.HasValue)
             dbQuery = dbQuery.Where(x => x.ProductRef == query.ProductRef.Value);
 
+        if (query.CategoryRef.HasValue)
+        {
+            var categoryRef = query.CategoryRef.Value;
+            dbQuery =
+                from variant in dbQuery
+                join product in _dbContext.Set<ProductReadModel>() on variant.ProductRef equals product.BusinessKey
+                where product.CategoryRef == categoryRef
+                select variant;
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+        {
+            var term = query.SearchTerm.Trim();
+            dbQuery =
+                from variant in dbQuery
+                join product in _dbContext.Set<ProductReadModel>() on variant.ProductRef equals product.BusinessKey
+                where EF.Functions.ILike(variant.VariantSku, $"%{term}%")
+                      || (variant.Barcode != null && EF.Functions.ILike(variant.Barcode, $"%{term}%"))
+                      || EF.Functions.ILike(product.Name, $"%{term}%")
+                      || EF.Functions.ILike(product.BaseSku, $"%{term}%")
+                select variant;
+        }
+
         if (!string.IsNullOrWhiteSpace(query.VariantSku))
         {
             var sku = query.VariantSku.Trim();
@@ -129,6 +152,32 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
 
         if (query.IsActive.HasValue)
             dbQuery = dbQuery.Where(x => x.IsActive == query.IsActive.Value);
+
+        var selectedOptionRefs = ParseGuidCsv(query.AttributeOptionRefs);
+        if (selectedOptionRefs.Count > 0)
+        {
+            var optionAttributeGroups = await _dbContext.Set<AttributeOptionReadModel>()
+                .Where(x => selectedOptionRefs.Contains(x.BusinessKey))
+                .GroupBy(x => x.AttributeRef)
+                .Select(x => new
+                {
+                    AttributeRef = x.Key,
+                    OptionRefs = x.Select(o => o.BusinessKey).ToList()
+                })
+                .ToListAsync();
+
+            foreach (var group in optionAttributeGroups)
+            {
+                var attributeRef = group.AttributeRef;
+                var optionRefs = group.OptionRefs;
+                dbQuery = dbQuery.Where(variant =>
+                    _dbContext.Set<VariantAttributeValueReadModel>().Any(value =>
+                        value.VariantRef == variant.BusinessKey &&
+                        value.AttributeRef == attributeRef &&
+                        value.OptionRef.HasValue &&
+                        optionRefs.Contains(value.OptionRef.Value)));
+            }
+        }
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
@@ -596,6 +645,19 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             IsActive = x.IsActive,
             InventoryMovementLocked = x.InventoryMovementLocked
         };
+
+    private static List<Guid> ParseGuidCsv(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return new List<Guid>();
+
+        return value
+            .Split(new[] { ',', ';', ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => Guid.TryParse(x.Trim(), out var id) ? id : Guid.Empty)
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToList();
+    }
 
     private static VariantAttributeValueViewItem ToVariantAttributeValueItem(VariantAttributeValueReadModel x)
         => new()

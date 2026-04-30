@@ -39,7 +39,7 @@
       "items": [
         {
           "itemId": "categories",
-          "title": "مدیریت دسته‌بندی",
+          "title": "دسته‌بندی",
           "icon": "simple-icon-folder",
           "isEnabled": true,
           "roles": [
@@ -47,12 +47,12 @@
             "Admin",
             "InventoryManager"
           ],
-          "description": "مدیریت Category، Attribute و Option",
+          "description": "مدیریت ساختار درختی Category",
           "route": "/CategoryManagement/Categories"
         },
         {
           "itemId": "attributes",
-          "title": "اتریبیوت",
+          "title": "اتریبیوت و آپشن",
           "icon": "simple-icon-list",
           "isEnabled": true,
           "roles": [
@@ -60,25 +60,12 @@
             "Admin",
             "InventoryManager"
           ],
-          "description": "تعریف و ویرایش اتریبیوت‌ها",
-          "route": "/CategoryManagement/Categories#attribute-tab"
-        },
-        {
-          "itemId": "options",
-          "title": "آپشن",
-          "icon": "simple-icon-options",
-          "isEnabled": true,
-          "roles": [
-            "SysAdmin",
-            "Admin",
-            "InventoryManager"
-          ],
-          "description": "مدیریت گزینه‌های اتریبیوت‌ها",
-          "route": "/CategoryManagement/Categories#attribute-tab"
+          "description": "تعریف و ویرایش اتریبیوت‌ها و گزینه‌های آنها",
+          "route": "/CategoryManagement/Attributes"
         },
         {
           "itemId": "category_attribute_rules",
-          "title": "اتریبیوت‌های دسته‌بندی",
+          "title": "اختصاص اتریبیوت",
           "icon": "simple-icon-link",
           "isEnabled": true,
           "roles": [
@@ -86,8 +73,8 @@
             "Admin",
             "InventoryManager"
           ],
-          "description": "لیست اتریبیوت‌های مرتبط با دسته‌بندی",
-          "route": "/CategoryManagement/Categories#rule-tab"
+          "description": "اختصاص و تنظیم اتریبیوت‌های مرتبط با دسته‌بندی",
+          "route": "/CategoryManagement/CategoryAttributes"
         }
       ]
     },
@@ -167,7 +154,7 @@
             "InventoryManager"
           ],
           "description": "تعریف لوکیشن‌های مختلف برای هر انبار",
-          "route": "/InventoryManagement/Warehouses?activeItem=locations#warehouse-tab-location"
+          "route": "/InventoryManagement/Locations"
         }
       ]
     },
@@ -221,7 +208,7 @@
             "InventoryManager"
           ],
           "description": "تعریف تایپ‌های قیمت مثل فروش عادی، عمده یا همکار",
-          "route": "/PricingManagement/Index?item=price_types#price-types-tab"
+          "route": "/PricingManagement/PriceTypes"
         },
         {
           "itemId": "price_channels",
@@ -234,7 +221,7 @@
             "InventoryManager"
           ],
           "description": "تعریف چنل‌های قیمت مثل سایت، حضوری یا نماینده",
-          "route": "/PricingManagement/Index?item=price_channels#price-channels-tab"
+          "route": "/PricingManagement/PriceChannels"
         },
         {
           "itemId": "variant_prices",
@@ -247,7 +234,7 @@
             "InventoryManager"
           ],
           "description": "ثبت قیمت برای واریانت‌هایی که بالانس ورودی دارند",
-          "route": "/PricingManagement/Index?item=variant_prices#variant-prices-tab"
+          "route": "/PricingManagement/VariantPrices"
         }
       ]
     },
@@ -264,8 +251,8 @@
       ],
       "items": [
         {
-          "itemId": "invoices",
-          "title": "فاکتور و پیش‌فاکتور",
+          "itemId": "proformas",
+          "title": "پیش‌فاکتور",
           "icon": "simple-icon-calculator",
           "isEnabled": true,
           "roles": [
@@ -273,8 +260,21 @@
             "Admin",
             "InventoryManager"
           ],
-          "description": "مدیریت تب‌دار فاکتور و پیش‌فاکتور",
-          "route": "/InvoiceManagement/Index"
+          "description": "ثبت و مدیریت پیش‌فاکتور",
+          "route": "/InvoiceManagement/Proformas"
+        },
+        {
+          "itemId": "invoices",
+          "title": "فاکتور",
+          "icon": "simple-icon-doc",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و مدیریت فاکتور",
+          "route": "/InvoiceManagement/Invoices"
         }
       ]
     }

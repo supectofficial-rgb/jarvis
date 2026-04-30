@@ -59,8 +59,12 @@ public interface ICatalogApiService
     Task<ApiResponse<bool>> UpsertVariantUomConversionAsync(string variantId, UpsertVariantUomConversionRequest request, string token);
     Task<ApiResponse<bool>> RemoveVariantUomConversionAsync(string variantId, string fromUomRef, string toUomRef, string token);
     Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(string productId, string token, bool includeInactive = true);
+    Task<ApiResponse<ProductVariantSearchResultModel>> SearchProductVariantsAsync(string token, string? searchTerm = null, string? productId = null, string? categoryId = null, string? attributeOptionIds = null, bool? isActive = null, int page = 1, int pageSize = 10);
     Task<ApiResponse<ProductVariantDetailsModel>> GetProductVariantFullDetailsAsync(string variantId, string token);
     Task<ApiResponse<List<VariantUomConversionModel>>> GetVariantUomConversionsByVariantIdAsync(string variantId, string token);
+    Task<ApiResponse<List<VariantInventoryTransactionModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token);
+    Task<ApiResponse<SellerVariantPriceSearchResultModel>> SearchSellerVariantPricesAsync(string token, Guid? sellerRef = null, Guid? variantRef = null, Guid? priceTypeRef = null, Guid? priceChannelRef = null, bool? isActive = null, int page = 1, int pageSize = 50);
+    Task<ApiResponse<StockDetailBucketResultModel>> GetAvailableStockBucketsAsync(string token, Guid? variantRef = null, Guid? sellerRef = null, decimal minQuantity = 0);
 
     Task<ApiResponse<List<UnitOfMeasureLookupModel>>> GetUnitOfMeasureLookupAsync(string token);
 }

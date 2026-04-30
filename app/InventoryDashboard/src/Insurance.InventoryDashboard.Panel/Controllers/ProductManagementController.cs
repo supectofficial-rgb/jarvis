@@ -22,14 +22,15 @@ public sealed class ProductManagementController : CatalogManagementController
         string? categoryFilterId,
         string? statusFilter,
         string? sort,
+        bool createNew = false,
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
-        => base.Products(categoryId, productId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize, cancellationToken);
+        => base.Products(categoryId, productId, searchTerm, categoryFilterId, statusFilter, sort, createNew, page, pageSize, cancellationToken);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public new Task<IActionResult> SaveProduct(ProductUpsertForm form)
+    public new Task<IActionResult> SaveProduct([Bind(Prefix = "ProductForm")] ProductUpsertForm form)
         => base.SaveProduct(form);
 
     [HttpPost]
@@ -63,12 +64,12 @@ public sealed class ProductManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public new Task<IActionResult> ChangeProductCategory(ProductCategoryChangeForm form)
+    public new Task<IActionResult> ChangeProductCategory([Bind(Prefix = "ProductCategoryChangeForm")] ProductCategoryChangeForm form)
         => base.ChangeProductCategory(form);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public new Task<IActionResult> SetProductAttributeValue(ProductAttributeValueForm form)
+    public new Task<IActionResult> SetProductAttributeValue([Bind(Prefix = "ProductAttributeForm")] ProductAttributeValueForm form)
         => base.SetProductAttributeValue(form);
 
     [HttpPost]

@@ -18,6 +18,21 @@ public sealed class PricingManagementController : Controller
 
     [HttpGet]
     public async Task<IActionResult> Index(string? item = null, CancellationToken cancellationToken = default)
+        => await ShowPricingPageAsync(string.IsNullOrWhiteSpace(item) ? "variant_prices" : item, cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> VariantPrices(CancellationToken cancellationToken = default)
+        => await ShowPricingPageAsync("variant_prices", cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> PriceTypes(CancellationToken cancellationToken = default)
+        => await ShowPricingPageAsync("price_types", cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> PriceChannels(CancellationToken cancellationToken = default)
+        => await ShowPricingPageAsync("price_channels", cancellationToken);
+
+    private async Task<IActionResult> ShowPricingPageAsync(string item, CancellationToken cancellationToken)
     {
         var token = RequireToken();
         if (token is null)
@@ -51,7 +66,7 @@ public sealed class PricingManagementController : Controller
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             TempData["PricingError"] = "نام نوع قیمت الزامی است.";
-            return RedirectToAction(nameof(Index), new { item = "price_types" });
+            return RedirectToAction(nameof(PriceTypes));
         }
 
         var result = await _apiService.CreatePriceTypeAsync(request, token);
@@ -59,7 +74,7 @@ public sealed class PricingManagementController : Controller
             ? "نوع قیمت ثبت شد."
             : result.ErrorMessage ?? "ثبت نوع قیمت ناموفق بود.";
 
-        return RedirectToAction(nameof(Index), new { item = "price_types" });
+        return RedirectToAction(nameof(PriceTypes));
     }
 
     [HttpPost]
@@ -77,7 +92,7 @@ public sealed class PricingManagementController : Controller
             ? "نوع قیمت به‌روزرسانی شد."
             : result.ErrorMessage ?? "به‌روزرسانی نوع قیمت ناموفق بود.";
 
-        return RedirectToAction(nameof(Index), new { item = "price_types" });
+        return RedirectToAction(nameof(PriceTypes));
     }
 
     [HttpPost]
@@ -93,7 +108,7 @@ public sealed class PricingManagementController : Controller
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             TempData["PricingError"] = "نام کانال قیمت الزامی است.";
-            return RedirectToAction(nameof(Index), new { item = "price_channels" });
+            return RedirectToAction(nameof(PriceChannels));
         }
 
         var result = await _apiService.CreatePriceChannelAsync(request, token);
@@ -101,7 +116,7 @@ public sealed class PricingManagementController : Controller
             ? "کانال قیمت ثبت شد."
             : result.ErrorMessage ?? "ثبت کانال قیمت ناموفق بود.";
 
-        return RedirectToAction(nameof(Index), new { item = "price_channels" });
+        return RedirectToAction(nameof(PriceChannels));
     }
 
     [HttpPost]
@@ -119,7 +134,7 @@ public sealed class PricingManagementController : Controller
             ? "کانال قیمت به‌روزرسانی شد."
             : result.ErrorMessage ?? "به‌روزرسانی کانال قیمت ناموفق بود.";
 
-        return RedirectToAction(nameof(Index), new { item = "price_channels" });
+        return RedirectToAction(nameof(PriceChannels));
     }
 
     [HttpPost]
@@ -136,7 +151,7 @@ public sealed class PricingManagementController : Controller
         if (validationError is not null)
         {
             TempData["PricingError"] = validationError;
-            return RedirectToAction(nameof(Index), new { item = "variant_prices" });
+            return RedirectToAction(nameof(VariantPrices));
         }
 
         var result = await _apiService.CreateSellerVariantPriceAsync(request, token);
@@ -144,7 +159,7 @@ public sealed class PricingManagementController : Controller
             ? "قیمت واریانت ثبت شد."
             : result.ErrorMessage ?? "ثبت قیمت واریانت ناموفق بود.";
 
-        return RedirectToAction(nameof(Index), new { item = "variant_prices" });
+        return RedirectToAction(nameof(VariantPrices));
     }
 
     [HttpPost]
@@ -160,7 +175,7 @@ public sealed class PricingManagementController : Controller
         if (request.Amount <= 0)
         {
             TempData["PricingError"] = "مبلغ قیمت باید بزرگ‌تر از صفر باشد.";
-            return RedirectToAction(nameof(Index), new { item = "variant_prices" });
+            return RedirectToAction(nameof(VariantPrices));
         }
 
         var result = await _apiService.UpdateSellerVariantPriceAsync(id, request, token);
@@ -168,7 +183,7 @@ public sealed class PricingManagementController : Controller
             ? "قیمت واریانت به‌روزرسانی شد."
             : result.ErrorMessage ?? "به‌روزرسانی قیمت واریانت ناموفق بود.";
 
-        return RedirectToAction(nameof(Index), new { item = "variant_prices" });
+        return RedirectToAction(nameof(VariantPrices));
     }
 
     private async Task<PricingPageViewModel> BuildPageModelAsync(string token, string? item, CancellationToken cancellationToken)

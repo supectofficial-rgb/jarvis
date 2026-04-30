@@ -40,6 +40,10 @@ public class UpdateCategoryCommandHandler
         if (aggregate is null)
             return Fail("Category was not found.");
 
+        var hasProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: false);
+        if (hasProducts)
+            return Fail("Category cannot be updated because products exist.");
+
         var normalizedCode = command.Code.Trim();
         if (!string.Equals(aggregate.Code, normalizedCode, StringComparison.OrdinalIgnoreCase)
             && await _categoryRepository.ExistsByCodeAsync(normalizedCode, command.CategoryBusinessKey))

@@ -116,6 +116,28 @@ public sealed class ProductVariantSummaryModel
     public bool InventoryMovementLocked { get; set; }
 }
 
+public sealed class ProductVariantSearchResultModel
+{
+    public int TotalCount { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+    public List<ProductVariantSummaryModel> Items { get; set; } = new();
+}
+
+public sealed class VariantInventoryTransactionModel
+{
+    public Guid TransactionBusinessKey { get; set; }
+    public string TransactionNo { get; set; } = string.Empty;
+    public string TransactionType { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? ReferenceType { get; set; }
+    public Guid? ReferenceBusinessId { get; set; }
+    public Guid WarehouseRef { get; set; }
+    public Guid SellerRef { get; set; }
+    public DateTime OccurredAt { get; set; }
+    public DateTime? PostedAt { get; set; }
+}
+
 public sealed class ProductVariantDetailsModel
 {
     public string Id { get; set; } = string.Empty;
@@ -199,6 +221,7 @@ public sealed class UpdateAttributeDefinitionRequest
     public string Name { get; set; } = string.Empty;
     public string DataType { get; set; } = string.Empty;
     public string Scope { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
     public bool IsActive { get; set; }
 }
 

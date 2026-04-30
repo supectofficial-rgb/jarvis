@@ -22,7 +22,9 @@
         .ToList();
 
     var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase));
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
     bool Can(params string[] names)
     {
         if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
@@ -67,7 +69,27 @@
     var effectiveVariantAttributeLookup = Model.EffectiveProductAttributes
         .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+    var selectedAttributeOptionIds = (Model.VariantAttributeOptionFilterIds ?? string.Empty)
+        .Split(new[] { ',', ';', ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 }
+
+<style>
+    #variant-product-selector-card,
+    #variant-management-tabs,
+    #variant-management-tabs + .tab-content,
+    #variant-list-scope [data-bulk-form],
+    #variant-list-scope table th:first-child,
+    #variant-list-scope table td:first-child,
+    #variant-list-scope .dropdown-toggle,
+    #variant-list-scope .dropdown-menu,
+    #variant-search-form > div:nth-of-type(4),
+    #variant-search-form > div:nth-of-type(5),
+    #variant-search-form > div:nth-of-type(6),
+    #variant-search-form > div:nth-of-type(7) {
+        display: none !important;
+    }
+</style>
 
 <main id="variants-page"
       class="catalog-page"
@@ -168,7 +190,7 @@
         }
 
         <div class="row mb-3">
-            <div class="col-12 mb-2">
+            <div class="col-12 mb-2" id="variant-product-selector-card">
                 <div class="card h-100">
                     <div class="card-body">
                         <h6 class="card-title">انتخاب محصول</h6>
@@ -190,10 +212,34 @@
                     <div class="card-body">
                         <h6 class="card-title mb-3">جستجو و فیلتر واریانت‌ها</h6>
                         <form method="get" asp-action="Variants" class="row" id="variant-search-form" data-state-form>
-                            <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                            <input type="hidden" name="attributeOptionIds" id="variant-attribute-option-ids" value="@Model.VariantAttributeOptionFilterIds" />
                             <div class="col-md-3 mb-2">
                                 <label class="text-muted small">عبارت جستجو</label>
                                 <input name="searchTerm" value="@Model.VariantSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="SKU، بارکد، شناسه..." />
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="text-muted small">دسته‌بندی</label>
+                                <select name="categoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته">
+                                    <option value="">همه دسته‌ها</option>
+                                    @foreach (var category in Model.FlatCategories)
+                                    {
+                                        <option value="@category.Id" selected="@(string.Equals(Model.VariantCategoryFilterId, category.Id, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@category.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="text-muted small">اتریبیوت‌ها</label>
+                                <select id="variant-attribute-options-filter" class="form-control js-search-select" multiple data-placeholder="انتخاب گزینه‌ها">
+                                    @foreach (var attr in Model.EffectiveProductAttributes.Where(x => x.Options.Count > 0).OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
+                                    {
+                                        <optgroup label="@attr.Name">
+                                            @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                            {
+                                                <option value="@option.Id" selected="@(selectedAttributeOptionIds.Contains(option.Id) ? "selected" : null)">@option.OptionName (@option.OptionValue)</option>
+                                            }
+                                        </optgroup>
+                                    }
+                                </select>
                             </div>
                             <div class="col-md-3 mb-2">
                                 <label class="text-muted small">سیاست رهگیری</label>
@@ -275,7 +321,7 @@
                                     <h5 class="card-title mb-0">@(isEditMode ? "ویرایش واریانت" : "ایجاد واریانت")</h5>
                                     @if (isEditMode)
                                     {
-                                        <a asp-action="Variants" asp-route-productId="@Model.SelectedProductId" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                        <a asp-action="Variants" asp-route-productId="@Model.SelectedProductId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
                                     }
                                 </div>
 
@@ -645,6 +691,21 @@
                                                            asp-route-sort="@Model.VariantSort"
                                                            asp-route-page="@Model.VariantPage"
                                                            asp-route-pageSize="@Model.VariantPageSize">مستقیم</a>
+                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
+                                                                data-detail-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
+                                                                data-detail-title="موجودی و انبارها">
+                                                            انبارها
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
+                                                                data-detail-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
+                                                                data-detail-title="قیمت‌ها">
+                                                            قیمت‌ها
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
+                                                                data-detail-url="@Url.Action("VariantDocuments", "VariantManagement", new { variantId = variant.Id })"
+                                                                data-detail-title="اسناد و تراکنش‌ها">
+                                                            اسناد
+                                                        </button>
                                                         <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                             <span class="sr-only">عملیات</span>
                                                         </button>
@@ -857,12 +918,33 @@
     </div>
 </main>
 
+<div class="modal fade" id="variant-detail-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="variant-detail-modal-title">جزئیات واریانت</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="variant-detail-modal-body" class="table-responsive small text-muted">در حال بارگذاری...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         (function () {
             var pageElement = document.getElementById('variants-page');
             var productSelectorForm = document.getElementById('variant-product-selector-form');
             var searchForm = document.getElementById('variant-search-form');
+            var attributeOptionsFilter = document.getElementById('variant-attribute-options-filter');
+            var attributeOptionIdsInput = document.getElementById('variant-attribute-option-ids');
+            var detailModal = $('#variant-detail-modal');
+            var detailModalTitle = document.getElementById('variant-detail-modal-title');
+            var detailModalBody = document.getElementById('variant-detail-modal-body');
             var tabs = document.querySelectorAll('#variant-management-tabs .nav-link');
             var tabKey = 'catalog-variants-active-tab-v1';
             var stateKey = 'catalog-variants-state-v2';
@@ -878,6 +960,61 @@
             var watchedForms = watchedFormIds
                 .map(function (formId) { return document.getElementById(formId); })
                 .filter(function (form) { return form instanceof HTMLFormElement; });
+
+            if (searchForm && attributeOptionsFilter && attributeOptionIdsInput) {
+                searchForm.addEventListener('submit', function () {
+                    attributeOptionIdsInput.value = Array.from(attributeOptionsFilter.selectedOptions || [])
+                        .map(function (option) { return option.value || ''; })
+                        .filter(Boolean)
+                        .join(',');
+                });
+            }
+
+            function renderDetailTable(items) {
+                if (!Array.isArray(items) || items.length === 0) {
+                    return '<div class="text-muted">داده‌ای برای نمایش وجود ندارد.</div>';
+                }
+
+                var keys = Object.keys(items[0] || {});
+                var head = keys.map(function (key) { return '<th>' + key + '</th>'; }).join('');
+                var rows = items.map(function (item) {
+                    return '<tr>' + keys.map(function (key) {
+                        var value = item[key];
+                        return '<td>' + (value === null || value === undefined || value === '' ? '-' : String(value)) + '</td>';
+                    }).join('') + '</tr>';
+                }).join('');
+
+                return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
+            }
+
+            document.querySelectorAll('.js-variant-detail').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var url = button.getAttribute('data-detail-url');
+                    if (!url || !detailModalBody) {
+                        return;
+                    }
+
+                    if (detailModalTitle) {
+                        detailModalTitle.textContent = button.getAttribute('data-detail-title') || 'جزئیات واریانت';
+                    }
+                    detailModalBody.innerHTML = '<div class="text-muted">در حال بارگذاری...</div>';
+                    detailModal.modal('show');
+
+                    fetch(url, { headers: { 'Accept': 'application/json' } })
+                        .then(function (response) { return response.json(); })
+                        .then(function (payload) {
+                            if (payload && payload.error) {
+                                detailModalBody.innerHTML = '<div class="text-danger">' + payload.error + '</div>';
+                                return;
+                            }
+
+                            detailModalBody.innerHTML = renderDetailTable(payload);
+                        })
+                        .catch(function () {
+                            detailModalBody.innerHTML = '<div class="text-danger">بارگذاری اطلاعات انجام نشد.</div>';
+                        });
+                });
+            });
 
             function readState() {
                 try {

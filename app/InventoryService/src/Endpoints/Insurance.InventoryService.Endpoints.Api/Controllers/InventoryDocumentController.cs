@@ -13,6 +13,7 @@ using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.Post
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.RejectInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetByBusinessKey;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetById;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetLinesByDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetByNo;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetByStatus;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Queries.GetByType;
@@ -85,6 +86,11 @@ public class InventoryDocumentController : OysterFxController
     public Task<IActionResult> GetByBusinessKey([FromRoute] Guid documentBusinessKey)
         => ExecuteQueryAsync<GetInventoryDocumentByBusinessKeyQuery, GetInventoryDocumentByBusinessKeyQueryResult>(
             new GetInventoryDocumentByBusinessKeyQuery(documentBusinessKey));
+
+    [HttpGet("{documentBusinessKey:guid}/lines")]
+    public Task<IActionResult> GetLines([FromRoute] Guid documentBusinessKey)
+        => ExecuteQueryAsync<GetInventoryDocumentLinesByDocumentQuery, GetInventoryDocumentLinesByDocumentQueryResult>(
+            new GetInventoryDocumentLinesByDocumentQuery(documentBusinessKey));
 
     [HttpGet("by-id/{documentId:guid}")]
     public Task<IActionResult> GetById([FromRoute] Guid documentId)

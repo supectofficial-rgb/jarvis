@@ -14,7 +14,9 @@
     var hasSelectedProduct = !string.IsNullOrWhiteSpace(Model.SelectedProductId);
 
     var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase));
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
     bool Can(params string[] names)
     {
         if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
@@ -129,6 +131,20 @@
         .ThenBy(x => x.Name)
         .ToList();
 }
+
+<style>
+    #product-management-tabs .nav-item:nth-child(2),
+    #product-management-tabs .nav-item:nth-child(3),
+    #product-tab-lifecycle,
+    #product-tab-attributes,
+    #product-list-scope [data-bulk-form],
+    #product-list-scope table th:first-child,
+    #product-list-scope table td:first-child,
+    #product-list-scope .dropdown-toggle,
+    #product-list-scope .dropdown-menu {
+        display: none !important;
+    }
+</style>
 
 <main id="products-page"
       class="catalog-page"
@@ -306,7 +322,7 @@
                                     <h5 class="card-title mb-0">@(isEditMode ? "ویرایش محصول" : "ایجاد محصول")</h5>
                                     @if (isEditMode)
                                     {
-                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
                                     }
                                 </div>
 
@@ -885,6 +901,17 @@
                                                            asp-route-sort="@Model.ProductSort"
                                                            asp-route-page="@Model.ProductPage"
                                                            asp-route-pageSize="@Model.ProductPageSize">جزئیات</a>
+                                                        <a class="btn btn-outline-info btn-xs"
+                                                           asp-action="Products"
+                                                           asp-route-categoryId="@product.CategoryId"
+                                                           asp-route-productId="@product.Id"
+                                                           asp-route-searchTerm="@Model.ProductSearchTerm"
+                                                           asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
+                                                           asp-route-statusFilter="@Model.ProductStatusFilter"
+                                                           asp-route-sort="@Model.ProductSort"
+                                                           asp-route-page="@Model.ProductPage"
+                                                           asp-route-pageSize="@Model.ProductPageSize"
+                                                           asp-fragment="product-tab-variants">Variants</a>
                                                         <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                             <span class="sr-only">عملیات</span>
                                                         </button>

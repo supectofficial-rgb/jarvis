@@ -30,6 +30,10 @@ public sealed class WarehouseManagementPageViewModel
 
     public string? LocationCodeFilter { get; set; }
     public string? LocationTypeFilter { get; set; }
+    public string? LocationAisleFilter { get; set; }
+    public string? LocationRackFilter { get; set; }
+    public string? LocationShelfFilter { get; set; }
+    public string? LocationBinFilter { get; set; }
     public string? LocationStatusFilter { get; set; }
     public int LocationPage { get; set; } = 1;
     public int LocationPageSize { get; set; } = 10;

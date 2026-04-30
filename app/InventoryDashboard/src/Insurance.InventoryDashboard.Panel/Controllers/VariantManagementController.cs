@@ -18,19 +18,83 @@ public sealed class VariantManagementController : CatalogManagementController
     public new Task<IActionResult> Variants(
         string? productId,
         string? variantId,
+        string? categoryId,
         string? searchTerm,
+        string? attributeOptionIds,
         string? trackingPolicy,
         string? statusFilter,
         string? attributeTypeFilter,
         string? sort,
+        bool createNew = false,
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
-        => base.Variants(productId, variantId, searchTerm, trackingPolicy, statusFilter, attributeTypeFilter, sort, page, pageSize, cancellationToken);
+        => base.Variants(productId, variantId, categoryId, searchTerm, attributeOptionIds, trackingPolicy, statusFilter, attributeTypeFilter, sort, createNew, page, pageSize, cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> VariantStocks(string variantId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized();
+        }
+
+        if (!Guid.TryParse(variantId, out var variantRef))
+        {
+            return BadRequest(new { error = "شناسه واریانت معتبر نیست." });
+        }
+
+        var result = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: variantRef);
+        if (!result.IsSuccess)
+        {
+            return Json(new { error = result.ErrorMessage });
+        }
+
+        return Json(result.Data?.Items ?? new List<StockDetailBucketModel>());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> VariantPrices(string variantId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized();
+        }
+
+        if (!Guid.TryParse(variantId, out var variantRef))
+        {
+            return BadRequest(new { error = "شناسه واریانت معتبر نیست." });
+        }
+
+        var result = await _apiService.SearchSellerVariantPricesAsync(token, variantRef: variantRef, pageSize: 100);
+        if (!result.IsSuccess)
+        {
+            return Json(new { error = result.ErrorMessage });
+        }
+
+        return Json(result.Data?.Items ?? new List<SellerVariantPriceModel>());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> VariantDocuments(string variantId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _apiService.GetInventoryTransactionsByVariantAsync(variantId, token);
+        if (!result.IsSuccess)
+        {
+            return Json(new { error = result.ErrorMessage });
+        }
+
+        return Json(result.Data ?? new List<VariantInventoryTransactionModel>());
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public new Task<IActionResult> SaveVariant(VariantUpsertForm form)
+    public new Task<IActionResult> SaveVariant([Bind(Prefix = "VariantForm")] VariantUpsertForm form)
         => base.SaveVariant(form);
 
     [HttpPost]
@@ -80,7 +144,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public new Task<IActionResult> SetVariantAttributeValue(VariantAttributeValueForm form)
+    public new Task<IActionResult> SetVariantAttributeValue([Bind(Prefix = "VariantAttributeForm")] VariantAttributeValueForm form)
         => base.SetVariantAttributeValue(form);
 
     [HttpPost]
@@ -90,7 +154,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public new Task<IActionResult> UpsertVariantUomConversion(VariantUomConversionForm form)
+    public new Task<IActionResult> UpsertVariantUomConversion([Bind(Prefix = "VariantUomConversionForm")] VariantUomConversionForm form)
         => base.UpsertVariantUomConversion(form);
 
     [HttpPost]

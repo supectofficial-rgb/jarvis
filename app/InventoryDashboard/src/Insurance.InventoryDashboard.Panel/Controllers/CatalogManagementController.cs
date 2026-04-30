@@ -20,6 +20,11 @@ public abstract partial class CatalogManagementController : Controller
         "Option", "Enum", "Select"
     };
 
+    private static readonly HashSet<string> AllowedAttributeScopes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Both", "Product", "Variant"
+    };
+
     private static readonly HashSet<string> AllowedTrackingPolicies = new(StringComparer.OrdinalIgnoreCase)
     {
         "None", "Batch", "Serial"
@@ -27,7 +32,7 @@ public abstract partial class CatalogManagementController : Controller
 
     private static readonly int[] PageSizeOptions = [10, 25, 50];
 
-    private readonly ICatalogApiService _apiService;
+    protected readonly ICatalogApiService _apiService;
     private readonly IDashboardConfigService _dashboardConfigService;
 
     protected CatalogManagementController(ICatalogApiService apiService, IDashboardConfigService dashboardConfigService)
@@ -42,8 +47,10 @@ public abstract partial class CatalogManagementController : Controller
         string? searchTerm,
         string? statusFilter,
         string? sort,
+        bool createNew = false,
         int page = 1,
         int pageSize = 10,
+        string activeItemId = "categories",
         CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
@@ -59,7 +66,7 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Index", "Dashboard");
         }
         var modules = await _dashboardConfigService.GetMenuByRolesAsync(roles, cancellationToken);
-        var menu = ResolveMenu(modules, "category_management", "categories");
+        var menu = ResolveMenu(modules, "category_management", activeItemId);
 
         var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
         var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
@@ -71,8 +78,10 @@ public abstract partial class CatalogManagementController : Controller
                                  flatCategories.Any(x => string.Equals(x.Id, categoryId, StringComparison.OrdinalIgnoreCase))
             ? categoryId
             : filteredFlatCategories.FirstOrDefault()?.Id ?? flatCategories.FirstOrDefault()?.Id;
+        var isCategoryCreateMode = createNew && string.Equals(activeItemId, "categories", StringComparison.OrdinalIgnoreCase);
         var selectedCategory = flatCategories.FirstOrDefault(c =>
             string.Equals(c.Id, selectedCategoryId, StringComparison.OrdinalIgnoreCase));
+        var categoryFormSource = isCategoryCreateMode ? null : selectedCategory;
 
         var attributesResult = !string.IsNullOrWhiteSpace(selectedCategoryId)
             ? await _apiService.GetCategoryAttributesAsync(selectedCategoryId, token, includeInherited: true, includeInactive: true)
@@ -97,6 +106,7 @@ public abstract partial class CatalogManagementController : Controller
             Modules = modules,
             ActiveModule = menu.Module,
             ActiveItem = menu.Item,
+            IsCategoryCreateMode = isCategoryCreateMode,
             SelectedCategoryId = selectedCategoryId,
             Categories = categories,
             FlatCategories = flatCategories,
@@ -115,11 +125,11 @@ public abstract partial class CatalogManagementController : Controller
             ErrorMessage = JoinErrors(categoriesResult.ErrorMessage, attributesResult.ErrorMessage, allAttributesResult.ErrorMessage, rulesResult.ErrorMessage),
             CategoryForm = new CategoryUpsertForm
             {
-                CategoryId = selectedCategory?.Id,
-                Code = selectedCategory?.Code ?? string.Empty,
-                Name = selectedCategory?.Name ?? string.Empty,
-                DisplayOrder = selectedCategory?.DisplayOrder ?? 0,
-                ParentCategoryId = selectedCategory?.ParentCategoryId
+                CategoryId = categoryFormSource?.Id,
+                Code = categoryFormSource?.Code ?? string.Empty,
+                Name = categoryFormSource?.Name ?? string.Empty,
+                DisplayOrder = categoryFormSource?.DisplayOrder ?? 0,
+                ParentCategoryId = categoryFormSource?.ParentCategoryId
             },
             MoveCategoryForm = new MoveCategoryForm
             {
@@ -240,12 +250,18 @@ public abstract partial class CatalogManagementController : Controller
         {
             TempData["CatalogError"] = result.ErrorMessage ?? "عملیات با خطا مواجه شد.";
         }
+        else
+        {
+            TempData["CatalogSuccess"] = string.IsNullOrWhiteSpace(form.CategoryId)
+                ? "دسته‌بندی با موفقیت ایجاد شد."
+                : "دسته‌بندی با موفقیت به‌روزرسانی شد.";
+        }
 
         var redirectCategoryId = string.IsNullOrWhiteSpace(form.CategoryId)
             ? form.ParentCategoryId
             : form.CategoryId;
 
-        return RedirectToAction(nameof(Categories), new { categoryId = redirectCategoryId });
+        return RedirectToAction(nameof(Categories), new { categoryId = redirectCategoryId, createNew = string.IsNullOrWhiteSpace(form.CategoryId) });
     }
 
     [HttpPost]
@@ -429,6 +445,7 @@ public abstract partial class CatalogManagementController : Controller
         string? categoryFilterId,
         string? statusFilter,
         string? sort,
+        bool createNew = false,
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
@@ -470,7 +487,10 @@ public abstract partial class CatalogManagementController : Controller
         var filteredProducts = ApplyProductFilters(allProducts, searchTerm, categoryFilterId, statusFilter, sort);
         var pagedProducts = Paginate(filteredProducts, page, pageSize, out var normalizedPage, out var normalizedPageSize, out var totalCount, out var totalPages);
 
-        var selectedProductId = ResolveSelectedProductId(productId, filteredProducts, pagedProducts);
+        var isProductCreateMode = createNew;
+        var selectedProductId = isProductCreateMode
+            ? null
+            : ResolveSelectedProductId(productId, filteredProducts, pagedProducts);
         var productDetailsResult = !string.IsNullOrWhiteSpace(selectedProductId)
             ? await _apiService.GetProductDetailsWithAttributesAsync(selectedProductId, token)
             : new ApiResponse<ProductDetailsModel> { IsSuccess = true };
@@ -496,13 +516,15 @@ public abstract partial class CatalogManagementController : Controller
             await LoadEffectiveCategoryAttributesAsync(selectedCategoryId, flatCategories, token);
         var effectiveProductAttributes = FilterEffectiveAttributesForProduct(effectiveAttributes);
 
-        var missingRequired = FindMissingRequiredAttributes(
-            effectiveProductAttributes,
-            productDetailsResult.Data?.Attributes?.ToDictionary(
-                x => x.AttributeId,
-                x => x.Value,
-                StringComparer.OrdinalIgnoreCase)
-            ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
+        var missingRequired = !string.IsNullOrWhiteSpace(selectedProductId)
+            ? FindMissingRequiredAttributes(
+                effectiveProductAttributes,
+                productDetailsResult.Data?.Attributes?.ToDictionary(
+                    x => x.AttributeId,
+                    x => x.Value,
+                    StringComparer.OrdinalIgnoreCase)
+                ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase))
+            : Array.Empty<EffectiveAttributeViewModel>();
 
         var permissions = ResolvePermissionsFromSession();
 
@@ -515,6 +537,7 @@ public abstract partial class CatalogManagementController : Controller
             ActiveModule = menu.Module,
             ActiveItem = menu.Item,
 
+            IsProductCreateMode = isProductCreateMode,
             SelectedCategoryId = selectedCategoryId,
             SelectedProductId = selectedProductId,
             Categories = categories,
@@ -696,6 +719,16 @@ public abstract partial class CatalogManagementController : Controller
                 form.Name.Trim(),
                 form.BaseSku.Trim(),
                 variantDimensions);
+
+            if (generatedVariantPlans.Count == 0)
+            {
+                generatedVariantPlans.Add(new GeneratedVariantPlan
+                {
+                    GeneratedName = form.Name.Trim(),
+                    GeneratedSku = NormalizeSkuSegment(form.BaseSku.Trim()),
+                    AttributeValues = new List<CatalogAttributeValueInputModel>()
+                });
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(form.ProductId))
@@ -715,15 +748,6 @@ public abstract partial class CatalogManagementController : Controller
                 return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
             }
         }
-        else
-        {
-            var requiredCount = effectiveProductAttributes.Count(x => x.IsRequired);
-            if (requiredCount > 0)
-            {
-                TempData["CatalogNotice"] = "این دسته‌بندی دارای Attribute الزامی است. پس از ایجاد محصول، مقدار Attributeهای الزامی را ثبت کنید.";
-            }
-        }
-
         var request = new UpsertProductRequest
         {
             Id = form.ProductId,
@@ -947,11 +971,14 @@ public abstract partial class CatalogManagementController : Controller
     protected async Task<IActionResult> Variants(
         string? productId,
         string? variantId,
+        string? categoryId,
         string? searchTerm,
+        string? attributeOptionIds,
         string? trackingPolicy,
         string? statusFilter,
         string? attributeTypeFilter,
         string? sort,
+        bool createNew = false,
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
@@ -970,20 +997,31 @@ public abstract partial class CatalogManagementController : Controller
         var modules = await _dashboardConfigService.GetMenuByRolesAsync(roles, cancellationToken);
         var menu = ResolveMenu(modules, "product_management", "product_variants");
 
+        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
+        var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
+        var flatCategories = FlattenCategories(categories).ToList();
         var productsResult = await _apiService.SearchProductsAsync(token);
         var products = productsResult.Data ?? new List<ProductSummaryModel>();
         var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
         var unitOfMeasures = uomLookupResult.Data ?? new List<UnitOfMeasureLookupModel>();
         var uomById = unitOfMeasures.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
 
-        var selectedProductId = productId ?? products.FirstOrDefault()?.Id;
+        var selectedCategoryId = categoryId;
+        var selectedProductId = productId;
+        bool? isActiveFilter = TryParseStatusFilter(statusFilter, out var parsedActive) ? parsedActive : null;
 
-        var variantsResult = !string.IsNullOrWhiteSpace(selectedProductId)
-            ? await _apiService.GetProductVariantsByProductIdAsync(selectedProductId, token, includeInactive: true)
-            : new ApiResponse<List<ProductVariantSummaryModel>> { IsSuccess = true, Data = new List<ProductVariantSummaryModel>() };
+        var variantsSearchResult = await _apiService.SearchProductVariantsAsync(
+            token,
+            searchTerm,
+            selectedProductId,
+            selectedCategoryId,
+            attributeOptionIds,
+            isActiveFilter,
+            page,
+            pageSize);
 
-        var allVariants = variantsResult.Data ?? new List<ProductVariantSummaryModel>();
-        foreach (var variant in allVariants)
+        var variants = variantsSearchResult.Data?.Items ?? new List<ProductVariantSummaryModel>();
+        foreach (var variant in variants)
         {
             if (uomById.TryGetValue(variant.BaseUomRef, out var uom))
             {
@@ -991,10 +1029,17 @@ public abstract partial class CatalogManagementController : Controller
             }
         }
 
-        var filteredVariants = ApplyVariantFilters(allVariants, searchTerm, trackingPolicy, statusFilter, sort);
-        var pagedVariants = Paginate(filteredVariants, page, pageSize, out var normalizedPage, out var normalizedPageSize, out var totalCount, out var totalPages);
+        var filteredVariants = ApplyVariantFilters(variants, null, trackingPolicy, null, sort);
+        var normalizedPage = variantsSearchResult.Data?.Page ?? Math.Max(page, 1);
+        var normalizedPageSize = variantsSearchResult.Data?.PageSize ?? (PageSizeOptions.Contains(pageSize) ? pageSize : PageSizeOptions[0]);
+        var totalCount = variantsSearchResult.Data?.TotalCount ?? filteredVariants.Count;
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)Math.Max(normalizedPageSize, 1)));
+        var pagedVariants = filteredVariants;
 
-        var selectedVariantId = ResolveSelectedVariantId(variantId, filteredVariants, pagedVariants);
+        var isVariantCreateMode = createNew;
+        var selectedVariantId = isVariantCreateMode
+            ? null
+            : ResolveSelectedVariantId(variantId, variants, pagedVariants);
 
         var variantDetailsResult = !string.IsNullOrWhiteSpace(selectedVariantId)
             ? await _apiService.GetProductVariantFullDetailsAsync(selectedVariantId, token)
@@ -1010,23 +1055,25 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetVariantUomConversionsByVariantIdAsync(selectedVariantId, token)
             : new ApiResponse<List<VariantUomConversionModel>> { IsSuccess = true, Data = new List<VariantUomConversionModel>() };
 
-        var selectedProductCategoryId = products.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId;
-
-        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
-        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
+        var selectedProductCategoryId =
+            variantDetailsResult.Data?.CategoryId ??
+            products.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId ??
+            selectedCategoryId;
 
         var (attributeGroups, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedProductCategoryId, flatCategories, token);
         var effectiveVariantAttributes = FilterEffectiveAttributesForVariant(effectiveAttributes);
         var filteredVariantAttributes = ApplyAttributeTypeFilter(effectiveVariantAttributes, attributeTypeFilter);
 
-        var missingRequired = FindMissingRequiredAttributes(
-            effectiveVariantAttributes,
-            variantDetailsResult.Data?.Attributes?.ToDictionary(
-                x => x.AttributeId,
-                x => x.Value,
-                StringComparer.OrdinalIgnoreCase)
-            ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
+        var missingRequired = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? FindMissingRequiredAttributes(
+                effectiveVariantAttributes,
+                variantDetailsResult.Data?.Attributes?.ToDictionary(
+                    x => x.AttributeId,
+                    x => x.Value,
+                    StringComparer.OrdinalIgnoreCase)
+                ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase))
+            : Array.Empty<EffectiveAttributeViewModel>();
 
         var permissions = ResolvePermissionsFromSession();
 
@@ -1038,8 +1085,12 @@ public abstract partial class CatalogManagementController : Controller
             Modules = modules,
             ActiveModule = menu.Module,
             ActiveItem = menu.Item,
+            IsVariantCreateMode = isVariantCreateMode,
             SelectedProductId = selectedProductId,
             SelectedVariantId = selectedVariantId,
+            SelectedCategoryId = selectedProductCategoryId,
+            Categories = categories,
+            FlatCategories = flatCategories,
             Products = products,
             Variants = pagedVariants,
             SelectedVariantDetails = variantDetailsResult.Data,
@@ -1051,6 +1102,8 @@ public abstract partial class CatalogManagementController : Controller
             MissingRequiredVariantAttributes = missingRequired,
 
             VariantSearchTerm = searchTerm,
+            VariantCategoryFilterId = selectedCategoryId,
+            VariantAttributeOptionFilterIds = attributeOptionIds,
             VariantTrackingFilter = trackingPolicy,
             VariantStatusFilter = statusFilter,
             SelectedAttributeTypeFilter = attributeTypeFilter,
@@ -1064,7 +1117,7 @@ public abstract partial class CatalogManagementController : Controller
             ErrorMessage = JoinErrors(
                 productsResult.ErrorMessage,
                 uomLookupResult.ErrorMessage,
-                variantsResult.ErrorMessage,
+                variantsSearchResult.ErrorMessage,
                 variantDetailsResult.ErrorMessage,
                 variantConversionsResult.ErrorMessage,
                 categoriesResult.ErrorMessage,
@@ -1206,8 +1259,14 @@ public abstract partial class CatalogManagementController : Controller
         {
             TempData["CatalogError"] = result.ErrorMessage ?? "عملیات با خطا مواجه شد.";
         }
+        else
+        {
+            TempData["CatalogSuccess"] = string.IsNullOrWhiteSpace(form.VariantId)
+                ? "واریانت با موفقیت ایجاد شد."
+                : "واریانت با موفقیت به‌روزرسانی شد.";
+        }
 
-        return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+        return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId, createNew = string.IsNullOrWhiteSpace(form.VariantId) });
     }
 
     [HttpPost]
@@ -2344,7 +2403,7 @@ public abstract partial class CatalogManagementController : Controller
         ViewBag.CatalogPermissions = ResolvePermissionsFromSession();
     }
 
-    private bool TryGetToken(out string token)
+    protected bool TryGetToken(out string token)
     {
         token = HttpContext.Session.GetString("Token") ?? string.Empty;
         return !string.IsNullOrWhiteSpace(token);
