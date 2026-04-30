@@ -1307,6 +1307,27 @@ public sealed class ApiService : IApiService
         return GetQueryAsync<SellerLookupResultModel>(route, token, "Loading sellers failed.");
     }
 
+    public Task<ApiResponse<SellerSearchResultModel>> SearchSellersAsync(
+        string token,
+        string? code = null,
+        string? name = null,
+        bool? isSystemOwner = null,
+        bool? isActive = null,
+        int page = 1,
+        int pageSize = 20)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/Seller/search",
+            ("Code", code),
+            ("Name", name),
+            ("IsSystemOwner", isSystemOwner?.ToString().ToLowerInvariant()),
+            ("IsActive", isActive?.ToString().ToLowerInvariant()),
+            ("Page", Math.Max(page, 1).ToString()),
+            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
+
+        return GetQueryAsync<SellerSearchResultModel>(route, token, "Loading sellers failed.");
+    }
+
     public Task<ApiResponse<StockDetailBucketResultModel>> GetAvailableStockBucketsAsync(
         string token,
         Guid? variantRef = null,

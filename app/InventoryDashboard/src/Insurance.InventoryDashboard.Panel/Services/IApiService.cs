@@ -115,5 +115,6 @@ public interface IApiService
     Task<ApiResponse<bool>> UpdateSellerVariantPriceAsync(Guid sellerVariantPriceId, UpsertSellerVariantPriceRequest request, string token);
 
     Task<ApiResponse<SellerLookupResultModel>> GetSellerLookupAsync(string token, bool includeInactive = false);
+    Task<ApiResponse<SellerSearchResultModel>> SearchSellersAsync(string token, string? code = null, string? name = null, bool? isSystemOwner = null, bool? isActive = null, int page = 1, int pageSize = 20);
     Task<ApiResponse<StockDetailBucketResultModel>> GetAvailableStockBucketsAsync(string token, Guid? variantRef = null, Guid? sellerRef = null, decimal minQuantity = 0);
 }

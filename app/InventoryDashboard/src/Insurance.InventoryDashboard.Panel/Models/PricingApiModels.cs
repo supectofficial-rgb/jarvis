@@ -10,10 +10,14 @@ public sealed class PricingPageViewModel
     public PriceTypeSearchResultModel PriceTypes { get; set; } = new();
     public PriceChannelSearchResultModel PriceChannels { get; set; } = new();
     public SellerVariantPriceSearchResultModel VariantPrices { get; set; } = new();
+    public ProductVariantSearchResultModel VariantSearchResult { get; set; } = new();
     public List<PriceTypeLookupModel> PriceTypeLookup { get; set; } = new();
     public List<PriceChannelLookupModel> PriceChannelLookup { get; set; } = new();
     public List<SellerLookupModel> Sellers { get; set; } = new();
+    public SellerSearchItemModel? OwnerSeller { get; set; }
     public List<StockDetailBucketModel> AvailableBuckets { get; set; } = new();
+    public BulkVariantPricingRequest BulkPricingForm { get; set; } = new();
+    public string? VariantSearchTerm { get; set; }
     public string? StatusMessage { get; set; }
     public string? ErrorMessage { get; set; }
 }
@@ -105,6 +109,23 @@ public sealed class SellerLookupResultModel
     public List<SellerLookupModel> Items { get; set; } = new();
 }
 
+public sealed class SellerSearchResultModel
+{
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public List<SellerSearchItemModel> Items { get; set; } = new();
+}
+
+public sealed class SellerSearchItemModel
+{
+    public Guid SellerBusinessKey { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public bool IsSystemOwner { get; set; }
+    public bool IsActive { get; set; }
+}
+
 public sealed class SellerLookupModel
 {
     public Guid SellerBusinessKey { get; set; }
@@ -169,4 +190,21 @@ public sealed class SellerVariantPriceOfferInputModel
     public DateTime? StartAt { get; set; }
     public DateTime? EndAt { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+public sealed class BulkVariantPricingRequest
+{
+    public List<string> SelectedVariantRefs { get; set; } = new();
+    public decimal? ApplyToAllAmount { get; set; }
+    public string Currency { get; set; } = "IRR";
+    public decimal MinQty { get; set; } = 1;
+    public int Priority { get; set; }
+    public List<VariantPriceMatrixInputModel> Prices { get; set; } = new();
+}
+
+public sealed class VariantPriceMatrixInputModel
+{
+    public Guid PriceTypeRef { get; set; }
+    public Guid PriceChannelRef { get; set; }
+    public decimal? Amount { get; set; }
 }

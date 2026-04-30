@@ -9,17 +9,9 @@
 
     var priceTypeNames = Model.PriceTypeLookup.ToDictionary(x => x.PriceTypeBusinessKey, x => $"{x.Name} ({x.Code})");
     var priceChannelNames = Model.PriceChannelLookup.ToDictionary(x => x.PriceChannelBusinessKey, x => $"{x.Name} ({x.Code})");
-    var sellerNames = Model.Sellers.ToDictionary(x => x.SellerBusinessKey, x => $"{x.Name} ({x.Code})");
-    var availableBuckets = Model.AvailableBuckets
-        .GroupBy(x => new { x.SellerRef, x.VariantRef })
-        .Select(x => new
-        {
-            x.Key.SellerRef,
-            x.Key.VariantRef,
-            QuantityOnHand = x.Sum(item => item.QuantityOnHand)
-        })
-        .OrderByDescending(x => x.QuantityOnHand)
-        .ToList();
+    var ownerSellerTitle = Model.OwnerSeller is null
+        ? "ثبت نشده"
+        : $"{Model.OwnerSeller.Name} ({Model.OwnerSeller.Code})";
 }
 
 <main id="pricing-management-page" class="catalog-page">
@@ -27,7 +19,7 @@
         <div class="row">
             <div class="col-12">
                 <h1>مدیریت قیمت</h1>
-                <p class="text-muted">تعریف نوع قیمت، کانال قیمت و قیمت‌گذاری واریانت‌هایی که بالانس قابل فروش دارند.</p>
+                <p class="text-muted">قیمت‌گذاری ثابت برای واریانت‌های انتخاب‌شده فقط روی Seller Owner انجام می‌شود.</p>
             </div>
         </div>
 
@@ -58,76 +50,154 @@
                     <div class="tab-pane fade show active" id="variant-prices-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">ثبت قیمت برای بالانس قابل فروش</h5>
-                                <form asp-action="CreateVariantPrice" method="post" data-loading-form>
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="SellerRef" id="variant-price-seller-ref" />
-                                    <input type="hidden" name="VariantRef" id="variant-price-variant-ref" />
-                                    <div class="form-row">
-                                        <div class="form-group col-lg-3 col-md-6">
-                                            <label>بالانس / واریانت</label>
-                                            <select id="variant-price-bucket" class="form-control" required>
-                                                <option value="">انتخاب کنید...</option>
-                                                @foreach (var bucket in availableBuckets)
-                                                {
-                                                    var sellerTitle = sellerNames.TryGetValue(bucket.SellerRef, out var sellerName) ? sellerName : bucket.SellerRef.ToString("D");
-                                                    <option value="@bucket.SellerRef|@bucket.VariantRef">
-                                                        @sellerTitle - @bucket.VariantRef.ToString("D") - موجودی @bucket.QuantityOnHand
-                                                    </option>
-                                                }
-                                            </select>
+                                <div class="d-flex justify-content-between align-items-start flex-wrap mb-3">
+                                    <div>
+                                        <h5 class="card-title mb-1">Seller Owner</h5>
+                                        <p class="text-muted mb-0">@ownerSellerTitle</p>
+                                    </div>
+                                    @if (Model.OwnerSeller is not null)
+                                    {
+                                        <span class="badge badge-success">فعال</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-danger">الزامی</span>
+                                    }
+                                </div>
+
+                                <form method="get" asp-action="VariantPrices" class="mb-4">
+                                    <div class="form-row align-items-end">
+                                        <div class="form-group col-lg-4 col-md-6">
+                                            <label>جستجوی واریانت</label>
+                                            <input name="variantSearchTerm" value="@Model.VariantSearchTerm" class="form-control" placeholder="SKU یا بارکد" />
                                         </div>
-                                        <div class="form-group col-lg-2 col-md-6">
-                                            <label>نوع قیمت</label>
-                                            <select class="form-control" name="PriceTypeRef" required>
-                                                <option value="">انتخاب کنید...</option>
-                                                @foreach (var priceType in Model.PriceTypeLookup)
-                                                {
-                                                    <option value="@priceType.PriceTypeBusinessKey">@priceType.Name (@priceType.Code)</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-lg-2 col-md-6">
-                                            <label>کانال</label>
-                                            <select class="form-control" name="PriceChannelRef" required>
-                                                <option value="">انتخاب کنید...</option>
-                                                @foreach (var channel in Model.PriceChannelLookup)
-                                                {
-                                                    <option value="@channel.PriceChannelBusinessKey">@channel.Name (@channel.Code)</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        <div class="form-group col-lg-2 col-md-6">
-                                            <label>قیمت</label>
-                                            <input class="form-control" name="Amount" type="number" min="1" step="0.01" required />
-                                        </div>
-                                        <div class="form-group col-lg-1 col-md-4">
-                                            <label>ارز</label>
-                                            <input class="form-control" name="Currency" value="IRR" maxlength="8" required />
-                                        </div>
-                                        <div class="form-group col-lg-1 col-md-4">
-                                            <label>حداقل</label>
-                                            <input class="form-control" name="MinQty" type="number" min="1" step="0.01" value="1" required />
-                                        </div>
-                                        <div class="form-group col-lg-1 col-md-4">
-                                            <label>اولویت</label>
-                                            <input class="form-control" name="Priority" type="number" value="0" />
+                                        <div class="form-group col-lg-2 col-md-3">
+                                            <button class="btn btn-outline-primary btn-block" type="submit">جستجو</button>
                                         </div>
                                     </div>
-                                    <button class="btn btn-primary" type="submit">ثبت قیمت</button>
                                 </form>
+
+                                @if (Model.OwnerSeller is not null)
+                                {
+                                    <form asp-action="ApplyVariantPricing" method="post" data-loading-form>
+                                        @Html.AntiForgeryToken()
+                                        <div class="row">
+                                            <div class="col-xl-7">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <h6 class="mb-0">واریانت‌های قابل انتخاب</h6>
+                                                    <button class="btn btn-link btn-sm p-0" type="button" id="toggle-all-variants">انتخاب / لغو همه</button>
+                                                </div>
+                                                <div class="table-responsive mb-3">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style="width: 48px;"></th>
+                                                                <th>SKU</th>
+                                                                <th>بارکد</th>
+                                                                <th>واحد</th>
+                                                                <th>شناسه محصول</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @if (Model.VariantSearchResult.Items.Count == 0)
+                                                            {
+                                                                <tr>
+                                                                    <td colspan="5" class="text-center text-muted">واریانتی پیدا نشد.</td>
+                                                                </tr>
+                                                            }
+                                                            else
+                                                            {
+                                                                @foreach (var variant in Model.VariantSearchResult.Items)
+                                                                {
+                                                                    <tr>
+                                                                        <td>
+                                                                            <input type="checkbox"
+                                                                                   class="js-variant-checkbox"
+                                                                                   name="SelectedVariantRefs"
+                                                                                   value="@variant.Id" />
+                                                                        </td>
+                                                                        <td><span class="text-monospace">@variant.Sku</span></td>
+                                                                        <td>@(string.IsNullOrWhiteSpace(variant.Barcode) ? "-" : variant.Barcode)</td>
+                                                                        <td>@variant.BaseUomRef</td>
+                                                                        <td><span class="text-monospace">@variant.ProductId</span></td>
+                                                                    </tr>
+                                                                }
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-xl-5">
+                                                <h6 class="mb-3">قیمت ثابت برای ترکیب نوع قیمت و کانال</h6>
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-4">
+                                                        <label>مبلغ برای همه</label>
+                                                        <input name="ApplyToAllAmount" class="form-control" type="number" min="0" step="0.01" value="@(Model.BulkPricingForm.ApplyToAllAmount?.ToString() ?? string.Empty)" />
+                                                    </div>
+                                                    <div class="form-group col-md-4">
+                                                        <label>ارز</label>
+                                                        <input name="Currency" class="form-control" maxlength="8" value="@Model.BulkPricingForm.Currency" />
+                                                    </div>
+                                                    <div class="form-group col-md-4">
+                                                        <label>حداقل تعداد</label>
+                                                        <input name="MinQty" class="form-control" type="number" min="1" step="0.01" value="@Model.BulkPricingForm.MinQty" />
+                                                    </div>
+                                                </div>
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-4">
+                                                        <label>اولویت</label>
+                                                        <input name="Priority" class="form-control" type="number" value="@Model.BulkPricingForm.Priority" />
+                                                    </div>
+                                                </div>
+
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>نوع قیمت</th>
+                                                                <th>کانال</th>
+                                                                <th>مبلغ</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @for (var i = 0; i < Model.BulkPricingForm.Prices.Count; i++)
+                                                            {
+                                                                var price = Model.BulkPricingForm.Prices[i];
+                                                                <tr>
+                                                                    <td>
+                                                                        <input type="hidden" name="Prices[@i].PriceTypeRef" value="@price.PriceTypeRef" />
+                                                                        @(priceTypeNames.TryGetValue(price.PriceTypeRef, out var priceTypeName) ? priceTypeName : price.PriceTypeRef.ToString("D"))
+                                                                    </td>
+                                                                    <td>
+                                                                        <input type="hidden" name="Prices[@i].PriceChannelRef" value="@price.PriceChannelRef" />
+                                                                        @(priceChannelNames.TryGetValue(price.PriceChannelRef, out var channelName) ? channelName : price.PriceChannelRef.ToString("D"))
+                                                                    </td>
+                                                                    <td>
+                                                                        <input class="form-control form-control-sm" name="Prices[@i].Amount" type="number" min="0" step="0.01" value="@(price.Amount?.ToString() ?? string.Empty)" />
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                                <button class="btn btn-primary mt-3" type="submit">اعمال قیمت روی واریانت‌های انتخاب‌شده</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                }
                             </div>
                         </div>
 
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">قیمت‌های ثبت‌شده</h5>
+                                <h5 class="card-title mb-3">قیمت‌های ثبت‌شده برای Seller Owner</h5>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped mb-0">
                                         <thead>
                                             <tr>
                                                 <th>واریانت</th>
-                                                <th>تامین‌کننده</th>
                                                 <th>نوع قیمت</th>
                                                 <th>کانال</th>
                                                 <th>قیمت</th>
@@ -139,7 +209,7 @@
                                             @if (Model.VariantPrices.Items.Count == 0)
                                             {
                                                 <tr>
-                                                    <td colspan="7" class="text-center text-muted">هنوز قیمت واریانتی ثبت نشده است.</td>
+                                                    <td colspan="6" class="text-center text-muted">هنوز قیمتی برای Seller Owner ثبت نشده است.</td>
                                                 </tr>
                                             }
                                             @foreach (var price in Model.VariantPrices.Items)
@@ -154,8 +224,7 @@
                                                         <input type="hidden" name="Currency" value="@price.Currency" />
                                                         <input type="hidden" name="MinQty" value="@price.MinQty" />
                                                         <input type="hidden" name="Priority" value="@price.Priority" />
-                                                        <td>@price.VariantRef.ToString("D")</td>
-                                                        <td>@(sellerNames.TryGetValue(price.SellerRef, out var seller) ? seller : price.SellerRef.ToString("D"))</td>
+                                                        <td><span class="text-monospace">@price.VariantRef.ToString("D")</span></td>
                                                         <td>@(priceTypeNames.TryGetValue(price.PriceTypeRef, out var type) ? type : price.PriceTypeRef.ToString("D"))</td>
                                                         <td>@(priceChannelNames.TryGetValue(price.PriceChannelRef, out var channel) ? channel : price.PriceChannelRef.ToString("D"))</td>
                                                         <td><input class="form-control form-control-sm" name="Amount" type="number" min="1" step="0.01" value="@price.Amount" /></td>
@@ -302,17 +371,17 @@
                 window.jQuery(activeItemTab).tab('show');
             }
 
-            var bucketSelect = document.getElementById('variant-price-bucket');
-            var sellerInput = document.getElementById('variant-price-seller-ref');
-            var variantInput = document.getElementById('variant-price-variant-ref');
-            if (!bucketSelect || !sellerInput || !variantInput) {
+            var toggleAllButton = document.getElementById('toggle-all-variants');
+            if (!toggleAllButton) {
                 return;
             }
 
-            bucketSelect.addEventListener('change', function () {
-                var parts = (bucketSelect.value || '').split('|');
-                sellerInput.value = parts.length === 2 ? parts[0] : '';
-                variantInput.value = parts.length === 2 ? parts[1] : '';
+            toggleAllButton.addEventListener('click', function () {
+                var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.js-variant-checkbox'));
+                var shouldCheck = checkboxes.some(function (checkbox) { return !checkbox.checked; });
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.checked = shouldCheck;
+                });
             });
         })();
     </script>

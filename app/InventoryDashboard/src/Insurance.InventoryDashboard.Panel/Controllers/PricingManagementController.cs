@@ -7,6 +7,8 @@ namespace Insurance.InventoryDashboard.Panel.Controllers;
 
 public sealed class PricingManagementController : Controller
 {
+    private const int VariantSearchPageSize = 25;
+
     private readonly IApiService _apiService;
     private readonly IDashboardConfigService _dashboardConfigService;
 
@@ -17,22 +19,22 @@ public sealed class PricingManagementController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? item = null, CancellationToken cancellationToken = default)
-        => await ShowPricingPageAsync(string.IsNullOrWhiteSpace(item) ? "variant_prices" : item, cancellationToken);
+    public async Task<IActionResult> Index(string? item = null, string? variantSearchTerm = null, CancellationToken cancellationToken = default)
+        => await ShowPricingPageAsync(string.IsNullOrWhiteSpace(item) ? "variant_prices" : item, variantSearchTerm, cancellationToken);
 
     [HttpGet]
-    public async Task<IActionResult> VariantPrices(CancellationToken cancellationToken = default)
-        => await ShowPricingPageAsync("variant_prices", cancellationToken);
+    public async Task<IActionResult> VariantPrices(string? variantSearchTerm = null, CancellationToken cancellationToken = default)
+        => await ShowPricingPageAsync("variant_prices", variantSearchTerm, cancellationToken);
 
     [HttpGet]
     public async Task<IActionResult> PriceTypes(CancellationToken cancellationToken = default)
-        => await ShowPricingPageAsync("price_types", cancellationToken);
+        => await ShowPricingPageAsync("price_types", null, cancellationToken);
 
     [HttpGet]
     public async Task<IActionResult> PriceChannels(CancellationToken cancellationToken = default)
-        => await ShowPricingPageAsync("price_channels", cancellationToken);
+        => await ShowPricingPageAsync("price_channels", null, cancellationToken);
 
-    private async Task<IActionResult> ShowPricingPageAsync(string item, CancellationToken cancellationToken)
+    private async Task<IActionResult> ShowPricingPageAsync(string item, string? variantSearchTerm, CancellationToken cancellationToken)
     {
         var token = RequireToken();
         if (token is null)
@@ -40,7 +42,7 @@ public sealed class PricingManagementController : Controller
             return RedirectToAction("Login", "Auth");
         }
 
-        var model = await BuildPageModelAsync(token, item, cancellationToken);
+        var model = await BuildPageModelAsync(token, item, variantSearchTerm, cancellationToken);
         if (model.ActiveModule is null)
         {
             return Forbid();
@@ -164,6 +166,101 @@ public sealed class PricingManagementController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApplyVariantPricing(BulkVariantPricingRequest request)
+    {
+        var token = RequireToken();
+        if (token is null)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var ownerSeller = await ResolveOwnerSellerAsync(token);
+        if (ownerSeller is null)
+        {
+            TempData["PricingError"] = "برای قیمت‌گذاری باید Seller Owner فعال در سیستم ثبت شده باشد.";
+            return RedirectToAction(nameof(VariantPrices));
+        }
+
+        var variantRefs = request.SelectedVariantRefs
+            .Select(ParseGuidOrDefault)
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (variantRefs.Count == 0)
+        {
+            TempData["PricingError"] = "حداقل یک واریانت را برای قیمت‌گذاری انتخاب کنید.";
+            return RedirectToAction(nameof(VariantPrices));
+        }
+
+        var entries = BuildPriceEntries(request);
+        if (entries.Count == 0)
+        {
+            TempData["PricingError"] = "حداقل یک مبلغ معتبر برای یکی از ترکیب‌های نوع قیمت و کانال وارد کنید.";
+            return RedirectToAction(nameof(VariantPrices));
+        }
+
+        var sellerPricesByVariant = new Dictionary<Guid, List<SellerVariantPriceModel>>();
+        foreach (var variantRef in variantRefs)
+        {
+            var searchResult = await _apiService.SearchSellerVariantPricesAsync(
+                token,
+                sellerRef: ownerSeller.SellerBusinessKey,
+                variantRef: variantRef,
+                pageSize: 200);
+
+            if (!searchResult.IsSuccess)
+            {
+                TempData["PricingError"] = searchResult.ErrorMessage ?? "بارگذاری قیمت‌های فعلی واریانت ناموفق بود.";
+                return RedirectToAction(nameof(VariantPrices));
+            }
+
+            sellerPricesByVariant[variantRef] = searchResult.Data?.Items ?? new List<SellerVariantPriceModel>();
+        }
+
+        var processedCount = 0;
+        foreach (var variantRef in variantRefs)
+        {
+            var existingPrices = sellerPricesByVariant[variantRef];
+            foreach (var entry in entries)
+            {
+                var payload = new UpsertSellerVariantPriceRequest
+                {
+                    SellerRef = ownerSeller.SellerBusinessKey,
+                    VariantRef = variantRef,
+                    PriceTypeRef = entry.PriceTypeRef,
+                    PriceChannelRef = entry.PriceChannelRef,
+                    Amount = entry.Amount!.Value,
+                    Currency = string.IsNullOrWhiteSpace(request.Currency) ? "IRR" : request.Currency.Trim().ToUpperInvariant(),
+                    MinQty = request.MinQty <= 0 ? 1 : request.MinQty,
+                    Priority = request.Priority,
+                    IsActive = true
+                };
+
+                var existing = existingPrices.FirstOrDefault(x =>
+                    x.PriceTypeRef == entry.PriceTypeRef &&
+                    x.PriceChannelRef == entry.PriceChannelRef);
+
+                var result = existing is null
+                    ? await _apiService.CreateSellerVariantPriceAsync(payload, token)
+                    : await _apiService.UpdateSellerVariantPriceAsync(existing.SellerVariantPriceBusinessKey, payload, token);
+
+                if (!result.IsSuccess)
+                {
+                    TempData["PricingError"] = result.ErrorMessage ?? "ثبت قیمت واریانت ناموفق بود.";
+                    return RedirectToAction(nameof(VariantPrices));
+                }
+
+                processedCount++;
+            }
+        }
+
+        TempData["PricingStatus"] = $"{processedCount} قیمت برای Seller Owner ثبت یا به‌روزرسانی شد.";
+        return RedirectToAction(nameof(VariantPrices));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateVariantPrice(Guid id, UpsertSellerVariantPriceRequest request)
     {
         var token = RequireToken();
@@ -186,7 +283,7 @@ public sealed class PricingManagementController : Controller
         return RedirectToAction(nameof(VariantPrices));
     }
 
-    private async Task<PricingPageViewModel> BuildPageModelAsync(string token, string? item, CancellationToken cancellationToken)
+    private async Task<PricingPageViewModel> BuildPageModelAsync(string token, string? item, string? variantSearchTerm, CancellationToken cancellationToken)
     {
         var roles = ResolveRolesFromSession(token);
         var modules = await _dashboardConfigService.GetMenuByRolesAsync(roles, cancellationToken);
@@ -196,6 +293,7 @@ public sealed class PricingManagementController : Controller
             Roles = roles,
             Modules = modules,
             ActiveModule = modules.FirstOrDefault(x => string.Equals(x.ModuleId, "pricing_management", StringComparison.OrdinalIgnoreCase)),
+            VariantSearchTerm = variantSearchTerm
         };
 
         var activeItem = string.IsNullOrWhiteSpace(item) ? "variant_prices" : item.Trim();
@@ -206,19 +304,45 @@ public sealed class PricingManagementController : Controller
         var priceTypeLookupTask = _apiService.GetPriceTypeLookupAsync(token);
         var priceChannelsTask = _apiService.SearchPriceChannelsAsync(token, pageSize: 100);
         var priceChannelLookupTask = _apiService.GetPriceChannelLookupAsync(token);
-        var pricesTask = _apiService.SearchSellerVariantPricesAsync(token, pageSize: 100);
         var sellersTask = _apiService.GetSellerLookupAsync(token);
-        var bucketsTask = _apiService.GetAvailableStockBucketsAsync(token, minQuantity: 0.0001m);
+        var ownerSellerTask = _apiService.SearchSellersAsync(token, isSystemOwner: true, isActive: true, pageSize: 10);
+        var variantsTask = _apiService.SearchProductVariantsAsync(token, searchTerm: variantSearchTerm, isActive: true, pageSize: VariantSearchPageSize);
 
-        await Task.WhenAll(priceTypesTask, priceTypeLookupTask, priceChannelsTask, priceChannelLookupTask, pricesTask, sellersTask, bucketsTask);
+        await Task.WhenAll(priceTypesTask, priceTypeLookupTask, priceChannelsTask, priceChannelLookupTask, sellersTask, ownerSellerTask, variantsTask);
 
         Apply(model, priceTypesTask.Result, x => model.PriceTypes = x);
         Apply(model, priceTypeLookupTask.Result, x => model.PriceTypeLookup = x.Items);
         Apply(model, priceChannelsTask.Result, x => model.PriceChannels = x);
         Apply(model, priceChannelLookupTask.Result, x => model.PriceChannelLookup = x.Items);
-        Apply(model, pricesTask.Result, x => model.VariantPrices = x);
         Apply(model, sellersTask.Result, x => model.Sellers = x.Items);
-        Apply(model, bucketsTask.Result, x => model.AvailableBuckets = x.Items);
+        Apply(model, variantsTask.Result, x => model.VariantSearchResult = x);
+
+        var ownerSellers = ownerSellerTask.Result.Data?.Items
+            .Where(x => x.IsSystemOwner && x.IsActive)
+            .OrderBy(x => x.Code)
+            .ToList() ?? new List<SellerSearchItemModel>();
+
+        if (ownerSellers.Count == 1)
+        {
+            model.OwnerSeller = ownerSellers[0];
+        }
+
+        if (ownerSellers.Count == 0)
+        {
+            model.ErrorMessage ??= "Seller Owner فعال در سیستم پیدا نشد. تا زمان ثبت Seller Owner قیمت‌گذاری این بخش غیرفعال است.";
+        }
+        else if (ownerSellers.Count > 1)
+        {
+            model.ErrorMessage ??= "بیش از یک Seller Owner فعال پیدا شد. تا زمان تعیین یک Owner یکتا قیمت‌گذاری این بخش غیرفعال است.";
+        }
+        else
+        {
+            var ownerSeller = model.OwnerSeller!;
+            var pricesResult = await _apiService.SearchSellerVariantPricesAsync(token, sellerRef: ownerSeller.SellerBusinessKey, pageSize: 200);
+            Apply(model, pricesResult, x => model.VariantPrices = x);
+        }
+
+        model.BulkPricingForm.Prices = BuildPriceMatrix(model.PriceTypeLookup, model.PriceChannelLookup);
 
         return model;
     }
@@ -252,7 +376,7 @@ public sealed class PricingManagementController : Controller
     {
         if (request.SellerRef == Guid.Empty || request.VariantRef == Guid.Empty)
         {
-            return "انتخاب بالانس/واریانت الزامی است.";
+            return "انتخاب واریانت الزامی است.";
         }
 
         if (request.PriceTypeRef == Guid.Empty)
@@ -267,6 +391,52 @@ public sealed class PricingManagementController : Controller
 
         return request.Amount <= 0 ? "مبلغ قیمت باید بزرگ‌تر از صفر باشد." : null;
     }
+
+    private async Task<SellerSearchItemModel?> ResolveOwnerSellerAsync(string token)
+    {
+        var result = await _apiService.SearchSellersAsync(token, isSystemOwner: true, isActive: true, pageSize: 10);
+        if (!result.IsSuccess)
+        {
+            return null;
+        }
+
+        var ownerSellers = result.Data?.Items
+            .Where(x => x.IsSystemOwner && x.IsActive)
+            .OrderBy(x => x.Code)
+            .ToList() ?? new List<SellerSearchItemModel>();
+
+        return ownerSellers.Count == 1 ? ownerSellers[0] : null;
+    }
+
+    private static List<VariantPriceMatrixInputModel> BuildPriceMatrix(
+        IEnumerable<PriceTypeLookupModel> priceTypes,
+        IEnumerable<PriceChannelLookupModel> priceChannels)
+    {
+        return (from priceType in priceTypes.OrderBy(x => x.Name)
+                from priceChannel in priceChannels.OrderBy(x => x.Name)
+                select new VariantPriceMatrixInputModel
+                {
+                    PriceTypeRef = priceType.PriceTypeBusinessKey,
+                    PriceChannelRef = priceChannel.PriceChannelBusinessKey
+                }).ToList();
+    }
+
+    private static List<VariantPriceMatrixInputModel> BuildPriceEntries(BulkVariantPricingRequest request)
+    {
+        var fallbackAmount = request.ApplyToAllAmount;
+        return request.Prices
+            .Select(x => new VariantPriceMatrixInputModel
+            {
+                PriceTypeRef = x.PriceTypeRef,
+                PriceChannelRef = x.PriceChannelRef,
+                Amount = x.Amount ?? fallbackAmount
+            })
+            .Where(x => x.Amount.HasValue && x.Amount.Value > 0)
+            .ToList();
+    }
+
+    private static Guid ParseGuidOrDefault(string? value)
+        => Guid.TryParse(value, out var parsed) ? parsed : Guid.Empty;
 
     private IReadOnlyList<string> ResolveRolesFromSession(string token)
     {

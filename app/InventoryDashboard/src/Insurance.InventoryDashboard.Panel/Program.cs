@@ -2,6 +2,10 @@ using Insurance.InventoryDashboard.Panel.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddDistributedMemoryCache();
