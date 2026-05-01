@@ -43,6 +43,20 @@ public sealed class RequirePermissionAttribute : TypeFilterAttribute
                 return;
             }
 
+            var roles = user.Claims
+                .Where(claim =>
+                    string.Equals(claim.Type, "role", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(claim.Type, "http://schemas.microsoft.com/ws/2008/06/identity/claims/role", StringComparison.OrdinalIgnoreCase))
+                .Select(claim => claim.Value)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .SelectMany(value => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (roles.Contains("Admin") || roles.Contains("SysAdmin"))
+            {
+                return;
+            }
+
             var roleBusinessKeys = user
                 .FindAll("activeRoleBusinessKey")
                 .Select(claim => claim.Value)
