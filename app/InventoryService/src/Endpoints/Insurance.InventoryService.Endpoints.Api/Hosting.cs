@@ -9,6 +9,7 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Commands;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using OysterFx.Endpoints.Api.Extensions.DI;
+using OysterFx.Infra.Auth.JwtServices;
 using OysterFx.Infra.EventBus.Outbox;
 using OysterFx.Infra.EventBus.RabbitMqBroker;
 using System.Diagnostics;
@@ -26,6 +27,7 @@ public static class Hosting
         builder.Services.AddOysterFxApiCore("OysterFx", "Insurance", "Insurance.InventoryService");
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddInventoryJwtAuthentication(builder.Configuration);
+        builder.Services.AddJwtUserInfoService();
         builder.Services.AddCacheServices(builder.Configuration);
         builder.Services.AddDatabase(builder.Configuration);
         builder.Services.AddGraphProjectionServices(builder.Configuration);
@@ -61,6 +63,7 @@ public static class Hosting
         app.UseHttpsRedirection();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseTokenProcessing();
         app.MapHealthChecks("/health", new HealthCheckOptions());
         app.MapControllers().RequireAuthorization();
         return app;
