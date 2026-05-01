@@ -19,17 +19,24 @@ public class DeleteLocationCommandHandler : CommandHandler<DeleteLocationCommand
         if (command.LocationBusinessKey == Guid.Empty)
             return Fail("LocationBusinessKey is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
-        if (aggregate is null)
-            return Fail("Location was not found.");
-
-        aggregate.Deactivate();
-        await _repository.CommitAsync();
-
-        return Ok(new DeleteLocationCommandResult
+        try
         {
-            LocationBusinessKey = aggregate.BusinessKey.Value,
-            Deleted = true
-        });
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
+            if (aggregate is null)
+                return Fail("Location was not found.");
+
+            aggregate.Deactivate();
+            await _repository.CommitAsync();
+
+            return Ok(new DeleteLocationCommandResult
+            {
+                LocationBusinessKey = aggregate.BusinessKey.Value,
+                Deleted = true
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Deleting location failed: {ex.Message}");
+        }
     }
 }

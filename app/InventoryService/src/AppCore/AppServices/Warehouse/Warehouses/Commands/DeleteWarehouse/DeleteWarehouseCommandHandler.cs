@@ -19,17 +19,24 @@ public class DeleteWarehouseCommandHandler : CommandHandler<DeleteWarehouseComma
         if (command.WarehouseBusinessKey == Guid.Empty)
             return Fail("WarehouseBusinessKey is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.WarehouseBusinessKey);
-        if (aggregate is null)
-            return Fail("Warehouse was not found.");
-
-        aggregate.Deactivate();
-        await _repository.CommitAsync();
-
-        return Ok(new DeleteWarehouseCommandResult
+        try
         {
-            WarehouseBusinessKey = aggregate.BusinessKey.Value,
-            Deleted = true
-        });
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.WarehouseBusinessKey);
+            if (aggregate is null)
+                return Fail("Warehouse was not found.");
+
+            aggregate.Deactivate();
+            await _repository.CommitAsync();
+
+            return Ok(new DeleteWarehouseCommandResult
+            {
+                WarehouseBusinessKey = aggregate.BusinessKey.Value,
+                Deleted = true
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Deleting warehouse failed: {ex.Message}");
+        }
     }
 }

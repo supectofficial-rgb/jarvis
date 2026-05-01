@@ -22,21 +22,28 @@ public class CreateWarehouseCommandHandler : CommandHandler<CreateWarehouseComma
         if (string.IsNullOrWhiteSpace(command.Name))
             return Fail("Name is required.");
 
-        var normalizedCode = command.Code.Trim();
-        if (await _repository.ExistsByCodeAsync(normalizedCode))
-            return Fail($"Warehouse code '{normalizedCode}' already exists.");
-
-        var aggregate = Domain.Warehouse.Entities.Warehouse.Create(normalizedCode, command.Name.Trim());
-
-        await _repository.InsertAsync(aggregate);
-        await _repository.CommitAsync();
-
-        return Ok(new CreateWarehouseCommandResult
+        try
         {
-            WarehouseBusinessKey = aggregate.BusinessKey.Value,
-            Code = aggregate.Code,
-            Name = aggregate.Name,
-            IsActive = aggregate.IsActive
-        });
+            var normalizedCode = command.Code.Trim();
+            if (await _repository.ExistsByCodeAsync(normalizedCode))
+                return Fail($"Warehouse code '{normalizedCode}' already exists.");
+
+            var aggregate = Domain.Warehouse.Entities.Warehouse.Create(normalizedCode, command.Name.Trim());
+
+            await _repository.InsertAsync(aggregate);
+            await _repository.CommitAsync();
+
+            return Ok(new CreateWarehouseCommandResult
+            {
+                WarehouseBusinessKey = aggregate.BusinessKey.Value,
+                Code = aggregate.Code,
+                Name = aggregate.Name,
+                IsActive = aggregate.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Creating warehouse failed: {ex.Message}");
+        }
     }
 }

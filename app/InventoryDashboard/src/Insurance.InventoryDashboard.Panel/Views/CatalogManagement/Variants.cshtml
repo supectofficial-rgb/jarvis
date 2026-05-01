@@ -76,8 +76,15 @@
 
 <style>
     #variant-product-selector-card,
+    #variants-page .variant-page-heading,
+    #variants-page .variant-permission-panel,
+    #variants-page .variant-completion-panel,
+    #variants-page .variant-missing-panel,
+    #variants-page .variant-lock-panel,
     #variant-management-tabs,
     #variant-management-tabs + .tab-content,
+    #variant-details-card,
+    #variant-uom-conversions-card,
     #variant-list-scope [data-bulk-form],
     #variant-list-scope table th:first-child,
     #variant-list-scope table td:first-child,
@@ -97,7 +104,7 @@
       data-selected-variant-id="@Model.SelectedVariantId"
       data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
     <div class="container-fluid">
-        <div class="row">
+        <div class="row variant-page-heading">
             <div class="col-12">
                 <h1>مدیریت واریانت‌ها</h1>
                 <p class="text-muted">مدیریت کامل واریانت، چرخه عمر، قفل موجودی و تبدیل واحد.</p>
@@ -143,9 +150,11 @@
             <div class="row"><div class="col-12"><div class="alert alert-info mb-3">@noticeMessage</div></div></div>
         }
 
-        @await Html.PartialAsync("~/Views/Shared/_CatalogPermissionNotice.cshtml", hasRestrictedActions)
+        <div class="variant-permission-panel">
+            @await Html.PartialAsync("~/Views/Shared/_CatalogPermissionNotice.cshtml", hasRestrictedActions)
+        </div>
 
-        <div class="row mb-2">
+        <div class="row mb-2 variant-completion-panel">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body py-3">
@@ -168,7 +177,7 @@
 
         @if (Model.MissingRequiredVariantAttributes.Count > 0)
         {
-            <div class="row">
+            <div class="row variant-missing-panel">
                 <div class="col-12">
                     <div class="alert alert-danger mb-3">
                         ویژگی‌های الزامی واریانت کامل نشده‌اند:
@@ -180,7 +189,7 @@
 
         @if (movementLocked)
         {
-            <div class="row">
+            <div class="row variant-lock-panel">
                 <div class="col-12">
                     <div class="alert alert-secondary mb-3">
                         این واریانت دارای قفل حرکت موجودی است. تغییر سیاست رهگیری و واحد پایه باید با احتیاط انجام شود.
@@ -781,7 +790,7 @@
                     </div>
                 </div>
 
-                <div class="card mb-4 ">
+                <div class="card mb-4" id="variant-details-card">
                     <div class="card-body">
                         <h5 class="card-title">جزئیات واریانت</h5>
                         @if (Model.SelectedVariantDetails is null)
@@ -855,7 +864,7 @@
                     </div>
                 </div>
 
-                <div class="card">
+                <div class="card" id="variant-uom-conversions-card">
                     <div class="card-body">
                         <h5 class="card-title">لیست تبدیل‌ها</h5>
                         <div class="table-responsive">

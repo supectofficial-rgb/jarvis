@@ -29,35 +29,42 @@ public class UpdateLocationCommandHandler : CommandHandler<UpdateLocationCommand
         if (!Enum.TryParse<LocationType>(command.LocationType, true, out var locationType))
             return Fail("LocationType is invalid.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
-        if (aggregate is null)
-            return Fail("Location was not found.");
-
-        var normalizedCode = command.LocationCode.Trim();
-        if (!string.Equals(aggregate.LocationCode, normalizedCode, StringComparison.OrdinalIgnoreCase)
-            && await _repository.ExistsByCodeAsync(normalizedCode, command.LocationBusinessKey))
+        try
         {
-            return Fail($"Location code '{normalizedCode}' already exists.");
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
+            if (aggregate is null)
+                return Fail("Location was not found.");
+
+            var normalizedCode = command.LocationCode.Trim();
+            if (!string.Equals(aggregate.LocationCode, normalizedCode, StringComparison.OrdinalIgnoreCase)
+                && await _repository.ExistsByCodeAsync(normalizedCode, command.LocationBusinessKey))
+            {
+                return Fail($"Location code '{normalizedCode}' already exists.");
+            }
+
+            aggregate.ChangeWarehouse(command.WarehouseRef);
+            aggregate.ChangeCode(normalizedCode);
+            aggregate.ChangeType(locationType);
+            aggregate.UpdateCoordinates(command.Aisle, command.Rack, command.Shelf, command.Bin);
+
+            if (command.IsActive)
+                aggregate.Activate();
+            else
+                aggregate.Deactivate();
+
+            await _repository.CommitAsync();
+
+            return Ok(new UpdateLocationCommandResult
+            {
+                LocationBusinessKey = aggregate.BusinessKey.Value,
+                LocationCode = aggregate.LocationCode,
+                LocationType = aggregate.LocationType.ToString(),
+                IsActive = aggregate.IsActive
+            });
         }
-
-        aggregate.ChangeWarehouse(command.WarehouseRef);
-        aggregate.ChangeCode(normalizedCode);
-        aggregate.ChangeType(locationType);
-        aggregate.UpdateCoordinates(command.Aisle, command.Rack, command.Shelf, command.Bin);
-
-        if (command.IsActive)
-            aggregate.Activate();
-        else
-            aggregate.Deactivate();
-
-        await _repository.CommitAsync();
-
-        return Ok(new UpdateLocationCommandResult
+        catch (Exception ex)
         {
-            LocationBusinessKey = aggregate.BusinessKey.Value,
-            LocationCode = aggregate.LocationCode,
-            LocationType = aggregate.LocationType.ToString(),
-            IsActive = aggregate.IsActive
-        });
+            return Fail($"Updating location failed: {ex.Message}");
+        }
     }
 }

@@ -19,19 +19,38 @@ public class RemoveProductAttributeValueCommandHandler : CommandHandler<RemovePr
         if (command.ProductBusinessKey == Guid.Empty || command.AttributeRef == Guid.Empty)
             return Fail("ProductBusinessKey and AttributeRef are required.");
 
-        var product = await _productRepository.GetByBusinessKeyAsync(command.ProductBusinessKey);
-        if (product is null)
-            return Fail("Product was not found.");
-
-        var existed = product.AttributeValues.Any(x => x.AttributeRef == command.AttributeRef);
-        product.RemoveAttributeValue(command.AttributeRef);
-        await _productRepository.CommitAsync();
-
-        return Ok(new RemoveProductAttributeValueCommandResult
+        try
         {
-            ProductBusinessKey = product.BusinessKey.Value,
-            AttributeRef = command.AttributeRef,
-            Removed = existed
-        });
+            var product = await _productRepository.GetByBusinessKeyAsync(command.ProductBusinessKey);
+            if (product is null)
+                return Fail("Product was not found.");
+
+            var existed = product.AttributeValues.Any(x => x.AttributeRef == command.AttributeRef);
+            product.RemoveAttributeValue(command.AttributeRef);
+            await _productRepository.CommitAsync();
+
+            return Ok(new RemoveProductAttributeValueCommandResult
+            {
+                ProductBusinessKey = product.BusinessKey.Value,
+                AttributeRef = command.AttributeRef,
+                Removed = existed
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Removing product attribute value failed: {GetExceptionMessage(ex)}");
+        }
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 }

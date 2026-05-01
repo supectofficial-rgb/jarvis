@@ -22,17 +22,24 @@ public class MoveLocationToWarehouseCommandHandler : CommandHandler<MoveLocation
         if (command.TargetWarehouseRef == Guid.Empty)
             return Fail("TargetWarehouseRef is required.");
 
-        var location = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
-        if (location is null)
-            return Fail("Location was not found.");
-
-        location.ChangeWarehouse(command.TargetWarehouseRef);
-        await _repository.CommitAsync();
-
-        return Ok(new MoveLocationToWarehouseCommandResult
+        try
         {
-            LocationBusinessKey = location.BusinessKey.Value,
-            WarehouseRef = location.WarehouseRef
-        });
+            var location = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
+            if (location is null)
+                return Fail("Location was not found.");
+
+            location.ChangeWarehouse(command.TargetWarehouseRef);
+            await _repository.CommitAsync();
+
+            return Ok(new MoveLocationToWarehouseCommandResult
+            {
+                LocationBusinessKey = location.BusinessKey.Value,
+                WarehouseRef = location.WarehouseRef
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Moving location failed: {ex.Message}");
+        }
     }
 }

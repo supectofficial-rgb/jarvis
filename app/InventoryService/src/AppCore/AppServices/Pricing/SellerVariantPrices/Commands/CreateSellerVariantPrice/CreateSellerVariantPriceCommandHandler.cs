@@ -23,12 +23,12 @@ public class CreateSellerVariantPriceCommandHandler : CommandHandler<CreateSelle
         if (string.IsNullOrWhiteSpace(command.Currency))
             return Fail("Currency is required.");
 
-        if (await _repository.ExistsByPricingKeyAsync(command.SellerRef, command.VariantRef, command.PriceTypeRef, command.PriceChannelRef))
-            return Fail("A price already exists for this seller, variant, price type and channel.");
-
-        SellerVariantPrice aggregate;
         try
         {
+            if (await _repository.ExistsByPricingKeyAsync(command.SellerRef, command.VariantRef, command.PriceTypeRef, command.PriceChannelRef))
+                return Fail("A price already exists for this seller, variant, price type and channel.");
+
+            SellerVariantPrice aggregate;
             aggregate = SellerVariantPrice.Create(
                 command.SellerRef,
                 command.VariantRef,
@@ -45,15 +45,15 @@ public class CreateSellerVariantPriceCommandHandler : CommandHandler<CreateSelle
             {
                 aggregate.AddOffer(offer.Name, offer.DiscountAmount, offer.DiscountPercent, offer.MaxQuantity, offer.Priority, offer.StartAt, offer.EndAt);
             }
+
+            await _repository.InsertAsync(aggregate);
+            await _repository.CommitAsync();
+
+            return Ok(new CreateSellerVariantPriceCommandResult { SellerVariantPriceBusinessKey = aggregate.BusinessKey.Value });
         }
         catch (Exception ex)
         {
-            return Fail(ex.Message);
+            return Fail($"Creating seller variant price failed: {ex.Message}");
         }
-
-        await _repository.InsertAsync(aggregate);
-        await _repository.CommitAsync();
-
-        return Ok(new CreateSellerVariantPriceCommandResult { SellerVariantPriceBusinessKey = aggregate.BusinessKey.Value });
     }
 }

@@ -19,17 +19,24 @@ public class DeactivateLocationCommandHandler : CommandHandler<DeactivateLocatio
         if (command.LocationBusinessKey == Guid.Empty)
             return Fail("LocationBusinessKey is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
-        if (aggregate is null)
-            return Fail("Location was not found.");
-
-        aggregate.Deactivate();
-        await _repository.CommitAsync();
-
-        return Ok(new DeactivateLocationCommandResult
+        try
         {
-            LocationBusinessKey = aggregate.BusinessKey.Value,
-            IsActive = aggregate.IsActive
-        });
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
+            if (aggregate is null)
+                return Fail("Location was not found.");
+
+            aggregate.Deactivate();
+            await _repository.CommitAsync();
+
+            return Ok(new DeactivateLocationCommandResult
+            {
+                LocationBusinessKey = aggregate.BusinessKey.Value,
+                IsActive = aggregate.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Deactivating location failed: {ex.Message}");
+        }
     }
 }

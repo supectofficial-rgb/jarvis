@@ -26,29 +26,36 @@ public class CreateLocationCommandHandler : CommandHandler<CreateLocationCommand
         if (!Enum.TryParse<LocationType>(command.LocationType, true, out var locationType))
             return Fail("LocationType is invalid.");
 
-        var normalizedCode = command.LocationCode.Trim();
-        if (await _repository.ExistsByCodeAsync(normalizedCode))
-            return Fail($"Location code '{normalizedCode}' already exists.");
-
-        var aggregate = Domain.Warehouse.Entities.Location.Create(
-            command.WarehouseRef,
-            normalizedCode,
-            locationType,
-            command.Aisle,
-            command.Rack,
-            command.Shelf,
-            command.Bin);
-
-        await _repository.InsertAsync(aggregate);
-        await _repository.CommitAsync();
-
-        return Ok(new CreateLocationCommandResult
+        try
         {
-            LocationBusinessKey = aggregate.BusinessKey.Value,
-            WarehouseRef = aggregate.WarehouseRef,
-            LocationCode = aggregate.LocationCode,
-            LocationType = aggregate.LocationType.ToString(),
-            IsActive = aggregate.IsActive
-        });
+            var normalizedCode = command.LocationCode.Trim();
+            if (await _repository.ExistsByCodeAsync(normalizedCode))
+                return Fail($"Location code '{normalizedCode}' already exists.");
+
+            var aggregate = Domain.Warehouse.Entities.Location.Create(
+                command.WarehouseRef,
+                normalizedCode,
+                locationType,
+                command.Aisle,
+                command.Rack,
+                command.Shelf,
+                command.Bin);
+
+            await _repository.InsertAsync(aggregate);
+            await _repository.CommitAsync();
+
+            return Ok(new CreateLocationCommandResult
+            {
+                LocationBusinessKey = aggregate.BusinessKey.Value,
+                WarehouseRef = aggregate.WarehouseRef,
+                LocationCode = aggregate.LocationCode,
+                LocationType = aggregate.LocationType.ToString(),
+                IsActive = aggregate.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Creating location failed: {ex.Message}");
+        }
     }
 }

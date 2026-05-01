@@ -19,17 +19,24 @@ public class ActivateWarehouseCommandHandler : CommandHandler<ActivateWarehouseC
         if (command.WarehouseBusinessKey == Guid.Empty)
             return Fail("WarehouseBusinessKey is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.WarehouseBusinessKey);
-        if (aggregate is null)
-            return Fail("Warehouse was not found.");
-
-        aggregate.Activate();
-        await _repository.CommitAsync();
-
-        return Ok(new ActivateWarehouseCommandResult
+        try
         {
-            WarehouseBusinessKey = aggregate.BusinessKey.Value,
-            IsActive = aggregate.IsActive
-        });
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.WarehouseBusinessKey);
+            if (aggregate is null)
+                return Fail("Warehouse was not found.");
+
+            aggregate.Activate();
+            await _repository.CommitAsync();
+
+            return Ok(new ActivateWarehouseCommandResult
+            {
+                WarehouseBusinessKey = aggregate.BusinessKey.Value,
+                IsActive = aggregate.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Activating warehouse failed: {ex.Message}");
+        }
     }
 }

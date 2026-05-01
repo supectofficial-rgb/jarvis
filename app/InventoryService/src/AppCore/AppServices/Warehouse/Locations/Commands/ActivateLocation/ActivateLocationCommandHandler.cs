@@ -19,17 +19,24 @@ public class ActivateLocationCommandHandler : CommandHandler<ActivateLocationCom
         if (command.LocationBusinessKey == Guid.Empty)
             return Fail("LocationBusinessKey is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
-        if (aggregate is null)
-            return Fail("Location was not found.");
-
-        aggregate.Activate();
-        await _repository.CommitAsync();
-
-        return Ok(new ActivateLocationCommandResult
+        try
         {
-            LocationBusinessKey = aggregate.BusinessKey.Value,
-            IsActive = aggregate.IsActive
-        });
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
+            if (aggregate is null)
+                return Fail("Location was not found.");
+
+            aggregate.Activate();
+            await _repository.CommitAsync();
+
+            return Ok(new ActivateLocationCommandResult
+            {
+                LocationBusinessKey = aggregate.BusinessKey.Value,
+                IsActive = aggregate.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Activating location failed: {ex.Message}");
+        }
     }
 }

@@ -23,17 +23,24 @@ public class ChangeLocationTypeCommandHandler : CommandHandler<ChangeLocationTyp
         if (!Enum.TryParse<LocationType>(command.LocationType, true, out var locationType))
             return Fail("LocationType is invalid.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
-        if (aggregate is null)
-            return Fail("Location was not found.");
-
-        aggregate.ChangeType(locationType);
-        await _repository.CommitAsync();
-
-        return Ok(new ChangeLocationTypeCommandResult
+        try
         {
-            LocationBusinessKey = aggregate.BusinessKey.Value,
-            LocationType = aggregate.LocationType.ToString()
-        });
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.LocationBusinessKey);
+            if (aggregate is null)
+                return Fail("Location was not found.");
+
+            aggregate.ChangeType(locationType);
+            await _repository.CommitAsync();
+
+            return Ok(new ChangeLocationTypeCommandResult
+            {
+                LocationBusinessKey = aggregate.BusinessKey.Value,
+                LocationType = aggregate.LocationType.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Changing location type failed: {ex.Message}");
+        }
     }
 }

@@ -34,7 +34,7 @@
 
         <div class="row">
             <div class="col-12 mb-4">
-                <ul class="nav nav-tabs separator-tabs ml-0 mb-4 d-none" role="tablist" id="pricing-management-tabs">
+                <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="pricing-management-tabs">
                     <li class="nav-item">
                         <a class="nav-link active" data-item-id="variant_prices" data-toggle="tab" href="#variant-prices-tab" role="tab">قیمت‌گذاری واریانت</a>
                     </li>
@@ -214,28 +214,31 @@
                                             }
                                             @foreach (var price in Model.VariantPrices.Items)
                                             {
+                                                var priceFormId = $"variant-price-form-{price.SellerVariantPriceBusinessKey:N}";
                                                 <tr>
-                                                    <form asp-action="UpdateVariantPrice" asp-route-id="@price.SellerVariantPriceBusinessKey" method="post" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="SellerRef" value="@price.SellerRef" />
-                                                        <input type="hidden" name="VariantRef" value="@price.VariantRef" />
-                                                        <input type="hidden" name="PriceTypeRef" value="@price.PriceTypeRef" />
-                                                        <input type="hidden" name="PriceChannelRef" value="@price.PriceChannelRef" />
-                                                        <input type="hidden" name="Currency" value="@price.Currency" />
-                                                        <input type="hidden" name="MinQty" value="@price.MinQty" />
-                                                        <input type="hidden" name="Priority" value="@price.Priority" />
-                                                        <td><span class="text-monospace">@price.VariantRef.ToString("D")</span></td>
-                                                        <td>@(priceTypeNames.TryGetValue(price.PriceTypeRef, out var type) ? type : price.PriceTypeRef.ToString("D"))</td>
-                                                        <td>@(priceChannelNames.TryGetValue(price.PriceChannelRef, out var channel) ? channel : price.PriceChannelRef.ToString("D"))</td>
-                                                        <td><input class="form-control form-control-sm" name="Amount" type="number" min="1" step="0.01" value="@price.Amount" /></td>
-                                                        <td>
-                                                            <input type="checkbox" name="IsActive" value="true" @(price.IsActive ? "checked" : null) />
-                                                            <input type="hidden" name="IsActive" value="false" />
-                                                        </td>
-                                                        <td class="text-right">
+                                                    <td>
+                                                        <span class="text-monospace">@price.VariantRef.ToString("D")</span>
+                                                        <input form="@priceFormId" type="hidden" name="SellerRef" value="@price.SellerRef" />
+                                                        <input form="@priceFormId" type="hidden" name="VariantRef" value="@price.VariantRef" />
+                                                        <input form="@priceFormId" type="hidden" name="PriceTypeRef" value="@price.PriceTypeRef" />
+                                                        <input form="@priceFormId" type="hidden" name="PriceChannelRef" value="@price.PriceChannelRef" />
+                                                        <input form="@priceFormId" type="hidden" name="Currency" value="@price.Currency" />
+                                                        <input form="@priceFormId" type="hidden" name="MinQty" value="@price.MinQty" />
+                                                        <input form="@priceFormId" type="hidden" name="Priority" value="@price.Priority" />
+                                                    </td>
+                                                    <td>@(priceTypeNames.TryGetValue(price.PriceTypeRef, out var type) ? type : price.PriceTypeRef.ToString("D"))</td>
+                                                    <td>@(priceChannelNames.TryGetValue(price.PriceChannelRef, out var channel) ? channel : price.PriceChannelRef.ToString("D"))</td>
+                                                    <td><input form="@priceFormId" class="form-control form-control-sm" name="Amount" type="number" min="1" step="0.01" value="@price.Amount" /></td>
+                                                    <td>
+                                                        <input form="@priceFormId" type="checkbox" name="IsActive" value="true" @(price.IsActive ? "checked" : null) />
+                                                        <input form="@priceFormId" type="hidden" name="IsActive" value="false" />
+                                                    </td>
+                                                    <td class="text-right">
+                                                        <form id="@priceFormId" asp-action="UpdateVariantPrice" asp-route-id="@price.SellerVariantPriceBusinessKey" method="post" data-loading-form class="d-inline">
+                                                            @Html.AntiForgeryToken()
                                                             <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
-                                                        </td>
-                                                    </form>
+                                                        </form>
+                                                    </td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -279,19 +282,20 @@
                                         <tbody>
                                             @foreach (var priceType in Model.PriceTypes.Items)
                                             {
+                                                var priceTypeFormId = $"price-type-form-{priceType.PriceTypeBusinessKey:N}";
                                                 <tr>
-                                                    <form asp-action="UpdatePriceType" asp-route-id="@priceType.PriceTypeBusinessKey" method="post" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <td><input class="form-control form-control-sm" name="Code" value="@priceType.Code" /></td>
-                                                        <td><input class="form-control form-control-sm" name="Name" value="@priceType.Name" required /></td>
-                                                        <td>
-                                                            <input type="checkbox" name="IsActive" value="true" @(priceType.IsActive ? "checked" : null) />
-                                                            <input type="hidden" name="IsActive" value="false" />
-                                                        </td>
-                                                        <td class="text-right">
+                                                    <td><input form="@priceTypeFormId" class="form-control form-control-sm" name="Code" value="@priceType.Code" /></td>
+                                                    <td><input form="@priceTypeFormId" class="form-control form-control-sm" name="Name" value="@priceType.Name" required /></td>
+                                                    <td>
+                                                        <input form="@priceTypeFormId" type="checkbox" name="IsActive" value="true" @(priceType.IsActive ? "checked" : null) />
+                                                        <input form="@priceTypeFormId" type="hidden" name="IsActive" value="false" />
+                                                    </td>
+                                                    <td class="text-right">
+                                                        <form id="@priceTypeFormId" asp-action="UpdatePriceType" asp-route-id="@priceType.PriceTypeBusinessKey" method="post" data-loading-form class="d-inline">
+                                                            @Html.AntiForgeryToken()
                                                             <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
-                                                        </td>
-                                                    </form>
+                                                        </form>
+                                                    </td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -335,19 +339,20 @@
                                         <tbody>
                                             @foreach (var channel in Model.PriceChannels.Items)
                                             {
+                                                var channelFormId = $"price-channel-form-{channel.PriceChannelBusinessKey:N}";
                                                 <tr>
-                                                    <form asp-action="UpdatePriceChannel" asp-route-id="@channel.PriceChannelBusinessKey" method="post" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <td><input class="form-control form-control-sm" name="Code" value="@channel.Code" /></td>
-                                                        <td><input class="form-control form-control-sm" name="Name" value="@channel.Name" required /></td>
-                                                        <td>
-                                                            <input type="checkbox" name="IsActive" value="true" @(channel.IsActive ? "checked" : null) />
-                                                            <input type="hidden" name="IsActive" value="false" />
-                                                        </td>
-                                                        <td class="text-right">
+                                                    <td><input form="@channelFormId" class="form-control form-control-sm" name="Code" value="@channel.Code" /></td>
+                                                    <td><input form="@channelFormId" class="form-control form-control-sm" name="Name" value="@channel.Name" required /></td>
+                                                    <td>
+                                                        <input form="@channelFormId" type="checkbox" name="IsActive" value="true" @(channel.IsActive ? "checked" : null) />
+                                                        <input form="@channelFormId" type="hidden" name="IsActive" value="false" />
+                                                    </td>
+                                                    <td class="text-right">
+                                                        <form id="@channelFormId" asp-action="UpdatePriceChannel" asp-route-id="@channel.PriceChannelBusinessKey" method="post" data-loading-form class="d-inline">
+                                                            @Html.AntiForgeryToken()
                                                             <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
-                                                        </td>
-                                                    </form>
+                                                        </form>
+                                                    </td>
                                                 </tr>
                                             }
                                         </tbody>

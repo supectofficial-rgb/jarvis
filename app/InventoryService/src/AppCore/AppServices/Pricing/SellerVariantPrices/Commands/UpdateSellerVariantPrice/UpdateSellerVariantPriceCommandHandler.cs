@@ -22,12 +22,12 @@ public class UpdateSellerVariantPriceCommandHandler : CommandHandler<UpdateSelle
         if (string.IsNullOrWhiteSpace(command.Currency))
             return Fail("Currency is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.SellerVariantPriceBusinessKey);
-        if (aggregate is null)
-            return Fail("Seller variant price was not found.");
-
         try
         {
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.SellerVariantPriceBusinessKey);
+            if (aggregate is null)
+                return Fail("Seller variant price was not found.");
+
             aggregate.ChangeAmount(command.Amount);
             aggregate.ChangeCurrency(command.Currency);
             aggregate.ChangeMinQty(command.MinQty);
@@ -43,13 +43,13 @@ public class UpdateSellerVariantPriceCommandHandler : CommandHandler<UpdateSelle
             {
                 aggregate.AddOffer(offer.Name, offer.DiscountAmount, offer.DiscountPercent, offer.MaxQuantity, offer.Priority, offer.StartAt, offer.EndAt);
             }
+
+            await _repository.CommitAsync();
+            return Ok(new UpdateSellerVariantPriceCommandResult { SellerVariantPriceBusinessKey = aggregate.BusinessKey.Value });
         }
         catch (Exception ex)
         {
-            return Fail(ex.Message);
+            return Fail($"Updating seller variant price failed: {ex.Message}");
         }
-
-        await _repository.CommitAsync();
-        return Ok(new UpdateSellerVariantPriceCommandResult { SellerVariantPriceBusinessKey = aggregate.BusinessKey.Value });
     }
 }

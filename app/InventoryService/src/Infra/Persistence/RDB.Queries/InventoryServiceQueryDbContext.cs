@@ -14,6 +14,12 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryDocument
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryDocuments.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryTransactions.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryTransactions.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Pricing.PriceChannels.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Pricing.PriceChannels.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Pricing.PriceTypes.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Pricing.PriceTypes.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Pricing.SellerVariantPrices.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Pricing.SellerVariantPrices.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Reservations.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Reservations.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Fulfillments.Configs;
@@ -69,6 +75,10 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     public DbSet<StockDetailReadModel> StockDetails => Set<StockDetailReadModel>();
     public DbSet<SerialItemReadModel> SerialItems => Set<SerialItemReadModel>();
     public DbSet<SellerReadModel> Sellers => Set<SellerReadModel>();
+    public DbSet<PriceTypeReadModel> PriceTypes => Set<PriceTypeReadModel>();
+    public DbSet<PriceChannelReadModel> PriceChannels => Set<PriceChannelReadModel>();
+    public DbSet<SellerVariantPriceReadModel> SellerVariantPrices => Set<SellerVariantPriceReadModel>();
+    public DbSet<OfferReadModel> Offers => Set<OfferReadModel>();
     public DbSet<WarehouseReadModel> Warehouses => Set<WarehouseReadModel>();
     public DbSet<LocationReadModel> Locations => Set<LocationReadModel>();
     public DbSet<QualityStatusReadModel> QualityStatuses => Set<QualityStatusReadModel>();
@@ -102,6 +112,10 @@ public class InventoryServiceQueryDbContext : QueryDbContext
         modelBuilder.ApplyConfiguration(new StockDetailReadModelConfig());
         modelBuilder.ApplyConfiguration(new SerialItemReadModelConfig());
         modelBuilder.ApplyConfiguration(new SellerReadModelConfig());
+        modelBuilder.ApplyConfiguration(new PriceTypeReadModelConfig());
+        modelBuilder.ApplyConfiguration(new PriceChannelReadModelConfig());
+        modelBuilder.ApplyConfiguration(new SellerVariantPriceReadModelConfig());
+        modelBuilder.ApplyConfiguration(new OfferReadModelConfig());
         modelBuilder.ApplyConfiguration(new WarehouseReadModelConfig());
         modelBuilder.ApplyConfiguration(new LocationReadModelConfig());
         modelBuilder.ApplyConfiguration(new QualityStatusReadModelConfig());

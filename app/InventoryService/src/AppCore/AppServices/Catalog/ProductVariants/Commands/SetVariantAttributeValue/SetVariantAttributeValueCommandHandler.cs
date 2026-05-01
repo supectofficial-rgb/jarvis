@@ -37,46 +37,53 @@ public class SetVariantAttributeValueCommandHandler : CommandHandler<SetVariantA
         if (command.AttributeRef == Guid.Empty)
             return Fail("AttributeRef is required.");
 
-        var variant = await _variantRepository.GetByBusinessKeyAsync(command.ProductVariantBusinessKey);
-        if (variant is null)
-            return Fail("Product variant was not found.");
-
-        var product = await _productRepository.GetByBusinessKeyAsync(variant.ProductRef);
-        if (product is null)
-            return Fail("Product was not found.");
-
-        var category = await _categoryRepository.GetByBusinessKeyAsync(product.CategoryRef);
-        if (category is null)
-            return Fail("Product category was not found.");
-
-        var rules = category.GetAttributeRules(product.CategorySchemaVersionRef).Where(x => x.IsActive && x.IsVariant).ToList();
-        if (rules.Count > 0 && rules.All(x => x.AttributeRef != command.AttributeRef))
-            return Fail("Attribute is not allowed for this variant category.");
-
-        var definition = await _attributeRepository.GetByBusinessKeyAsync(command.AttributeRef);
-        if (definition is null)
-            return Fail("Attribute definition was not found.");
-
-        if (!definition.IsActive)
-            return Fail("Attribute definition is inactive.");
-
-        if (definition.Scope == AttributeScope.Product)
-            return Fail("Product-scope attribute cannot be set on variant.");
-
-        var valueError = ValidateAttributeValue(definition, command.Value, command.OptionRef);
-        if (valueError is not null)
-            return Fail(valueError);
-
-        variant.SetAttributeValue(command.AttributeRef, command.Value, command.OptionRef);
-        await _variantRepository.CommitAsync();
-
-        return Ok(new SetVariantAttributeValueCommandResult
+        try
         {
-            ProductVariantBusinessKey = variant.BusinessKey.Value,
-            AttributeRef = command.AttributeRef,
-            Value = command.Value,
-            OptionRef = command.OptionRef
-        });
+            var variant = await _variantRepository.GetByBusinessKeyAsync(command.ProductVariantBusinessKey);
+            if (variant is null)
+                return Fail("Product variant was not found.");
+
+            var product = await _productRepository.GetByBusinessKeyAsync(variant.ProductRef);
+            if (product is null)
+                return Fail("Product was not found.");
+
+            var category = await _categoryRepository.GetByBusinessKeyAsync(product.CategoryRef);
+            if (category is null)
+                return Fail("Product category was not found.");
+
+            var rules = category.GetAttributeRules(product.CategorySchemaVersionRef).Where(x => x.IsActive && x.IsVariant).ToList();
+            if (rules.Count > 0 && rules.All(x => x.AttributeRef != command.AttributeRef))
+                return Fail("Attribute is not allowed for this variant category.");
+
+            var definition = await _attributeRepository.GetByBusinessKeyAsync(command.AttributeRef);
+            if (definition is null)
+                return Fail("Attribute definition was not found.");
+
+            if (!definition.IsActive)
+                return Fail("Attribute definition is inactive.");
+
+            if (definition.Scope == AttributeScope.Product)
+                return Fail("Product-scope attribute cannot be set on variant.");
+
+            var valueError = ValidateAttributeValue(definition, command.Value, command.OptionRef);
+            if (valueError is not null)
+                return Fail(valueError);
+
+            variant.SetAttributeValue(command.AttributeRef, command.Value, command.OptionRef);
+            await _variantRepository.CommitAsync();
+
+            return Ok(new SetVariantAttributeValueCommandResult
+            {
+                ProductVariantBusinessKey = variant.BusinessKey.Value,
+                AttributeRef = command.AttributeRef,
+                Value = command.Value,
+                OptionRef = command.OptionRef
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Setting variant attribute value failed: {GetExceptionMessage(ex)}");
+        }
     }
 
     private static string? ValidateAttributeValue(AttributeDefinition definition, string? rawValue, Guid? optionRef)
@@ -136,5 +143,17 @@ public class SetVariantAttributeValueCommandHandler : CommandHandler<SetVariantA
                 : "Value must be a valid date.",
             _ => null
         };
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 }

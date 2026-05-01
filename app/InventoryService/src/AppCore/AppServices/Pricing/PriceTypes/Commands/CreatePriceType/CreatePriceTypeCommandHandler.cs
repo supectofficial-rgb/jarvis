@@ -23,14 +23,21 @@ public class CreatePriceTypeCommandHandler : CommandHandler<CreatePriceTypeComma
         if (string.IsNullOrWhiteSpace(command.Name))
             return Fail("Name is required.");
 
-        var code = command.Code.Trim();
-        if (await _repository.ExistsByCodeAsync(code))
-            return Fail($"Price type code '{code}' already exists.");
+        try
+        {
+            var code = command.Code.Trim();
+            if (await _repository.ExistsByCodeAsync(code))
+                return Fail($"Price type code '{code}' already exists.");
 
-        var aggregate = PriceType.Create(code, command.Name.Trim());
-        await _repository.InsertAsync(aggregate);
-        await _repository.CommitAsync();
+            var aggregate = PriceType.Create(code, command.Name.Trim());
+            await _repository.InsertAsync(aggregate);
+            await _repository.CommitAsync();
 
-        return Ok(new CreatePriceTypeCommandResult { PriceTypeBusinessKey = aggregate.BusinessKey.Value });
+            return Ok(new CreatePriceTypeCommandResult { PriceTypeBusinessKey = aggregate.BusinessKey.Value });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Creating price type failed: {ex.Message}");
+        }
     }
 }

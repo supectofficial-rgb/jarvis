@@ -25,33 +25,40 @@ public class UpdateWarehouseCommandHandler : CommandHandler<UpdateWarehouseComma
         if (string.IsNullOrWhiteSpace(command.Name))
             return Fail("Name is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.WarehouseBusinessKey);
-        if (aggregate is null)
-            return Fail("Warehouse was not found.");
-
-        var normalizedCode = command.Code.Trim();
-        if (!string.Equals(aggregate.Code, normalizedCode, StringComparison.OrdinalIgnoreCase)
-            && await _repository.ExistsByCodeAsync(normalizedCode, command.WarehouseBusinessKey))
+        try
         {
-            return Fail($"Warehouse code '{normalizedCode}' already exists.");
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.WarehouseBusinessKey);
+            if (aggregate is null)
+                return Fail("Warehouse was not found.");
+
+            var normalizedCode = command.Code.Trim();
+            if (!string.Equals(aggregate.Code, normalizedCode, StringComparison.OrdinalIgnoreCase)
+                && await _repository.ExistsByCodeAsync(normalizedCode, command.WarehouseBusinessKey))
+            {
+                return Fail($"Warehouse code '{normalizedCode}' already exists.");
+            }
+
+            aggregate.ChangeCode(normalizedCode);
+            aggregate.Rename(command.Name.Trim());
+
+            if (command.IsActive)
+                aggregate.Activate();
+            else
+                aggregate.Deactivate();
+
+            await _repository.CommitAsync();
+
+            return Ok(new UpdateWarehouseCommandResult
+            {
+                WarehouseBusinessKey = aggregate.BusinessKey.Value,
+                Code = aggregate.Code,
+                Name = aggregate.Name,
+                IsActive = aggregate.IsActive
+            });
         }
-
-        aggregate.ChangeCode(normalizedCode);
-        aggregate.Rename(command.Name.Trim());
-
-        if (command.IsActive)
-            aggregate.Activate();
-        else
-            aggregate.Deactivate();
-
-        await _repository.CommitAsync();
-
-        return Ok(new UpdateWarehouseCommandResult
+        catch (Exception ex)
         {
-            WarehouseBusinessKey = aggregate.BusinessKey.Value,
-            Code = aggregate.Code,
-            Name = aggregate.Name,
-            IsActive = aggregate.IsActive
-        });
+            return Fail($"Updating warehouse failed: {ex.Message}");
+        }
     }
 }

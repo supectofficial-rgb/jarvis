@@ -214,7 +214,7 @@ public sealed class InventoryManagementController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveWarehouse(WarehouseForm form)
+    public async Task<IActionResult> SaveWarehouse([Bind(Prefix = "WarehouseForm")] WarehouseForm form)
     {
         if (!TryGetToken(out var token))
         {
@@ -252,7 +252,7 @@ public sealed class InventoryManagementController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveLocation(LocationForm form)
+    public async Task<IActionResult> SaveLocation([Bind(Prefix = "LocationForm")] LocationForm form)
     {
         if (!TryGetToken(out var token))
         {

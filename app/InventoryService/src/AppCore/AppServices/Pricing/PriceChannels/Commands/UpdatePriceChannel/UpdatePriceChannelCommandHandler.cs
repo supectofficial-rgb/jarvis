@@ -25,25 +25,32 @@ public class UpdatePriceChannelCommandHandler : CommandHandler<UpdatePriceChanne
         if (string.IsNullOrWhiteSpace(command.Name))
             return Fail("Name is required.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.PriceChannelBusinessKey);
-        if (aggregate is null)
-            return Fail("Price channel was not found.");
-
-        var code = command.Code.Trim();
-        if (!string.Equals(aggregate.Code, code, StringComparison.OrdinalIgnoreCase)
-            && await _repository.ExistsByCodeAsync(code, command.PriceChannelBusinessKey))
+        try
         {
-            return Fail($"Price channel code '{code}' already exists.");
+            var aggregate = await _repository.GetByBusinessKeyAsync(command.PriceChannelBusinessKey);
+            if (aggregate is null)
+                return Fail("Price channel was not found.");
+
+            var code = command.Code.Trim();
+            if (!string.Equals(aggregate.Code, code, StringComparison.OrdinalIgnoreCase)
+                && await _repository.ExistsByCodeAsync(code, command.PriceChannelBusinessKey))
+            {
+                return Fail($"Price channel code '{code}' already exists.");
+            }
+
+            aggregate.ChangeCode(code);
+            aggregate.Rename(command.Name.Trim());
+            if (command.IsActive)
+                aggregate.Activate();
+            else
+                aggregate.Deactivate();
+
+            await _repository.CommitAsync();
+            return Ok(new UpdatePriceChannelCommandResult { PriceChannelBusinessKey = aggregate.BusinessKey.Value });
         }
-
-        aggregate.ChangeCode(code);
-        aggregate.Rename(command.Name.Trim());
-        if (command.IsActive)
-            aggregate.Activate();
-        else
-            aggregate.Deactivate();
-
-        await _repository.CommitAsync();
-        return Ok(new UpdatePriceChannelCommandResult { PriceChannelBusinessKey = aggregate.BusinessKey.Value });
+        catch (Exception ex)
+        {
+            return Fail($"Updating price channel failed: {ex.Message}");
+        }
     }
 }

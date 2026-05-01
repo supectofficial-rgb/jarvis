@@ -23,14 +23,21 @@ public class CreatePriceChannelCommandHandler : CommandHandler<CreatePriceChanne
         if (string.IsNullOrWhiteSpace(command.Name))
             return Fail("Name is required.");
 
-        var code = command.Code.Trim();
-        if (await _repository.ExistsByCodeAsync(code))
-            return Fail($"Price channel code '{code}' already exists.");
+        try
+        {
+            var code = command.Code.Trim();
+            if (await _repository.ExistsByCodeAsync(code))
+                return Fail($"Price channel code '{code}' already exists.");
 
-        var aggregate = PriceChannel.Create(code, command.Name.Trim());
-        await _repository.InsertAsync(aggregate);
-        await _repository.CommitAsync();
+            var aggregate = PriceChannel.Create(code, command.Name.Trim());
+            await _repository.InsertAsync(aggregate);
+            await _repository.CommitAsync();
 
-        return Ok(new CreatePriceChannelCommandResult { PriceChannelBusinessKey = aggregate.BusinessKey.Value });
+            return Ok(new CreatePriceChannelCommandResult { PriceChannelBusinessKey = aggregate.BusinessKey.Value });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Creating price channel failed: {ex.Message}");
+        }
     }
 }
