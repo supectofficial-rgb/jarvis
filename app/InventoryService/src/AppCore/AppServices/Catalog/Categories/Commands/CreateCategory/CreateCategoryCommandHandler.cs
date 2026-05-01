@@ -53,30 +53,49 @@ public class CreateCategoryCommandHandler
         if (validationError is not null)
             return Fail(validationError);
 
-        var aggregate = Category.Create(normalizedCode, command.Name.Trim(), command.DisplayOrder, command.ParentCategoryRef);
-
-        foreach (var rule in rules)
+        try
         {
-            aggregate.AddAttributeRule(
-                rule.AttributeRef,
-                rule.IsRequired,
-                rule.IsVariant,
-                rule.DisplayOrder,
-                rule.IsOverridden,
-                rule.IsActive);
+            var aggregate = Category.Create(normalizedCode, command.Name.Trim(), command.DisplayOrder, command.ParentCategoryRef);
+
+            foreach (var rule in rules)
+            {
+                aggregate.AddAttributeRule(
+                    rule.AttributeRef,
+                    rule.IsRequired,
+                    rule.IsVariant,
+                    rule.DisplayOrder,
+                    rule.IsOverridden,
+                    rule.IsActive);
+            }
+
+            await _categoryRepository.InsertAsync(aggregate);
+            await _categoryRepository.CommitAsync();
+
+            return Ok(new CreateCategoryCommandResult
+            {
+                CategoryBusinessKey = aggregate.BusinessKey.Value,
+                CategorySchemaVersionRef = aggregate.CurrentSchemaVersionRef,
+                Code = aggregate.Code,
+                Name = aggregate.Name,
+                IsActive = aggregate.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Creating category failed: {GetExceptionMessage(ex)}");
+        }
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
         }
 
-        await _categoryRepository.InsertAsync(aggregate);
-        await _categoryRepository.CommitAsync();
-
-        return Ok(new CreateCategoryCommandResult
-        {
-            CategoryBusinessKey = aggregate.BusinessKey.Value,
-            CategorySchemaVersionRef = aggregate.CurrentSchemaVersionRef,
-            Code = aggregate.Code,
-            Name = aggregate.Name,
-            IsActive = aggregate.IsActive
-        });
+        return string.Join(" | ", messages.Distinct());
     }
 
     private async Task<string?> ValidateRulesAsync(IReadOnlyCollection<RuleInput> rules)
