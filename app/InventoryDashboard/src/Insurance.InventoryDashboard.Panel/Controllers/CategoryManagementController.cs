@@ -231,10 +231,25 @@ public sealed class CategoryManagementController : CatalogManagementController
             return BadRequest(new { isSuccess = false, errorMessage = "اتریبیوت یا آپشن انتخاب نشده است." });
 
         var result = await _apiService.DeleteAttributeOptionAsync(attributeId, optionId, token);
-        return await OptionsMutationResult(attributeId, token, result, "آپشن با موفقیت حذف شد.");
+        if (!result.IsSuccess && IsNotFound(result.ErrorMessage))
+        {
+            return await OptionsMutationResult(
+                attributeId,
+                token,
+                new ApiResponse<bool> { IsSuccess = true, Data = true },
+                "آپشن قبلا حذف شده است.",
+                optionId);
+        }
+
+        return await OptionsMutationResult(attributeId, token, result, "آپشن با موفقیت حذف شد.", optionId);
     }
 
-    private async Task<IActionResult> OptionsMutationResult(string attributeId, string token, ApiResponse<bool> commandResult, string successMessage)
+    private async Task<IActionResult> OptionsMutationResult(
+        string attributeId,
+        string token,
+        ApiResponse<bool> commandResult,
+        string successMessage,
+        string? removedOptionId = null)
     {
         if (!commandResult.IsSuccess)
             return BadRequest(new { isSuccess = false, errorMessage = commandResult.ErrorMessage ?? "عملیات با خطا مواجه شد." });
@@ -243,13 +258,25 @@ public sealed class CategoryManagementController : CatalogManagementController
         if (!optionsResult.IsSuccess)
             return BadRequest(new { isSuccess = false, errorMessage = optionsResult.ErrorMessage ?? "بارگذاری لیست آپشن‌ها انجام نشد." });
 
+        var items = optionsResult.Data ?? new List<AttributeOptionModel>();
+        if (!string.IsNullOrWhiteSpace(removedOptionId))
+        {
+            items = items
+                .Where(x => !string.Equals(x.Id, removedOptionId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         return Json(new
         {
             isSuccess = true,
             message = successMessage,
-            items = optionsResult.Data ?? new List<AttributeOptionModel>()
+            items
         });
     }
+
+    private static bool IsNotFound(string? message)
+        => !string.IsNullOrWhiteSpace(message)
+           && message.Contains("not found", StringComparison.OrdinalIgnoreCase);
 
     [HttpPost]
     [ValidateAntiForgeryToken]

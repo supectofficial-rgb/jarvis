@@ -16,6 +16,8 @@ public sealed class CategoryConfig : IEntityTypeConfiguration<Category>
 
         builder.HasMany(x => x.SchemaVersions)
             .WithOne()
+            .HasPrincipalKey(x => x.BusinessKey)
+            .HasForeignKey(x => x.CategoryRef)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

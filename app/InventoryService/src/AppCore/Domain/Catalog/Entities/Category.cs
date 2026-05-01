@@ -130,9 +130,6 @@ public sealed class Category : AggregateRoot
             ? CreateNextSchemaVersion(changeSummary)
             : currentVersion;
 
-        var rule = targetVersion.UpsertRule(attributeRef, isRequired, isVariant, displayOrder, isOverridden, isActive);
-        RaiseUpdatedEvent();
-
         Apply(new CategoryAttributeRuleUpsertedEvent(
             BusinessKey,
             targetVersion.BusinessKey.Value,
@@ -143,7 +140,7 @@ public sealed class Category : AggregateRoot
             isOverridden,
             isActive));
 
-        return rule;
+        return targetVersion.Rules.First(x => x.AttributeRef == attributeRef);
     }
 
     public bool RemoveAttributeRule(Guid attributeRef, bool createNewSchemaVersion = false, string? changeSummary = null)
@@ -157,11 +154,6 @@ public sealed class Category : AggregateRoot
             ? CreateNextSchemaVersion(changeSummary)
             : currentVersion;
 
-        var removed = targetVersion.RemoveRule(attributeRef);
-        if (!removed)
-            return false;
-
-        RaiseUpdatedEvent();
         Apply(new CategoryAttributeRuleRemovedEvent(BusinessKey, targetVersion.BusinessKey.Value, attributeRef));
         return true;
     }

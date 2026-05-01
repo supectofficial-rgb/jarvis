@@ -32,35 +32,54 @@ public class AddCategoryAttributeRuleCommandHandler : CommandHandler<AddCategory
         if (command.AttributeRef == Guid.Empty)
             return Fail("AttributeRef is required.");
 
-        var category = await _categoryRepository.GetByBusinessKeyAsync(command.CategoryBusinessKey);
-        if (category is null)
-            return Fail("Category was not found.");
-
-        var validationError = await ValidateAttributeAsync(command.AttributeRef, command.IsVariant);
-        if (validationError is not null)
-            return Fail(validationError);
-
-        var currentSchemaVersionRef = category.CurrentSchemaVersionRef;
-        var createNewSchemaVersion = await _productRepository.ExistsByCategorySchemaVersionRefAsync(currentSchemaVersionRef);
-
-        category.AddAttributeRule(
-            command.AttributeRef,
-            command.IsRequired,
-            command.IsVariant,
-            command.DisplayOrder,
-            command.IsOverridden,
-            command.IsActive,
-            createNewSchemaVersion,
-            changeSummary: $"Add category rule for attribute {command.AttributeRef}");
-        await _categoryRepository.CommitAsync();
-
-        return Ok(new AddCategoryAttributeRuleCommandResult
+        try
         {
-            CategoryBusinessKey = category.BusinessKey.Value,
-            CategorySchemaVersionRef = category.CurrentSchemaVersionRef,
-            AttributeRef = command.AttributeRef,
-            IsActive = command.IsActive
-        });
+            var category = await _categoryRepository.GetByBusinessKeyAsync(command.CategoryBusinessKey);
+            if (category is null)
+                return Fail("Category was not found.");
+
+            var validationError = await ValidateAttributeAsync(command.AttributeRef, command.IsVariant);
+            if (validationError is not null)
+                return Fail(validationError);
+
+            var currentSchemaVersionRef = category.CurrentSchemaVersionRef;
+            var createNewSchemaVersion = await _productRepository.ExistsByCategorySchemaVersionRefAsync(currentSchemaVersionRef);
+
+            category.AddAttributeRule(
+                command.AttributeRef,
+                command.IsRequired,
+                command.IsVariant,
+                command.DisplayOrder,
+                command.IsOverridden,
+                command.IsActive,
+                createNewSchemaVersion,
+                changeSummary: $"Add category rule for attribute {command.AttributeRef}");
+            await _categoryRepository.CommitAsync();
+
+            return Ok(new AddCategoryAttributeRuleCommandResult
+            {
+                CategoryBusinessKey = category.BusinessKey.Value,
+                CategorySchemaVersionRef = category.CurrentSchemaVersionRef,
+                AttributeRef = command.AttributeRef,
+                IsActive = command.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Adding category attribute rule failed: {GetExceptionMessage(ex)}");
+        }
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 
     private async Task<string?> ValidateAttributeAsync(Guid attributeRef, bool isVariant)
