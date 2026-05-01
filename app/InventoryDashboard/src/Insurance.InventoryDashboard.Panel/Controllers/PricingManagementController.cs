@@ -52,7 +52,7 @@ public sealed class PricingManagementController : Controller
         model.ErrorMessage = TempData["PricingError"] as string ?? model.ErrorMessage;
 
         SetLayoutBags(model);
-        return View(model);
+        return View("~/Views/PricingManagement/Index.cshtml", model);
     }
 
     [HttpPost]
@@ -311,13 +311,13 @@ public sealed class PricingManagementController : Controller
         await Task.WhenAll(priceTypesTask, priceTypeLookupTask, priceChannelsTask, priceChannelLookupTask, sellersTask, ownerSellerTask, variantsTask);
 
         Apply(model, priceTypesTask.Result, x => model.PriceTypes = x);
-        Apply(model, priceTypeLookupTask.Result, x => model.PriceTypeLookup = x.Items);
+        Apply(model, priceTypeLookupTask.Result, x => model.PriceTypeLookup = x.Items ?? new List<PriceTypeLookupModel>());
         Apply(model, priceChannelsTask.Result, x => model.PriceChannels = x);
-        Apply(model, priceChannelLookupTask.Result, x => model.PriceChannelLookup = x.Items);
-        Apply(model, sellersTask.Result, x => model.Sellers = x.Items);
+        Apply(model, priceChannelLookupTask.Result, x => model.PriceChannelLookup = x.Items ?? new List<PriceChannelLookupModel>());
+        Apply(model, sellersTask.Result, x => model.Sellers = x.Items ?? new List<SellerLookupModel>());
         Apply(model, variantsTask.Result, x => model.VariantSearchResult = x);
 
-        var ownerSellers = ownerSellerTask.Result.Data?.Items
+        var ownerSellers = ownerSellerTask.Result.Data?.Items?
             .Where(x => x.IsSystemOwner && x.IsActive)
             .OrderBy(x => x.Code)
             .ToList() ?? new List<SellerSearchItemModel>();
@@ -342,7 +342,9 @@ public sealed class PricingManagementController : Controller
             Apply(model, pricesResult, x => model.VariantPrices = x);
         }
 
-        model.BulkPricingForm.Prices = BuildPriceMatrix(model.PriceTypeLookup, model.PriceChannelLookup);
+        model.BulkPricingForm.Prices = BuildPriceMatrix(
+            model.PriceTypeLookup ?? new List<PriceTypeLookupModel>(),
+            model.PriceChannelLookup ?? new List<PriceChannelLookupModel>());
 
         return model;
     }
@@ -400,7 +402,7 @@ public sealed class PricingManagementController : Controller
             return null;
         }
 
-        var ownerSellers = result.Data?.Items
+        var ownerSellers = result.Data?.Items?
             .Where(x => x.IsSystemOwner && x.IsActive)
             .OrderBy(x => x.Code)
             .ToList() ?? new List<SellerSearchItemModel>();

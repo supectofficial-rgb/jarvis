@@ -7,10 +7,17 @@
     ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
     ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
 
-    var priceTypeNames = Model.PriceTypeLookup
+    var priceTypeLookup = Model.PriceTypeLookup ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceTypeLookupModel>();
+    var priceChannelLookup = Model.PriceChannelLookup ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceChannelLookupModel>();
+    var variantItems = Model.VariantSearchResult?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel>();
+    var variantPriceItems = Model.VariantPrices?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.SellerVariantPriceModel>();
+    var priceTypeItems = Model.PriceTypes?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceTypeModel>();
+    var priceChannelItems = Model.PriceChannels?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceChannelModel>();
+
+    var priceTypeNames = priceTypeLookup
         .GroupBy(x => x.PriceTypeBusinessKey)
         .ToDictionary(x => x.Key, x => $"{x.First().Name} ({x.First().Code})");
-    var priceChannelNames = Model.PriceChannelLookup
+    var priceChannelNames = priceChannelLookup
         .GroupBy(x => x.PriceChannelBusinessKey)
         .ToDictionary(x => x.Key, x => $"{x.First().Name} ({x.First().Code})");
     var ownerSellerTitle = Model.OwnerSeller is null
@@ -103,7 +110,7 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            @if (Model.VariantSearchResult.Items.Count == 0)
+                                                            @if (variantItems.Count == 0)
                                                             {
                                                                 <tr>
                                                                     <td colspan="5" class="text-center text-muted">واریانتی پیدا نشد.</td>
@@ -111,7 +118,7 @@
                                                             }
                                                             else
                                                             {
-                                                                @foreach (var variant in Model.VariantSearchResult.Items)
+                                                                @foreach (var variant in variantItems)
                                                                 {
                                                                     <tr>
                                                                         <td>
@@ -210,13 +217,13 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @if (Model.VariantPrices.Items.Count == 0)
+                                            @if (variantPriceItems.Count == 0)
                                             {
                                                 <tr>
                                                     <td colspan="6" class="text-center text-muted">هنوز قیمتی برای Seller Owner ثبت نشده است.</td>
                                                 </tr>
                                             }
-                                            @foreach (var price in Model.VariantPrices.Items)
+                                            @foreach (var price in variantPriceItems)
                                             {
                                                 var priceFormId = $"variant-price-form-{price.SellerVariantPriceBusinessKey:N}";
                                                 <tr>
@@ -284,7 +291,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach (var priceType in Model.PriceTypes.Items)
+                                            @foreach (var priceType in priceTypeItems)
                                             {
                                                 var priceTypeFormId = $"price-type-form-{priceType.PriceTypeBusinessKey:N}";
                                                 <tr>
@@ -341,7 +348,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach (var channel in Model.PriceChannels.Items)
+                                            @foreach (var channel in priceChannelItems)
                                             {
                                                 var channelFormId = $"price-channel-form-{channel.PriceChannelBusinessKey:N}";
                                                 <tr>

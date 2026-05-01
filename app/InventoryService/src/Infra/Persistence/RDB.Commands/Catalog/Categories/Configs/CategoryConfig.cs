@@ -3,6 +3,7 @@
 using Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class CategoryConfig : IEntityTypeConfiguration<Category>
 {
@@ -10,6 +11,10 @@ public sealed class CategoryConfig : IEntityTypeConfiguration<Category>
     {
         builder.ToTable("Categories");
         builder.HasIndex(x => x.Code).IsUnique();
+        builder.Property(x => x.BusinessKey)
+            .HasConversion(
+                key => key.Value,
+                value => BusinessKey.FromGuid(value));
 
         builder.Ignore(x => x.AttributeRules);
         builder.Ignore(x => x.CurrentSchemaVersionRef);

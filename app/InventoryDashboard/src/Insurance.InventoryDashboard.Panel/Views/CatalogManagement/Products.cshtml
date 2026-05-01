@@ -1485,7 +1485,7 @@
             syncProductListTabPanel(initialTab);
             showTabByHref(initialTab);
 
-            if (productCategoryField && productUpsertForm && !isEditMode) {
+            if (productCategoryField && productUpsertForm) {
                 productCategoryField.addEventListener('change', function () {
                     var selectedCategoryId = (productCategoryField.value || '').trim();
                     if (!selectedCategoryId) {
@@ -1501,6 +1501,9 @@
                     saveFormDraft(productUpsertForm);
                     var url = new URL(window.location.href);
                     url.searchParams.set('categoryId', selectedCategoryId);
+                    if (isEditMode) {
+                        url.searchParams.set('createNew', 'true');
+                    }
                     url.searchParams.delete('productId');
                     window.location.assign(url.toString());
                 });
