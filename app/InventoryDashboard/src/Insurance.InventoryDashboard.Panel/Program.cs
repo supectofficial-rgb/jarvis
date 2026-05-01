@@ -3,6 +3,7 @@ using Insurance.InventoryDashboard.Panel.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Inventory Dashboard composition is kept here so deploy-time service changes are explicit.
+// Deployment marker: inventory dashboard image should rebuild when panel code changes.
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();

@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 var app = builder.ConfigureServices().ConfigurePipeline();
 
 // Inventory API bootstrap intentionally stays thin; service wiring lives in Hosting.cs.
+// Deployment marker: inventory API image should rebuild when service code changes.
 using (var scope = app.Services.CreateScope())
 {
     try
