@@ -36,7 +36,7 @@ public sealed class Category : AggregateRoot
             {
                 new(
                     initialVersion.BusinessKey.Value,
-                    initialVersion.CategoryRef,
+                    initialVersion.CategoryRef.Value,
                     initialVersion.VersionNo,
                     initialVersion.IsCurrent,
                     initialVersion.CreatedAt,
@@ -353,7 +353,7 @@ public sealed class Category : AggregateRoot
             .OrderBy(x => x.VersionNo)
             .Select(version => new CategorySchemaVersionSnapshot(
                 version.BusinessKey.Value,
-                version.CategoryRef,
+                version.CategoryRef.Value,
                 version.VersionNo,
                 version.IsCurrent,
                 version.CreatedAt,

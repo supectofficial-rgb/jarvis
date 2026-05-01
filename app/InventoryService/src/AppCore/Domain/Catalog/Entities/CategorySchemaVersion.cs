@@ -1,12 +1,13 @@
 namespace Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 
 using OysterFx.AppCore.Domain.Aggregates;
+using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class CategorySchemaVersion : Aggregate
 {
     private readonly List<CategoryAttributeRule> _rules = new();
 
-    public Guid CategoryRef { get; private set; }
+    public BusinessKey CategoryRef { get; private set; } = null!;
     public int VersionNo { get; private set; }
     public bool IsCurrent { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -24,7 +25,7 @@ public sealed class CategorySchemaVersion : Aggregate
 
         return new CategorySchemaVersion
         {
-            CategoryRef = categoryRef,
+            CategoryRef = BusinessKey.FromGuid(categoryRef),
             VersionNo = 1,
             IsCurrent = true,
             CreatedAt = DateTime.UtcNow,
@@ -133,7 +134,10 @@ public sealed class CategorySchemaVersion : Aggregate
         string? changeSummary,
         IReadOnlyCollection<CategoryAttributeRule> rules)
     {
-        CategoryRef = categoryRef;
+        if (categoryRef == Guid.Empty)
+            throw new ArgumentException("CategoryRef is required.", nameof(categoryRef));
+
+        CategoryRef = BusinessKey.FromGuid(categoryRef);
         VersionNo = versionNo;
         IsCurrent = isCurrent;
         CreatedAt = createdAt;

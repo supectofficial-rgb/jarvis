@@ -44,8 +44,10 @@ public class CategoryCommandRepository
 
     public async Task DeleteGraphByBusinessKeyAsync(Guid categoryBusinessKey)
     {
+        var categoryKey = BusinessKey.FromGuid(categoryBusinessKey);
+
         var schemaVersionKeys = await _dbContext.Set<CategorySchemaVersion>()
-            .Where(x => x.CategoryRef == categoryBusinessKey)
+            .Where(x => x.CategoryRef == categoryKey)
             .Select(x => x.BusinessKey)
             .ToListAsync();
         var schemaVersionRefs = schemaVersionKeys.Select(x => x.Value).ToList();
@@ -57,13 +59,12 @@ public class CategoryCommandRepository
                 .ExecuteDeleteAsync();
 
             await _dbContext.Set<CategorySchemaVersion>()
-                .Where(x => x.CategoryRef == categoryBusinessKey)
+                .Where(x => x.CategoryRef == categoryKey)
                 .ExecuteDeleteAsync();
         }
 
-        var businessKey = BusinessKey.FromGuid(categoryBusinessKey);
         var deleted = await _dbContext.Set<Category>()
-            .Where(x => x.BusinessKey == businessKey)
+            .Where(x => x.BusinessKey == categoryKey)
             .ExecuteDeleteAsync();
 
         if (deleted == 0)
