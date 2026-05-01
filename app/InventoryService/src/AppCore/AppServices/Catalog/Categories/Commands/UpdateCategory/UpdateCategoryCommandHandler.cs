@@ -36,11 +36,29 @@ public class UpdateCategoryCommandHandler
         if (string.IsNullOrWhiteSpace(command.Name))
             return Fail("Name is required.");
 
-        var aggregate = await _categoryRepository.GetByBusinessKeyAsync(command.CategoryBusinessKey);
+        Category? aggregate;
+        try
+        {
+            aggregate = await _categoryRepository.GetByBusinessKeyAsync(command.CategoryBusinessKey);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Loading category failed: {GetExceptionMessage(ex)}");
+        }
+
         if (aggregate is null)
             return Fail("Category was not found.");
 
-        var hasProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: false);
+        bool hasProducts;
+        try
+        {
+            hasProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: false);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking category products failed: {GetExceptionMessage(ex)}");
+        }
+
         if (hasProducts)
             return Fail("Category cannot be updated because products exist.");
 
@@ -69,7 +87,16 @@ public class UpdateCategoryCommandHandler
 
         if (!command.IsActive)
         {
-            var hasActiveProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: true);
+            bool hasActiveProducts;
+            try
+            {
+                hasActiveProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: true);
+            }
+            catch (Exception ex)
+            {
+                return Fail($"Checking active category products failed: {GetExceptionMessage(ex)}");
+            }
+
             if (hasActiveProducts)
                 return Fail("Category cannot be deactivated while active products exist.");
 
@@ -89,6 +116,36 @@ public class UpdateCategoryCommandHandler
             var validationError = await ValidateRulesAsync(incomingRules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant)).ToList());
             if (validationError is not null)
                 return Fail(validationError);
+        }
+
+        if (incomingRules.Count == 0)
+        {
+            try
+            {
+                var updated = await _categoryRepository.UpdateFieldsByBusinessKeyAsync(
+                    command.CategoryBusinessKey,
+                    normalizedCode,
+                    command.Name.Trim(),
+                    command.DisplayOrder,
+                    command.ParentCategoryRef,
+                    command.IsActive);
+
+                if (updated == 0)
+                    return Fail("Category was not found.");
+            }
+            catch (Exception ex)
+            {
+                return Fail($"Updating category failed: {ex.GetBaseException().Message}");
+            }
+
+            return Ok(new UpdateCategoryCommandResult
+            {
+                CategoryBusinessKey = aggregate.BusinessKey.Value,
+                CategorySchemaVersionRef = aggregate.CurrentSchemaVersionRef,
+                Code = normalizedCode,
+                Name = command.Name.Trim(),
+                IsActive = command.IsActive
+            });
         }
 
         aggregate.ChangeCode(normalizedCode);
@@ -203,6 +260,18 @@ public class UpdateCategoryCommandHandler
         }
 
         return null;
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 
     private sealed record RuleInput(Guid AttributeRef, bool IsVariant);

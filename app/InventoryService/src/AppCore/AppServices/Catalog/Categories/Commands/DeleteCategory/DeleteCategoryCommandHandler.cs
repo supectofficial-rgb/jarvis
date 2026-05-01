@@ -30,17 +30,45 @@ public class DeleteCategoryCommandHandler : CommandHandler<DeleteCategoryCommand
         if (hasChildren)
             return Fail("Category cannot be deleted because child categories exist.");
 
-        var hasProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: false);
+        bool hasProducts;
+        try
+        {
+            hasProducts = await _productRepository.ExistsByCategoryRefAsync(command.CategoryBusinessKey, onlyActive: false);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking category products failed: {GetExceptionMessage(ex)}");
+        }
+
         if (hasProducts)
             return Fail("Category cannot be deleted because products exist.");
 
-        await _categoryRepository.DeleteGraphByBusinessKeyAsync(command.CategoryBusinessKey);
-        await _categoryRepository.CommitAsync();
+        try
+        {
+            await _categoryRepository.DeleteGraphByBusinessKeyAsync(command.CategoryBusinessKey);
+            await _categoryRepository.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Deleting category failed: {ex.GetBaseException().Message}");
+        }
 
         return Ok(new DeleteCategoryCommandResult
         {
             CategoryBusinessKey = category.BusinessKey.Value,
             Deleted = true
         });
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 }

@@ -36,15 +36,42 @@ public class DeleteAttributeDefinitionCommandHandler : CommandHandler<DeleteAttr
         if (aggregate is null)
             return Fail("Attribute definition was not found.");
 
-        var hasCategoryUsage = await _categoryRepository.ExistsRuleByAttributeRefAsync(command.AttributeDefinitionBusinessKey, false, false);
+        bool hasCategoryUsage;
+        try
+        {
+            hasCategoryUsage = await _categoryRepository.ExistsRuleByAttributeRefAsync(command.AttributeDefinitionBusinessKey, false, false);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking category usage failed: {GetExceptionMessage(ex)}");
+        }
+
         if (hasCategoryUsage)
             return Fail("Attribute definition cannot be deleted because category rules depend on it.");
 
-        var hasProductUsage = await _productRepository.ExistsAttributeValueByAttributeRefAsync(command.AttributeDefinitionBusinessKey, false);
+        bool hasProductUsage;
+        try
+        {
+            hasProductUsage = await _productRepository.ExistsAttributeValueByAttributeRefAsync(command.AttributeDefinitionBusinessKey, false);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking product usage failed: {GetExceptionMessage(ex)}");
+        }
+
         if (hasProductUsage)
             return Fail("Attribute definition cannot be deleted because products depend on it.");
 
-        var hasVariantUsage = await _variantRepository.ExistsAttributeValueByAttributeRefAsync(command.AttributeDefinitionBusinessKey, false);
+        bool hasVariantUsage;
+        try
+        {
+            hasVariantUsage = await _variantRepository.ExistsAttributeValueByAttributeRefAsync(command.AttributeDefinitionBusinessKey, false);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking variant usage failed: {GetExceptionMessage(ex)}");
+        }
+
         if (hasVariantUsage)
             return Fail("Attribute definition cannot be deleted because variants depend on it.");
 
@@ -52,12 +79,31 @@ public class DeleteAttributeDefinitionCommandHandler : CommandHandler<DeleteAttr
             aggregate.RemoveOption(option.Value);
 
         aggregate.Deactivate();
-        await _repository.CommitAsync();
+        try
+        {
+            await _repository.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Deleting attribute definition failed: {GetExceptionMessage(ex)}");
+        }
 
         return Ok(new DeleteAttributeDefinitionCommandResult
         {
             AttributeDefinitionBusinessKey = aggregate.BusinessKey.Value,
             Deleted = true
         });
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 }

@@ -31,7 +31,17 @@ public class CreateAttributeDefinitionCommandHandler
             return Fail($"Unsupported scope '{command.Scope}'.");
 
         var normalizedCode = command.Code.Trim();
-        if (await _repository.ExistsByCodeAsync(normalizedCode))
+        bool codeExists;
+        try
+        {
+            codeExists = await _repository.ExistsByCodeAsync(normalizedCode);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking attribute definition code failed: {GetExceptionMessage(ex)}");
+        }
+
+        if (codeExists)
             return Fail($"Attribute definition code '{normalizedCode}' already exists.");
 
         var options = (command.Options ?? new List<CreateAttributeOptionItem>())
@@ -53,12 +63,27 @@ public class CreateAttributeDefinitionCommandHandler
         if (dataType != AttributeDataType.Option && options.Count > 0)
             return Fail("Options are only allowed when DataType is Option.");
 
-        var aggregate = AttributeDefinition.Create(normalizedCode, command.Name.Trim(), dataType, scope);
-        foreach (var option in options)
-            aggregate.AddOption(option.Name, option.Value, option.DisplayOrder);
+        AttributeDefinition aggregate;
+        try
+        {
+            aggregate = AttributeDefinition.Create(normalizedCode, command.Name.Trim(), dataType, scope);
+            foreach (var option in options)
+                aggregate.AddOption(option.Name, option.Value, option.DisplayOrder);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Preparing attribute definition failed: {GetExceptionMessage(ex)}");
+        }
 
-        await _repository.InsertAsync(aggregate);
-        await _repository.CommitAsync();
+        try
+        {
+            await _repository.InsertAsync(aggregate);
+            await _repository.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Creating attribute definition failed: {GetExceptionMessage(ex)}");
+        }
 
         return Ok(new CreateAttributeDefinitionCommandResult
         {
@@ -69,6 +94,18 @@ public class CreateAttributeDefinitionCommandHandler
             Scope = aggregate.Scope.ToString(),
             IsActive = aggregate.IsActive
         });
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 
     private sealed record OptionInput(string Name, string Value, int DisplayOrder);

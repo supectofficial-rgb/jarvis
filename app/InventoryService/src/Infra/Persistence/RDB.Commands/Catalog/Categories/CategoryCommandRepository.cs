@@ -21,26 +21,48 @@ public class CategoryCommandRepository
             .FirstOrDefaultAsync(x => x.BusinessKey.Value == categoryBusinessKey);
     }
 
+    public Task<int> UpdateFieldsByBusinessKeyAsync(
+        Guid categoryBusinessKey,
+        string code,
+        string name,
+        int displayOrder,
+        Guid? parentCategoryRef,
+        bool isActive)
+    {
+        return _dbContext.Set<Category>()
+            .Where(x => x.BusinessKey.Value == categoryBusinessKey)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.Code, code)
+                .SetProperty(x => x.Name, name)
+                .SetProperty(x => x.DisplayOrder, displayOrder)
+                .SetProperty(x => x.ParentCategoryRef, parentCategoryRef)
+                .SetProperty(x => x.IsActive, isActive));
+    }
+
     public async Task DeleteGraphByBusinessKeyAsync(Guid categoryBusinessKey)
     {
-        var category = await _dbContext.Set<Category>()
-            .Include(x => x.SchemaVersions)
-            .ThenInclude(x => x.Rules)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == categoryBusinessKey);
+        var schemaVersionRefs = await _dbContext.Set<CategorySchemaVersion>()
+            .Where(x => x.CategoryRef == categoryBusinessKey)
+            .Select(x => x.BusinessKey.Value)
+            .ToListAsync();
 
-        if (category is null)
+        if (schemaVersionRefs.Count > 0)
+        {
+            await _dbContext.Set<CategoryAttributeRule>()
+                .Where(x => schemaVersionRefs.Contains(x.CategorySchemaVersionRef))
+                .ExecuteDeleteAsync();
+
+            await _dbContext.Set<CategorySchemaVersion>()
+                .Where(x => x.CategoryRef == categoryBusinessKey)
+                .ExecuteDeleteAsync();
+        }
+
+        var deleted = await _dbContext.Set<Category>()
+            .Where(x => x.BusinessKey.Value == categoryBusinessKey)
+            .ExecuteDeleteAsync();
+
+        if (deleted == 0)
             return;
-
-        var schemaVersions = category.SchemaVersions.ToList();
-        var rules = schemaVersions.SelectMany(x => x.Rules).ToList();
-
-        if (rules.Count > 0)
-            _dbContext.Set<CategoryAttributeRule>().RemoveRange(rules);
-
-        if (schemaVersions.Count > 0)
-            _dbContext.Set<CategorySchemaVersion>().RemoveRange(schemaVersions);
-
-        _dbContext.Set<Category>().Remove(category);
     }
 
     public Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null)

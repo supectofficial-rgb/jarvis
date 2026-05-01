@@ -202,12 +202,6 @@ public sealed class ApiService : IApiService
 
     public async Task<ApiResponse<bool>> CreateAttributeDefinitionAsync(string categoryId, CreateAttributeDefinitionRequest request, string token)
     {
-        var categoryRef = ParseGuidOrEmpty(categoryId);
-        if (categoryRef == Guid.Empty)
-        {
-            return new ApiResponse<bool> { IsSuccess = false, Data = false, ErrorMessage = "Invalid category id." };
-        }
-
         var createPayload = new
         {
             Code = NormalizeCode(request.Code, request.Name, "ATT"),
@@ -232,21 +226,7 @@ public sealed class ApiService : IApiService
             };
         }
 
-        var assignPayload = new
-        {
-            AttributeRef = createResult.Data.AttributeDefinitionBusinessKey,
-            IsRequired = request.IsRequired,
-            IsVariant = request.IsVariant,
-            DisplayOrder = request.DisplayOrder,
-            IsOverridden = false,
-            IsActive = true
-        };
-
-        return await PostCommandAsync(
-            $"{InventoryApiPrefix}/Category/{categoryRef:D}/attribute-rules",
-            assignPayload,
-            token,
-            "Assigning attribute to category failed.");
+        return new ApiResponse<bool> { IsSuccess = true, Data = true };
     }
 
     public Task<ApiResponse<bool>> UpdateAttributeDefinitionAsync(string attributeId, UpdateAttributeDefinitionRequest request, string token)

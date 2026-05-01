@@ -46,18 +46,45 @@ public class UpdateAttributeDefinitionCommandHandler
         if (!Enum.TryParse<AttributeScope>(command.Scope, true, out var scope))
             return Fail($"Unsupported scope '{command.Scope}'.");
 
-        var aggregate = await _repository.GetByBusinessKeyAsync(command.AttributeDefinitionBusinessKey);
+        AttributeDefinition? aggregate;
+        try
+        {
+            aggregate = await _repository.GetByBusinessKeyAsync(command.AttributeDefinitionBusinessKey);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Loading attribute definition failed: {GetExceptionMessage(ex)}");
+        }
+
         if (aggregate is null)
             return Fail("Attribute definition was not found.");
 
         var normalizedCode = command.Code.Trim();
-        if (!string.Equals(aggregate.Code, normalizedCode, StringComparison.OrdinalIgnoreCase)
-            && await _repository.ExistsByCodeAsync(normalizedCode, command.AttributeDefinitionBusinessKey))
+        if (!string.Equals(aggregate.Code, normalizedCode, StringComparison.OrdinalIgnoreCase))
         {
-            return Fail($"Attribute definition code '{normalizedCode}' already exists.");
+            bool codeExists;
+            try
+            {
+                codeExists = await _repository.ExistsByCodeAsync(normalizedCode, command.AttributeDefinitionBusinessKey);
+            }
+            catch (Exception ex)
+            {
+                return Fail($"Checking attribute definition code failed: {GetExceptionMessage(ex)}");
+            }
+
+            if (codeExists)
+                return Fail($"Attribute definition code '{normalizedCode}' already exists.");
         }
 
-        var isUsedByActive = await IsAttributeUsedByActiveEntitiesAsync(command.AttributeDefinitionBusinessKey);
+        bool isUsedByActive;
+        try
+        {
+            isUsedByActive = await IsAttributeUsedByActiveEntitiesAsync(command.AttributeDefinitionBusinessKey);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking attribute usage failed: {GetExceptionMessage(ex)}");
+        }
 
         if (isUsedByActive && aggregate.DataType != dataType)
             return Fail("Attribute data type cannot change while active category/product/variant data depends on it.");
@@ -102,11 +129,29 @@ public class UpdateAttributeDefinitionCommandHandler
 
             foreach (var option in impactedOptions)
             {
-                var inUseByProducts = await _productRepository.ExistsAttributeValueByOptionRefAsync(option.BusinessKey.Value, onlyActive: true);
+                bool inUseByProducts;
+                try
+                {
+                    inUseByProducts = await _productRepository.ExistsAttributeValueByOptionRefAsync(option.BusinessKey.Value, onlyActive: true);
+                }
+                catch (Exception ex)
+                {
+                    return Fail($"Checking product usage for option '{option.Value}' failed: {GetExceptionMessage(ex)}");
+                }
+
                 if (inUseByProducts)
                     return Fail($"Option '{option.Value}' cannot be removed/deactivated because active products are using it.");
 
-                var inUseByVariants = await _variantRepository.ExistsAttributeValueByOptionRefAsync(option.BusinessKey.Value, onlyActive: true);
+                bool inUseByVariants;
+                try
+                {
+                    inUseByVariants = await _variantRepository.ExistsAttributeValueByOptionRefAsync(option.BusinessKey.Value, onlyActive: true);
+                }
+                catch (Exception ex)
+                {
+                    return Fail($"Checking variant usage for option '{option.Value}' failed: {GetExceptionMessage(ex)}");
+                }
+
                 if (inUseByVariants)
                     return Fail($"Option '{option.Value}' cannot be removed/deactivated because active variants are using it.");
             }
@@ -149,7 +194,14 @@ public class UpdateAttributeDefinitionCommandHandler
                 aggregate.RemoveOption(existing.Value);
         }
 
-        await _repository.CommitAsync();
+        try
+        {
+            await _repository.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Updating attribute definition failed: {GetExceptionMessage(ex)}");
+        }
 
         return Ok(new UpdateAttributeDefinitionCommandResult
         {
@@ -173,6 +225,18 @@ public class UpdateAttributeDefinitionCommandHandler
             return true;
 
         return await _variantRepository.ExistsAttributeValueByAttributeRefAsync(attributeDefinitionBusinessKey, onlyActive: true);
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var messages = new List<string>();
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+                messages.Add(current.Message);
+        }
+
+        return string.Join(" | ", messages.Distinct());
     }
 
     private sealed record OptionInput(string Name, string Value, int DisplayOrder, bool IsActive);
