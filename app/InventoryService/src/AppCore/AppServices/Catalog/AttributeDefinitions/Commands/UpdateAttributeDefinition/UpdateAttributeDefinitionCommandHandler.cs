@@ -87,10 +87,9 @@ public class UpdateAttributeDefinitionCommandHandler
         if (dataType != AttributeDataType.Option && incomingOptions.Count > 0)
             return Fail("Options are only allowed when DataType is Option.");
 
-        if (dataType == AttributeDataType.Option && incomingOptions.Count == 0)
-            return Fail("At least one option is required when DataType is Option.");
+        var shouldReplaceOptions = dataType == AttributeDataType.Option && incomingOptions.Count > 0;
 
-        if (dataType == AttributeDataType.Option)
+        if (shouldReplaceOptions)
         {
             var activeIncomingSet = incomingOptions
                 .Where(x => x.IsActive)
@@ -123,7 +122,7 @@ public class UpdateAttributeDefinitionCommandHandler
         else
             aggregate.Deactivate();
 
-        if (dataType == AttributeDataType.Option)
+        if (shouldReplaceOptions)
         {
             foreach (var option in incomingOptions)
             {
@@ -144,7 +143,7 @@ public class UpdateAttributeDefinitionCommandHandler
                     aggregate.RemoveOption(existing.Value);
             }
         }
-        else
+        else if (dataType != AttributeDataType.Option)
         {
             foreach (var existing in aggregate.Options.ToList())
                 aggregate.RemoveOption(existing.Value);

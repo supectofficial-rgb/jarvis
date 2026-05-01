@@ -53,9 +53,6 @@ public class CreateAttributeDefinitionCommandHandler
         if (dataType != AttributeDataType.Option && options.Count > 0)
             return Fail("Options are only allowed when DataType is Option.");
 
-        if (dataType == AttributeDataType.Option && options.Count == 0)
-            return Fail("At least one option is required when DataType is Option.");
-
         var aggregate = AttributeDefinition.Create(normalizedCode, command.Name.Trim(), dataType, scope);
         foreach (var option in options)
             aggregate.AddOption(option.Name, option.Value, option.DisplayOrder);

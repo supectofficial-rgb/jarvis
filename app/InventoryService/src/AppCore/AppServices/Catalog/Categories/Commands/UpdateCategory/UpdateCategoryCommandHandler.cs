@@ -84,9 +84,12 @@ public class UpdateCategoryCommandHandler
             .Select(x => x.Last())
             .ToList();
 
-        var validationError = await ValidateRulesAsync(incomingRules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant)).ToList());
-        if (validationError is not null)
-            return Fail(validationError);
+        if (incomingRules.Count > 0)
+        {
+            var validationError = await ValidateRulesAsync(incomingRules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant)).ToList());
+            if (validationError is not null)
+                return Fail(validationError);
+        }
 
         aggregate.ChangeCode(normalizedCode);
         aggregate.Rename(command.Name.Trim());
@@ -98,38 +101,41 @@ public class UpdateCategoryCommandHandler
         else
             aggregate.Deactivate();
 
-        var shouldCreateNewSchemaVersion = await _productRepository.ExistsByCategorySchemaVersionRefAsync(aggregate.CurrentSchemaVersionRef);
-
-        foreach (var rule in incomingRules)
+        if (incomingRules.Count > 0)
         {
-            var beforeSchemaVersionRef = aggregate.CurrentSchemaVersionRef;
-            aggregate.AddAttributeRule(
-                rule.AttributeRef,
-                rule.IsRequired,
-                rule.IsVariant,
-                rule.DisplayOrder,
-                rule.IsOverridden,
-                rule.IsActive,
-                shouldCreateNewSchemaVersion,
-                changeSummary: $"Upsert category rule for attribute {rule.AttributeRef}");
+            var shouldCreateNewSchemaVersion = await _productRepository.ExistsByCategorySchemaVersionRefAsync(aggregate.CurrentSchemaVersionRef);
 
-            if (shouldCreateNewSchemaVersion && aggregate.CurrentSchemaVersionRef != beforeSchemaVersionRef)
-                shouldCreateNewSchemaVersion = false;
-        }
-
-        var incomingSet = incomingRules.Select(x => x.AttributeRef).ToHashSet();
-        foreach (var existing in aggregate.AttributeRules.ToList())
-        {
-            if (!incomingSet.Contains(existing.AttributeRef))
+            foreach (var rule in incomingRules)
             {
                 var beforeSchemaVersionRef = aggregate.CurrentSchemaVersionRef;
-                aggregate.RemoveAttributeRule(
-                    existing.AttributeRef,
+                aggregate.AddAttributeRule(
+                    rule.AttributeRef,
+                    rule.IsRequired,
+                    rule.IsVariant,
+                    rule.DisplayOrder,
+                    rule.IsOverridden,
+                    rule.IsActive,
                     shouldCreateNewSchemaVersion,
-                    changeSummary: $"Remove category rule for attribute {existing.AttributeRef}");
+                    changeSummary: $"Upsert category rule for attribute {rule.AttributeRef}");
 
                 if (shouldCreateNewSchemaVersion && aggregate.CurrentSchemaVersionRef != beforeSchemaVersionRef)
                     shouldCreateNewSchemaVersion = false;
+            }
+
+            var incomingSet = incomingRules.Select(x => x.AttributeRef).ToHashSet();
+            foreach (var existing in aggregate.AttributeRules.ToList())
+            {
+                if (!incomingSet.Contains(existing.AttributeRef))
+                {
+                    var beforeSchemaVersionRef = aggregate.CurrentSchemaVersionRef;
+                    aggregate.RemoveAttributeRule(
+                        existing.AttributeRef,
+                        shouldCreateNewSchemaVersion,
+                        changeSummary: $"Remove category rule for attribute {existing.AttributeRef}");
+
+                    if (shouldCreateNewSchemaVersion && aggregate.CurrentSchemaVersionRef != beforeSchemaVersionRef)
+                        shouldCreateNewSchemaVersion = false;
+                }
             }
         }
 
