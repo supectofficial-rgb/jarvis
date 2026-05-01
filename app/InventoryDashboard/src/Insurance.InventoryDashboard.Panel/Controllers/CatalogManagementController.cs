@@ -314,6 +314,10 @@ public abstract partial class CatalogManagementController : Controller
         {
             TempData["CatalogError"] = result.ErrorMessage ?? "عملیات با خطا مواجه شد.";
         }
+        else
+        {
+            TempData["CatalogSuccess"] = "اتریبیوت با موفقیت ایجاد شد.";
+        }
 
         return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
     }
@@ -514,6 +518,19 @@ public abstract partial class CatalogManagementController : Controller
             }
         }
 
+        var productVariantDetails = new List<ProductVariantDetailsModel>();
+        if (!string.IsNullOrWhiteSpace(selectedProductId))
+        {
+            foreach (var variant in productVariants)
+            {
+                var variantDetails = await _apiService.GetProductVariantFullDetailsAsync(variant.Id, token);
+                if (variantDetails.IsSuccess && variantDetails.Data is not null)
+                {
+                    productVariantDetails.Add(variantDetails.Data);
+                }
+            }
+        }
+
         var selectedCategoryId = categoryId
             ?? productDetailsResult.Data?.CategoryId
             ?? allProducts.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId
@@ -553,6 +570,7 @@ public abstract partial class CatalogManagementController : Controller
             Products = pagedProducts,
             SelectedProductDetails = productDetailsResult.Data,
             ProductVariants = productVariants,
+            ProductVariantDetails = productVariantDetails,
             ProductVariantTotalCount = productVariants.Count,
             UnitOfMeasures = unitOfMeasures,
 
@@ -677,27 +695,31 @@ public abstract partial class CatalogManagementController : Controller
 
         var productCreateAttributes = new List<CatalogAttributeValueInputModel>();
         var generatedVariantPlans = new List<GeneratedVariantPlan>();
+        var shouldReconcileVariants = false;
 
-        if (string.IsNullOrWhiteSpace(form.ProductId))
+        if (!TryParseProductAutoVariantPayload(form.AutoVariantPayload, out var autoPayload))
         {
-            if (!TryParseProductAutoVariantPayload(form.AutoVariantPayload, out var autoPayload))
-            {
-                TempData["CatalogError"] = "ساختار اطلاعات ویژگی‌های ارسالی معتبر نیست. صفحه را بازخوانی و دوباره تلاش کنید.";
-                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId });
-            }
+            TempData["CatalogError"] = "ساختار اطلاعات ویژگی‌های ارسالی معتبر نیست. صفحه را بازخوانی و دوباره تلاش کنید.";
+            return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
+        }
 
+        var hasProductAttributePayload = autoPayload.ProductAttributes.Any(x => !string.IsNullOrWhiteSpace(x.AttributeId));
+        var hasVariantAttributePayload = autoPayload.VariantAttributes.Any(x => !string.IsNullOrWhiteSpace(x.AttributeId));
+
+        if (string.IsNullOrWhiteSpace(form.ProductId) || hasProductAttributePayload || hasVariantAttributePayload)
+        {
             var productPayloadError = BuildProductCreateAttributeInputs(autoPayload, effectiveProductAttributes, productCreateAttributes);
             if (!string.IsNullOrWhiteSpace(productPayloadError))
             {
                 TempData["CatalogError"] = productPayloadError;
-                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId });
+                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
             }
 
             var variantDimensionError = BuildVariantGenerationDimensions(autoPayload, effectiveVariantAttributes, out var variantDimensions);
             if (!string.IsNullOrWhiteSpace(variantDimensionError))
             {
                 TempData["CatalogError"] = variantDimensionError;
-                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId });
+                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
             }
 
             var missingRequiredProduct = effectiveProductAttributes
@@ -708,7 +730,7 @@ public abstract partial class CatalogManagementController : Controller
             {
                 TempData["CatalogError"] = "ویژگی‌های الزامی محصول کامل نشده‌اند: " +
                     string.Join("، ", missingRequiredProduct.Select(x => x.Name));
-                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId });
+                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
             }
 
             var missingRequiredVariant = effectiveVariantAttributes
@@ -719,9 +741,10 @@ public abstract partial class CatalogManagementController : Controller
             {
                 TempData["CatalogError"] = "برای ویژگی‌های واریانت‌ساز الزامی باید حداقل یک گزینه انتخاب شود: " +
                     string.Join("، ", missingRequiredVariant.Select(x => x.Name));
-                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId });
+                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
             }
 
+            shouldReconcileVariants = string.IsNullOrWhiteSpace(form.ProductId) || effectiveVariantAttributes.Count > 0;
             generatedVariantPlans = BuildGeneratedVariantPlans(
                 form.Name.Trim(),
                 form.BaseSku.Trim(),
@@ -738,7 +761,7 @@ public abstract partial class CatalogManagementController : Controller
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(form.ProductId))
+        if (!string.IsNullOrWhiteSpace(form.ProductId) && !hasProductAttributePayload)
         {
             var detailsResult = await _apiService.GetProductDetailsWithAttributesAsync(form.ProductId, token);
             var existingValues = detailsResult.Data?.Attributes?.ToDictionary(
@@ -834,6 +857,23 @@ public abstract partial class CatalogManagementController : Controller
         else
         {
             result = await _apiService.UpdateProductAsync(form.ProductId, request, token);
+        }
+
+        if (result.IsSuccess &&
+            shouldReconcileVariants &&
+            !string.IsNullOrWhiteSpace(redirectProductId) &&
+            generatedVariantPlans.Count > 0)
+        {
+            var reconcileMessage = await ReconcileProductVariantsAsync(
+                redirectProductId,
+                form.DefaultUomRef,
+                generatedVariantPlans,
+                token);
+
+            if (!string.IsNullOrWhiteSpace(reconcileMessage))
+            {
+                TempData["CatalogNotice"] = reconcileMessage;
+            }
         }
 
         if (!result.IsSuccess)
@@ -1521,6 +1561,119 @@ public abstract partial class CatalogManagementController : Controller
         }
 
         return missing;
+    }
+
+    private async Task<string?> ReconcileProductVariantsAsync(
+        string productId,
+        string baseUomRef,
+        IReadOnlyList<GeneratedVariantPlan> desiredPlans,
+        string token)
+    {
+        var existingResult = await _apiService.GetProductVariantsByProductIdAsync(productId, token, includeInactive: true);
+        if (!existingResult.IsSuccess)
+        {
+            return existingResult.ErrorMessage ?? "لیست واریانت‌های فعلی برای همسان‌سازی دریافت نشد.";
+        }
+
+        var existingVariants = existingResult.Data ?? new List<ProductVariantSummaryModel>();
+        var existingDetails = new List<ProductVariantDetailsModel>();
+        foreach (var variant in existingVariants)
+        {
+            var detailsResult = await _apiService.GetProductVariantFullDetailsAsync(variant.Id, token);
+            if (detailsResult.IsSuccess && detailsResult.Data is not null)
+            {
+                existingDetails.Add(detailsResult.Data);
+            }
+        }
+
+        var existingBySku = existingDetails
+            .GroupBy(x => x.Sku, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        var desiredSkus = desiredPlans
+            .Select(x => x.GeneratedSku)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var created = 0;
+        var updated = 0;
+        var deleted = 0;
+        var errors = new List<string>();
+
+        foreach (var plan in desiredPlans)
+        {
+            if (existingBySku.TryGetValue(plan.GeneratedSku, out var existing))
+            {
+                var updateResult = await _apiService.UpdateProductVariantAsync(
+                    productId,
+                    existing.Id,
+                    new UpsertVariantRequest
+                    {
+                        ProductId = productId,
+                        Sku = plan.GeneratedSku,
+                        Barcode = existing.Barcode,
+                        BaseUomRef = string.IsNullOrWhiteSpace(existing.BaseUomRef) ? baseUomRef : existing.BaseUomRef,
+                        TrackingPolicy = string.IsNullOrWhiteSpace(existing.TrackingPolicy) ? "None" : existing.TrackingPolicy,
+                        IsActive = existing.IsActive,
+                        AttributeValues = plan.AttributeValues
+                    },
+                    token);
+
+                if (updateResult.IsSuccess)
+                {
+                    updated++;
+                }
+                else
+                {
+                    errors.Add($"{plan.GeneratedSku}: {updateResult.ErrorMessage ?? "خطا در ویرایش واریانت"}");
+                }
+
+                continue;
+            }
+
+            var createResult = await _apiService.CreateProductVariantAsync(
+                productId,
+                new UpsertVariantRequest
+                {
+                    ProductId = productId,
+                    Sku = plan.GeneratedSku,
+                    Barcode = null,
+                    BaseUomRef = baseUomRef,
+                    TrackingPolicy = "None",
+                    IsActive = true,
+                    AttributeValues = plan.AttributeValues
+                },
+                token);
+
+            if (createResult.IsSuccess)
+            {
+                created++;
+            }
+            else
+            {
+                errors.Add($"{plan.GeneratedSku}: {createResult.ErrorMessage ?? "خطا در ایجاد واریانت"}");
+            }
+        }
+
+        foreach (var existing in existingDetails.Where(x => !desiredSkus.Contains(x.Sku)))
+        {
+            var deleteResult = await _apiService.DeleteProductVariantAsync(existing.Id, token);
+            if (deleteResult.IsSuccess)
+            {
+                deleted++;
+            }
+            else
+            {
+                errors.Add($"{existing.Sku}: {deleteResult.ErrorMessage ?? "حذف واریانت انجام نشد"}");
+            }
+        }
+
+        var summary = $"همسان‌سازی واریانت‌ها: {created} ایجاد، {updated} ویرایش، {deleted} حذف.";
+        if (errors.Count == 0)
+        {
+            return summary;
+        }
+
+        return summary + " خطاها: " + string.Join(" | ", errors.Take(3));
     }
 
     private static bool TryParseProductAutoVariantPayload(string? rawPayload, out ProductAutoVariantPayload payload)
@@ -2294,7 +2447,7 @@ public abstract partial class CatalogManagementController : Controller
         return source.Contains(term, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string ExtractModelError(ModelStateDictionary modelState)
+    protected static string ExtractModelError(ModelStateDictionary modelState)
     {
         var first = modelState
             .Values

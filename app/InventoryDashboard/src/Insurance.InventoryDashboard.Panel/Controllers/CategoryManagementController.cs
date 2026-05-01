@@ -146,6 +146,111 @@ public sealed class CategoryManagementController : CatalogManagementController
     public new async Task<IActionResult> DeleteAttributeOption(string categoryId, string attributeId, string optionId)
         => KeepCategorySelectionOn(await base.DeleteAttributeOption(categoryId, attributeId, optionId), nameof(Attributes), categoryId);
 
+    [HttpGet]
+    public async Task<IActionResult> GetAttributeOptions(string attributeId)
+    {
+        if (!TryGetToken(out var token))
+            return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربری منقضی شده است." });
+
+        if (string.IsNullOrWhiteSpace(attributeId))
+            return BadRequest(new { isSuccess = false, errorMessage = "اتریبیوت انتخاب نشده است." });
+
+        var result = await _apiService.GetAttributeOptionsByAttributeIdAsync(attributeId, token, onlyActive: false);
+        return Json(new
+        {
+            isSuccess = result.IsSuccess,
+            errorMessage = result.ErrorMessage,
+            items = result.Data ?? new List<AttributeOptionModel>()
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddAttributeOptionAjax([Bind(Prefix = "OptionForm")] AttributeOptionForm form)
+    {
+        if (!TryGetToken(out var token))
+            return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربری منقضی شده است." });
+
+        if (!IsAuthorizedFor(token, "Catalog.AttributeOption.Create", "AttributeOption.Create"))
+            return StatusCode(StatusCodes.Status403Forbidden, new { isSuccess = false, errorMessage = "شما دسترسی افزودن آپشن را ندارید." });
+
+        if (!TryValidateModel(form))
+            return BadRequest(new { isSuccess = false, errorMessage = ExtractModelError(ModelState) });
+
+        var result = await _apiService.AddAttributeOptionAsync(
+            form.AttributeId,
+            new AddAttributeOptionRequest
+            {
+                OptionName = form.OptionName.Trim(),
+                OptionValue = form.OptionValue.Trim(),
+                DisplayOrder = form.DisplayOrder
+            },
+            token);
+
+        return await OptionsMutationResult(form.AttributeId, token, result, "آپشن با موفقیت اضافه شد.");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAttributeOptionAjax([Bind(Prefix = "OptionUpdateForm")] AttributeOptionUpdateForm form)
+    {
+        if (!TryGetToken(out var token))
+            return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربری منقضی شده است." });
+
+        if (!IsAuthorizedFor(token, "Catalog.AttributeOption.Update", "AttributeOption.Update"))
+            return StatusCode(StatusCodes.Status403Forbidden, new { isSuccess = false, errorMessage = "شما دسترسی ویرایش آپشن را ندارید." });
+
+        if (!TryValidateModel(form))
+            return BadRequest(new { isSuccess = false, errorMessage = ExtractModelError(ModelState) });
+
+        var result = await _apiService.UpdateAttributeOptionAsync(
+            form.AttributeId,
+            form.OptionId,
+            new UpdateAttributeOptionRequest
+            {
+                OptionName = form.OptionName.Trim(),
+                OptionValue = form.OptionValue.Trim(),
+                DisplayOrder = form.DisplayOrder
+            },
+            token);
+
+        return await OptionsMutationResult(form.AttributeId, token, result, "آپشن با موفقیت ویرایش شد.");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAttributeOptionAjax(string attributeId, string optionId)
+    {
+        if (!TryGetToken(out var token))
+            return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربری منقضی شده است." });
+
+        if (!IsAuthorizedFor(token, "Catalog.AttributeOption.Delete", "AttributeOption.Delete"))
+            return StatusCode(StatusCodes.Status403Forbidden, new { isSuccess = false, errorMessage = "شما دسترسی حذف آپشن را ندارید." });
+
+        if (string.IsNullOrWhiteSpace(attributeId) || string.IsNullOrWhiteSpace(optionId))
+            return BadRequest(new { isSuccess = false, errorMessage = "اتریبیوت یا آپشن انتخاب نشده است." });
+
+        var result = await _apiService.DeleteAttributeOptionAsync(attributeId, optionId, token);
+        return await OptionsMutationResult(attributeId, token, result, "آپشن با موفقیت حذف شد.");
+    }
+
+    private async Task<IActionResult> OptionsMutationResult(string attributeId, string token, ApiResponse<bool> commandResult, string successMessage)
+    {
+        if (!commandResult.IsSuccess)
+            return BadRequest(new { isSuccess = false, errorMessage = commandResult.ErrorMessage ?? "عملیات با خطا مواجه شد." });
+
+        var optionsResult = await _apiService.GetAttributeOptionsByAttributeIdAsync(attributeId, token, onlyActive: false);
+        if (!optionsResult.IsSuccess)
+            return BadRequest(new { isSuccess = false, errorMessage = optionsResult.ErrorMessage ?? "بارگذاری لیست آپشن‌ها انجام نشد." });
+
+        return Json(new
+        {
+            isSuccess = true,
+            message = successMessage,
+            items = optionsResult.Data ?? new List<AttributeOptionModel>()
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public new async Task<IActionResult> AssignAttributeToCategory([Bind(Prefix = "AssignForm")] AssignAttributeForm form)

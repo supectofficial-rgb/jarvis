@@ -74,6 +74,19 @@
                 return item is null ? string.Empty : (!string.IsNullOrWhiteSpace(item.OptionValue) ? item.OptionValue : item.Value) ?? string.Empty;
             },
             StringComparer.OrdinalIgnoreCase);
+    var selectedAttributeValues = (Model.SelectedProductDetails?.Attributes ?? new List<Insurance.InventoryDashboard.Panel.Models.ProductAttributeValueModel>())
+        .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+    var selectedVariantOptionIds = Model.ProductVariantDetails
+        .SelectMany(x => x.Attributes ?? new List<Insurance.InventoryDashboard.Panel.Models.VariantAttributeValueModel>())
+        .Where(x => !string.IsNullOrWhiteSpace(x.OptionId))
+        .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(
+            x => x.Key,
+            x => x.Select(v => v.OptionId!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
     var requiredProductAttributeCount = Model.EffectiveCategoryAttributes.Count(x => x.IsRequired);
     var completedRequiredProductAttributeCount = Model.EffectiveCategoryAttributes.Count(x =>
         x.IsRequired &&
@@ -385,7 +398,7 @@
                                     </div>
                                     <input asp-for="ProductForm.AutoVariantPayload" type="hidden" id="product-auto-variant-payload" />
 
-                                    @if (!isEditMode)
+                                    @if (true)
                                     {
                                         <div class="alert alert-light border mt-3 mb-3">
                                             <strong class="d-block mb-2">تولید خودکار واریانت</strong>
@@ -414,6 +427,8 @@
                                                         @foreach (var attr in autoCreateProductAttributes)
                                                         {
                                                             var hasOptions = attr.Options.Count > 0;
+                                                            selectedAttributeValues.TryGetValue(attr.AttributeId, out var selectedAttributeValue);
+                                                            var selectedRawValue = selectedAttributeValue?.Value ?? selectedAttributeValue?.OptionValue ?? string.Empty;
                                                             <div class="form-group js-auto-product-attribute"
                                                                  data-attribute-id="@attr.AttributeId"
                                                                  data-attribute-name="@attr.Name"
@@ -429,9 +444,14 @@
                                                                         <option value="">انتخاب مقدار</option>
                                                                         @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
                                                                         {
+                                                                            var isSelectedOption =
+                                                                                string.Equals(option.Id, selectedAttributeValue?.OptionId, StringComparison.OrdinalIgnoreCase) ||
+                                                                                string.Equals(option.OptionValue, selectedAttributeValue?.OptionValue, StringComparison.OrdinalIgnoreCase) ||
+                                                                                string.Equals(option.OptionValue, selectedAttributeValue?.Value, StringComparison.OrdinalIgnoreCase);
                                                                             <option value="@option.Id"
                                                                                     data-option-name="@option.OptionName"
-                                                                                    data-option-value="@option.OptionValue">
+                                                                                    data-option-value="@option.OptionValue"
+                                                                                    selected="@(isSelectedOption ? "selected" : null)">
                                                                                 @option.OptionName (@option.OptionValue)
                                                                             </option>
                                                                         }
@@ -446,21 +466,24 @@
                                                                                step="any"
                                                                                class="form-control js-auto-product-value"
                                                                                name="AutoProductValue_@attr.AttributeId"
+                                                                               value="@selectedRawValue"
                                                                                placeholder="مقدار عددی" />
                                                                     }
                                                                     else if (normalizedType == "date")
                                                                     {
                                                                         <input type="date"
                                                                                class="form-control js-auto-product-value"
-                                                                               name="AutoProductValue_@attr.AttributeId" />
+                                                                               name="AutoProductValue_@attr.AttributeId"
+                                                                               value="@selectedRawValue" />
                                                                     }
                                                                     else if (normalizedType == "boolean")
                                                                     {
+                                                                        var selectedBool = (selectedRawValue ?? string.Empty).Trim().ToLowerInvariant();
                                                                         <select class="form-control js-auto-product-value"
                                                                                 name="AutoProductValue_@attr.AttributeId">
                                                                             <option value="">انتخاب ویژگی</option>
-                                                                            <option value="true">بله</option>
-                                                                            <option value="false">خیر</option>
+                                                                            <option value="true" selected="@(selectedBool is "true" or "1" or "yes" or "بله" ? "selected" : null)">بله</option>
+                                                                            <option value="false" selected="@(selectedBool is "false" or "0" or "no" or "خیر" ? "selected" : null)">خیر</option>
                                                                         </select>
                                                                     }
                                                                     else
@@ -468,6 +491,7 @@
                                                                         <input type="text"
                                                                                class="form-control js-auto-product-value"
                                                                                name="AutoProductValue_@attr.AttributeId"
+                                                                               value="@selectedRawValue"
                                                                                placeholder="مقدار ویژگی" />
                                                                     }
                                                                 }
@@ -492,6 +516,7 @@
                                                     {
                                                         @foreach (var attr in autoCreateVariantBuilderAttributes)
                                                         {
+                                                            selectedVariantOptionIds.TryGetValue(attr.AttributeId, out var activeVariantOptionIds);
                                                             <div class="form-group js-auto-variant-attribute"
                                                                  data-attribute-id="@attr.AttributeId"
                                                                  data-attribute-name="@attr.Name"
@@ -506,10 +531,12 @@
                                                                         data-placeholder="انتخاب چند گزینه">
                                                                     @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
                                                                     {
+                                                                        var isVariantOptionSelected = activeVariantOptionIds?.Contains(option.Id) == true;
                                                                         <option value="@option.Id"
                                                                                 data-option-name="@option.OptionName"
                                                                                 data-option-value="@option.OptionValue"
-                                                                                data-option-display-order="@option.DisplayOrder">
+                                                                                data-option-display-order="@option.DisplayOrder"
+                                                                                selected="@(isVariantOptionSelected ? "selected" : null)">
                                                                             @option.OptionName (@option.OptionValue)
                                                                         </option>
                                                                     }
@@ -1388,7 +1415,7 @@
                         return;
                     }
 
-                    if (dataType !== 'option') {
+                    if (dataType !== 'option' && dataType !== 'enum' && dataType !== 'select') {
                         if (isRequired) {
                             validationErrors.push('ویژگی واریانت‌ساز "' + attributeName + '" باید از نوع گزینه‌ای (Option) باشد.');
                         }
@@ -1444,12 +1471,6 @@
 
             function renderAutoVariantPreview() {
                 if (!autoVariantPreviewContainer || !autoVariantPreviewBody || !autoVariantPreviewEmpty) {
-                    return;
-                }
-
-                if (isEditMode) {
-                    autoVariantPreviewContainer.classList.add('d-none');
-                    autoVariantPreviewEmpty.classList.remove('d-none');
                     return;
                 }
 
@@ -1573,7 +1594,7 @@
 
             if (productUpsertForm) {
                 productUpsertForm.addEventListener('submit', function (event) {
-                    if (!autoPayloadField || isEditMode) {
+                    if (!autoPayloadField) {
                         if (autoPayloadField) {
                             autoPayloadField.value = '';
                         }

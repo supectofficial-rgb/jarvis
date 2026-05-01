@@ -189,7 +189,7 @@
                                             <h5 class="card-title mb-0">@(isEditMode ? "ویرایش دسته‌بندی" : "ایجاد دسته‌بندی")</h5>
                                             @if (isEditMode)
                                             {
-                                                <a asp-action="Categories" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                                <a asp-action="Categories" asp-route-createNew="true" asp-route-clearCatalogMessage="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
                                             }
                                         </div>
 
@@ -555,10 +555,19 @@
                                         <form asp-action="CreateCategoryAttribute" method="post" id="create-category-attribute-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <input asp-for="AttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
-                                            <input asp-for="AttributeForm.DataType" type="hidden" value="Option" />
                                             <input asp-for="AttributeForm.Scope" type="hidden" value="Both" />
                                             <div class="form-group"><label>کد</label><input asp-for="AttributeForm.Code" class="form-control" required /></div>
                                             <div class="form-group"><label>نام</label><input asp-for="AttributeForm.Name" class="form-control" required /></div>
+                                            <div class="form-group">
+                                                <label>نوع داده</label>
+                                                <select asp-for="AttributeForm.DataType" class="form-control" required>
+                                                    <option value="Option">انتخابی</option>
+                                                    <option value="Text">متن</option>
+                                                    <option value="Number">عدد</option>
+                                                    <option value="Boolean">بله/خیر</option>
+                                                    <option value="Date">تاریخ</option>
+                                                </select>
+                                            </div>
                                             <div class="form-group"><label>اولویت</label><input asp-for="AttributeForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
                                             <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.AttributeDefinition.Create", "AttributeDefinition.Create") ? null : "disabled")>ثبت</button>
                                         </form>
@@ -579,12 +588,21 @@
                                             @Html.AntiForgeryToken()
                                             <input asp-for="AttributeUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
                                             <input asp-for="AttributeUpdateForm.AttributeId" type="hidden" id="attribute-update-id" />
-                                            <input asp-for="AttributeUpdateForm.DataType" type="hidden" id="AttributeUpdateForm_DataType" value="Option" />
                                             <input asp-for="AttributeUpdateForm.Scope" type="hidden" id="AttributeUpdateForm_Scope" value="Both" />
                                             <input asp-for="AttributeUpdateForm.IsActive" type="hidden" id="AttributeUpdateForm_IsActive" />
                                             <div class="form-group"><label>اتریبیوت انتخاب‌شده</label><input id="attribute-update-selected" type="text" class="form-control" readonly /></div>
                                             <div class="form-group"><label>کد</label><input asp-for="AttributeUpdateForm.Code" id="AttributeUpdateForm_Code" class="form-control" required /></div>
                                             <div class="form-group"><label>نام</label><input asp-for="AttributeUpdateForm.Name" id="AttributeUpdateForm_Name" class="form-control" required /></div>
+                                            <div class="form-group">
+                                                <label>نوع داده</label>
+                                                <select asp-for="AttributeUpdateForm.DataType" id="AttributeUpdateForm_DataType" class="form-control" required>
+                                                    <option value="Option">انتخابی</option>
+                                                    <option value="Text">متن</option>
+                                                    <option value="Number">عدد</option>
+                                                    <option value="Boolean">بله/خیر</option>
+                                                    <option value="Date">تاریخ</option>
+                                                </select>
+                                            </div>
                                             <div class="form-group"><label>اولویت</label><input asp-for="AttributeUpdateForm.DisplayOrder" id="AttributeUpdateForm_DisplayOrder" type="number" min="0" class="form-control" /></div>
                                             <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>ثبت ویرایش</button>
                                         </form>
@@ -619,19 +637,25 @@
                                                     }
                                                     @foreach (var attr in attributeRows.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
                                                     {
+                                                        var isOptionAttribute = string.Equals(attr.DataType, "Option", StringComparison.OrdinalIgnoreCase)
+                                                            || string.Equals(attr.DataType, "Enum", StringComparison.OrdinalIgnoreCase)
+                                                            || string.Equals(attr.DataType, "Select", StringComparison.OrdinalIgnoreCase);
                                                         <tr data-attribute-list-row data-attribute-search="@($"{attr.Name} {attr.Code}")">
                                                             <td>@attr.Name</td>
                                                             <td><span class="text-monospace">@attr.Code</span></td>
                                                             <td>@attr.DisplayOrder</td>
                                                             <td>@(attr.IsActive ? "فعال" : "غیرفعال")</td>
                                                             <td class="text-nowrap">
-                                                                <button type="button" class="btn btn-outline-primary btn-xs attribute-options-btn" data-attribute-id="@attr.Id">لیست آپشن‌ها</button>
+                                                                @if (isOptionAttribute)
+                                                                {
+                                                                    <button type="button" class="btn btn-outline-primary btn-xs attribute-options-btn" data-attribute-id="@attr.Id">لیست آپشن‌ها</button>
+                                                                }
                                                                 <button type="button"
                                                                         class="btn btn-outline-secondary btn-xs attribute-edit-btn"
                                                                         data-attribute-id="@attr.Id"
                                                                         data-attribute-name="@attr.Name"
                                                                         data-attribute-code="@attr.Code"
-                                                                        data-attribute-datatype="Option"
+                                                                        data-attribute-datatype="@attr.DataType"
                                                                         data-attribute-scope="Both"
                                                                         data-attribute-display-order="@attr.DisplayOrder"
                                                                         data-attribute-isactive="@(attr.IsActive ? "true" : "false")"
@@ -646,11 +670,14 @@
                                                                 </form>
                                                             </td>
                                                         </tr>
-                                                        <tr class="attribute-options-row" data-options-for="@attr.Id" style="display:none;">
-                                                            <td colspan="5">
-                                                                <div class="border rounded p-3 bg-light">
+                                                        @if (isOptionAttribute)
+                                                        {
+                                                            <tr class="attribute-options-row" data-options-for="@attr.Id" style="display:none;">
+                                                                <td colspan="5">
+                                                                    <div class="border rounded p-3 bg-light">
                                                                     <h6 class="mb-3">آپشن‌های @attr.Name</h6>
-                                                                    <form asp-action="AddAttributeOption" method="post" class="mb-3" data-loading-form>
+                                                                    <div class="attribute-options-message small mb-2" data-options-message></div>
+                                                                    <form asp-action="AddAttributeOption" method="post" class="mb-3 option-add-form" data-option-add-form data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="OptionForm.CategoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="OptionForm.AttributeId" value="@attr.Id" />
@@ -661,7 +688,7 @@
                                                                             <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Create", "AttributeOption.Create") ? null : "disabled")>افزودن</button></div>
                                                                         </div>
                                                                     </form>
-                                                                    <form asp-action="UpdateAttributeOption" method="post" class="option-inline-edit-form mb-3" data-loading-form style="display:none;">
+                                                                    <form asp-action="UpdateAttributeOption" method="post" class="option-inline-edit-form mb-3" data-option-update-form data-loading-form style="display:none;">
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="OptionUpdateForm.CategoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="OptionUpdateForm.AttributeId" value="@attr.Id" />
@@ -676,7 +703,7 @@
                                                                     <div class="table-responsive">
                                                                         <table class="table table-sm table-striped mb-0">
                                                                             <thead><tr><th>کد</th><th>نام</th><th>اولویت</th><th>وضعیت</th><th></th></tr></thead>
-                                                                            <tbody>
+                                                                            <tbody data-options-tbody data-attribute-id="@attr.Id">
                                                                                 @if (attr.Options.Count == 0)
                                                                                 {
                                                                                     <tr><td colspan="5">آپشنی ثبت نشده است.</td></tr>
@@ -690,7 +717,7 @@
                                                                                         <td>@(option.IsActive ? "فعال" : "غیرفعال")</td>
                                                                                         <td class="text-nowrap">
                                                                                             <button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="@option.Id" data-option-name="@option.OptionName" data-option-value="@option.OptionValue" data-display-order="@option.DisplayOrder" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>ادیت</button>
-                                                                                            <form asp-action="DeleteAttributeOption" method="post" class="d-inline" data-loading-form>
+                                                                                            <form asp-action="DeleteAttributeOption" method="post" class="d-inline option-delete-form" data-option-delete-form data-loading-form>
                                                                                                 @Html.AntiForgeryToken()
                                                                                                 <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                                                 <input type="hidden" name="attributeId" value="@attr.Id" />
@@ -703,9 +730,10 @@
                                                                             </tbody>
                                                                         </table>
                                                                     </div>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        }
                                                     }
                                                 </tbody>
                                             </table>
@@ -966,6 +994,15 @@
             var filterStateKey = 'catalog-categories-filters-v1';
             var draftStateKey = 'catalog-categories-form-drafts-v1';
             var submittedFormKey = 'catalog-categories-last-submitted-form-v1';
+            var isCategoryCreateMode = @Model.IsCategoryCreateMode.ToString().ToLowerInvariant();
+            var optionEndpoints = {
+                list: '@Url.Action("GetAttributeOptions", "CategoryManagement")',
+                add: '@Url.Action("AddAttributeOptionAjax", "CategoryManagement")',
+                update: '@Url.Action("UpdateAttributeOptionAjax", "CategoryManagement")',
+                delete: '@Url.Action("DeleteAttributeOptionAjax", "CategoryManagement")'
+            };
+            var canUpdateOptions = @Can("Catalog.AttributeOption.Update", "AttributeOption.Update").ToString().ToLowerInvariant();
+            var canDeleteOptions = @Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete").ToString().ToLowerInvariant();
             var dirtyForms = new Set();
             var tabs = document.querySelectorAll('#category-tabs .nav-link');
             var searchForm = document.getElementById('category-search-form');
@@ -1072,8 +1109,22 @@
             function restoreFormDrafts() {
                 var allDrafts = readJson(draftStateKey, {});
                 watchedForms.forEach(function (form) {
+                    if (form.id === 'category-upsert-form' && isCategoryCreateMode) {
+                        return;
+                    }
+
                     applyFormDraft(form, allDrafts[getFormDraftKey(form)]);
                 });
+            }
+
+            function clearCategoryCreateDraft() {
+                if (!isCategoryCreateMode) {
+                    return;
+                }
+
+                var allDrafts = readJson(draftStateKey, {});
+                delete allDrafts['category-upsert-form:new'];
+                writeJson(draftStateKey, allDrafts);
             }
 
             function clearSubmittedDraftAfterSuccess() {
@@ -1113,6 +1164,7 @@
             }
 
             clearSubmittedDraftAfterSuccess();
+            clearCategoryCreateDraft();
             restoreFormDrafts();
 
             if (searchForm) {
@@ -1269,9 +1321,127 @@
                 });
             });
 
-            document.querySelectorAll('.option-edit-btn').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    var row = button.closest('.attribute-options-row');
+            function setOptionsMessage(row, message, isError) {
+                var box = row ? row.querySelector('[data-options-message]') : null;
+                if (!box) {
+                    return;
+                }
+
+                box.className = 'attribute-options-message small mb-2 ' + (isError ? 'text-danger' : 'text-success');
+                box.textContent = message || '';
+            }
+
+            function escapeHtml(value) {
+                return (value || '').replace(/[&<>"']/g, function (char) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+                });
+            }
+
+            function optionRowsHtml(options) {
+                if (!options || !options.length) {
+                    return '<tr><td colspan="5">آپشنی ثبت نشده است.</td></tr>';
+                }
+
+                return options
+                    .slice()
+                    .sort(function (a, b) {
+                        return (a.displayOrder || 0) - (b.displayOrder || 0)
+                            || (a.optionName || '').localeCompare(b.optionName || '');
+                    })
+                    .map(function (option) {
+                        var id = escapeHtml(option.id || option.Id || '');
+                        var name = escapeHtml(option.optionName || option.OptionName || '');
+                        var value = escapeHtml(option.optionValue || option.OptionValue || '');
+                        var order = option.displayOrder || option.DisplayOrder || 0;
+                        var isActive = option.isActive !== undefined ? option.isActive : option.IsActive;
+                        return '<tr>'
+                            + '<td><span class="text-monospace">' + value + '</span></td>'
+                            + '<td>' + name + '</td>'
+                            + '<td>' + order + '</td>'
+                            + '<td>' + (isActive ? 'فعال' : 'غیرفعال') + '</td>'
+                            + '<td class="text-nowrap">'
+                            + '<button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="' + id + '" data-option-name="' + name + '" data-option-value="' + value + '" data-display-order="' + order + '"' + (canUpdateOptions ? '' : ' disabled') + '>ادیت</button> '
+                            + '<button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="' + id + '"' + (canDeleteOptions ? '' : ' disabled') + '>حذف</button>'
+                            + '</td>'
+                            + '</tr>';
+                    })
+                    .join('');
+            }
+
+            function renderOptions(row, options) {
+                var tbody = row ? row.querySelector('[data-options-tbody]') : null;
+                if (!tbody) {
+                    return;
+                }
+
+                tbody.innerHTML = optionRowsHtml(options || []);
+            }
+
+            function getJson(response) {
+                return response.json().catch(function () {
+                    return { isSuccess: false, errorMessage: 'پاسخ سرور قابل خواندن نیست.' };
+                });
+            }
+
+            function loadOptions(row, attributeId) {
+                if (!row || !attributeId) {
+                    return Promise.resolve();
+                }
+
+                setOptionsMessage(row, 'در حال بارگذاری...', false);
+                return fetch(optionEndpoints.list + '?attributeId=' + encodeURIComponent(attributeId), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(getJson)
+                    .then(function (payload) {
+                        if (!payload.isSuccess) {
+                            setOptionsMessage(row, payload.errorMessage || 'بارگذاری لیست آپشن‌ها انجام نشد.', true);
+                            return;
+                        }
+
+                        renderOptions(row, payload.items || []);
+                        setOptionsMessage(row, '', false);
+                    })
+                    .catch(function () {
+                        setOptionsMessage(row, 'ارتباط با سرور برقرار نشد.', true);
+                    });
+            }
+
+            function submitOptionForm(form, url, row, successCallback) {
+                var submitButtons = form.querySelectorAll('button[type="submit"]');
+                submitButtons.forEach(function (button) { button.setAttribute('disabled', 'disabled'); });
+                setOptionsMessage(row, 'در حال ثبت...', false);
+
+                return fetch(url, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(getJson)
+                    .then(function (payload) {
+                        if (!payload.isSuccess) {
+                            setOptionsMessage(row, payload.errorMessage || 'عملیات انجام نشد.', true);
+                            return;
+                        }
+
+                        renderOptions(row, payload.items || []);
+                        setOptionsMessage(row, payload.message || 'عملیات انجام شد.', false);
+                        if (typeof successCallback === 'function') {
+                            successCallback();
+                        }
+                    })
+                    .catch(function () {
+                        setOptionsMessage(row, 'ارتباط با سرور برقرار نشد.', true);
+                    })
+                    .finally(function () {
+                        submitButtons.forEach(function (button) { button.removeAttribute('disabled'); });
+                    });
+            }
+
+            document.addEventListener('click', function (event) {
+                var editButton = event.target.closest('.option-edit-btn');
+                if (editButton) {
+                    var row = editButton.closest('.attribute-options-row');
                     var inlineForm = row ? row.querySelector('.option-inline-edit-form') : null;
                     if (!inlineForm) {
                         return;
@@ -1281,12 +1451,104 @@
                     var nameField = inlineForm.querySelector('[data-option-update-name]');
                     var valueField = inlineForm.querySelector('[data-option-update-value]');
                     var orderField = inlineForm.querySelector('[data-option-update-order]');
-                    if (idField) idField.value = button.getAttribute('data-option-id') || '';
-                    if (nameField) nameField.value = button.getAttribute('data-option-name') || '';
-                    if (valueField) valueField.value = button.getAttribute('data-option-value') || '';
-                    if (orderField) orderField.value = button.getAttribute('data-display-order') || '0';
+                    if (idField) idField.value = editButton.getAttribute('data-option-id') || '';
+                    if (nameField) nameField.value = editButton.getAttribute('data-option-name') || '';
+                    if (valueField) valueField.value = editButton.getAttribute('data-option-value') || '';
+                    if (orderField) orderField.value = editButton.getAttribute('data-display-order') || '0';
                     inlineForm.style.display = '';
                     inlineForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+
+                var deleteButton = event.target.closest('.ajax-option-delete-btn');
+                if (deleteButton) {
+                    var optionsRow = deleteButton.closest('.attribute-options-row');
+                    var attributeId = optionsRow ? optionsRow.getAttribute('data-options-for') || '' : '';
+                    var optionId = deleteButton.getAttribute('data-option-id') || '';
+                    var tokenField = optionsRow ? optionsRow.querySelector('input[name="__RequestVerificationToken"]') : null;
+                    if (!attributeId || !optionId || !tokenField) {
+                        return;
+                    }
+                    if (!window.confirm('این آپشن حذف شود؟')) {
+                        return;
+                    }
+
+                    var data = new FormData();
+                    data.append('__RequestVerificationToken', tokenField.value);
+                    data.append('attributeId', attributeId);
+                    data.append('optionId', optionId);
+                    setOptionsMessage(optionsRow, 'در حال حذف...', false);
+                    fetch(optionEndpoints.delete, {
+                        method: 'POST',
+                        body: data,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(getJson)
+                        .then(function (payload) {
+                            if (!payload.isSuccess) {
+                                setOptionsMessage(optionsRow, payload.errorMessage || 'حذف آپشن انجام نشد.', true);
+                                return;
+                            }
+                            renderOptions(optionsRow, payload.items || []);
+                            setOptionsMessage(optionsRow, payload.message || 'آپشن حذف شد.', false);
+                        })
+                        .catch(function () {
+                            setOptionsMessage(optionsRow, 'ارتباط با سرور برقرار نشد.', true);
+                        });
+                }
+            });
+
+            document.querySelectorAll('[data-option-add-form]').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var row = form.closest('.attribute-options-row');
+                    submitOptionForm(form, optionEndpoints.add, row, function () {
+                        form.reset();
+                    });
+                });
+            });
+
+            document.querySelectorAll('[data-option-update-form]').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var row = form.closest('.attribute-options-row');
+                    submitOptionForm(form, optionEndpoints.update, row, function () {
+                        form.style.display = 'none';
+                        form.reset();
+                    });
+                });
+            });
+
+            document.querySelectorAll('[data-option-delete-form]').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    var row = form.closest('.attribute-options-row');
+                    var attributeId = row ? row.getAttribute('data-options-for') || '' : '';
+                    var optionIdField = form.querySelector('input[name="optionId"]');
+                    if (!attributeId || !optionIdField || !window.confirm('این آپشن حذف شود؟')) {
+                        return;
+                    }
+
+                    var data = new FormData(form);
+                    data.set('attributeId', attributeId);
+                    data.set('optionId', optionIdField.value || '');
+                    fetch(optionEndpoints.delete, {
+                        method: 'POST',
+                        body: data,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(getJson)
+                        .then(function (payload) {
+                            if (!payload.isSuccess) {
+                                setOptionsMessage(row, payload.errorMessage || 'حذف آپشن انجام نشد.', true);
+                                return;
+                            }
+                            renderOptions(row, payload.items || []);
+                            setOptionsMessage(row, payload.message || 'آپشن حذف شد.', false);
+                        })
+                        .catch(function () {
+                            setOptionsMessage(row, 'ارتباط با سرور برقرار نشد.', true);
+                        });
                 });
             });
 
@@ -1304,7 +1566,9 @@
                     });
                     row.style.display = isVisible ? 'none' : '';
                     if (!isVisible) {
-                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        loadOptions(row, attributeId).then(function () {
+                            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        });
                     }
                 });
             });

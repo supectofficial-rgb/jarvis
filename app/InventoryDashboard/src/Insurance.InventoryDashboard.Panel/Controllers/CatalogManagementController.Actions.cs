@@ -1101,7 +1101,7 @@ public abstract partial class CatalogManagementController
             .ToList();
     }
 
-    private bool IsAuthorizedFor(string token, params string[] aliases)
+    protected bool IsAuthorizedFor(string token, params string[] aliases)
     {
         var roles = ResolveRolesFromSession(token);
         if (roles.Any(x =>

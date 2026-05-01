@@ -56,6 +56,7 @@ public sealed class ProductManagementPageViewModel
     public IReadOnlyList<ProductSummaryModel> Products { get; set; } = Array.Empty<ProductSummaryModel>();
     public ProductDetailsModel? SelectedProductDetails { get; set; }
     public IReadOnlyList<ProductVariantSummaryModel> ProductVariants { get; set; } = Array.Empty<ProductVariantSummaryModel>();
+    public IReadOnlyList<ProductVariantDetailsModel> ProductVariantDetails { get; set; } = Array.Empty<ProductVariantDetailsModel>();
     public int ProductVariantTotalCount { get; set; }
     public IReadOnlyList<UnitOfMeasureLookupModel> UnitOfMeasures { get; set; } = Array.Empty<UnitOfMeasureLookupModel>();
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();

@@ -29,37 +29,33 @@ public class CreateCategoryCommandHandler
         if (string.IsNullOrWhiteSpace(command.Name))
             return Fail("Name is required.");
 
-        var normalizedCode = command.Code.Trim();
-        if (await _categoryRepository.ExistsByCodeAsync(normalizedCode))
-            return Fail($"Category code '{normalizedCode}' already exists.");
-
-        if (command.ParentCategoryRef.HasValue)
-        {
-            var parentExists = await _categoryRepository.ExistsAsync(x =>
-                x.BusinessKey.Value == command.ParentCategoryRef.Value);
-
-            if (!parentExists)
-                return Fail("Parent category was not found.");
-
-            var parentIsActive = await _categoryRepository.ExistsAsync(x =>
-                x.BusinessKey.Value == command.ParentCategoryRef.Value && x.IsActive);
-
-            if (!parentIsActive)
-                return Fail("Parent category must be active.");
-        }
-
-        var rules = (command.AttributeRules ?? new List<CreateCategoryAttributeRuleItem>())
-            .Where(x => x.AttributeRef != Guid.Empty)
-            .GroupBy(x => x.AttributeRef)
-            .Select(x => x.Last())
-            .ToList();
-
-        var validationError = await ValidateRulesAsync(rules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant)).ToList());
-        if (validationError is not null)
-            return Fail(validationError);
-
         try
         {
+            var normalizedCode = command.Code.Trim();
+            if (await _categoryRepository.ExistsByCodeAsync(normalizedCode))
+                return Fail($"Category code '{normalizedCode}' already exists.");
+
+            if (command.ParentCategoryRef.HasValue)
+            {
+                var parent = await _categoryRepository.GetByBusinessKeyAsync(command.ParentCategoryRef.Value);
+
+                if (parent is null)
+                    return Fail("Parent category was not found.");
+
+                if (!parent.IsActive)
+                    return Fail("Parent category must be active.");
+            }
+
+            var rules = (command.AttributeRules ?? new List<CreateCategoryAttributeRuleItem>())
+                .Where(x => x.AttributeRef != Guid.Empty)
+                .GroupBy(x => x.AttributeRef)
+                .Select(x => x.Last())
+                .ToList();
+
+            var validationError = await ValidateRulesAsync(rules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant)).ToList());
+            if (validationError is not null)
+                return Fail(validationError);
+
             var aggregate = Category.Create(normalizedCode, command.Name.Trim(), command.DisplayOrder, command.ParentCategoryRef);
 
             foreach (var rule in rules)
