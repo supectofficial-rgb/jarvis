@@ -4,6 +4,7 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Commands;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.ConfigureServices().ConfigurePipeline();
 
+// Inventory API bootstrap intentionally stays thin; service wiring lives in Hosting.cs.
 using (var scope = app.Services.CreateScope())
 {
     try
