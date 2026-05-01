@@ -21,6 +21,28 @@ public class CategoryCommandRepository
             .FirstOrDefaultAsync(x => x.BusinessKey.Value == categoryBusinessKey);
     }
 
+    public async Task DeleteGraphByBusinessKeyAsync(Guid categoryBusinessKey)
+    {
+        var category = await _dbContext.Set<Category>()
+            .Include(x => x.SchemaVersions)
+            .ThenInclude(x => x.Rules)
+            .FirstOrDefaultAsync(x => x.BusinessKey.Value == categoryBusinessKey);
+
+        if (category is null)
+            return;
+
+        var schemaVersions = category.SchemaVersions.ToList();
+        var rules = schemaVersions.SelectMany(x => x.Rules).ToList();
+
+        if (rules.Count > 0)
+            _dbContext.Set<CategoryAttributeRule>().RemoveRange(rules);
+
+        if (schemaVersions.Count > 0)
+            _dbContext.Set<CategorySchemaVersion>().RemoveRange(schemaVersions);
+
+        _dbContext.Set<Category>().Remove(category);
+    }
+
     public Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null)
     {
         var normalizedCode = code.Trim();

@@ -21,10 +21,20 @@ public sealed class CategoryManagementController : CatalogManagementController
         string? statusFilter,
         string? sort,
         bool createNew = false,
+        bool clearCatalogMessage = false,
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
-        => base.Categories(categoryId, searchTerm, statusFilter, sort, createNew, page, pageSize, "categories", cancellationToken);
+    {
+        if (clearCatalogMessage)
+        {
+            TempData.Remove("CatalogError");
+            TempData.Remove("CatalogSuccess");
+        }
+
+        ModelState.Clear();
+        return base.Categories(categoryId, searchTerm, statusFilter, sort, createNew, page, pageSize, "categories", cancellationToken);
+    }
 
     [HttpGet]
     public Task<IActionResult> Attributes(

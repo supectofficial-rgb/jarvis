@@ -35,11 +35,16 @@ public class CreateCategoryCommandHandler
 
         if (command.ParentCategoryRef.HasValue)
         {
-            var parent = await _categoryRepository.GetByBusinessKeyAsync(command.ParentCategoryRef.Value);
-            if (parent is null)
+            var parentExists = await _categoryRepository.ExistsAsync(x =>
+                x.BusinessKey.Value == command.ParentCategoryRef.Value);
+
+            if (!parentExists)
                 return Fail("Parent category was not found.");
 
-            if (!parent.IsActive)
+            var parentIsActive = await _categoryRepository.ExistsAsync(x =>
+                x.BusinessKey.Value == command.ParentCategoryRef.Value && x.IsActive);
+
+            if (!parentIsActive)
                 return Fail("Parent category must be active.");
         }
 

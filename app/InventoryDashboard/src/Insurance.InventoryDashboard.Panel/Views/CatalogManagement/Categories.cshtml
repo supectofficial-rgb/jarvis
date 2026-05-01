@@ -87,14 +87,6 @@
     var selectedCategoryChildrenCount = selectedCategory is null
         ? 0
         : Model.FlatCategories.Count(x => string.Equals(x.ParentCategoryId, selectedCategory.Id, StringComparison.OrdinalIgnoreCase));
-    var optionCapableAttributes = Model.CategoryAttributes
-        .Where(x =>
-            string.Equals(x.DataType, "Option", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(x.DataType, "Enum", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(x.DataType, "Select", StringComparison.OrdinalIgnoreCase))
-        .OrderBy(x => x.DisplayOrder)
-        .ThenBy(x => x.Name)
-        .ToList();
     var activeSurface = Model.ActiveItem?.ItemId ?? "categories";
     var showCategories = string.Equals(activeSurface, "categories", StringComparison.OrdinalIgnoreCase);
     var showAttributes = string.Equals(activeSurface, "attributes", StringComparison.OrdinalIgnoreCase);
@@ -457,8 +449,10 @@
                                                                        asp-route-searchTerm="@Model.CategorySearchTerm"
                                                                        asp-route-statusFilter="@Model.CategoryStatusFilter"
                                                                        asp-route-sort="@Model.CategorySort"
+                                                                       asp-route-createNew="false"
+                                                                       asp-route-clearCatalogMessage="true"
                                                                        asp-route-page="@Model.CategoryPage"
-                                                                       asp-route-pageSize="@Model.CategoryPageSize">مستقیم</a>
+                                                                       asp-route-pageSize="@Model.CategoryPageSize">ادیت</a>
                                                                     @if (category.IsActive)
                                                                     {
                                                                         <form asp-action="DeactivateCategory" method="post" class="d-inline" data-loading-form>
@@ -548,9 +542,8 @@
 
                     <div class="tab-pane @(showAttributes ? "show active" : null)" id="attribute-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
-                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">ساخت سریع / ویرایش / گزینه</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">ویژگی‌های دسته و گزینه‌ها</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-all" role="tab">بانک کل ویژگی‌ها</a></li>
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">افزودن اتریبیوت</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">جستجوی اتریبیوت</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane show active" id="attribute-section-form" role="tabpanel">
@@ -558,128 +551,20 @@
                             <div class="col-12 mb-4">
                                 <div class="card mb-4">
                                     <div class="card-body">
-                                        <h5 class="card-title">ساخت سریع ویژگی و اتصال به دسته فعلی</h5>
+                                        <h5 class="card-title">افزودن اتریبیوت</h5>
                                         <form asp-action="CreateCategoryAttribute" method="post" id="create-category-attribute-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <input asp-for="AttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                            <input asp-for="AttributeForm.DataType" type="hidden" value="Option" />
+                                            <input asp-for="AttributeForm.Scope" type="hidden" value="Both" />
                                             <div class="form-group"><label>کد</label><input asp-for="AttributeForm.Code" class="form-control" required /></div>
                                             <div class="form-group"><label>نام</label><input asp-for="AttributeForm.Name" class="form-control" required /></div>
-                                            <div class="form-group">
-                                                <label>نوع داده</label>
-                                                <select asp-for="AttributeForm.DataType" class="form-control js-search-select" data-no-search="true">
-                                                    <option value="Text">متن</option><option value="Number">عدد</option><option value="Boolean">بولی</option><option value="Date">تاریخ</option><option value="Option">گزینه‌ای</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>سطح اعمال</label>
-                                                <select asp-for="AttributeForm.Scope" class="form-control js-search-select" data-no-search="true">
-                                                    <option value="Both">هر دو</option><option value="Product">محصول</option><option value="Variant">واریانت</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group"><label>اولویت نمایش</label><input asp-for="AttributeForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
-                                            <div class="custom-control custom-checkbox mt-2">
-                                                <input asp-for="AttributeForm.IsRequired" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AttributeForm.IsRequired">الزامی</label>
-                                            </div>
-                                            <div class="custom-control custom-checkbox mt-2">
-                                                <input asp-for="AttributeForm.IsVariant" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AttributeForm.IsVariant">واریانت‌ساز</label>
-                                            </div>
+                                            <div class="form-group"><label>اولویت</label><input asp-for="AttributeForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
                                             <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.AttributeDefinition.Create", "AttributeDefinition.Create") ? null : "disabled")>ثبت</button>
                                         </form>
                                     </div>
                                 </div>
 
-                                <div class="card mb-4">
-                                    <div class="card-body">
-                                        <h5 class="card-title">ویرایش ویژگی</h5>
-                                        <form asp-action="UpdateAttributeDefinition" method="post" id="attribute-update-form" data-loading-form data-dirty-watch>
-                                            @Html.AntiForgeryToken()
-                                            <input asp-for="AttributeUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
-                                            <input asp-for="AttributeUpdateForm.AttributeId" type="hidden" id="attribute-update-id" />
-                                            <div class="form-group">
-                                                <label>ویژگی انتخاب‌شده در دسته فعلی</label>
-                                                <input id="attribute-update-selected" type="text" class="form-control" readonly value="@Model.CategoryAttributes.FirstOrDefault(x => x.Id == Model.AttributeUpdateForm.AttributeId)?.Name" />
-                                                <small class="form-text text-muted">از تب ویژگی‌های دسته روی «ویرایش» بزنید.</small>
-                                            </div>
-                                            <div class="form-group"><label>کد</label><input asp-for="AttributeUpdateForm.Code" class="form-control" required /></div>
-                                            <div class="form-group"><label>نام</label><input asp-for="AttributeUpdateForm.Name" class="form-control" required /></div>
-                                            <div class="form-group">
-                                                <label>نوع داده</label>
-                                                <select asp-for="AttributeUpdateForm.DataType" class="form-control js-search-select" data-no-search="true" required>
-                                                    <option value="Text">متن</option><option value="Number">عدد</option><option value="Boolean">بولی</option><option value="Date">تاریخ</option><option value="Option">گزینه‌ای</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>سطح اعمال</label>
-                                                <select asp-for="AttributeUpdateForm.Scope" class="form-control js-search-select" data-no-search="true" required>
-                                                    <option value="Both">هر دو</option><option value="Product">محصول</option><option value="Variant">واریانت</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group"><label>اولویت نمایش</label><input asp-for="AttributeUpdateForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
-                                            <div class="custom-control custom-checkbox mt-2">
-                                                <input asp-for="AttributeUpdateForm.IsRequired" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AttributeUpdateForm.IsRequired">الزامی</label>
-                                            </div>
-                                            <div class="custom-control custom-checkbox mt-2">
-                                                <input asp-for="AttributeUpdateForm.IsVariant" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AttributeUpdateForm.IsVariant">واریانت‌ساز</label>
-                                            </div>
-                                            <div class="custom-control custom-checkbox mt-2">
-                                                <input asp-for="AttributeUpdateForm.IsActive" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AttributeUpdateForm.IsActive">فعال</label>
-                                            </div>
-                                            <button class="btn btn-outline-primary mt-3" type="submit" @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>به‌روزرسانی</button>
-                                        </form>
-                                    </div>
-                                </div>
-
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">مدیریت گزینه</h5>
-                                        <form asp-action="AddAttributeOption" method="post" id="add-attribute-option-form" class="mb-3" data-loading-form data-dirty-watch>
-                                            @Html.AntiForgeryToken()
-                                            <input asp-for="OptionForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
-                                            <div class="form-group">
-                                                <label>ویژگی</label>
-                                                <select asp-for="OptionForm.AttributeId" class="form-control js-search-select" data-placeholder="انتخاب ویژگی">
-                                                    @foreach (var attr in optionCapableAttributes)
-                                                    {
-                                                        <option value="@attr.Id">@attr.Name (اولویت: @attr.DisplayOrder)</option>
-                                                    }
-                                                </select>
-                                                @if (optionCapableAttributes.Count == 0)
-                                                {
-                                                    <small class="form-text text-warning">ویژگی option-based برای افزودن گزینه وجود ندارد.</small>
-                                                }
-                                            </div>
-                                            <div class="form-group"><label>نام گزینه</label><input asp-for="OptionForm.OptionName" class="form-control" required /></div>
-                                            <div class="form-group"><label>مقدار گزینه (کد SKU)</label><input asp-for="OptionForm.OptionValue" class="form-control text-monospace" required /></div>
-                                            <div class="form-group"><label>ترتیب</label><input asp-for="OptionForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
-                                            <button class="btn btn-outline-primary" type="submit" @((Can("Catalog.AttributeOption.Create", "AttributeOption.Create") && optionCapableAttributes.Count > 0) ? null : "disabled")>افزودن</button>
-                                        </form>
-
-                                        <form asp-action="UpdateAttributeOption" method="post" id="option-update-form" data-loading-form data-dirty-watch>
-                                            @Html.AntiForgeryToken()
-                                            <input asp-for="OptionUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
-                                            <input asp-for="OptionUpdateForm.AttributeId" type="hidden" id="option-update-attribute-id" />
-                                            <input asp-for="OptionUpdateForm.OptionId" type="hidden" id="option-update-option-id" />
-                                            <div class="form-group">
-                                                <label>ویژگی انتخاب‌شده</label>
-                                                <input id="option-update-attribute-name" type="text" class="form-control" readonly />
-                                            </div>
-                                            <div class="form-group">
-                                                <label>گزینه انتخاب‌شده</label>
-                                                <input id="option-update-option-name" type="text" class="form-control" readonly />
-                                                <small class="form-text text-muted">از لیست گزینه‌ها روی «ویرایش گزینه» بزنید.</small>
-                                            </div>
-                                            <div class="form-group"><label>نام گزینه</label><input asp-for="OptionUpdateForm.OptionName" class="form-control" required /></div>
-                                            <div class="form-group"><label>مقدار گزینه (کد SKU)</label><input asp-for="OptionUpdateForm.OptionValue" class="form-control text-monospace" required /></div>
-                                            <div class="form-group"><label>ترتیب</label><input asp-for="OptionUpdateForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
-                                            <button class="btn btn-outline-secondary" type="submit" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>ویرایش گزینه</button>
-                                        </form>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                             </div>
@@ -687,180 +572,140 @@
                             <div class="tab-pane" id="attribute-section-bank" role="tabpanel">
                         <div class="row">
                             <div class="col-12 mb-4">
-                                <div class="card">
+                                <div class="card mb-4" id="attribute-edit-panel" style="display:none;">
                                     <div class="card-body">
-                                        <h5 class="card-title">ویژگی‌های متصل به دسته و گزینه‌ها</h5>
-                                        <div class="table-responsive">
-                                            <table class="table table-sm table-hover">
-                                                <thead>
-                                                    <tr>
-                                                        <th>نام</th>
-                                                        <th>نوع</th>
-                                                        <th>اولویت</th>
-                                                        <th>واریانت‌ساز</th>
-                                                        <th>سطح اعمال</th>
-                                                        <th>وضعیت</th>
-                                                        <th>گزینه‌ها</th>
-                                                        <th></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach (var attr in Model.CategoryAttributes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
-                                                    {
-                                                        <tr>
-                                                            <td>@attr.Name</td>
-                                                            <td>@attr.DataType</td>
-                                                            <td>@attr.DisplayOrder</td>
-                                                            <td>
-                                                                <span class="badge badge-pill @(attr.IsVariant ? "badge-warning" : "badge-secondary")">
-                                                                    @(attr.IsVariant ? "بله" : "خیر")
-                                                                </span>
-                                                            </td>
-                                                            <td>@attr.Scope</td>
-                                                            <td>@(attr.IsActive ? "فعال" : "غیرفعال")</td>
-                                                            <td>
-                                                                @if (attr.Options.Count == 0)
-                                                                {
-                                                                    <span>-</span>
-                                                                }
-                                                                else
-                                                                {
-                                                                    foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder))
-                                                                    {
-                                                                        <div class="mb-1">
-                                                                            <span class="small">@option.OptionName</span>
-                                                                            <span class="text-muted small">(کد: <span class="text-monospace">@option.OptionValue</span>)</span>
-                                                                            <span class="text-muted small">(@(option.IsActive ? "فعال" : "غیرفعال"))</span>
-                                                                            <button type="button"
-                                                                                    class="btn btn-link btn-xs p-0 option-edit-btn"
-                                                                                    data-attribute-id="@attr.Id"
-                                                                                    data-attribute-name="@attr.Name"
-                                                                                    data-option-id="@option.Id"
-                                                                                    data-option-name="@option.OptionName"
-                                                                                    data-option-value="@option.OptionValue"
-                                                                                    data-display-order="@option.DisplayOrder"
-                                                                                    @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>
-                                                                                ویرایش گزینه
-                                                                            </button>
-                                                                            <form asp-action="ActivateAttributeOption" method="post" class="d-inline" data-loading-form>
-                                                                                @Html.AntiForgeryToken()
-                                                                                <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                                                                <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                                <input type="hidden" name="optionId" value="@option.Id" />
-                                                                                <button type="submit" class="btn btn-link btn-xs p-0" @(Can("Catalog.AttributeOption.Activate", "AttributeOption.Activate") ? null : "disabled")>فعال</button>
-                                                                            </form>
-                                                                            <span>/</span>
-                                                                            <form asp-action="DeactivateAttributeOption" method="post" class="d-inline" data-loading-form>
-                                                                                @Html.AntiForgeryToken()
-                                                                                <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                                                                <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                                <input type="hidden" name="optionId" value="@option.Id" />
-                                                                                <button type="submit" class="btn btn-link btn-xs p-0" @(Can("Catalog.AttributeOption.Deactivate", "AttributeOption.Deactivate") ? null : "disabled")>غیرفعال</button>
-                                                                            </form>
-                                                                            <span>/</span>
-                                                                            <form asp-action="DeleteAttributeOption" method="post" class="d-inline" data-loading-form>
-                                                                                @Html.AntiForgeryToken()
-                                                                                <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                                                                <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                                <input type="hidden" name="optionId" value="@option.Id" />
-                                                                                <button type="submit" class="btn btn-link text-danger btn-xs p-0" data-confirm-title="حذف گزینه" data-confirm="این گزینه حذف شود؟" @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>حذف</button>
-                                                                            </form>
-                                                                        </div>
-                                                                    }
-                                                                }
-                                                            </td>
-                                                            <td class="text-nowrap">
-                                                                <button type="button"
-                                                                        class="btn btn-outline-primary btn-xs option-quick-add-btn"
-                                                                        data-attribute-id="@attr.Id"
-                                                                        @(optionCapableAttributes.Any(x => string.Equals(x.Id, attr.Id, StringComparison.OrdinalIgnoreCase)) ? null : "disabled")
-                                                                        title="افزودن گزینه برای این ویژگی">
-                                                                    افزودن گزینه
-                                                                </button>
-                                                                <button type="button"
-                                                                        class="btn btn-outline-secondary btn-xs attribute-edit-btn"
-                                                                        data-attribute-id="@attr.Id"
-                                                                        data-attribute-name="@attr.Name"
-                                                                        data-attribute-code="@attr.Code"
-                                                                        data-attribute-datatype="@attr.DataType"
-                                                                        data-attribute-scope="@attr.Scope"
-                                                                        data-attribute-display-order="@attr.DisplayOrder"
-                                                                        data-attribute-is-required="@(attr.IsRequired ? "true" : "false")"
-                                                                        data-attribute-is-variant="@(attr.IsVariant ? "true" : "false")"
-                                                                        data-attribute-isactive="@(attr.IsActive ? "true" : "false")"
-                                                                        @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>
-                                                                    ویرایش
-                                                                </button>
-                                                                <form asp-action="ActivateAttributeDefinition" method="post" class="d-inline" data-loading-form>
-                                                                    @Html.AntiForgeryToken()
-                                                                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                                                    <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                    <button type="submit" class="btn btn-outline-success btn-xs" @(Can("Catalog.AttributeDefinition.Activate", "AttributeDefinition.Activate") ? null : "disabled")>فعال</button>
-                                                                </form>
-                                                                <form asp-action="DeactivateAttributeDefinition" method="post" class="d-inline" data-loading-form>
-                                                                    @Html.AntiForgeryToken()
-                                                                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                                                    <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                    <button type="submit" class="btn btn-outline-warning btn-xs" @(Can("Catalog.AttributeDefinition.Deactivate", "AttributeDefinition.Deactivate") ? null : "disabled")>غیرفعال</button>
-                                                                </form>
-                                                                <form asp-action="DeleteAttributeDefinition" method="post" class="d-inline" data-loading-form>
-                                                                    @Html.AntiForgeryToken()
-                                                                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                                                    <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                    <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف ویژگی" data-confirm="این ویژگی حذف شود؟" @(Can("Catalog.AttributeDefinition.Delete", "AttributeDefinition.Delete") ? null : "disabled")>حذف</button>
-                                                                </form>
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        <h5 class="card-title">ویرایش اتریبیوت</h5>
+                                        <form asp-action="UpdateAttributeDefinition" method="post" id="attribute-update-form" data-loading-form data-dirty-watch>
+                                            @Html.AntiForgeryToken()
+                                            <input asp-for="AttributeUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                            <input asp-for="AttributeUpdateForm.AttributeId" type="hidden" id="attribute-update-id" />
+                                            <input asp-for="AttributeUpdateForm.DataType" type="hidden" id="AttributeUpdateForm_DataType" value="Option" />
+                                            <input asp-for="AttributeUpdateForm.Scope" type="hidden" id="AttributeUpdateForm_Scope" value="Both" />
+                                            <input asp-for="AttributeUpdateForm.IsActive" type="hidden" id="AttributeUpdateForm_IsActive" />
+                                            <div class="form-group"><label>اتریبیوت انتخاب‌شده</label><input id="attribute-update-selected" type="text" class="form-control" readonly /></div>
+                                            <div class="form-group"><label>کد</label><input asp-for="AttributeUpdateForm.Code" id="AttributeUpdateForm_Code" class="form-control" required /></div>
+                                            <div class="form-group"><label>نام</label><input asp-for="AttributeUpdateForm.Name" id="AttributeUpdateForm_Name" class="form-control" required /></div>
+                                            <div class="form-group"><label>اولویت</label><input asp-for="AttributeUpdateForm.DisplayOrder" id="AttributeUpdateForm_DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>ثبت ویرایش</button>
+                                        </form>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                            </div>
-                            <div class="tab-pane" id="attribute-section-all" role="tabpanel">
-                        <div class="row">
-                            <div class="col-12 mb-4">
+
                                 <div class="card">
                                     <div class="card-body">
-                                        <h5 class="card-title">بانک کل ویژگی‌ها</h5>
+                                        <h5 class="card-title">لیست اتریبیوت‌ها</h5>
+                                        <div class="form-group">
+                                            <label>جستجو</label>
+                                            <input type="search" class="form-control" id="attribute-list-search" placeholder="نام یا کد اتریبیوت" />
+                                        </div>
                                         <div class="table-responsive">
                                             <table class="table table-sm table-hover">
                                                 <thead>
                                                     <tr>
                                                         <th>نام</th>
                                                         <th>کد</th>
-                                                        <th>نوع</th>
-                                                        <th>سطح اعمال</th>
+                                                        <th>اولویت</th>
                                                         <th>وضعیت</th>
+                                                        <th></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    @if (Model.AllAttributes.Count == 0)
+                                                    @{
+                                                        var attributeRows = Model.AllAttributes.Count > 0 ? Model.AllAttributes : Model.CategoryAttributes;
+                                                    }
+                                                    @if (attributeRows.Count == 0)
                                                     {
-                                                        <tr>
+                                                        <tr><td colspan="5"><div class="alert alert-light my-2">اتریبیوتی برای نمایش وجود ندارد.</div></td></tr>
+                                                    }
+                                                    @foreach (var attr in attributeRows.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
+                                                    {
+                                                        <tr data-attribute-list-row data-attribute-search="@($"{attr.Name} {attr.Code}")">
+                                                            <td>@attr.Name</td>
+                                                            <td><span class="text-monospace">@attr.Code</span></td>
+                                                            <td>@attr.DisplayOrder</td>
+                                                            <td>@(attr.IsActive ? "فعال" : "غیرفعال")</td>
+                                                            <td class="text-nowrap">
+                                                                <button type="button" class="btn btn-outline-primary btn-xs attribute-options-btn" data-attribute-id="@attr.Id">لیست آپشن‌ها</button>
+                                                                <button type="button"
+                                                                        class="btn btn-outline-secondary btn-xs attribute-edit-btn"
+                                                                        data-attribute-id="@attr.Id"
+                                                                        data-attribute-name="@attr.Name"
+                                                                        data-attribute-code="@attr.Code"
+                                                                        data-attribute-datatype="Option"
+                                                                        data-attribute-scope="Both"
+                                                                        data-attribute-display-order="@attr.DisplayOrder"
+                                                                        data-attribute-isactive="@(attr.IsActive ? "true" : "false")"
+                                                                        @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>
+                                                                    ادیت
+                                                                </button>
+                                                                <form asp-action="DeleteAttributeDefinition" method="post" class="d-inline" data-loading-form>
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                                    <input type="hidden" name="attributeId" value="@attr.Id" />
+                                                                    <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف اتریبیوت" data-confirm="این اتریبیوت حذف شود؟" @(Can("Catalog.AttributeDefinition.Delete", "AttributeDefinition.Delete") ? null : "disabled")>حذف</button>
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="attribute-options-row" data-options-for="@attr.Id" style="display:none;">
                                                             <td colspan="5">
-                                                                <div class="alert alert-light my-2">
-                                                                    <h6>ویژگی فعالی در بانک وجود ندارد</h6>
-                                                                    <p class="mb-0 text-muted">از تب ساخت سریع یک ویژگی بسازید یا ویژگی‌های غیرفعال را فعال کنید.</p>
+                                                                <div class="border rounded p-3 bg-light">
+                                                                    <h6 class="mb-3">آپشن‌های @attr.Name</h6>
+                                                                    <form asp-action="AddAttributeOption" method="post" class="mb-3" data-loading-form>
+                                                                        @Html.AntiForgeryToken()
+                                                                        <input type="hidden" name="OptionForm.CategoryId" value="@Model.SelectedCategoryId" />
+                                                                        <input type="hidden" name="OptionForm.AttributeId" value="@attr.Id" />
+                                                                        <div class="form-row">
+                                                                            <div class="form-group col-md-4"><label>کد آپشن</label><input name="OptionForm.OptionValue" class="form-control text-monospace" required /></div>
+                                                                            <div class="form-group col-md-4"><label>نام آپشن</label><input name="OptionForm.OptionName" class="form-control" required /></div>
+                                                                            <div class="form-group col-md-2"><label>اولویت</label><input name="OptionForm.DisplayOrder" type="number" min="0" class="form-control" value="0" /></div>
+                                                                            <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Create", "AttributeOption.Create") ? null : "disabled")>افزودن</button></div>
+                                                                        </div>
+                                                                    </form>
+                                                                    <form asp-action="UpdateAttributeOption" method="post" class="option-inline-edit-form mb-3" data-loading-form style="display:none;">
+                                                                        @Html.AntiForgeryToken()
+                                                                        <input type="hidden" name="OptionUpdateForm.CategoryId" value="@Model.SelectedCategoryId" />
+                                                                        <input type="hidden" name="OptionUpdateForm.AttributeId" value="@attr.Id" />
+                                                                        <input type="hidden" name="OptionUpdateForm.OptionId" data-option-update-id />
+                                                                        <div class="form-row">
+                                                                            <div class="form-group col-md-4"><label>کد آپشن</label><input name="OptionUpdateForm.OptionValue" class="form-control text-monospace" data-option-update-value required /></div>
+                                                                            <div class="form-group col-md-4"><label>نام آپشن</label><input name="OptionUpdateForm.OptionName" class="form-control" data-option-update-name required /></div>
+                                                                            <div class="form-group col-md-2"><label>اولویت</label><input name="OptionUpdateForm.DisplayOrder" type="number" min="0" class="form-control" data-option-update-order /></div>
+                                                                            <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-outline-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>ثبت ادیت</button></div>
+                                                                        </div>
+                                                                    </form>
+                                                                    <div class="table-responsive">
+                                                                        <table class="table table-sm table-striped mb-0">
+                                                                            <thead><tr><th>کد</th><th>نام</th><th>اولویت</th><th>وضعیت</th><th></th></tr></thead>
+                                                                            <tbody>
+                                                                                @if (attr.Options.Count == 0)
+                                                                                {
+                                                                                    <tr><td colspan="5">آپشنی ثبت نشده است.</td></tr>
+                                                                                }
+                                                                                @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                                                                {
+                                                                                    <tr>
+                                                                                        <td><span class="text-monospace">@option.OptionValue</span></td>
+                                                                                        <td>@option.OptionName</td>
+                                                                                        <td>@option.DisplayOrder</td>
+                                                                                        <td>@(option.IsActive ? "فعال" : "غیرفعال")</td>
+                                                                                        <td class="text-nowrap">
+                                                                                            <button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="@option.Id" data-option-name="@option.OptionName" data-option-value="@option.OptionValue" data-display-order="@option.DisplayOrder" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>ادیت</button>
+                                                                                            <form asp-action="DeleteAttributeOption" method="post" class="d-inline" data-loading-form>
+                                                                                                @Html.AntiForgeryToken()
+                                                                                                <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                                                                <input type="hidden" name="attributeId" value="@attr.Id" />
+                                                                                                <input type="hidden" name="optionId" value="@option.Id" />
+                                                                                                <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف آپشن" data-confirm="این آپشن حذف شود؟" @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>حذف</button>
+                                                                                            </form>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                }
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
                                                                 </div>
                                                             </td>
                                                         </tr>
-                                                    }
-                                                    else
-                                                    {
-                                                        @foreach (var attr in Model.AllAttributes.OrderBy(x => x.Name))
-                                                        {
-                                                            <tr>
-                                                                <td>@attr.Name</td>
-                                                                <td><span class="text-monospace">@attr.Code</span></td>
-                                                                <td>@attr.DataType</td>
-                                                                <td>@attr.Scope</td>
-                                                                <td>@(attr.IsActive ? "فعال" : "غیرفعال")</td>
-                                                            </tr>
-                                                        }
                                                     }
                                                 </tbody>
                                             </table>
@@ -1129,8 +974,6 @@
                 'move-category-form',
                 'create-category-attribute-form',
                 'attribute-update-form',
-                'add-attribute-option-form',
-                'option-update-form',
                 'assign-attribute-to-category-form',
                 'update-category-attribute-rule-form',
                 'rule-modal-form'
@@ -1211,16 +1054,25 @@
                 });
             }
 
+            function getFormDraftKey(form) {
+                if (form.id === 'category-upsert-form') {
+                    var categoryId = form.querySelector('[name="CategoryForm.CategoryId"]');
+                    return form.id + ':' + ((categoryId && categoryId.value) || 'new');
+                }
+
+                return form.id;
+            }
+
             function saveFormDraft(form) {
                 var allDrafts = readJson(draftStateKey, {});
-                allDrafts[form.id] = captureFormDraft(form);
+                allDrafts[getFormDraftKey(form)] = captureFormDraft(form);
                 writeJson(draftStateKey, allDrafts);
             }
 
             function restoreFormDrafts() {
                 var allDrafts = readJson(draftStateKey, {});
                 watchedForms.forEach(function (form) {
-                    applyFormDraft(form, allDrafts[form.id]);
+                    applyFormDraft(form, allDrafts[getFormDraftKey(form)]);
                 });
             }
 
@@ -1396,11 +1248,19 @@
                     if (attributeUpdateDisplayOrder) attributeUpdateDisplayOrder.value = button.getAttribute('data-attribute-display-order') || '0';
                     if (attributeUpdateIsRequired) attributeUpdateIsRequired.checked = (button.getAttribute('data-attribute-is-required') || '').toLowerCase() === 'true';
                     if (attributeUpdateIsVariant) attributeUpdateIsVariant.checked = (button.getAttribute('data-attribute-is-variant') || '').toLowerCase() === 'true';
-                    if (attributeUpdateIsActive) attributeUpdateIsActive.checked = (button.getAttribute('data-attribute-isactive') || '').toLowerCase() === 'true';
+                    if (attributeUpdateIsActive) attributeUpdateIsActive.value = (button.getAttribute('data-attribute-isactive') || '').toLowerCase() === 'true' ? 'true' : 'false';
 
                     var attributeTab = document.querySelector('#category-tabs .nav-link[href="#attribute-tab"]');
                     if (attributeTab && window.jQuery) {
                         window.jQuery(attributeTab).tab('show');
+                    }
+                    var attributeListTab = document.querySelector('#attribute-section-tabs .nav-link[href="#attribute-section-bank"]');
+                    if (attributeListTab && window.jQuery) {
+                        window.jQuery(attributeListTab).tab('show');
+                    }
+                    var editPanel = document.getElementById('attribute-edit-panel');
+                    if (editPanel) {
+                        editPanel.style.display = '';
                     }
                     var form = document.getElementById('attribute-update-form');
                     if (form) {
@@ -1409,61 +1269,63 @@
                 });
             });
 
-            var optionUpdateAttributeId = document.getElementById('option-update-attribute-id');
-            var optionUpdateOptionId = document.getElementById('option-update-option-id');
-            var optionUpdateAttributeName = document.getElementById('option-update-attribute-name');
-            var optionUpdateOptionName = document.getElementById('option-update-option-name');
-            var optionUpdateEditableName = document.getElementById('OptionUpdateForm_OptionName');
-            var optionUpdateValue = document.getElementById('OptionUpdateForm_OptionValue');
-            var optionUpdateDisplayOrder = document.getElementById('OptionUpdateForm_DisplayOrder');
-            var optionAddAttributeSelect = document.getElementById('OptionForm_AttributeId');
-            var optionAddForm = document.getElementById('add-attribute-option-form');
-
             document.querySelectorAll('.option-edit-btn').forEach(function (button) {
                 button.addEventListener('click', function () {
-                    if (optionUpdateAttributeId) optionUpdateAttributeId.value = button.getAttribute('data-attribute-id') || '';
-                    if (optionUpdateOptionId) optionUpdateOptionId.value = button.getAttribute('data-option-id') || '';
-                    if (optionUpdateAttributeName) optionUpdateAttributeName.value = button.getAttribute('data-attribute-name') || '';
-                    if (optionUpdateOptionName) optionUpdateOptionName.value = button.getAttribute('data-option-name') || '';
-                    if (optionUpdateEditableName) optionUpdateEditableName.value = button.getAttribute('data-option-name') || '';
-                    if (optionUpdateValue) optionUpdateValue.value = button.getAttribute('data-option-value') || '';
-                    if (optionUpdateDisplayOrder) optionUpdateDisplayOrder.value = button.getAttribute('data-display-order') || '0';
-
-                    var attributeTab = document.querySelector('#category-tabs .nav-link[href="#attribute-tab"]');
-                    if (attributeTab && window.jQuery) {
-                        window.jQuery(attributeTab).tab('show');
-                    }
-                    var form = document.getElementById('option-update-form');
-                    if (form) {
-                        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                });
-            });
-
-            document.querySelectorAll('.option-quick-add-btn').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    if (button.hasAttribute('disabled')) {
+                    var row = button.closest('.attribute-options-row');
+                    var inlineForm = row ? row.querySelector('.option-inline-edit-form') : null;
+                    if (!inlineForm) {
                         return;
                     }
 
+                    var idField = inlineForm.querySelector('[data-option-update-id]');
+                    var nameField = inlineForm.querySelector('[data-option-update-name]');
+                    var valueField = inlineForm.querySelector('[data-option-update-value]');
+                    var orderField = inlineForm.querySelector('[data-option-update-order]');
+                    if (idField) idField.value = button.getAttribute('data-option-id') || '';
+                    if (nameField) nameField.value = button.getAttribute('data-option-name') || '';
+                    if (valueField) valueField.value = button.getAttribute('data-option-value') || '';
+                    if (orderField) orderField.value = button.getAttribute('data-display-order') || '0';
+                    inlineForm.style.display = '';
+                    inlineForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            });
+
+            document.querySelectorAll('.attribute-options-btn').forEach(function (button) {
+                button.addEventListener('click', function () {
                     var attributeId = button.getAttribute('data-attribute-id') || '';
-                    if (optionAddAttributeSelect && attributeId) {
-                        optionAddAttributeSelect.value = attributeId;
-                        if (window.jQuery) {
-                            window.jQuery(optionAddAttributeSelect).trigger('change');
-                        }
+                    var row = document.querySelector('.attribute-options-row[data-options-for="' + attributeId + '"]');
+                    if (!row) {
+                        return;
                     }
 
-                    var attributeTab = document.querySelector('#category-tabs .nav-link[href="#attribute-tab"]');
-                    if (attributeTab && window.jQuery) {
-                        window.jQuery(attributeTab).tab('show');
-                    }
-
-                    if (optionAddForm) {
-                        optionAddForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    var isVisible = row.style.display !== 'none';
+                    document.querySelectorAll('.attribute-options-row').forEach(function (optionsRow) {
+                        optionsRow.style.display = 'none';
+                    });
+                    row.style.display = isVisible ? 'none' : '';
+                    if (!isVisible) {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                 });
             });
+
+            var attributeListSearch = document.getElementById('attribute-list-search');
+            if (attributeListSearch) {
+                attributeListSearch.addEventListener('input', function () {
+                    var value = (attributeListSearch.value || '').toLowerCase();
+                    document.querySelectorAll('[data-attribute-list-row]').forEach(function (row) {
+                        var haystack = (row.getAttribute('data-attribute-search') || '').toLowerCase();
+                        var visible = !value || haystack.indexOf(value) >= 0;
+                        row.style.display = visible ? '' : 'none';
+                        var optionsButton = row.querySelector('.attribute-options-btn');
+                        var attributeId = optionsButton ? optionsButton.getAttribute('data-attribute-id') || '' : '';
+                        var optionsRow = attributeId ? document.querySelector('.attribute-options-row[data-options-for="' + attributeId + '"]') : null;
+                        if (optionsRow && !visible) {
+                            optionsRow.style.display = 'none';
+                        }
+                    });
+                });
+            }
 
             var ruleModalCategoryId = document.getElementById('rule-modal-category-id');
             var ruleModalAttributeId = document.getElementById('rule-modal-attribute-id');
@@ -1535,7 +1397,7 @@
                 form.addEventListener('submit', function (event) {
                     if (form.id && watchedFormIds.indexOf(form.id) >= 0) {
                         saveFormDraft(form);
-                        localStorage.setItem(submittedFormKey, form.id);
+                        localStorage.setItem(submittedFormKey, getFormDraftKey(form));
                     }
 
                     var submitButtons = form.querySelectorAll('button[type="submit"]');

@@ -339,13 +339,13 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
-        var attributesResult = await _apiService.GetCategoryAttributesAsync(form.CategoryId, token, includeInherited: true, includeInactive: false);
+        var attributesResult = await _apiService.GetActiveAttributeDefinitionsAsync(token);
         var selectedAttribute = (attributesResult.Data ?? new List<AttributeDefinitionModel>())
             .FirstOrDefault(x => string.Equals(x.Id, form.AttributeId, StringComparison.OrdinalIgnoreCase));
 
         if (selectedAttribute is null)
         {
-            TempData["CatalogError"] = "اتریبیوت انتخاب‌شده در این دسته‌بندی یافت نشد.";
+            TempData["CatalogError"] = "اتریبیوت انتخاب‌شده یافت نشد.";
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 

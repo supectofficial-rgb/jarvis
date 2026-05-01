@@ -34,7 +34,7 @@ public class DeleteCategoryCommandHandler : CommandHandler<DeleteCategoryCommand
         if (hasProducts)
             return Fail("Category cannot be deleted because products exist.");
 
-        _categoryRepository.Delete(category);
+        await _categoryRepository.DeleteGraphByBusinessKeyAsync(command.CategoryBusinessKey);
         await _categoryRepository.CommitAsync();
 
         return Ok(new DeleteCategoryCommandResult
