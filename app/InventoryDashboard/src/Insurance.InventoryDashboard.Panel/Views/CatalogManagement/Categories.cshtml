@@ -233,7 +233,7 @@
                                             </div>
 
                                             <div class="mt-3">
-                                                <button class="btn btn-primary" type="submit" @(Can("Catalog.Category.Create", "Catalog.Category.Update", "Category.Create", "Category.Update") ? null : "disabled")>
+                                                <button class="btn btn-primary" type="submit" @((isEditMode ? Can("Inventory.Category.Update", "Catalog.Category.Update", "Category.Update") : Can("Inventory.Category.Create", "Catalog.Category.Create", "Category.Create")) ? null : "disabled")>
                                                     @(isEditMode ? "به‌روزرسانی دسته‌بندی" : "ایجاد دسته‌بندی")
                                                 </button>
                                             </div>

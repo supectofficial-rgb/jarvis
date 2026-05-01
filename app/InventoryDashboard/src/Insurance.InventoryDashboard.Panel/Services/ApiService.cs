@@ -82,7 +82,7 @@ public sealed class ApiService : IApiService
             ParentCategoryRef = ParseNullableGuid(request.ParentCategoryId)
         };
 
-        return PostCommandAsync($"{InventoryApiPrefix}/Category", payload, token, "Creating category failed.");
+        return PostCommandAsync($"{InventoryApiPrefix}/Category", payload, token, "ایجاد دسته‌بندی انجام نشد.");
     }
 
     public Task<ApiResponse<bool>> UpdateCategoryAsync(string categoryId, UpsertCategoryRequest request, string token)
@@ -1627,7 +1627,11 @@ public sealed class ApiService : IApiService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("GET {Route} failed: {StatusCode} / {Body}", route, response.StatusCode, body);
-                return new ApiResponse<T> { IsSuccess = false, ErrorMessage = fallbackError };
+                return new ApiResponse<T>
+                {
+                    IsSuccess = false,
+                    ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                };
             }
 
             var result = JsonSerializer.Deserialize<QueryResultWrapper<T>>(body, JsonOptions);
@@ -1641,7 +1645,7 @@ public sealed class ApiService : IApiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error in GET {Route}", route);
-            return new ApiResponse<T> { IsSuccess = false, ErrorMessage = fallbackError };
+            return new ApiResponse<T> { IsSuccess = false, ErrorMessage = ex.Message };
         }
     }
 
@@ -1677,7 +1681,12 @@ public sealed class ApiService : IApiService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("{Method} {Route} failed: {StatusCode} / {Body}", method, route, response.StatusCode, body);
-                return new ApiResponse<bool> { IsSuccess = false, Data = false, ErrorMessage = fallbackError };
+                return new ApiResponse<bool>
+                {
+                    IsSuccess = false,
+                    Data = false,
+                    ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                };
             }
 
             var result = JsonSerializer.Deserialize<CommandResultWrapper<object>>(body, JsonOptions);
@@ -1696,8 +1705,87 @@ public sealed class ApiService : IApiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error in {Method} {Route}", method, route);
-            return new ApiResponse<bool> { IsSuccess = false, Data = false, ErrorMessage = fallbackError };
+            return new ApiResponse<bool> { IsSuccess = false, Data = false, ErrorMessage = ex.Message };
         }
+    }
+
+    private static string ExtractErrorMessage(string? body, string fallbackError)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return fallbackError;
+        }
+
+        try
+        {
+            var commandResult = JsonSerializer.Deserialize<CommandResultWrapper<object>>(body, JsonOptions);
+            var commandError = commandResult?.ErrorMessages?.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(commandError))
+            {
+                return commandError;
+            }
+        }
+        catch
+        {
+            // Ignore parse failures and continue probing common error shapes.
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+
+            if (root.TryGetProperty("errorMessage", out var errorMessage) &&
+                errorMessage.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(errorMessage.GetString()))
+            {
+                return errorMessage.GetString()!;
+            }
+
+            if (root.TryGetProperty("detail", out var detail) &&
+                detail.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(detail.GetString()))
+            {
+                return detail.GetString()!;
+            }
+
+            if (root.TryGetProperty("title", out var title) &&
+                title.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(title.GetString()))
+            {
+                return title.GetString()!;
+            }
+
+            if (root.TryGetProperty("errors", out var errors) &&
+                errors.ValueKind == JsonValueKind.Object)
+            {
+                var messages = new List<string>();
+                foreach (var property in errors.EnumerateObject())
+                {
+                    if (property.Value.ValueKind != JsonValueKind.Array)
+                        continue;
+
+                    foreach (var item in property.Value.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                        {
+                            messages.Add(item.GetString()!);
+                        }
+                    }
+                }
+
+                if (messages.Count > 0)
+                {
+                    return string.Join(" | ", messages);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore parse failures and fall back to the raw body.
+        }
+
+        return string.IsNullOrWhiteSpace(body) ? fallbackError : body;
     }
 
     private async Task<ApiResponse<T>> PostCommandWithDataAsync<T>(
@@ -1722,7 +1810,11 @@ public sealed class ApiService : IApiService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("POST {Route} failed: {StatusCode} / {Body}", route, response.StatusCode, body);
-                return new ApiResponse<T> { IsSuccess = false, ErrorMessage = fallbackError };
+                return new ApiResponse<T>
+                {
+                    IsSuccess = false,
+                    ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                };
             }
 
             var result = JsonSerializer.Deserialize<CommandResultWrapper<T>>(body, JsonOptions);
@@ -1740,7 +1832,7 @@ public sealed class ApiService : IApiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error in POST {Route}", route);
-            return new ApiResponse<T> { IsSuccess = false, ErrorMessage = fallbackError };
+            return new ApiResponse<T> { IsSuccess = false, ErrorMessage = ex.Message };
         }
     }
 

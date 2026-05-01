@@ -190,9 +190,16 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Login", "Auth");
         }
 
-        if (!IsAuthorizedFor(token, "Catalog.Category.Create", "Catalog.Category.Update", "Category.Create", "Category.Update"))
+        var isCreateMode = string.IsNullOrWhiteSpace(form.CategoryId);
+        var canSaveCategory = isCreateMode
+            ? IsAuthorizedFor(token, "Inventory.Category.Create", "Catalog.Category.Create", "Category.Create")
+            : IsAuthorizedFor(token, "Inventory.Category.Update", "Catalog.Category.Update", "Category.Update");
+
+        if (!canSaveCategory)
         {
-            TempData["CatalogError"] = "شما دسترسی ذخیره دسته‌بندی را ندارید.";
+            TempData["CatalogError"] = isCreateMode
+                ? "شما دسترسی ایجاد دسته‌بندی را ندارید."
+                : "شما دسترسی ویرایش دسته‌بندی را ندارید.";
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId ?? form.ParentCategoryId });
         }
 
