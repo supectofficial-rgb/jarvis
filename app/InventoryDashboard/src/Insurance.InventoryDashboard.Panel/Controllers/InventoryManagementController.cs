@@ -199,7 +199,7 @@ public sealed class InventoryManagementController : Controller
                 LocationId = selectedLocation?.LocationBusinessKey,
                 WarehouseId = selectedLocation?.WarehouseRef ?? selectedWarehouseId ?? string.Empty,
                 LocationCode = selectedLocation?.LocationCode ?? string.Empty,
-                LocationType = selectedLocation?.LocationType ?? "Storage",
+                LocationType = NormalizeLocationType(selectedLocation?.LocationType) ?? "Bulk",
                 Aisle = selectedLocation?.Aisle,
                 Rack = selectedLocation?.Rack,
                 Shelf = selectedLocation?.Shelf,
@@ -275,7 +275,7 @@ public sealed class InventoryManagementController : Controller
         {
             WarehouseId = form.WarehouseId,
             LocationCode = form.LocationCode,
-            LocationType = form.LocationType,
+            LocationType = NormalizeLocationType(form.LocationType) ?? form.LocationType,
             Aisle = form.Aisle,
             Rack = form.Rack,
             Shelf = form.Shelf,
@@ -379,6 +379,24 @@ public sealed class InventoryManagementController : Controller
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "وضعیت انبار تغییر کرد." : result.ErrorMessage ?? "تغییر وضعیت انبار با خطا مواجه شد.";
         return RedirectToAction(nameof(Warehouses), new { warehouseId });
+    }
+
+    private static string? NormalizeLocationType(string? locationType)
+    {
+        if (string.IsNullOrWhiteSpace(locationType))
+        {
+            return null;
+        }
+
+        return locationType.Trim().ToLowerInvariant() switch
+        {
+            "pick" or "picking" => "Pick",
+            "bulk" or "storage" => "Bulk",
+            "return" or "returns" => "Return",
+            "damage" or "damaged" => "Damage",
+            "quarantine" => "Quarantine",
+            _ => locationType.Trim()
+        };
     }
 
     private async Task<IActionResult> ChangeLocationStatus(string warehouseId, string locationId, bool activate)

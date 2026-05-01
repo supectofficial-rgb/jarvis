@@ -14,6 +14,7 @@ public sealed class CategoryManagementPageViewModel
     public string? SelectedCategoryId { get; set; }
     public IReadOnlyList<CategoryNodeModel> Categories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<CategoryNodeModel> FlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
+    public IReadOnlyList<CategoryNodeModel> LeafCategories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<CategoryNodeModel> FilteredFlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<AttributeDefinitionModel> AllAttributes { get; set; } = Array.Empty<AttributeDefinitionModel>();
     public IReadOnlyList<AttributeDefinitionModel> CategoryAttributes { get; set; } = Array.Empty<AttributeDefinitionModel>();
@@ -52,6 +53,7 @@ public sealed class ProductManagementPageViewModel
     public string? SelectedProductId { get; set; }
     public IReadOnlyList<CategoryNodeModel> Categories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<CategoryNodeModel> FlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
+    public IReadOnlyList<CategoryNodeModel> LeafCategories { get; set; } = Array.Empty<CategoryNodeModel>();
 
     public IReadOnlyList<ProductSummaryModel> Products { get; set; } = Array.Empty<ProductSummaryModel>();
     public ProductDetailsModel? SelectedProductDetails { get; set; }
@@ -97,6 +99,7 @@ public sealed class VariantManagementPageViewModel
 
     public IReadOnlyList<CategoryNodeModel> Categories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<CategoryNodeModel> FlatCategories { get; set; } = Array.Empty<CategoryNodeModel>();
+    public IReadOnlyList<CategoryNodeModel> LeafCategories { get; set; } = Array.Empty<CategoryNodeModel>();
     public IReadOnlyList<ProductSummaryModel> Products { get; set; } = Array.Empty<ProductSummaryModel>();
     public IReadOnlyList<ProductVariantSummaryModel> Variants { get; set; } = Array.Empty<ProductVariantSummaryModel>();
     public ProductVariantDetailsModel? SelectedVariantDetails { get; set; }

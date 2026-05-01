@@ -216,7 +216,7 @@ public abstract partial class CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        if (!IsAuthorizedFor(token, "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update"))
+        if (!IsAuthorizedFor(token, "Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update"))
         {
             TempData["CatalogError"] = "شهمها دسترسهمه ویرایش همه^اهمهOهمه دستهمه?Oبهمهدهمه را همهدارهمهد.";
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
@@ -252,7 +252,7 @@ public abstract partial class CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        if (!IsAuthorizedFor(token, "Catalog.Category.Rule.Activate", "CategoryAttributeRule.Activate"))
+        if (!IsAuthorizedFor(token, "Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Activate", "CategoryAttributeRule.Activate"))
         {
             TempData["CatalogError"] = "شهمها دسترسهمه فعالهمهOسازهمه rule را همهدارهمهد.";
             return RedirectToAction(nameof(Categories), new { categoryId });
@@ -273,7 +273,7 @@ public abstract partial class CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        if (!IsAuthorizedFor(token, "Catalog.Category.Rule.Deactivate", "CategoryAttributeRule.Deactivate"))
+        if (!IsAuthorizedFor(token, "Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Deactivate", "CategoryAttributeRule.Deactivate"))
         {
             TempData["CatalogError"] = "شهمها دسترسهمه غیرفعالهمهOسازهمه rule را همهدارهمهد.";
             return RedirectToAction(nameof(Categories), new { categoryId });
@@ -294,7 +294,7 @@ public abstract partial class CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        if (!IsAuthorizedFor(token, "Catalog.Category.Rule.Remove", "CategoryAttributeRule.Remove", "CategoryAttributeRule.Delete"))
+        if (!IsAuthorizedFor(token, "Inventory.CategoryAttributeRule.Remove", "Catalog.Category.Rule.Remove", "CategoryAttributeRule.Remove", "CategoryAttributeRule.Delete"))
         {
             TempData["CatalogError"] = "شهمها دسترسهمه حذف rule را همهدارهمهد.";
             return RedirectToAction(nameof(Categories), new { categoryId });
@@ -358,7 +358,7 @@ public abstract partial class CatalogManagementController
 
         // در تب ویژگی، کاربر اولویت/الزامی/واریانت‌ساز را هم مدیریت می‌کند؛
         // بنابراین اگر rule محلی وجود داشته باشد همان را هم به‌روزرسانی می‌کنیم.
-        var canUpdateRule = IsAuthorizedFor(token, "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update");
+        var canUpdateRule = IsAuthorizedFor(token, "Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update");
         if (canUpdateRule)
         {
             var rulesResult = await _apiService.GetCategoryAttributeRulesAsync(
@@ -735,6 +735,20 @@ public abstract partial class CatalogManagementController
         if (!TryValidateModel(form))
         {
             TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Products), new { productId = form.ProductId, categoryId = form.CurrentCategoryId });
+        }
+
+        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
+        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
+        if (!flatCategories.Any(x => string.Equals(x.Id, form.NewCategoryId, StringComparison.OrdinalIgnoreCase)))
+        {
+            TempData["CatalogError"] = "دسته‌بندی مقصد معتبر نیست.";
+            return RedirectToAction(nameof(Products), new { productId = form.ProductId, categoryId = form.CurrentCategoryId });
+        }
+
+        if (flatCategories.Any(x => string.Equals(x.ParentCategoryId, form.NewCategoryId, StringComparison.OrdinalIgnoreCase)))
+        {
+            TempData["CatalogError"] = "محصول فقط باید به آخرین سطح دسته‌بندی منتقل شود.";
             return RedirectToAction(nameof(Products), new { productId = form.ProductId, categoryId = form.CurrentCategoryId });
         }
 

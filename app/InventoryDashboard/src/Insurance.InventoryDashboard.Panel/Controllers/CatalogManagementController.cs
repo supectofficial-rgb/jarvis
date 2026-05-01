@@ -71,6 +71,7 @@ public abstract partial class CatalogManagementController : Controller
         var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
         var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
         var flatCategories = FlattenCategories(categories).ToList();
+        var leafCategories = GetLeafCategories(flatCategories);
         var filteredFlatCategories = ApplyCategoryFilters(flatCategories, searchTerm, statusFilter, sort);
         var pagedCategories = Paginate(filteredFlatCategories, page, pageSize, out var normalizedPage, out var normalizedPageSize, out var totalCount, out var totalPages);
 
@@ -110,6 +111,7 @@ public abstract partial class CatalogManagementController : Controller
             SelectedCategoryId = selectedCategoryId,
             Categories = categories,
             FlatCategories = flatCategories,
+            LeafCategories = leafCategories,
             FilteredFlatCategories = pagedCategories,
             AllAttributes = allAttributesResult.Data ?? new List<AttributeDefinitionModel>(),
             CategoryAttributes = attributesResult.Data ?? new List<AttributeDefinitionModel>(),
@@ -158,7 +160,7 @@ public abstract partial class CatalogManagementController : Controller
             },
             AssignForm = new AssignAttributeForm
             {
-                CategoryId = selectedCategoryId ?? string.Empty,
+                CategoryId = IsLeafCategory(flatCategories, selectedCategoryId) ? selectedCategoryId ?? string.Empty : string.Empty,
                 IsRequired = selectedRule?.RuleIsRequired ?? false,
                 IsVariant = selectedRule?.RuleIsVariant ?? false,
                 DisplayOrder = selectedRule?.RuleDisplayOrder ?? 0,
@@ -396,7 +398,7 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Login", "Auth");
         }
 
-        if (!IsAuthorizedFor(token, "Catalog.Category.Rule.Assign", "CategoryAttributeRule.Assign", "CategoryAttributeRule.Create"))
+        if (!IsAuthorizedFor(token, "Inventory.CategoryAttributeRule.Assign", "Catalog.Category.Rule.Assign", "CategoryAttributeRule.Assign", "CategoryAttributeRule.Create"))
         {
             TempData["CatalogError"] = "شما دسترسی انتساب اتریبیوت به دسته‌بندی را ندارید.";
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
@@ -405,6 +407,42 @@ public abstract partial class CatalogManagementController : Controller
         if (!TryValidateModel(form))
         {
             TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
+        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
+        if (!flatCategories.Any(x => string.Equals(x.Id, form.CategoryId, StringComparison.OrdinalIgnoreCase)))
+        {
+            TempData["CatalogError"] = "دسته‌بندی انتخاب‌شده معتبر نیست.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (!IsLeafCategory(flatCategories, form.CategoryId))
+        {
+            TempData["CatalogError"] = "اتریبیوت فقط به آخرین سطح دسته‌بندی قابل اختصاص است.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        var activeAttributesResult = await _apiService.GetActiveAttributeDefinitionsAsync(token);
+        var selectedAttribute = (activeAttributesResult.Data ?? new List<AttributeDefinitionModel>())
+            .FirstOrDefault(x => string.Equals(x.Id, form.AttributeId, StringComparison.OrdinalIgnoreCase));
+        if (selectedAttribute is null)
+        {
+            TempData["CatalogError"] = activeAttributesResult.ErrorMessage ?? "اتریبیوت انتخاب‌شده یافت نشد یا غیرفعال است.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        var normalizedScope = (selectedAttribute.Scope ?? string.Empty).Trim();
+        if (form.IsVariant && string.Equals(normalizedScope, "Product", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["CatalogError"] = "اتریبیوت سطح محصول را نمی‌توان به‌صورت rule واریانت ثبت کرد.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (!form.IsVariant && string.Equals(normalizedScope, "Variant", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["CatalogError"] = "اتریبیوت سطح واریانت را نمی‌توان به‌صورت rule محصول ثبت کرد.";
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
@@ -478,6 +516,7 @@ public abstract partial class CatalogManagementController : Controller
         var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
         var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
         var flatCategories = FlattenCategories(categories).ToList();
+        var leafCategories = GetLeafCategories(flatCategories);
 
         var productsResult = await _apiService.SearchProductsAsync(token, searchTerm, categoryFilterId);
         var allProducts = productsResult.Data ?? new List<ProductSummaryModel>();
@@ -566,6 +605,7 @@ public abstract partial class CatalogManagementController : Controller
             SelectedProductId = selectedProductId,
             Categories = categories,
             FlatCategories = flatCategories,
+            LeafCategories = leafCategories,
 
             Products = pagedProducts,
             SelectedProductDetails = productDetailsResult.Data,
@@ -645,6 +685,12 @@ public abstract partial class CatalogManagementController : Controller
         if (selectedCategory is null)
         {
             TempData["CatalogError"] = "دسته‌بندی انتخاب‌شده معتبر نیست.";
+            return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
+        }
+
+        if (!IsLeafCategory(flatCategories, form.CategoryId))
+        {
+            TempData["CatalogError"] = "محصول فقط باید در آخرین سطح دسته‌بندی ثبت شود.";
             return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
         }
 
@@ -1047,8 +1093,7 @@ public abstract partial class CatalogManagementController : Controller
         var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
         var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
         var flatCategories = FlattenCategories(categories).ToList();
-        var productsResult = await _apiService.SearchProductsAsync(token);
-        var products = productsResult.Data ?? new List<ProductSummaryModel>();
+        var leafCategories = GetLeafCategories(flatCategories);
         var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
         var unitOfMeasures = uomLookupResult.Data ?? new List<UnitOfMeasureLookupModel>();
         var uomById = unitOfMeasures.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
@@ -1084,9 +1129,7 @@ public abstract partial class CatalogManagementController : Controller
         var pagedVariants = filteredVariants;
 
         var isVariantCreateMode = createNew;
-        var selectedVariantId = isVariantCreateMode
-            ? null
-            : ResolveSelectedVariantId(variantId, variants, pagedVariants);
+        var selectedVariantId = isVariantCreateMode ? null : variantId;
 
         var variantDetailsResult = !string.IsNullOrWhiteSpace(selectedVariantId)
             ? await _apiService.GetProductVariantFullDetailsAsync(selectedVariantId, token)
@@ -1104,7 +1147,6 @@ public abstract partial class CatalogManagementController : Controller
 
         var selectedProductCategoryId =
             variantDetailsResult.Data?.CategoryId ??
-            products.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId ??
             selectedCategoryId;
 
         var (attributeGroups, effectiveAttributes, attributesError) =
@@ -1138,7 +1180,7 @@ public abstract partial class CatalogManagementController : Controller
             SelectedCategoryId = selectedProductCategoryId,
             Categories = categories,
             FlatCategories = flatCategories,
-            Products = products,
+            LeafCategories = leafCategories,
             Variants = pagedVariants,
             SelectedVariantDetails = variantDetailsResult.Data,
             UnitOfMeasures = unitOfMeasures,
@@ -1162,7 +1204,6 @@ public abstract partial class CatalogManagementController : Controller
             VariantPageSizeOptions = PageSizeOptions,
 
             ErrorMessage = JoinErrors(
-                productsResult.ErrorMessage,
                 uomLookupResult.ErrorMessage,
                 variantsSearchResult.ErrorMessage,
                 variantDetailsResult.ErrorMessage,
@@ -1596,7 +1637,7 @@ public abstract partial class CatalogManagementController : Controller
 
         var created = 0;
         var updated = 0;
-        var deleted = 0;
+        var retained = 0;
         var errors = new List<string>();
 
         foreach (var plan in desiredPlans)
@@ -1654,20 +1695,13 @@ public abstract partial class CatalogManagementController : Controller
             }
         }
 
-        foreach (var existing in existingDetails.Where(x => !desiredSkus.Contains(x.Sku)))
-        {
-            var deleteResult = await _apiService.DeleteProductVariantAsync(existing.Id, token);
-            if (deleteResult.IsSuccess)
-            {
-                deleted++;
-            }
-            else
-            {
-                errors.Add($"{existing.Sku}: {deleteResult.ErrorMessage ?? "حذف واریانت انجام نشد"}");
-            }
-        }
+        var obsoleteVariants = existingDetails
+            .Where(x => !desiredSkus.Contains(x.Sku))
+            .ToList();
 
-        var summary = $"همسان‌سازی واریانت‌ها: {created} ایجاد، {updated} ویرایش، {deleted} حذف.";
+        retained = obsoleteVariants.Count;
+
+        var summary = $"همسان‌سازی واریانت‌ها: {created} ایجاد، {updated} ویرایش، {retained} واریانت قدیمی بدون حذف باقی ماند.";
         if (errors.Count == 0)
         {
             return summary;
@@ -2142,6 +2176,31 @@ public abstract partial class CatalogManagementController : Controller
         return false;
     }
 
+    private static IReadOnlyList<CategoryNodeModel> GetLeafCategories(IReadOnlyList<CategoryNodeModel> flatCategories)
+    {
+        var parentIds = flatCategories
+            .Where(x => !string.IsNullOrWhiteSpace(x.ParentCategoryId))
+            .Select(x => x.ParentCategoryId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return flatCategories
+            .Where(x => !parentIds.Contains(x.Id))
+            .OrderBy(x => x.Name)
+            .ThenBy(x => x.Id)
+            .ToList();
+    }
+
+    private static bool IsLeafCategory(IReadOnlyList<CategoryNodeModel> flatCategories, string? categoryId)
+    {
+        if (string.IsNullOrWhiteSpace(categoryId))
+        {
+            return false;
+        }
+
+        return !flatCategories.Any(x =>
+            string.Equals(x.ParentCategoryId, categoryId, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static IReadOnlyList<CategoryNodeModel> BuildCategoryLineage(IReadOnlyList<CategoryNodeModel> flatCategories, string categoryId)
     {
         var map = flatCategories.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
@@ -2207,7 +2266,7 @@ public abstract partial class CatalogManagementController : Controller
             "displayorder_desc" => query.OrderByDescending(c => c.DisplayOrder).ThenBy(c => c.Name),
             "status_asc" => query.OrderBy(c => c.IsActive ? 0 : 1).ThenBy(c => c.Name),
             "status_desc" => query.OrderBy(c => c.IsActive ? 1 : 0).ThenBy(c => c.Name),
-            _ => query.OrderBy(c => c.Name).ThenBy(c => c.Id)
+            _ => query
         };
 
         return query.ToList();
@@ -2472,7 +2531,10 @@ public abstract partial class CatalogManagementController : Controller
 
     private static IEnumerable<CategoryNodeModel> FlattenCategories(IEnumerable<CategoryNodeModel> roots)
     {
-        foreach (var root in roots)
+        foreach (var root in roots
+                     .OrderBy(x => x.DisplayOrder)
+                     .ThenBy(x => x.Name)
+                     .ThenBy(x => x.Id))
         {
             yield return root;
             if (root.Children.Count == 0)

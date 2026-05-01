@@ -101,20 +101,6 @@
     #category-list-scope [data-bulk-form],
     #category-list-scope table th:first-child,
     #category-list-scope table td:first-child,
-    #rule-modal-required,
-    label[for="rule-modal-required"],
-    #rule-modal-overridden,
-    label[for="rule-modal-overridden"],
-    #rule-modal-active,
-    label[for="rule-modal-active"],
-    #RuleForm_IsRequired,
-    label[for="RuleForm_IsRequired"],
-    #RuleForm_IsOverridden,
-    label[for="RuleForm_IsOverridden"],
-    #RuleForm_IsActive,
-    label[for="RuleForm_IsActive"] {
-        display: none !important;
-    }
 </style>
 
 <main id="categories-page"
@@ -402,6 +388,7 @@
                                                         {
                                                             var parentName = Model.FlatCategories.FirstOrDefault(x => x.Id == category.ParentCategoryId)?.Name;
                                                             var depth = GetDepth(category);
+                                                            var levelLabel = $"سطح {depth + 1}";
                                                             var hasChildren = HasChildren(category.Id);
                                                             var childCount = Model.FlatCategories.Count(x => string.Equals(x.ParentCategoryId, category.Id, StringComparison.OrdinalIgnoreCase));
                                                             <tr class="@(string.Equals(category.Id, Model.SelectedCategoryId, StringComparison.OrdinalIgnoreCase) ? "table-primary" : null)"
@@ -415,7 +402,7 @@
                                                                 <td><span class="text-monospace">@category.Code</span></td>
                                                                 <td>
                                                                     <span class="d-inline-block">
-                                                                        @Html.Raw(string.Concat(Enumerable.Repeat("&nbsp;", depth * 4)))
+                                                                        <span class="text-muted mr-1">@Html.Raw(string.Concat(Enumerable.Repeat("— ", depth)))</span>
                                                                         @if (hasChildren)
                                                                         {
                                                                             <button type="button"
@@ -427,9 +414,10 @@
                                                                         }
                                                                         else
                                                                         {
-                                                                            <span class="text-muted small mr-1">.</span>
+                                                                            <span class="text-muted small mr-1">•</span>
                                                                         }
                                                                         <span>@category.Name</span>
+                                                                        <span class="badge badge-pill badge-light ml-1">@levelLabel</span>
                                                                         @if (childCount > 0)
                                                                         {
                                                                             <span class="badge badge-pill badge-outline-primary ml-1">@childCount زیرمجموعه</span>
@@ -747,9 +735,34 @@
                     </div>
 
                     <div class="tab-pane @(showRules ? "show active" : null)" id="rule-tab" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                                    <div>
+                                        <h5 class="card-title mb-1">انتخاب دسته‌بندی برای قوانین</h5>
+                                        <p class="text-muted mb-0 small">ابتدا آخرین سطح دسته‌بندی را انتخاب کنید تا فرم و لیست قوانین برای همان دسته بازخوانی شود.</p>
+                                    </div>
+                                </div>
+                                <form asp-action="CategoryAttributes" method="get" class="row align-items-end" id="rule-category-filter-form">
+                                    <div class="col-lg-8 col-md-8 mb-2">
+                                        <label class="text-muted small">دسته‌بندی</label>
+                                        <select name="categoryId" class="form-control js-search-select" data-placeholder="انتخاب آخرین سطح دسته‌بندی">
+                                            <option value="">انتخاب آخرین سطح دسته‌بندی</option>
+                                            @foreach (var category in Model.LeafCategories)
+                                            {
+                                                <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-4 col-md-4 mb-2">
+                                        <button type="submit" class="btn btn-primary btn-block">نمایش فرم و لیست قوانین</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="rule-section-tabs">
-                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#rule-section-edit" role="tab">اختصاص / ویرایش</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-section-list" role="tab">قوانین فعلی</a></li>
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#rule-section-edit" role="tab">فرم اختصاص</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-section-list" role="tab">لیست قوانین</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane show active" id="rule-section-edit" role="tabpanel">
@@ -763,19 +776,21 @@
                                             <div asp-validation-summary="All" class="text-danger small mb-2"></div>
                                             <div class="form-group">
                                                 <label>دسته‌بندی</label>
-                                                <select asp-for="AssignForm.CategoryId" class="form-control">
-                                                    @foreach (var category in Model.FlatCategories)
+                                                <select asp-for="AssignForm.CategoryId" class="form-control js-search-select" data-placeholder="انتخاب آخرین سطح دسته‌بندی">
+                                                    <option value="">انتخاب آخرین سطح دسته‌بندی</option>
+                                                    @foreach (var category in Model.LeafCategories)
                                                     {
                                                         <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
                                                     }
                                                 </select>
+                                                <small class="form-text text-muted">فقط آخرین سطح دسته‌بندی برای اختصاص اتریبیوت قابل انتخاب است.</small>
                                             </div>
                                             <div class="form-group">
                                                 <label>ویژگی</label>
                                                 <select asp-for="AssignForm.AttributeId" class="form-control js-search-select" data-placeholder="جستجو در بانک ویژگی‌ها">
                                                     @foreach (var attr in Model.AllAttributes.OrderBy(x => x.Name))
                                                     {
-                                                        <option value="@attr.Id">@attr.Name (@attr.Code / @attr.DataType)</option>
+                                                        <option value="@attr.Id">@attr.Name (@attr.Code / @attr.DataType / @attr.Scope)</option>
                                                     }
                                                 </select>
                                                 @if (Model.AllAttributes.Count == 0)
@@ -803,14 +818,15 @@
                                                 <input asp-for="AssignForm.IsActive" class="custom-control-input" />
                                                 <label class="custom-control-label" asp-for="AssignForm.IsActive">فعال</label>
                                             </div>
-                                            <button class="btn btn-success" type="submit" @(Can("Catalog.Category.Rule.Assign", "CategoryAttributeRule.Assign", "CategoryAttributeRule.Create") ? null : "disabled")>ثبت انتساب</button>
+                                            <button class="btn btn-success" type="submit" @(Can("Inventory.CategoryAttributeRule.Assign", "Catalog.Category.Rule.Assign", "CategoryAttributeRule.Assign", "CategoryAttributeRule.Create") ? null : "disabled")>ثبت انتساب</button>
                                         </form>
                                     </div>
                                 </div>
 
-                                <div class="card">
+                                <div class="card" id="rule-inline-edit-card" style="display:none;">
                                     <div class="card-body">
                                         <h5 class="card-title">ویرایش قانون</h5>
+                                        <p class="text-muted small mb-3">با زدن دکمه ویرایش از لیست قوانین، اطلاعات قانون اینجا برمی‌گردد و می‌توانید آن را اصلاح کنید.</p>
                                         <form asp-action="UpdateCategoryAttributeRule" method="post" id="update-category-attribute-rule-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <input asp-for="RuleForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
@@ -839,7 +855,10 @@
                                             {
                                                 <small class="form-text text-warning">قانون مستقیمی برای ویرایش وجود ندارد.</small>
                                             }
-                                            <button class="btn btn-outline-primary mt-3" type="submit" @((Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") && localRules.Count > 0) ? null : "disabled")>به‌روزرسانی قانون</button>
+                                            <div class="mt-3">
+                                                <button class="btn btn-outline-primary" type="submit" @((Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") && localRules.Count > 0) ? null : "disabled")>به‌روزرسانی قانون</button>
+                                                <button class="btn btn-outline-secondary" type="button" id="rule-inline-edit-cancel">انصراف از ویرایش</button>
+                                            </div>
                                         </form>
                                     </div>
                                 </div>
@@ -882,7 +901,7 @@
                                                                 @if (!rule.IsInherited)
                                                                 {
                                                                     <button type="button"
-                                                                            class="btn btn-outline-secondary btn-xs rule-modal-edit-btn"
+                                                                            class="btn btn-outline-secondary btn-xs rule-inline-edit-btn"
                                                                             data-rule-category-id="@Model.SelectedCategoryId"
                                                                             data-rule-attribute-id="@rule.AttributeId"
                                                                             data-rule-attribute-name="@rule.AttributeName"
@@ -891,28 +910,26 @@
                                                                             data-rule-variant="@(rule.RuleIsVariant ? "true" : "false")"
                                                                             data-rule-overridden="@(rule.RuleIsOverridden ? "true" : "false")"
                                                                             data-rule-active="@(rule.RuleIsActive ? "true" : "false")"
-                                                                            data-toggle="modal"
-                                                                            data-target="#ruleEditModal"
-                                                                            @(Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") ? null : "disabled")>
+                                                                            @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") ? null : "disabled")>
                                                                         ویرایش
                                                                     </button>
                                                                     <form asp-action="ActivateCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="attributeId" value="@rule.AttributeId" />
-                                                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Catalog.Category.Rule.Activate", "CategoryAttributeRule.Activate") ? null : "disabled")>فعال</button>
+                                                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Activate", "CategoryAttributeRule.Activate") ? null : "disabled")>فعال</button>
                                                                     </form>
                                                                     <form asp-action="DeactivateCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="attributeId" value="@rule.AttributeId" />
-                                                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Catalog.Category.Rule.Deactivate", "CategoryAttributeRule.Deactivate") ? null : "disabled")>غیرفعال</button>
+                                                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Deactivate", "CategoryAttributeRule.Deactivate") ? null : "disabled")>غیرفعال</button>
                                                                     </form>
                                                                     <form asp-action="RemoveCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="attributeId" value="@rule.AttributeId" />
-                                                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف قانون" data-confirm="این قانون دسته‌بندی حذف شود؟" @(Can("Catalog.Category.Rule.Remove", "CategoryAttributeRule.Remove", "CategoryAttributeRule.Delete") ? null : "disabled")>حذف</button>
+                                                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف قانون" data-confirm="این قانون دسته‌بندی حذف شود؟" @(Can("Inventory.CategoryAttributeRule.Remove", "Catalog.Category.Rule.Remove", "CategoryAttributeRule.Remove", "CategoryAttributeRule.Delete") ? null : "disabled")>حذف</button>
                                                                     </form>
                                                                 }
                                                             </td>
@@ -934,62 +951,11 @@
     </div>
 </main>
 
-<div class="modal fade" id="ruleEditModal" tabindex="-1" role="dialog" aria-labelledby="ruleEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="ruleEditModalLabel">ویرایش قانون ویژگی</h5>
-                <button type="button" class="close p-0" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form asp-action="UpdateCategoryAttributeRule" method="post" id="rule-modal-form" data-loading-form data-dirty-watch>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="RuleForm.CategoryId" id="rule-modal-category-id" value="@Model.SelectedCategoryId" />
-                    <input type="hidden" name="RuleForm.AttributeId" id="rule-modal-attribute-id" />
-                    <div class="form-group">
-                        <label>ویژگی</label>
-                        <input type="text" id="rule-modal-attribute-name" class="form-control" readonly />
-                    </div>
-                    <div class="form-group">
-                        <label>ترتیب نمایش</label>
-                        <input type="number" name="RuleForm.DisplayOrder" id="rule-modal-display-order" min="0" class="form-control" />
-                    </div>
-                    <div class="custom-control custom-checkbox">
-                        <input type="checkbox" name="RuleForm.IsRequired" id="rule-modal-required" class="custom-control-input" />
-                        <label class="custom-control-label" for="rule-modal-required">الزامی</label>
-                    </div>
-                    <div class="custom-control custom-checkbox mt-2">
-                        <input type="checkbox" name="RuleForm.IsVariant" id="rule-modal-variant" class="custom-control-input" />
-                        <label class="custom-control-label" for="rule-modal-variant">سطح واریانت</label>
-                    </div>
-                    <div class="custom-control custom-checkbox mt-2">
-                        <input type="checkbox" name="RuleForm.IsOverridden" id="rule-modal-overridden" class="custom-control-input" />
-                        <label class="custom-control-label" for="rule-modal-overridden">بازنویسی‌شده</label>
-                    </div>
-                    <div class="custom-control custom-checkbox mt-2">
-                        <input type="checkbox" name="RuleForm.IsActive" id="rule-modal-active" class="custom-control-input" />
-                        <label class="custom-control-label" for="rule-modal-active">فعال</label>
-                    </div>
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">انصراف</button>
-                        <button type="submit"
-                                class="btn btn-primary"
-                                @(Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") ? null : "disabled")>
-                            ذخیره تغییرات قانون
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
 @section Scripts {
     <script>
         (function () {
             var tabKey = 'catalog-categories-active-tab';
+            var ruleSectionTabKey = 'catalog-categories-rule-section-tab';
             var treeStateKey = 'catalog-categories-collapsed-v1';
             var filterStateKey = 'catalog-categories-filters-v1';
             var draftStateKey = 'catalog-categories-form-drafts-v1';
@@ -1005,6 +971,7 @@
             var canDeleteOptions = @Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete").ToString().ToLowerInvariant();
             var dirtyForms = new Set();
             var tabs = document.querySelectorAll('#category-tabs .nav-link');
+            var ruleSectionTabs = document.querySelectorAll('#rule-section-tabs .nav-link');
             var searchForm = document.getElementById('category-search-form');
             var watchedFormIds = [
                 'category-upsert-form',
@@ -1012,8 +979,7 @@
                 'create-category-attribute-form',
                 'attribute-update-form',
                 'assign-attribute-to-category-form',
-                'update-category-attribute-rule-form',
-                'rule-modal-form'
+                'update-category-attribute-rule-form'
             ];
             var watchedForms = watchedFormIds
                 .map(function (formId) { return document.getElementById(formId); })
@@ -1155,11 +1121,28 @@
                 });
             });
 
+            ruleSectionTabs.forEach(function (tab) {
+                tab.addEventListener('shown.bs.tab', function () {
+                    var href = tab.getAttribute('href');
+                    if (href) {
+                        localStorage.setItem(ruleSectionTabKey, href);
+                    }
+                });
+            });
+
             var activeTab = '@(showAttributes ? "#attribute-tab" : showRules ? "#rule-tab" : "#category-tab")';
             if (activeTab) {
                 var target = document.querySelector('#category-tabs .nav-link[href="' + activeTab + '"]');
                 if (target && window.jQuery) {
                     window.jQuery(target).tab('show');
+                }
+            }
+
+            if (activeTab === '#rule-tab') {
+                var activeRuleSectionTab = localStorage.getItem(ruleSectionTabKey) || '#rule-section-edit';
+                var ruleTarget = document.querySelector('#rule-section-tabs .nav-link[href="' + activeRuleSectionTab + '"]');
+                if (ruleTarget && window.jQuery) {
+                    window.jQuery(ruleTarget).tab('show');
                 }
             }
 
@@ -1591,20 +1574,16 @@
                 });
             }
 
-            var ruleModalCategoryId = document.getElementById('rule-modal-category-id');
-            var ruleModalAttributeId = document.getElementById('rule-modal-attribute-id');
-            var ruleModalAttributeName = document.getElementById('rule-modal-attribute-name');
-            var ruleModalDisplayOrder = document.getElementById('rule-modal-display-order');
-            var ruleModalRequired = document.getElementById('rule-modal-required');
-            var ruleModalVariant = document.getElementById('rule-modal-variant');
-            var ruleModalOverridden = document.getElementById('rule-modal-overridden');
-            var ruleModalActive = document.getElementById('rule-modal-active');
+            var ruleSectionEditTab = document.querySelector('#rule-section-tabs .nav-link[href="#rule-section-edit"]');
+            var ruleInlineEditCard = document.getElementById('rule-inline-edit-card');
+            var ruleInlineEditCancel = document.getElementById('rule-inline-edit-cancel');
             var ruleEditSelect = document.getElementById('RuleForm_AttributeId');
             var ruleEditDisplayOrder = document.getElementById('RuleForm_DisplayOrder');
             var ruleEditRequired = document.getElementById('RuleForm_IsRequired');
             var ruleEditVariant = document.getElementById('RuleForm_IsVariant');
             var ruleEditOverridden = document.getElementById('RuleForm_IsOverridden');
             var ruleEditActive = document.getElementById('RuleForm_IsActive');
+            var ruleEditCategoryId = document.getElementById('RuleForm_CategoryId');
 
             function applyRuleOptionToEditForm() {
                 if (!ruleEditSelect) {
@@ -1628,32 +1607,87 @@
                 applyRuleOptionToEditForm();
             }
 
-            document.querySelectorAll('.rule-modal-edit-btn').forEach(function (button) {
+            function openRuleInlineEdit(button) {
+                if (!button) {
+                    return;
+                }
+
+                localStorage.setItem(ruleSectionTabKey, '#rule-section-edit');
+                if (ruleSectionEditTab && window.jQuery) {
+                    window.jQuery(ruleSectionEditTab).tab('show');
+                }
+
+                if (ruleInlineEditCard) {
+                    ruleInlineEditCard.style.display = '';
+                }
+
+                if (ruleEditCategoryId) {
+                    ruleEditCategoryId.value = button.getAttribute('data-rule-category-id') || '@Model.SelectedCategoryId';
+                }
+                if (ruleEditSelect) {
+                    ruleEditSelect.value = button.getAttribute('data-rule-attribute-id') || '';
+                }
+                if (ruleEditDisplayOrder) {
+                    ruleEditDisplayOrder.value = button.getAttribute('data-rule-display-order') || '0';
+                }
+                if (ruleEditRequired) {
+                    ruleEditRequired.checked = (button.getAttribute('data-rule-required') || '').toLowerCase() === 'true';
+                }
+                if (ruleEditVariant) {
+                    ruleEditVariant.checked = (button.getAttribute('data-rule-variant') || '').toLowerCase() === 'true';
+                }
+                if (ruleEditOverridden) {
+                    ruleEditOverridden.checked = (button.getAttribute('data-rule-overridden') || '').toLowerCase() === 'true';
+                }
+                if (ruleEditActive) {
+                    ruleEditActive.checked = (button.getAttribute('data-rule-active') || '').toLowerCase() === 'true';
+                }
+
+                if (ruleEditSelect) {
+                    ruleEditSelect.dispatchEvent(new Event('change'));
+                    ruleEditSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            function closeRuleInlineEdit() {
+                if (!ruleInlineEditCard) {
+                    return;
+                }
+
+                ruleInlineEditCard.style.display = 'none';
+                if (ruleEditSelect) {
+                    ruleEditSelect.selectedIndex = 0;
+                    ruleEditSelect.dispatchEvent(new Event('change'));
+                }
+            }
+
+            document.querySelectorAll('.rule-inline-edit-btn').forEach(function (button) {
                 button.addEventListener('click', function () {
-                    if (ruleModalCategoryId) {
-                        ruleModalCategoryId.value = button.getAttribute('data-rule-category-id') || '@Model.SelectedCategoryId';
-                    }
-                    if (ruleModalAttributeId) {
-                        ruleModalAttributeId.value = button.getAttribute('data-rule-attribute-id') || '';
-                    }
-                    if (ruleModalAttributeName) {
-                        ruleModalAttributeName.value = button.getAttribute('data-rule-attribute-name') || '';
-                    }
-                    if (ruleModalDisplayOrder) {
-                        ruleModalDisplayOrder.value = button.getAttribute('data-rule-display-order') || '0';
-                    }
-                    if (ruleModalRequired) {
-                        ruleModalRequired.checked = (button.getAttribute('data-rule-required') || '').toLowerCase() === 'true';
-                    }
-                    if (ruleModalVariant) {
-                        ruleModalVariant.checked = (button.getAttribute('data-rule-variant') || '').toLowerCase() === 'true';
-                    }
-                    if (ruleModalOverridden) {
-                        ruleModalOverridden.checked = (button.getAttribute('data-rule-overridden') || '').toLowerCase() === 'true';
-                    }
-                    if (ruleModalActive) {
-                        ruleModalActive.checked = (button.getAttribute('data-rule-active') || '').toLowerCase() === 'true';
-                    }
+                    openRuleInlineEdit(button);
+                });
+            });
+
+            if (ruleInlineEditCancel) {
+                ruleInlineEditCancel.addEventListener('click', closeRuleInlineEdit);
+            }
+
+            var assignAttributeToCategoryForm = document.getElementById('assign-attribute-to-category-form');
+            if (assignAttributeToCategoryForm) {
+                assignAttributeToCategoryForm.addEventListener('submit', function () {
+                    localStorage.setItem(ruleSectionTabKey, '#rule-section-edit');
+                });
+            }
+
+            var updateCategoryAttributeRuleForm = document.getElementById('update-category-attribute-rule-form');
+            if (updateCategoryAttributeRuleForm) {
+                updateCategoryAttributeRuleForm.addEventListener('submit', function () {
+                    localStorage.setItem(ruleSectionTabKey, '#rule-section-edit');
+                });
+            }
+
+            document.querySelectorAll('form[action$="RemoveCategoryAttributeRule"], form[action$="ActivateCategoryAttributeRule"], form[action$="DeactivateCategoryAttributeRule"]').forEach(function (form) {
+                form.addEventListener('submit', function () {
+                    localStorage.setItem(ruleSectionTabKey, '#rule-section-list');
                 });
             });
 

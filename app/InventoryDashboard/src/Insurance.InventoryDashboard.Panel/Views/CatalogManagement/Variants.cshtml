@@ -93,7 +93,8 @@
     #variant-search-form > div:nth-of-type(4),
     #variant-search-form > div:nth-of-type(5),
     #variant-search-form > div:nth-of-type(6),
-    #variant-search-form > div:nth-of-type(7) {
+    #variant-search-form > div:nth-of-type(7),
+    #variant-search-form > div:nth-of-type(8) {
         display: none !important;
     }
 </style>
@@ -223,14 +224,14 @@
                         <form method="get" asp-action="Variants" class="row" id="variant-search-form" data-state-form>
                             <input type="hidden" name="attributeOptionIds" id="variant-attribute-option-ids" value="@Model.VariantAttributeOptionFilterIds" />
                             <div class="col-md-3 mb-2">
-                                <label class="text-muted small">عبارت جستجو</label>
-                                <input name="searchTerm" value="@Model.VariantSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="SKU، بارکد، شناسه..." />
+                                <label class="text-muted small">نام یا کد کالا</label>
+                                <input name="searchTerm" value="@Model.VariantSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام یا کد کالا/واریانت..." />
                             </div>
                             <div class="col-md-3 mb-2">
                                 <label class="text-muted small">دسته‌بندی</label>
                                 <select name="categoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته">
                                     <option value="">همه دسته‌ها</option>
-                                    @foreach (var category in Model.FlatCategories)
+                                    @foreach (var category in Model.LeafCategories)
                                     {
                                         <option value="@category.Id" selected="@(string.Equals(Model.VariantCategoryFilterId, category.Id, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@category.Name</option>
                                     }
@@ -689,22 +690,11 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm">
-                                                        <a class="btn btn-outline-primary btn-xs"
-                                                           asp-action="Variants"
-                                                           asp-route-productId="@Model.SelectedProductId"
-                                                           asp-route-variantId="@variant.Id"
-                                                           asp-route-searchTerm="@Model.VariantSearchTerm"
-                                                           asp-route-trackingPolicy="@Model.VariantTrackingFilter"
-                                                           asp-route-statusFilter="@Model.VariantStatusFilter"
-                                                           asp-route-attributeTypeFilter="@Model.SelectedAttributeTypeFilter"
-                                                           asp-route-sort="@Model.VariantSort"
-                                                           asp-route-page="@Model.VariantPage"
-                                                           asp-route-pageSize="@Model.VariantPageSize">مستقیم</a>
-                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
-                                                                data-detail-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
-                                                                data-detail-title="موجودی و انبارها">
-                                                            انبارها
-                                                        </button>
+                                                    <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
+                                                            data-detail-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
+                                                            data-detail-title="موجودی و انبارها">
+                                                        انبارها
+                                                    </button>
                                                         <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
                                                                 data-detail-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="قیمت‌ها">

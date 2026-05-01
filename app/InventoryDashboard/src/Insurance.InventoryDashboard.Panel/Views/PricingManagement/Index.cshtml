@@ -7,8 +7,12 @@
     ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
     ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
 
-    var priceTypeNames = Model.PriceTypeLookup.ToDictionary(x => x.PriceTypeBusinessKey, x => $"{x.Name} ({x.Code})");
-    var priceChannelNames = Model.PriceChannelLookup.ToDictionary(x => x.PriceChannelBusinessKey, x => $"{x.Name} ({x.Code})");
+    var priceTypeNames = Model.PriceTypeLookup
+        .GroupBy(x => x.PriceTypeBusinessKey)
+        .ToDictionary(x => x.Key, x => $"{x.First().Name} ({x.First().Code})");
+    var priceChannelNames = Model.PriceChannelLookup
+        .GroupBy(x => x.PriceChannelBusinessKey)
+        .ToDictionary(x => x.Key, x => $"{x.First().Name} ({x.First().Code})");
     var ownerSellerTitle = Model.OwnerSeller is null
         ? "ثبت نشده"
         : $"{Model.OwnerSeller.Name} ({Model.OwnerSeller.Code})";

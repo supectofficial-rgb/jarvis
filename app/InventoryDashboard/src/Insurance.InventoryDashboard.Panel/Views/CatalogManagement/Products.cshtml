@@ -146,8 +146,8 @@
 }
 
 <style>
-    #product-management-tabs .nav-item:nth-child(2),
     #product-management-tabs .nav-item:nth-child(3),
+    #product-management-tabs .nav-item:nth-child(4),
     #product-tab-lifecycle,
     #product-tab-attributes,
     #product-list-scope [data-bulk-form],
@@ -253,64 +253,6 @@
             </div>
         }
 
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title mb-3">جستجو و فیلتر محصولات</h5>
-                        <form method="get" asp-action="Products" class="row" id="product-search-form" data-state-form>
-                            <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                            <div class="col-lg-4 col-md-6 mb-2">
-                                <label class="text-muted small">عبارت جستجو</label>
-                                <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام، شماره محصول یا شناسه..." />
-                            </div>
-                            <div class="col-lg-3 col-md-6 mb-2">
-                                <label class="text-muted small">فیلتر دسته‌بندی</label>
-                                <select name="categoryFilterId" class="form-control js-search-select" data-filter-label="دسته‌بندی" data-placeholder="انتخاب دسته">
-                                    <option value="">همه دسته‌بندی‌ها</option>
-                                    @foreach (var category in Model.FlatCategories)
-                                    {
-                                        <option value="@category.Id" selected="@(category.Id == Model.ProductCategoryFilterId ? "selected" : null)">@category.Name</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="col-lg-2 col-md-6 mb-2">
-                                <label class="text-muted small">وضعیت</label>
-                                <select name="statusFilter" class="form-control" data-filter-label="وضعیت">
-                                    <option value="">همه</option>
-                                    <option value="active" selected="@(string.Equals(Model.ProductStatusFilter, "active", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">فعال</option>
-                                    <option value="inactive" selected="@(string.Equals(Model.ProductStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">غیرفعال</option>
-                                </select>
-                            </div>
-                            <div class="col-lg-2 col-md-6 mb-2">
-                                <label class="text-muted small">تعداد در صفحه</label>
-                                <select name="pageSize" class="form-control" data-filter-label="تعداد">
-                                    @foreach (var size in Model.ProductPageSizeOptions)
-                                    {
-                                        <option value="@size" selected="@(size == Model.ProductPageSize ? "selected" : null)">@size</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="col-lg-2 col-md-6 mb-2">
-                                <label class="text-muted small">مرتب‌سازی</label>
-                                <select name="sort" class="form-control" data-filter-label="مرتب‌سازی">
-                                    <option value="">نام (صعودی)</option>
-                                    <option value="name_desc" selected="@(string.Equals(Model.ProductSort, "name_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">نام (نزولی)</option>
-                                    <option value="basesku_asc" selected="@(string.Equals(Model.ProductSort, "basesku_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">شماره محصول (صعودی)</option>
-                                    <option value="basesku_desc" selected="@(string.Equals(Model.ProductSort, "basesku_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">شماره محصول (نزولی)</option>
-                                    <option value="status_asc" selected="@(string.Equals(Model.ProductSort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (فعال اول)</option>
-                                    <option value="status_desc" selected="@(string.Equals(Model.ProductSort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (غیرفعال اول)</option>
-                                </select>
-                            </div>
-                            <div class="col-lg-1 col-md-6 mb-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary btn-block">اعمال</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="row">
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="product-management-tabs">
@@ -318,7 +260,7 @@
                         <a class="nav-link active" data-toggle="tab" href="#product-tab-main" role="tab">فرم محصول</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#product-tab-lifecycle" role="tab">چرخه عمر و دسته‌بندی</a>
+                        <a class="nav-link" data-toggle="tab" href="#product-tab-list" role="tab">لیست محصولات</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-toggle="tab" href="#product-tab-attributes" role="tab">ویژگی‌های محصول</a>
@@ -367,12 +309,13 @@
                                     <div class="form-group">
                                         <label>دسته‌بندی</label>
                                         <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته‌بندی محصول" required>
-                                            <option value="">انتخاب دسته‌بندی</option>
-                                            @foreach (var category in Model.FlatCategories)
+                                            <option value="">انتخاب آخرین سطح دسته‌بندی</option>
+                                            @foreach (var category in Model.LeafCategories)
                                             {
                                                 <option value="@category.Id" data-category-code="@category.Code">@category.Name</option>
                                             }
                                         </select>
+                                        <small class="form-text text-muted">محصول فقط روی آخرین سطح دسته‌بندی قابل ثبت است.</small>
                                     </div>
                                     <div class="form-group">
                                         <label>واحد پیش‌فرض</label>
@@ -582,66 +525,23 @@
                             </div>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="product-tab-lifecycle" role="tabpanel">
-                        @if (hasSelectedProduct)
-                        {
-                            <div class="card mb-4">
-                                <div class="card-body">
-                                    <h5 class="card-title">عملیات محصول</h5>
-                                    <form asp-action="ActivateProduct" method="post" class="d-inline" data-loading-form>
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>فعال</button>
-                                    </form>
-                                    <form asp-action="DeactivateProduct" method="post" class="d-inline" data-loading-form>
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>غیرفعال</button>
-                                    </form>
-                                    <form asp-action="DeleteProduct" method="post" class="d-inline" data-loading-form>
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف محصول" data-confirm="این محصول و تنظیمات مرتبط حذف شود؟ این عملیات قابل بازگشت نیست." @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>حذف</button>
-                                    </form>
-
-                                    <hr />
-
-                                    <form asp-action="ChangeProductCategory" method="post" id="product-category-change-form" data-loading-form data-dirty-watch>
-                                        @Html.AntiForgeryToken()
-                                        <input asp-for="ProductCategoryChangeForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                        <input asp-for="ProductCategoryChangeForm.CurrentCategoryId" type="hidden" value="@Model.SelectedCategoryId" />
-                                        <div class="form-group mb-2">
-                                            <label>تغییر دسته‌بندی محصول</label>
-                                            <select asp-for="ProductCategoryChangeForm.NewCategoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته مقصد">
-                                                @foreach (var category in Model.FlatCategories)
-                                                {
-                                                    <option value="@category.Id">@category.Name</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        <div class="mt-3">
-                                            <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="تغییر دسته‌بندی محصول" data-confirm="دسته‌بندی محصول تغییر کند؟ بعد از تغییر، ویژگی‌های اجباری ممکن است عوض شوند." @(Can("Catalog.Product.ChangeCategory", "Product.ChangeCategory") ? null : "disabled")>
-                                                تغییر دسته‌بندی
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="card mb-4">
-                                <div class="card-body">
-                                    <div class="alert alert-light mb-0">
-                                        <h6>محصولی برای عملیات انتخاب نشده است</h6>
-                                        <p class="mb-0 text-muted">ابتدا از لیست، یک محصول را انتخاب کنید تا عملیات چرخه عمر نمایش داده شود.</p>
+                    <div class="tab-pane fade" id="product-tab-list" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3">جستجو و فیلتر محصولات</h5>
+                                <form method="get" asp-action="Products" class="row" id="product-search-form" data-state-form>
+                                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                    <div class="col-lg-10 col-md-9 mb-2">
+                                        <label class="text-muted small">عبارت جستجو</label>
+                                        <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام یا شماره محصول..." />
                                     </div>
-                                </div>
+                                    <div class="col-lg-2 col-md-3 mb-2 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-primary btn-block">اعمال</button>
+                                    </div>
+                                </form>
+                                <small class="text-muted d-block mt-2">در این تب می‌توانید محصول را بر اساس نام یا شماره پیدا کنید و بعد برای ویرایش، حذف یا مشاهده واریانت‌ها اقدام کنید.</small>
                             </div>
-                        }
+                        </div>
                     </div>
                     <div class="tab-pane fade" id="product-tab-attributes" role="tabpanel">
                         <div class="card mb-4">
@@ -819,7 +719,7 @@
                 </div>
             </div>
 
-            <div class="col-12 mb-4">
+            <div class="col-12 mb-4" id="product-list-tab-panel">
                 <div class="card mb-4">
                     <div class="card-body" id="product-list-scope">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -927,7 +827,8 @@
                                                            asp-route-statusFilter="@Model.ProductStatusFilter"
                                                            asp-route-sort="@Model.ProductSort"
                                                            asp-route-page="@Model.ProductPage"
-                                                           asp-route-pageSize="@Model.ProductPageSize">جزئیات</a>
+                                                           asp-route-pageSize="@Model.ProductPageSize"
+                                                           asp-fragment="product-tab-main">ویرایش</a>
                                                         <a class="btn btn-outline-info btn-xs"
                                                            asp-action="Products"
                                                            asp-route-categoryId="@product.CategoryId"
@@ -937,8 +838,7 @@
                                                            asp-route-statusFilter="@Model.ProductStatusFilter"
                                                            asp-route-sort="@Model.ProductSort"
                                                            asp-route-page="@Model.ProductPage"
-                                                           asp-route-pageSize="@Model.ProductPageSize"
-                                                           asp-fragment="product-tab-variants">Variants</a>
+                                                           asp-route-pageSize="@Model.ProductPageSize">واریانت‌ها</a>
                                                         <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                             <span class="sr-only">عملیات</span>
                                                         </button>
@@ -1089,6 +989,7 @@
             var pageElement = document.getElementById('products-page');
             var searchForm = document.getElementById('product-search-form');
             var tabs = document.querySelectorAll('#product-management-tabs .nav-link');
+            var productListTabPanel = document.getElementById('product-list-tab-panel');
             var tabKey = 'catalog-products-active-tab-v1';
             var stateKey = 'catalog-products-state-v2';
             var draftStateKey = 'catalog-products-form-drafts-v1';
@@ -1542,6 +1443,16 @@
                 }
             }
 
+            function syncProductListTabPanel(activeHref) {
+                if (!productListTabPanel) {
+                    return;
+                }
+
+                productListTabPanel.style.display = activeHref === '#product-tab-list'
+                    ? ''
+                    : 'none';
+            }
+
             var attributeSelect = document.getElementById('product-attribute-select');
             var textGroup = document.getElementById('product-value-text-group');
             var textInput = document.getElementById('product-value-text');
@@ -1566,10 +1477,13 @@
                     var href = tab.getAttribute('href');
                     if (href) {
                         localStorage.setItem(tabKey, href);
+                        syncProductListTabPanel(href);
                     }
                 });
             });
-            showTabByHref(localStorage.getItem(tabKey));
+            var initialTab = window.location.hash || localStorage.getItem(tabKey) || '#product-tab-main';
+            syncProductListTabPanel(initialTab);
+            showTabByHref(initialTab);
 
             if (productCategoryField && productUpsertForm && !isEditMode) {
                 productCategoryField.addEventListener('change', function () {

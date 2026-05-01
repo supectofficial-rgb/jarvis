@@ -139,7 +139,7 @@ public sealed class LocationForm
 
     [Required(ErrorMessage = "نوع لوکیشن الزامی است.")]
     [StringLength(60, ErrorMessage = "نوع لوکیشن نمی‌تواند بیشتر از ۶۰ کاراکتر باشد.")]
-    public string LocationType { get; set; } = "Storage";
+    public string LocationType { get; set; } = "Bulk";
 
     [StringLength(40)]
     public string? Aisle { get; set; }

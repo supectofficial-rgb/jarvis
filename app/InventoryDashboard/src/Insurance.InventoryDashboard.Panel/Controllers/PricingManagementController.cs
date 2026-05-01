@@ -412,8 +412,19 @@ public sealed class PricingManagementController : Controller
         IEnumerable<PriceTypeLookupModel> priceTypes,
         IEnumerable<PriceChannelLookupModel> priceChannels)
     {
-        return (from priceType in priceTypes.OrderBy(x => x.Name)
-                from priceChannel in priceChannels.OrderBy(x => x.Name)
+        var uniquePriceTypes = priceTypes
+            .GroupBy(x => x.PriceTypeBusinessKey)
+            .Select(x => x.First())
+            .OrderBy(x => x.Name)
+            .ToList();
+        var uniquePriceChannels = priceChannels
+            .GroupBy(x => x.PriceChannelBusinessKey)
+            .Select(x => x.First())
+            .OrderBy(x => x.Name)
+            .ToList();
+
+        return (from priceType in uniquePriceTypes
+                from priceChannel in uniquePriceChannels
                 select new VariantPriceMatrixInputModel
                 {
                     PriceTypeRef = priceType.PriceTypeBusinessKey,
