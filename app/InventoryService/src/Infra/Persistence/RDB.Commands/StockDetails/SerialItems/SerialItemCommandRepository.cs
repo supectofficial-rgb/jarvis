@@ -1,8 +1,9 @@
-﻿namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.StockDetails.SerialItems;
+namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.StockDetails.SerialItems;
 
 using Insurance.InventoryService.AppCore.Domain.StockDetails.Entities;
 using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class SerialItemCommandRepository : CommandRepository<SerialItem, InventoryServiceCommandDbContext>, ISerialItemCommandRepository
@@ -15,7 +16,7 @@ public class SerialItemCommandRepository : CommandRepository<SerialItem, Invento
     public Task<SerialItem?> GetByBusinessKeyAsync(Guid serialItemBusinessKey)
     {
         return _dbContext.Set<SerialItem>()
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == serialItemBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(serialItemBusinessKey));
     }
 
     public Task<bool> ExistsBySerialNoAsync(Guid variantRef, string serialNo, Guid? exceptBusinessKey = null)
@@ -28,7 +29,7 @@ public class SerialItemCommandRepository : CommandRepository<SerialItem, Invento
             .Where(x => x.VariantRef == variantRef && x.SerialNo == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }

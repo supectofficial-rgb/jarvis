@@ -3,6 +3,7 @@
 using Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 using Insurance.InventoryService.AppCore.Shared.Catalog.AttributeDefinitions.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class AttributeDefinitionCommandRepository
@@ -15,9 +16,10 @@ public class AttributeDefinitionCommandRepository
 
     public Task<AttributeDefinition?> GetByBusinessKeyAsync(Guid attributeDefinitionBusinessKey)
     {
+        var businessKey = BusinessKey.FromGuid(attributeDefinitionBusinessKey);
         return _dbContext.Set<AttributeDefinition>()
             .Include(x => x.Options)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == attributeDefinitionBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == businessKey);
     }
 
     public async Task<IReadOnlyCollection<AttributeDefinition>> GetByBusinessKeysAsync(IReadOnlyCollection<Guid> attributeDefinitionBusinessKeys)
@@ -33,9 +35,11 @@ public class AttributeDefinitionCommandRepository
         if (keys.Count == 0)
             return Array.Empty<AttributeDefinition>();
 
+        var businessKeys = keys.Select(BusinessKey.FromGuid).ToList();
+
         return await _dbContext.Set<AttributeDefinition>()
             .Include(x => x.Options)
-            .Where(x => keys.Contains(x.BusinessKey.Value))
+            .Where(x => businessKeys.Contains(x.BusinessKey))
             .ToListAsync();
     }
 
@@ -47,7 +51,10 @@ public class AttributeDefinitionCommandRepository
             .Where(x => x.Code == normalizedCode);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+        {
+            var exceptKey = BusinessKey.FromGuid(exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != exceptKey);
+        }
 
         return query.AnyAsync();
     }

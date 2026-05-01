@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Prod
 using Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 using Insurance.InventoryService.AppCore.Shared.Catalog.Products.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class ProductCommandRepository : CommandRepository<Product, InventoryServiceCommandDbContext>, IProductCommandRepository
@@ -16,7 +17,7 @@ public class ProductCommandRepository : CommandRepository<Product, InventoryServ
     {
         return _dbContext.Set<Product>()
             .Include(x => x.AttributeValues)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == productBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(productBusinessKey));
     }
 
     public Task<bool> ExistsByBaseSkuAsync(string baseSku, Guid? exceptBusinessKey = null)
@@ -25,7 +26,7 @@ public class ProductCommandRepository : CommandRepository<Product, InventoryServ
         var query = _dbContext.Set<Product>().Where(x => x.BaseSku == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }

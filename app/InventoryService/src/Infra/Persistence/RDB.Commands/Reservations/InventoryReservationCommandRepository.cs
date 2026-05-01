@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Reservations
 using Insurance.InventoryService.AppCore.Domain.Reservations.Entities;
 using Insurance.InventoryService.AppCore.Shared.Reservations.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class InventoryReservationCommandRepository
@@ -18,6 +19,6 @@ public class InventoryReservationCommandRepository
         return _dbContext.InventoryReservations
             .Include(x => x.Allocations)
             .Include(x => x.Transitions)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == reservationBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(reservationBusinessKey));
     }
 }

@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Prod
 using Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class ProductVariantCommandRepository : CommandRepository<ProductVariant, InventoryServiceCommandDbContext>, IProductVariantCommandRepository
@@ -17,7 +18,7 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
         return _dbContext.Set<ProductVariant>()
             .Include(x => x.AttributeValues)
             .Include(x => x.UomConversions)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == productVariantBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey));
     }
 
     public Task<bool> ExistsByVariantSkuAsync(string variantSku, Guid? exceptBusinessKey = null)
@@ -26,7 +27,7 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
         var query = _dbContext.Set<ProductVariant>().Where(x => x.VariantSku == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }
@@ -40,7 +41,7 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
         var query = _dbContext.Set<ProductVariant>().Where(x => x.Barcode == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }

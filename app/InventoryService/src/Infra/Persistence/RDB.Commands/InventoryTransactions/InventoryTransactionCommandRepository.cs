@@ -1,8 +1,9 @@
-﻿namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.InventoryTransactions;
+namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.InventoryTransactions;
 
 using Insurance.InventoryService.AppCore.Domain.InventoryTransactions.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryTransactions.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class InventoryTransactionCommandRepository : CommandRepository<InventoryTransaction, InventoryServiceCommandDbContext>, IInventoryTransactionCommandRepository
@@ -16,7 +17,7 @@ public class InventoryTransactionCommandRepository : CommandRepository<Inventory
     {
         return _dbContext.InventoryTransactions
             .Include(x => x.Lines)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == transactionBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(transactionBusinessKey));
     }
 
     public Task<bool> ExistsByTransactionNoAsync(string transactionNo, Guid? exceptBusinessKey = null)
@@ -28,7 +29,7 @@ public class InventoryTransactionCommandRepository : CommandRepository<Inventory
         var query = _dbContext.InventoryTransactions.Where(x => x.TransactionNo == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }

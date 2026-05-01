@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Warehouse.Qu
 using Insurance.InventoryService.AppCore.Domain.Warehouse.Entities;
 using Insurance.InventoryService.AppCore.Shared.Warehouse.QualityStatuses.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class QualityStatusCommandRepository : CommandRepository<QualityStatus, InventoryServiceCommandDbContext>, IQualityStatusCommandRepository
@@ -15,7 +16,7 @@ public class QualityStatusCommandRepository : CommandRepository<QualityStatus, I
     public Task<QualityStatus?> GetByBusinessKeyAsync(Guid qualityStatusBusinessKey)
     {
         return _dbContext.Set<QualityStatus>()
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == qualityStatusBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(qualityStatusBusinessKey));
     }
 
     public Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null)
@@ -24,7 +25,7 @@ public class QualityStatusCommandRepository : CommandRepository<QualityStatus, I
         var query = _dbContext.Set<QualityStatus>().Where(x => x.Code == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }

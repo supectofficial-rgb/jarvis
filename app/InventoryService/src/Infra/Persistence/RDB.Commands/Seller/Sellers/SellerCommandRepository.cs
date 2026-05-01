@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Seller.Selle
 using Insurance.InventoryService.AppCore.Domain.Seller.Entities;
 using Insurance.InventoryService.AppCore.Shared.Seller.Sellers.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class SellerCommandRepository : CommandRepository<Seller, InventoryServiceCommandDbContext>, ISellerCommandRepository
@@ -15,7 +16,7 @@ public class SellerCommandRepository : CommandRepository<Seller, InventoryServic
     public Task<Seller?> GetByBusinessKeyAsync(Guid sellerBusinessKey)
     {
         return _dbContext.Set<Seller>()
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == sellerBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(sellerBusinessKey));
     }
 
     public Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null)
@@ -24,7 +25,7 @@ public class SellerCommandRepository : CommandRepository<Seller, InventoryServic
         var query = _dbContext.Set<Seller>().Where(x => x.Code == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }

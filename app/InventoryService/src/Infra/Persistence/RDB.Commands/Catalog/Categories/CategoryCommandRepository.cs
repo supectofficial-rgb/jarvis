@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Cate
 using Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 using Insurance.InventoryService.AppCore.Shared.Catalog.Categories.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class CategoryCommandRepository
@@ -15,10 +16,11 @@ public class CategoryCommandRepository
 
     public Task<Category?> GetByBusinessKeyAsync(Guid categoryBusinessKey)
     {
+        var businessKey = BusinessKey.FromGuid(categoryBusinessKey);
         return _dbContext.Set<Category>()
             .Include(x => x.SchemaVersions)
             .ThenInclude(x => x.Rules)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == categoryBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == businessKey);
     }
 
     public Task<int> UpdateFieldsByBusinessKeyAsync(
@@ -29,8 +31,9 @@ public class CategoryCommandRepository
         Guid? parentCategoryRef,
         bool isActive)
     {
+        var businessKey = BusinessKey.FromGuid(categoryBusinessKey);
         return _dbContext.Set<Category>()
-            .Where(x => x.BusinessKey.Value == categoryBusinessKey)
+            .Where(x => x.BusinessKey == businessKey)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.Code, code)
                 .SetProperty(x => x.Name, name)
@@ -41,10 +44,11 @@ public class CategoryCommandRepository
 
     public async Task DeleteGraphByBusinessKeyAsync(Guid categoryBusinessKey)
     {
-        var schemaVersionRefs = await _dbContext.Set<CategorySchemaVersion>()
+        var schemaVersionKeys = await _dbContext.Set<CategorySchemaVersion>()
             .Where(x => x.CategoryRef == categoryBusinessKey)
-            .Select(x => x.BusinessKey.Value)
+            .Select(x => x.BusinessKey)
             .ToListAsync();
+        var schemaVersionRefs = schemaVersionKeys.Select(x => x.Value).ToList();
 
         if (schemaVersionRefs.Count > 0)
         {
@@ -57,8 +61,9 @@ public class CategoryCommandRepository
                 .ExecuteDeleteAsync();
         }
 
+        var businessKey = BusinessKey.FromGuid(categoryBusinessKey);
         var deleted = await _dbContext.Set<Category>()
-            .Where(x => x.BusinessKey.Value == categoryBusinessKey)
+            .Where(x => x.BusinessKey == businessKey)
             .ExecuteDeleteAsync();
 
         if (deleted == 0)
@@ -73,7 +78,10 @@ public class CategoryCommandRepository
             .Where(x => x.Code == normalizedCode);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+        {
+            var exceptKey = BusinessKey.FromGuid(exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != exceptKey);
+        }
 
         return query.AnyAsync();
     }

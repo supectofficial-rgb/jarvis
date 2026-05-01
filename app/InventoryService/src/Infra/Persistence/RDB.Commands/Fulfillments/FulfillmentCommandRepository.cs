@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Fulfillments
 using Insurance.InventoryService.AppCore.Domain.Fulfillments.Entities;
 using Insurance.InventoryService.AppCore.Shared.Fulfillments.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class FulfillmentCommandRepository
@@ -19,6 +20,6 @@ public class FulfillmentCommandRepository
             .Include(x => x.Lines)
             .ThenInclude(x => x.Serials)
             .Include(x => x.Transitions)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == fulfillmentBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(fulfillmentBusinessKey));
     }
 }

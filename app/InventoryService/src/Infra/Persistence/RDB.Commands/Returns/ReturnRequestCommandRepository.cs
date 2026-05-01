@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Returns;
 using Insurance.InventoryService.AppCore.Domain.Returns.Entities;
 using Insurance.InventoryService.AppCore.Shared.Returns.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class ReturnRequestCommandRepository
@@ -19,6 +20,6 @@ public class ReturnRequestCommandRepository
             .Include(x => x.Lines)
             .ThenInclude(x => x.Serials)
             .Include(x => x.Transitions)
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == returnRequestBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(returnRequestBusinessKey));
     }
 }

@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.StockDetails
 using Insurance.InventoryService.AppCore.Domain.StockDetails.Entities;
 using Insurance.InventoryService.AppCore.Shared.StockDetails.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class StockDetailCommandRepository
@@ -16,7 +17,7 @@ public class StockDetailCommandRepository
     public Task<StockDetail?> GetByBusinessKeyAsync(Guid stockDetailBusinessKey)
     {
         return _dbContext.StockDetails
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == stockDetailBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(stockDetailBusinessKey));
     }
 
     public Task<StockDetail?> FindByBucketAsync(

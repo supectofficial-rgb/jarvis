@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Warehouse.Wa
 using Insurance.InventoryService.AppCore.Domain.Warehouse.Entities;
 using Insurance.InventoryService.AppCore.Shared.Warehouse.Warehouses.Commands;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Persistence.RDB.Commands;
 
 public class WarehouseCommandRepository : CommandRepository<Warehouse, InventoryServiceCommandDbContext>, IWarehouseCommandRepository
@@ -15,7 +16,7 @@ public class WarehouseCommandRepository : CommandRepository<Warehouse, Inventory
     public Task<Warehouse?> GetByBusinessKeyAsync(Guid warehouseBusinessKey)
     {
         return _dbContext.Set<Warehouse>()
-            .FirstOrDefaultAsync(x => x.BusinessKey.Value == warehouseBusinessKey);
+            .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(warehouseBusinessKey));
     }
 
     public Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null)
@@ -24,7 +25,7 @@ public class WarehouseCommandRepository : CommandRepository<Warehouse, Inventory
         var query = _dbContext.Set<Warehouse>().Where(x => x.Code == normalized);
 
         if (exceptBusinessKey.HasValue)
-            query = query.Where(x => x.BusinessKey.Value != exceptBusinessKey.Value);
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }
