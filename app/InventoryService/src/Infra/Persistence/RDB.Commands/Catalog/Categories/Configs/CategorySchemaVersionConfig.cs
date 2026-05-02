@@ -10,6 +10,10 @@ public sealed class CategorySchemaVersionConfig : IEntityTypeConfiguration<Categ
     public void Configure(EntityTypeBuilder<CategorySchemaVersion> builder)
     {
         builder.ToTable("CategorySchemaVersions");
+        builder.Property(x => x.BusinessKey)
+            .HasConversion(
+                key => key.Value,
+                value => BusinessKey.FromGuid(value));
         builder.Property(x => x.CategoryRef)
             .HasConversion(
                 key => key.Value,

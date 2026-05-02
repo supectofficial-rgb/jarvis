@@ -1116,9 +1116,32 @@
                 writeDrafts(drafts);
             }
 
+            function getDraftProductId(values) {
+                if (!values || !values['ProductForm.ProductId']) {
+                    return '';
+                }
+
+                return (values['ProductForm.ProductId'].value || '').trim();
+            }
+
+            function shouldRestoreProductDraft(values) {
+                var currentProductId = pageElement ? (pageElement.getAttribute('data-selected-product-id') || '').trim() : '';
+                var draftProductId = getDraftProductId(values);
+
+                if (!currentProductId) {
+                    return !draftProductId;
+                }
+
+                return !draftProductId || draftProductId === currentProductId;
+            }
+
             function restoreFormDrafts() {
                 var drafts = readDrafts();
                 watchedForms.forEach(function (form) {
+                    if (form.id === 'product-upsert-form' && !shouldRestoreProductDraft(drafts[form.id])) {
+                        return;
+                    }
+
                     applyFormDraft(form, drafts[form.id]);
                 });
             }
