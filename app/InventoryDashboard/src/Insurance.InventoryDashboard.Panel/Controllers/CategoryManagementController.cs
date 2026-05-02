@@ -6,8 +6,11 @@ namespace Insurance.InventoryDashboard.Panel.Controllers;
 
 public sealed class CategoryManagementController : CatalogManagementController
 {
-    public CategoryManagementController(ICatalogApiService apiService, IDashboardConfigService dashboardConfigService)
-        : base(apiService, dashboardConfigService)
+    public CategoryManagementController(
+        ICatalogApiService apiService,
+        IDashboardConfigService dashboardConfigService,
+        ILogger<CatalogManagementController> logger)
+        : base(apiService, dashboardConfigService, logger)
     {
     }
 

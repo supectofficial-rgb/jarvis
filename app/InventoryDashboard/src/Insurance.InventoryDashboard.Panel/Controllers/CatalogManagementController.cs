@@ -34,11 +34,16 @@ public abstract partial class CatalogManagementController : Controller
 
     protected readonly ICatalogApiService _apiService;
     private readonly IDashboardConfigService _dashboardConfigService;
+    private readonly ILogger<CatalogManagementController> _logger;
 
-    protected CatalogManagementController(ICatalogApiService apiService, IDashboardConfigService dashboardConfigService)
+    protected CatalogManagementController(
+        ICatalogApiService apiService,
+        IDashboardConfigService dashboardConfigService,
+        ILogger<CatalogManagementController> logger)
     {
         _apiService = apiService;
         _dashboardConfigService = dashboardConfigService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -673,6 +678,8 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Login", "Auth");
         }
 
+        try
+        {
         if (!IsAuthorizedFor(token, "Catalog.Product.Create", "Catalog.Product.Update", "Product.Create", "Product.Update"))
         {
             TempData["CatalogError"] = "شما دسترسی ذخیره محصول را ندارید.";
@@ -928,6 +935,25 @@ public abstract partial class CatalogManagementController : Controller
         }
 
         return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = redirectProductId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Unexpected error while saving product. ProductId: {ProductId}, CategoryId: {CategoryId}",
+                form.ProductId,
+                form.CategoryId);
+
+            TempData["CatalogError"] = $"ثبت محصول با خطای غیرمنتظره مواجه شد: {ex.Message}";
+            return RedirectToAction(
+                nameof(Products),
+                new
+                {
+                    categoryId = form.CategoryId,
+                    productId = form.ProductId,
+                    createNew = string.IsNullOrWhiteSpace(form.ProductId)
+                });
+        }
     }
 
     [HttpPost]

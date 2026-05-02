@@ -277,7 +277,7 @@
                                     <h5 class="card-title mb-0">@(isEditMode ? "ویرایش محصول" : "ایجاد محصول")</h5>
                                     @if (isEditMode)
                                     {
-                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ورود محصول جدید</a>
                                     }
                                 </div>
 
@@ -1501,9 +1501,7 @@
                     saveFormDraft(productUpsertForm);
                     var url = new URL(window.location.href);
                     url.searchParams.set('categoryId', selectedCategoryId);
-                    if (isEditMode) {
-                        url.searchParams.set('createNew', 'true');
-                    }
+                    url.searchParams.set('createNew', 'true');
                     url.searchParams.delete('productId');
                     window.location.assign(url.toString());
                 });
