@@ -21,7 +21,7 @@ public sealed class ProductManagementController : CatalogManagementController
     public new Task<IActionResult> Products(
         string? categoryId,
         string? productId,
-        bool create = false,
+        bool create = true,
         string? searchTerm = null,
         string? categoryFilterId = null,
         string? statusFilter = null,

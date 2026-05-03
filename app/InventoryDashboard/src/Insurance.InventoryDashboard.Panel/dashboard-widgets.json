@@ -101,7 +101,7 @@
             "InventoryManager"
           ],
           "description": "مدیریت Product و Attributeهای مرتبط",
-          "route": "/ProductManagement/Products"
+          "route": "/ProductManagement/Products?create=true"
         },
         {
           "itemId": "product_variants",

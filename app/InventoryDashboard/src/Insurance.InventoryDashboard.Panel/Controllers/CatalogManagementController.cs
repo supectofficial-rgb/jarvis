@@ -495,7 +495,7 @@ public abstract partial class CatalogManagementController : Controller
     protected async Task<IActionResult> Products(
         string? categoryId,
         string? productId,
-        bool create = false,
+        bool create = true,
         string? searchTerm = null,
         string? categoryFilterId = null,
         string? statusFilter = null,
@@ -575,10 +575,12 @@ public abstract partial class CatalogManagementController : Controller
             }
         }
 
-        var selectedCategoryId = categoryId
-            ?? productDetailsResult.Data?.CategoryId
-            ?? allProducts.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId
-            ?? flatCategories.FirstOrDefault()?.Id;
+        var selectedCategoryId = isCreateMode
+            ? categoryId
+            : categoryId
+              ?? productDetailsResult.Data?.CategoryId
+              ?? allProducts.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId
+              ?? flatCategories.FirstOrDefault()?.Id;
 
         var (attributeGroups, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedCategoryId, flatCategories, token);
