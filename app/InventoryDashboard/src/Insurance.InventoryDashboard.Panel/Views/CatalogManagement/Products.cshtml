@@ -351,6 +351,10 @@
                                             </small>
                                         </div>
 
+                                        <div class="d-flex align-items-center mb-2">
+                                            <strong class="mb-0">وضعیت لود ویژگی‌ها</strong>
+                                            <span class="badge badge-secondary ml-2" id="product-create-attribute-status">آماده نیست</span>
+                                        </div>
                                         <div id="product-create-attribute-feedback"></div>
                                         <div id="product-create-dynamic-sections">
 
@@ -1015,6 +1019,7 @@
             var autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
             var autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
             var autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
+            var createAttributeStatus = document.getElementById('product-create-attribute-status');
             var createAttributesUrl = pageElement ? (pageElement.getAttribute('data-create-attributes-url') || '') : '';
             var createAttributesRequestId = 0;
             var isEditMode = !!(productUpsertForm && productUpsertForm.querySelector('[name="ProductForm.ProductId"]') && (productUpsertForm.querySelector('[name="ProductForm.ProductId"]').value || '').trim());
@@ -1284,6 +1289,18 @@
                 createAttributeFeedback.innerHTML = '<div class="alert ' + alertClass + ' mb-3">' + escapeHtml(message) + '</div>';
             }
 
+            function setCreateAttributeStatus(message, kind) {
+                if (!createAttributeStatus) {
+                    return;
+                }
+
+                var badgeClass = kind === 'success'
+                    ? 'badge-success'
+                    : (kind === 'warning' ? 'badge-warning' : (kind === 'danger' ? 'badge-danger' : 'badge-secondary'));
+                createAttributeStatus.className = 'badge ' + badgeClass + ' ml-2';
+                createAttributeStatus.textContent = message || 'نامشخص';
+            }
+
             function buildCreateAttributeOriginText(attribute, includeDisplayOrder) {
                 var parts = [];
                 if (includeDisplayOrder) {
@@ -1410,6 +1427,7 @@
                         pageElement.setAttribute('data-selected-category-id', '');
                     }
 
+                    setCreateAttributeStatus('دسته انتخاب نشده', 'warning');
                     setCreateAttributeFeedback('', 'warning');
                     renderCreateAttributeSections(null);
                     bindAutoCreateInputEvents(createDynamicSections);
@@ -1421,6 +1439,7 @@
                 var currentRequestId = ++createAttributesRequestId;
                 var currentDraft = captureFormDraft(productUpsertForm);
 
+                setCreateAttributeStatus('در حال ارسال درخواست', 'warning');
                 setCreateAttributeFeedback('', 'warning');
                 createDynamicSections.innerHTML = '<div class="alert alert-light border">در حال بارگذاری ویژگی‌های دسته‌بندی...</div>';
 
@@ -1445,6 +1464,7 @@
                             return;
                         }
 
+                        setCreateAttributeStatus('لود شد', 'success');
                         renderCreateAttributeSections(data);
                         applyFormDraft(productUpsertForm, currentDraft);
                         bindAutoCreateInputEvents(createDynamicSections);
@@ -1464,6 +1484,7 @@
                             return;
                         }
 
+                        setCreateAttributeStatus('خطا در لود', 'danger');
                         createDynamicSections.innerHTML = '';
                         setCreateAttributeFeedback('بارگذاری ویژگی‌های دسته‌بندی با خطا مواجه شد.', 'danger');
                         renderCreateAttributeSections(null);
@@ -1740,6 +1761,10 @@
             clearSubmittedDraftAfterSuccess();
             restorePageState();
             restoreFormDrafts();
+            setCreateAttributeStatus(
+                isEditMode ? 'حالت ویرایش' : 'اسکریپت فعال شد',
+                isEditMode ? 'secondary' : 'success'
+            );
             tabs.forEach(function (tab) {
                 tab.addEventListener('shown.bs.tab', function () {
                     var href = tab.getAttribute('href');
