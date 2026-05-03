@@ -92,7 +92,7 @@ public sealed class VariantManagementController : CatalogManagementController
             return Json(new { error = result.ErrorMessage });
         }
 
-        return Json(result.Data ?? new List<VariantInventoryTransactionModel>());
+        return Json(result.Data ?? new List<InventoryTransactionListItemModel>());
     }
 
     [HttpPost]

@@ -342,7 +342,7 @@
                                     </div>
                                     <input asp-for="ProductForm.AutoVariantPayload" type="hidden" id="product-auto-variant-payload" />
 
-                                    @if (true)
+                                    @if (Model.IsProductCreateMode)
                                     {
                                         <div class="alert alert-light border mt-3 mb-3">
                                             <strong class="d-block mb-2">تولید خودکار واریانت</strong>

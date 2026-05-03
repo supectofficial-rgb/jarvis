@@ -863,25 +863,6 @@ public sealed class ApiService : IApiService
         return new ApiResponse<List<VariantUomConversionModel>> { IsSuccess = true, Data = mapped };
     }
 
-    public async Task<ApiResponse<List<VariantInventoryTransactionModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token)
-    {
-        var result = await GetQueryAsync<ItemsQueryResultDto<VariantInventoryTransactionModel>>(
-            $"{InventoryApiPrefix}/InventoryTransaction/by-variant/{variantId}",
-            token,
-            "Loading variant inventory documents failed.");
-
-        if (!result.IsSuccess)
-        {
-            return new ApiResponse<List<VariantInventoryTransactionModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
-        }
-
-        return new ApiResponse<List<VariantInventoryTransactionModel>>
-        {
-            IsSuccess = true,
-            Data = result.Data?.Items ?? new List<VariantInventoryTransactionModel>()
-        };
-    }
-
     public Task<ApiResponse<bool>> CreateWarehouseAsync(UpsertWarehouseRequest request, string token)
     {
         var payload = new
@@ -1285,92 +1266,6 @@ public sealed class ApiService : IApiService
         return new ApiResponse<List<UnitOfMeasureLookupModel>> { IsSuccess = true, Data = mapped };
     }
 
-    public Task<ApiResponse<QualityStatusLookupResultModel>> GetQualityStatusLookupAsync(string token, bool includeInactive = false)
-    {
-        var route = BuildRouteWithQuery($"{InventoryApiPrefix}/QualityStatus/lookup", ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
-        return GetQueryAsync<QualityStatusLookupResultModel>(route, token, "Loading quality statuses failed.");
-    }
-
-    public Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(
-        string token,
-        string? documentNo = null,
-        string? documentType = null,
-        string? status = null,
-        string? warehouseId = null,
-        int page = 1,
-        int pageSize = 20)
-    {
-        var route = BuildRouteWithQuery(
-            $"{InventoryApiPrefix}/InventoryDocument/search",
-            ("DocumentNo", documentNo),
-            ("DocumentType", documentType),
-            ("Status", status),
-            ("WarehouseRef", warehouseId),
-            ("Page", Math.Max(page, 1).ToString()),
-            ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
-
-        return GetQueryAsync<InventoryDocumentSearchResultModel>(route, token, "Loading inventory documents failed.");
-    }
-
-    public Task<ApiResponse<Guid>> CreateInventoryDocumentAsync(InventoryDocumentForm form, IReadOnlyList<InventoryDocumentLineForm> lines, string token)
-    {
-        var payloadLines = lines.Select(line =>
-        {
-            var qty = Math.Abs(line.Quantity);
-            return new
-            {
-                VariantRef = ParseNullableGuid(line.VariantId),
-                Qty = qty,
-                UomRef = ParseNullableGuid(line.BaseUomRef),
-                BaseQty = qty,
-                BaseUomRef = ParseNullableGuid(line.BaseUomRef),
-                SourceLocationRef = ParseNullableGuid(line.SourceLocationId),
-                DestinationLocationRef = ParseNullableGuid(line.DestinationLocationId),
-                QualityStatusRef = ParseNullableGuid(line.QualityStatusId),
-                LotBatchNo = NormalizeOptional(line.LotBatchNo),
-                ReasonCode = NormalizeOptional(line.ReasonCode ?? form.ReasonCode),
-                AdjustmentDirection = NormalizeOptional(line.AdjustmentDirection)
-            };
-        }).ToList();
-
-        var payload = new
-        {
-            DocumentNo = NormalizeOptional(form.DocumentNo),
-            WarehouseRef = ParseNullableGuid(form.WarehouseId),
-            SellerRef = ParseNullableGuid(form.SellerId),
-            OccurredAt = form.OccurredAt == default ? DateTime.UtcNow : form.OccurredAt,
-            ReasonCode = NormalizeOptional(form.ReasonCode),
-            Lines = payloadLines
-        };
-
-        var route = (form.DocumentType ?? string.Empty).Trim().ToLowerInvariant() switch
-        {
-            "issue" => $"{InventoryApiPrefix}/InventoryDocument/issue",
-            "transfer" => $"{InventoryApiPrefix}/InventoryDocument/transfer",
-            "adjustment" => $"{InventoryApiPrefix}/InventoryDocument/adjustment",
-            _ => $"{InventoryApiPrefix}/InventoryDocument/receipt"
-        };
-
-        return PostCommandWithDataAsync<Guid>(route, payload, token, "Creating inventory document failed.");
-    }
-
-    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(Guid documentBusinessKey, string token) =>
-        PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentBusinessKey:D}/post", new { }, token, "Posting inventory document failed.");
-
-    public async Task<ApiResponse<List<InventoryDocumentLineItemModel>>> GetInventoryDocumentLinesAsync(Guid documentBusinessKey, string token)
-    {
-        var result = await GetQueryAsync<ItemsQueryResultDto<InventoryDocumentLineItemModel>>(
-            $"{InventoryApiPrefix}/InventoryDocument/{documentBusinessKey:D}/lines",
-            token,
-            "Loading inventory document lines failed.");
-
-        if (!result.IsSuccess)
-        {
-            return new ApiResponse<List<InventoryDocumentLineItemModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
-        }
-
-        return new ApiResponse<List<InventoryDocumentLineItemModel>> { IsSuccess = true, Data = result.Data?.Items ?? new List<InventoryDocumentLineItemModel>() };
-    }
 
     public Task<ApiResponse<PriceTypeSearchResultModel>> SearchPriceTypesAsync(
         string token,
@@ -1507,15 +1402,6 @@ public sealed class ApiService : IApiService
     {
         var payload = BuildSellerVariantPricePayload(request, includeRefs: false);
         return PutCommandAsync($"{InventoryApiPrefix}/SellerVariantPrice/{sellerVariantPriceId:D}", payload, token, "Updating variant price failed.");
-    }
-
-    public Task<ApiResponse<SellerLookupResultModel>> GetSellerLookupAsync(string token, bool includeInactive = false)
-    {
-        var route = BuildRouteWithQuery(
-            $"{InventoryApiPrefix}/Seller/lookup",
-            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
-
-        return GetQueryAsync<SellerLookupResultModel>(route, token, "Loading sellers failed.");
     }
 
     public Task<ApiResponse<SellerSearchResultModel>> SearchSellersAsync(
@@ -2238,11 +2124,6 @@ public sealed class ApiService : IApiService
     private sealed class VariantFullDetailsQueryResultDto
     {
         public VariantFullDetailsItemDto? Item { get; set; }
-    }
-
-    private sealed class SearchVariantsQueryResultDto
-    {
-        public List<VariantListItemDto> Items { get; set; } = new();
     }
 
     private sealed class VariantUomConversionsQueryResultDto

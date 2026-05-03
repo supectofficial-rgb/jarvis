@@ -73,5 +73,7 @@ public sealed class CatalogApiService : ICatalogApiService
     public Task<ApiResponse<List<LocationLookupItemModel>>> GetLocationLookupAsync(string token, string? warehouseId = null, bool includeInactive = false) => _apiService.GetLocationLookupAsync(token, warehouseId, includeInactive);
     public Task<ApiResponse<List<QualityStatusLookupItemModel>>> GetQualityStatusLookupAsync(string token, bool includeInactive = false) => _apiService.GetQualityStatusLookupAsync(token, includeInactive);
     public Task<ApiResponse<List<InventoryTransactionListItemModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token) => _apiService.GetInventoryTransactionsByVariantAsync(variantId, token);
+    public Task<ApiResponse<SellerVariantPriceSearchResultModel>> SearchSellerVariantPricesAsync(string token, Guid? sellerRef = null, Guid? variantRef = null, Guid? priceTypeRef = null, Guid? priceChannelRef = null, bool? isActive = null, int page = 1, int pageSize = 50) => _apiService.SearchSellerVariantPricesAsync(token, sellerRef, variantRef, priceTypeRef, priceChannelRef, isActive, page, pageSize);
+    public Task<ApiResponse<StockDetailBucketResultModel>> GetAvailableStockBucketsAsync(string token, Guid? variantRef = null, Guid? sellerRef = null, decimal minQuantity = 0) => _apiService.GetAvailableStockBucketsAsync(token, variantRef, sellerRef, minQuantity);
     public Task<ApiResponse<List<UnitOfMeasureLookupModel>>> GetUnitOfMeasureLookupAsync(string token) => _apiService.GetUnitOfMeasureLookupAsync(token);
 }

@@ -314,7 +314,14 @@ public sealed class PricingManagementController : Controller
         Apply(model, priceTypeLookupTask.Result, x => model.PriceTypeLookup = x.Items ?? new List<PriceTypeLookupModel>());
         Apply(model, priceChannelsTask.Result, x => model.PriceChannels = x);
         Apply(model, priceChannelLookupTask.Result, x => model.PriceChannelLookup = x.Items ?? new List<PriceChannelLookupModel>());
-        Apply(model, sellersTask.Result, x => model.Sellers = x.Items ?? new List<SellerLookupModel>());
+        Apply(model, sellersTask.Result, x => model.Sellers = (x ?? new List<SellerLookupItemModel>())
+            .Select(seller => new SellerLookupModel
+            {
+                SellerBusinessKey = Guid.TryParse(seller.SellerBusinessKey, out var sellerId) ? sellerId : Guid.Empty,
+                Code = seller.Code,
+                Name = seller.Name
+            })
+            .ToList());
         Apply(model, variantsTask.Result, x => model.VariantSearchResult = x);
 
         var ownerSellers = ownerSellerTask.Result.Data?.Items?

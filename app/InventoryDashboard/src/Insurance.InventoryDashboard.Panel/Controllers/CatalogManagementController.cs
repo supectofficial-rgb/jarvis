@@ -605,7 +605,7 @@ public abstract partial class CatalogManagementController : Controller
             ActiveModule = menu.Module,
             ActiveItem = menu.Item,
 
-            IsProductCreateMode = isProductCreateMode,
+            IsProductCreateMode = isCreateMode,
             SelectedCategoryId = selectedCategoryId,
             SelectedProductId = selectedProductId,
             Categories = categories,
@@ -1299,10 +1299,7 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true)
             : new ApiResponse<List<QualityStatusLookupItemModel>> { IsSuccess = true, Data = new List<QualityStatusLookupItemModel>() };
 
-        var selectedProductCategoryId = products.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId;
-
-        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
-        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
+        var selectedProductCategoryId = variantDetailsResult.Data?.CategoryId ?? selectedCategoryId;
 
         var (attributeGroups, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedProductCategoryId, flatCategories, token);
