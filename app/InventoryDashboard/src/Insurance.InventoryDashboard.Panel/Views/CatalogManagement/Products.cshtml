@@ -1802,8 +1802,11 @@
                 };
 
                 productCategoryField.addEventListener('change', handleCategoryChange);
-                productCategoryField.addEventListener('select2:select', handleCategoryChange);
-                productCategoryField.addEventListener('select2:clear', handleCategoryChange);
+                if (window.jQuery) {
+                    window.jQuery(productCategoryField)
+                        .on('select2:select', handleCategoryChange)
+                        .on('select2:clear', handleCategoryChange);
+                }
             }
 
             if (productUpsertForm) {
