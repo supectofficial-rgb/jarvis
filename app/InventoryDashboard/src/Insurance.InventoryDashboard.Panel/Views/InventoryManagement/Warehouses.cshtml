@@ -127,10 +127,13 @@
                                         <label>نام انبار</label>
                                         <input asp-for="WarehouseForm.Name" class="form-control" required maxlength="160" />
                                     </div>
-                                    <div class="custom-control custom-checkbox mt-2">
-                                        <input asp-for="WarehouseForm.IsActive" class="custom-control-input" />
+                                    @if (isWarehouseEditMode)
+                                    {
+                                        <div class="custom-control custom-checkbox mt-2">
+                                            <input asp-for="WarehouseForm.IsActive" class="custom-control-input" />
                                         <label class="custom-control-label" asp-for="WarehouseForm.IsActive">انبار فعال باشد</label>
                                     </div>
+                                    }
                                     <button class="btn btn-primary mt-3" type="submit" @(Can("Inventory.Warehouse.Create", "Inventory.Warehouse.Update", "Warehouse.Create", "Warehouse.Update") ? null : "disabled")>
                                         @(isWarehouseEditMode ? "به‌روزرسانی انبار" : "ایجاد انبار")
                                     </button>
@@ -203,10 +206,13 @@
                                             <input asp-for="LocationForm.Bin" class="form-control" maxlength="40" />
                                         </div>
                                     </div>
-                                    <div class="custom-control custom-checkbox mt-2">
-                                        <input asp-for="LocationForm.IsActive" class="custom-control-input" />
+                                    @if (isLocationEditMode)
+                                    {
+                                        <div class="custom-control custom-checkbox mt-2">
+                                            <input asp-for="LocationForm.IsActive" class="custom-control-input" />
                                         <label class="custom-control-label" asp-for="LocationForm.IsActive">لوکیشن فعال باشد</label>
                                     </div>
+                                    }
                                     <button class="btn btn-primary mt-3" type="submit" @(Can("Inventory.Location.Create", "Inventory.Location.Update", "Location.Create", "Location.Update") ? null : "disabled")>
                                         @(isLocationEditMode ? "به‌روزرسانی لوکیشن" : "ایجاد لوکیشن")
                                     </button>

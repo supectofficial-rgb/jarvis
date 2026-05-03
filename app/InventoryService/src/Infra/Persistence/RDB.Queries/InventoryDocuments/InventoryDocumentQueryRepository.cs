@@ -22,7 +22,15 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
         var item = await _dbContext.InventoryDocuments
             .FirstOrDefaultAsync(x => x.BusinessKey == businessKey);
 
-        return item is null ? null : ToBusinessKeyResult(item);
+        if (item is null)
+            return null;
+
+        var lines = await _dbContext.InventoryDocumentLines
+            .Where(x => x.InventoryDocumentId == item.Id)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+
+        return ToBusinessKeyResult(item, lines);
     }
 
     public async Task<InventoryDocumentListItem?> GetByIdAsync(Guid documentId)
@@ -171,7 +179,9 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
             ReasonCode = x.ReasonCode
         };
 
-    private static GetInventoryDocumentByBusinessKeyQueryResult ToBusinessKeyResult(InventoryDocumentReadModel x)
+    private static GetInventoryDocumentByBusinessKeyQueryResult ToBusinessKeyResult(
+        InventoryDocumentReadModel x,
+        IReadOnlyList<InventoryDocumentLineReadModel> lines)
         => new()
         {
             DocumentBusinessKey = x.BusinessKey,
@@ -186,6 +196,26 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
             ApprovedAt = x.ApprovedAt,
             PostedAt = x.PostedAt,
             PostedTransactionRef = x.PostedTransactionRef,
-            ReasonCode = x.ReasonCode
+            ReasonCode = x.ReasonCode,
+            Lines = lines.Select(ToLineItem).ToList()
+        };
+
+    private static InventoryDocumentLineQueryItem ToLineItem(InventoryDocumentLineReadModel x)
+        => new()
+        {
+            LineBusinessKey = x.BusinessKey,
+            VariantRef = x.VariantRef,
+            Qty = x.Qty,
+            UomRef = x.UomRef,
+            BaseQty = x.BaseQty,
+            BaseUomRef = x.BaseUomRef,
+            SourceLocationRef = x.SourceLocationRef,
+            DestinationLocationRef = x.DestinationLocationRef,
+            QualityStatusRef = x.QualityStatusRef,
+            FromQualityStatusRef = x.FromQualityStatusRef,
+            ToQualityStatusRef = x.ToQualityStatusRef,
+            LotBatchNo = x.LotBatchNo,
+            ReasonCode = x.ReasonCode,
+            AdjustmentDirection = x.AdjustmentDirection?.ToString()
         };
 }

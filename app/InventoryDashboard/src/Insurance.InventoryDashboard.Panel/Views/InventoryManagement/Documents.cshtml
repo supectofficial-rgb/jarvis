@@ -1,0 +1,1029 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
+@{
+    ViewData["Title"] = "اسناد موجودی";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    string WarehouseName(string? warehouseId)
+    {
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return "-";
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
+        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
+    }
+
+    string SellerName(string? sellerId)
+    {
+        if (string.IsNullOrWhiteSpace(sellerId))
+        {
+            return "-";
+        }
+
+        var seller = Model.SellerLookup.FirstOrDefault(x => string.Equals(x.SellerBusinessKey, sellerId, StringComparison.OrdinalIgnoreCase));
+        return seller is null ? sellerId : $"{seller.Code} - {seller.Name}";
+    }
+
+    string TypeLabel(string? type) => type switch
+    {
+        "Receipt" => "رسید",
+        "Issue" => "حواله",
+        "Transfer" => "انتقال",
+        "Adjustment" => "تعدیل",
+        "Return" => "برگشت",
+        "QualityChange" => "تغییر کیفیت",
+        _ => type ?? "-"
+    };
+
+    string StatusLabel(string? status) => status switch
+    {
+        "Draft" => "پیش نویس",
+        "Approved" => "تایید شده",
+        "Rejected" => "رد شده",
+        "Cancelled" => "لغو شده",
+        "Posted" => "پست شده",
+        _ => status ?? "-"
+    };
+
+    string StatusClass(string? status) => status switch
+    {
+        "Draft" => "badge-outline-secondary",
+        "Approved" => "badge-info",
+        "Rejected" => "badge-danger",
+        "Cancelled" => "badge-warning",
+        "Posted" => "badge-success",
+        _ => "badge-secondary"
+    };
+
+    string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
+    {
+        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
+        return string.IsNullOrWhiteSpace(productName)
+            ? variant.Sku
+            : $"{variant.Sku} - {productName}";
+    }
+
+    string VariantName(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return "-";
+        }
+
+        var variant = Model.VariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase));
+        return variant is null ? variantId : VariantLabel(variant);
+    }
+
+    string? VariantProductId(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return null;
+        }
+
+        return Model.VariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase))?.ProductId;
+    }
+
+    string LocationName(string? locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            return "-";
+        }
+
+        var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
+        return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
+    }
+
+    string QualityName(string? qualityId)
+    {
+        if (string.IsNullOrWhiteSpace(qualityId))
+        {
+            return "-";
+        }
+
+        var quality = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, qualityId, StringComparison.OrdinalIgnoreCase));
+        return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
+    }
+
+    string UomName(string? uomId)
+    {
+        if (string.IsNullOrWhiteSpace(uomId))
+        {
+            return "-";
+        }
+
+        var uom = Model.UnitOfMeasureLookup.FirstOrDefault(x => string.Equals(x.Id, uomId, StringComparison.OrdinalIgnoreCase));
+        return uom is null ? uomId : $"{uom.Code} - {uom.Name}";
+    }
+
+    string AdjustmentDirectionLabel(string? direction) => direction switch
+    {
+        "Increase" => "افزایش",
+        "Decrease" => "کاهش",
+        _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
+    };
+}
+
+<main id="documents-page" class="catalog-page">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-4">
+                    <h1>اسناد موجودی</h1>
+                    <p class="text-muted">ایجاد، پیگیری و کنترل وضعیت اسناد انبار و حرکات موجودی.</p>
+                    <div>
+                        <span class="badge badge-pill badge-outline-primary mb-1">اسناد: @Model.DocumentTotalCount</span>
+                        @if (!string.IsNullOrWhiteSpace(Model.SelectedDocumentId))
+                        {
+                            <span class="badge badge-pill badge-outline-secondary mb-1">سند منتخب: @(Model.SelectedDocumentDetails?.DocumentNo ?? Model.SelectedDocumentId)</span>
+                        }
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                {
+                    <div class="alert alert-warning">@Model.ErrorMessage</div>
+                }
+                @if (TempData.ContainsKey("CatalogError"))
+                {
+                    <div class="alert alert-danger">@TempData["CatalogError"]</div>
+                }
+                @if (TempData.ContainsKey("CatalogSuccess"))
+                {
+                    <div class="alert alert-success">@TempData["CatalogSuccess"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">ایجاد سند</h5>
+                            <span class="text-muted small">ثبت بر پایه Base UOM واریانت</span>
+                        </div>
+
+                        <form asp-action="SaveDocument" method="post" data-loading-form id="document-create-form">
+                            @Html.AntiForgeryToken()
+                            <div class="form-row">
+                                <div class="form-group col-md-2">
+                                    <label>نوع سند</label>
+                                    <select asp-for="CreateForm.DocumentType" class="form-control" id="document-type-select">
+                                        <option value="Receipt">رسید</option>
+                                        <option value="Issue">حواله</option>
+                                        <option value="Transfer">انتقال</option>
+                                        <option value="Adjustment">تعدیل</option>
+                                        <option value="Return">برگشت</option>
+                                        <option value="QualityChange">تغییر کیفیت</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>شماره سند</label>
+                                    <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>نوع مرجع</label>
+                                    <input asp-for="CreateForm.ReferenceType" class="form-control" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>شناسه مرجع</label>
+                                    <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>انبار</label>
+                                    <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
+                                        <option value="">انتخاب انبار</option>
+                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>فروشنده</label>
+                                    <select asp-for="CreateForm.SellerRef" class="form-control" required>
+                                        <option value="">انتخاب فروشنده</option>
+                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@seller.SellerBusinessKey">@seller.Code - @seller.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>زمان وقوع</label>
+                                    <input asp-for="CreateForm.OccurredAt" type="datetime-local" class="form-control" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>علت کلی</label>
+                                    <input asp-for="CreateForm.ReasonCode" class="form-control" />
+                                </div>
+                            </div>
+
+                            <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
+                            <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
+
+                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
+                                <div>
+                                    <h6 class="mb-0">ردیف ها</h6>
+                                    <div class="text-muted small">هر ردیف یک واریانت و مسیر حرکت موجودی را ثبت می کند.</div>
+                                </div>
+                                <button class="btn btn-outline-primary btn-xs" type="button" id="add-document-line">افزودن ردیف</button>
+                            </div>
+
+                            <div id="document-lines">
+                                @for (var i = 0; i < Model.CreateForm.Lines.Count; i++)
+                                {
+                                    <div class="card mb-3 document-line" data-line-index="@i">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <strong>ردیف @(i + 1)</strong>
+                                                <button class="btn btn-outline-danger btn-xs remove-document-line" type="button">حذف</button>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group col-md-4">
+                                                    <label>واریانت</label>
+                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select" required>
+                                                        <option value="">انتخاب واریانت</option>
+                                                        @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+                                                        {
+                                                            <option value="@variant.Id" data-base-uom-ref="@variant.BaseUomRef" data-product-id="@variant.ProductId" selected="@(variant.Id == Model.CreateForm.Lines[i].VariantId ? "selected" : null)">@VariantLabel(variant)</option>
+                                                        }
+                                                    </select>
+                                                    <input type="hidden" name="CreateForm.Lines[@i].UomRef" value="@Model.CreateForm.Lines[i].UomRef" class="document-uom-ref" />
+                                                    <input type="hidden" name="CreateForm.Lines[@i].BaseUomRef" value="@Model.CreateForm.Lines[i].BaseUomRef" class="document-base-uom-ref" />
+                                                    <div class="text-muted small mt-1 document-uom-hint">UOM از Base UOM واریانت پر می شود.</div>
+                                                </div>
+                                                <div class="form-group col-md-2">
+                                                    <label>تعداد</label>
+                                                    <input name="CreateForm.Lines[@i].Qty" type="number" step="0.0001" min="0.0001" value="@Model.CreateForm.Lines[i].Qty.ToString("0.####")" class="form-control" required />
+                                                </div>
+                                                <div class="form-group col-md-3 line-source">
+                                                    <label>لوکیشن مبدا</label>
+                                                    <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select">
+                                                        <option value="">انتخاب لوکیشن</option>
+                                                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                                        {
+                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-3 line-destination">
+                                                    <label>لوکیشن مقصد</label>
+                                                    <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select">
+                                                        <option value="">انتخاب لوکیشن</option>
+                                                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                                        {
+                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-2">
+                                                    <label>لات/بچ</label>
+                                                    <input name="CreateForm.Lines[@i].LotBatchNo" value="@Model.CreateForm.Lines[i].LotBatchNo" class="form-control" />
+                                                </div>
+                                                <div class="form-group col-md-3 line-quality">
+                                                    <label>کیفیت</label>
+                                                    <select name="CreateForm.Lines[@i].QualityStatusRef" class="form-control">
+                                                        <option value="">انتخاب وضعیت</option>
+                                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                        {
+                                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-3 line-from-quality">
+                                                    <label>از کیفیت</label>
+                                                    <select name="CreateForm.Lines[@i].FromQualityStatusRef" class="form-control">
+                                                        <option value="">انتخاب وضعیت</option>
+                                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                        {
+                                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-3 line-to-quality">
+                                                    <label>به کیفیت</label>
+                                                    <select name="CreateForm.Lines[@i].ToQualityStatusRef" class="form-control">
+                                                        <option value="">انتخاب وضعیت</option>
+                                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                        {
+                                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-2 line-adjustment">
+                                                    <label>جهت تعدیل</label>
+                                                    <select name="CreateForm.Lines[@i].AdjustmentDirection" class="form-control">
+                                                        <option value="">انتخاب</option>
+                                                        <option value="Increase" selected="@(Model.CreateForm.Lines[i].AdjustmentDirection == "Increase" ? "selected" : null)">افزایش</option>
+                                                        <option value="Decrease" selected="@(Model.CreateForm.Lines[i].AdjustmentDirection == "Decrease" ? "selected" : null)">کاهش</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-4 line-reason">
+                                                    <label>علت ردیف</label>
+                                                    <input name="CreateForm.Lines[@i].ReasonCode" value="@Model.CreateForm.Lines[i].ReasonCode" class="form-control" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>ایجاد سند</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-8 mb-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">لیست اسناد</h5>
+                            <span class="text-muted small">@Model.DocumentTotalCount رکورد</span>
+                        </div>
+                        <form asp-action="Documents" method="get" class="form-row mb-3">
+                            <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
+                            <div class="form-group col-md-2">
+                                <label>شماره</label>
+                                <input name="documentNo" value="@Model.DocumentNoFilter" class="form-control text-monospace" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>نوع</label>
+                                <select name="documentType" class="form-control">
+                                    <option value="">همه</option>
+                                    <option value="Receipt" selected="@(Model.DocumentTypeFilter == "Receipt" ? "selected" : null)">رسید</option>
+                                    <option value="Issue" selected="@(Model.DocumentTypeFilter == "Issue" ? "selected" : null)">حواله</option>
+                                    <option value="Transfer" selected="@(Model.DocumentTypeFilter == "Transfer" ? "selected" : null)">انتقال</option>
+                                    <option value="Adjustment" selected="@(Model.DocumentTypeFilter == "Adjustment" ? "selected" : null)">تعدیل</option>
+                                    <option value="Return" selected="@(Model.DocumentTypeFilter == "Return" ? "selected" : null)">برگشت</option>
+                                    <option value="QualityChange" selected="@(Model.DocumentTypeFilter == "QualityChange" ? "selected" : null)">تغییر کیفیت</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>وضعیت</label>
+                                <select name="status" class="form-control">
+                                    <option value="">همه</option>
+                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">پیش نویس</option>
+                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">تایید شده</option>
+                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">رد شده</option>
+                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">لغو شده</option>
+                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">پست شده</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>انبار</label>
+                                <select name="warehouseId" class="form-control js-search-select">
+                                    <option value="">همه</option>
+                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.WarehouseFilter ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>فروشنده</label>
+                                <select name="sellerId" class="form-control js-search-select">
+                                    <option value="">همه</option>
+                                    @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@seller.SellerBusinessKey" selected="@(seller.SellerBusinessKey == Model.SellerFilter ? "selected" : null)">@seller.Code - @seller.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>از تاریخ</label>
+                                <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>تا تاریخ</label>
+                                <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>تعداد</label>
+                                <select name="pageSize" class="form-control">
+                                    @foreach (var size in Model.PageSizeOptions)
+                                    {
+                                        <option value="@size" selected="@(Model.DocumentPageSize == size ? "selected" : null)">@size</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2 d-flex align-items-end">
+                                <button class="btn btn-outline-primary btn-block" type="submit">اعمال</button>
+                            </div>
+                        </form>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>شماره</th>
+                                        <th>نوع</th>
+                                        <th>انبار</th>
+                                        <th>فروشنده</th>
+                                        <th>تاریخ</th>
+                                        <th>وضعیت</th>
+                                        <th class="text-right">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.Documents.Count == 0)
+                                    {
+                                        <tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var document in Model.Documents)
+                                        {
+                                            <tr>
+                                                <td><span class="text-monospace">@document.DocumentNo</span></td>
+                                                <td>@TypeLabel(document.DocumentType)</td>
+                                                <td>@WarehouseName(document.WarehouseRef)</td>
+                                                <td>@SellerName(document.SellerRef)</td>
+                                                <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                                <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
+                                                <td class="text-right">
+                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Documents" asp-route-documentId="@document.DocumentBusinessKey" asp-route-documentNo="@Model.DocumentNoFilter" asp-route-documentType="@Model.DocumentTypeFilter" asp-route-status="@Model.DocumentStatusFilter" asp-route-warehouseId="@Model.WarehouseFilter" asp-route-sellerId="@Model.SellerFilter" asp-route-occurredFrom="@Model.OccurredFromFilter" asp-route-occurredTo="@Model.OccurredToFilter" asp-route-page="@Model.DocumentPage" asp-route-pageSize="@Model.DocumentPageSize">جزئیات</a>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if (Model.DocumentTotalPages > 1)
+                        {
+                            <nav class="mt-3">
+                                <ul class="pagination pagination-sm mb-0">
+                                    @for (var i = 1; i <= Model.DocumentTotalPages; i++)
+                                    {
+                                        <li class="page-item @(i == Model.DocumentPage ? "active" : null)">
+                                            <a class="page-link"
+                                               asp-action="Documents"
+                                               asp-route-documentId="@Model.SelectedDocumentId"
+                                               asp-route-documentNo="@Model.DocumentNoFilter"
+                                               asp-route-documentType="@Model.DocumentTypeFilter"
+                                               asp-route-status="@Model.DocumentStatusFilter"
+                                               asp-route-warehouseId="@Model.WarehouseFilter"
+                                               asp-route-sellerId="@Model.SellerFilter"
+                                               asp-route-occurredFrom="@Model.OccurredFromFilter"
+                                               asp-route-occurredTo="@Model.OccurredToFilter"
+                                               asp-route-page="@i"
+                                               asp-route-pageSize="@Model.DocumentPageSize">@i</a>
+                                        </li>
+                                    }
+                                </ul>
+                            </nav>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4 mb-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">جزئیات سند</h5>
+                        @if (Model.SelectedDocumentDetails is null)
+                        {
+                            <div class="alert alert-light mb-0">سندی برای نمایش انتخاب نشده است.</div>
+                        }
+                        else
+                        {
+                            <p class="mb-1"><strong>شماره:</strong> <span class="text-monospace">@Model.SelectedDocumentDetails.DocumentNo</span></p>
+                            <p class="mb-1"><strong>نوع:</strong> @TypeLabel(Model.SelectedDocumentDetails.DocumentType)</p>
+                            <p class="mb-1"><strong>وضعیت:</strong> <span class="badge badge-pill @StatusClass(Model.SelectedDocumentDetails.Status)">@StatusLabel(Model.SelectedDocumentDetails.Status)</span></p>
+                            <p class="mb-1"><strong>انبار:</strong> @WarehouseName(Model.SelectedDocumentDetails.WarehouseRef)</p>
+                            <p class="mb-1"><strong>فروشنده:</strong> @SellerName(Model.SelectedDocumentDetails.SellerRef)</p>
+                            <p class="mb-1"><strong>تاریخ وقوع:</strong> @Model.SelectedDocumentDetails.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
+                            <p class="mb-1"><strong>مرجع:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReferenceType) ? "-" : $"{Model.SelectedDocumentDetails.ReferenceType} / {Model.SelectedDocumentDetails.ReferenceBusinessId}")</p>
+                            <p class="mb-1"><strong>علت:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReasonCode) ? "-" : Model.SelectedDocumentDetails.ReasonCode)</p>
+                            <p class="mb-1"><strong>تاریخ تایید:</strong> @(Model.SelectedDocumentDetails.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+                            <p class="mb-3"><strong>تاریخ پست:</strong> @(Model.SelectedDocumentDetails.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+
+                            <div class="border-top pt-3 mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">آیتم های سند</h6>
+                                    <span class="text-muted small">@Model.SelectedDocumentDetails.Lines.Count ردیف</span>
+                                </div>
+                                @if (Model.SelectedDocumentDetails.Lines.Count == 0)
+                                {
+                                    <div class="alert alert-light mb-0">ردیفی برای این سند ثبت نشده است.</div>
+                                }
+                                else
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>واریانت</th>
+                                                    <th>تعداد</th>
+                                                    <th>واحد</th>
+                                                    <th>مبدا</th>
+                                                    <th>مقصد</th>
+                                                    <th>کیفیت</th>
+                                                    <th>علت</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var line in Model.SelectedDocumentDetails.Lines)
+                                                {
+                                                    var lineProductId = VariantProductId(line.VariantRef);
+                                                    <tr>
+                                                        <td>
+                                                            @if (!string.IsNullOrWhiteSpace(lineProductId))
+                                                            {
+                                                                <a asp-controller="VariantManagement"
+                                                                   asp-action="Variants"
+                                                                   asp-route-productId="@lineProductId"
+                                                                   asp-route-variantId="@line.VariantRef">
+                                                                    @VariantName(line.VariantRef)
+                                                                </a>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span>@VariantName(line.VariantRef)</span>
+                                                            }
+                                                        </td>
+                                                        <td>@line.Qty.ToString("0.####")</td>
+                                                        <td>@UomName(line.UomRef)</td>
+                                                        <td>@LocationName(line.SourceLocationRef)</td>
+                                                        <td>@LocationName(line.DestinationLocationRef)</td>
+                                                        <td>
+                                                            @if (Model.SelectedDocumentDetails.DocumentType == "QualityChange")
+                                                            {
+                                                                <span>@QualityName(line.FromQualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span>@QualityName(line.QualityStatusRef)</span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @(string.IsNullOrWhiteSpace(line.ReasonCode) ? AdjustmentDirectionLabel(line.AdjustmentDirection) : line.ReasonCode)
+                                                        </td>
+                                                    </tr>
+                                                    @if (!string.IsNullOrWhiteSpace(line.LotBatchNo) || line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <tr>
+                                                            <td colspan="7" class="text-muted small">
+                                                                Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
+                                                                @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
+                                                                {
+                                                                    <span> | لات/بچ: @line.LotBatchNo</span>
+                                                                }
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </div>
+
+                            var selectedStatus = Model.SelectedDocumentDetails.Status;
+                            var canApproveByStatus = string.Equals(selectedStatus, "Draft", StringComparison.OrdinalIgnoreCase);
+                            var canRejectByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase);
+                            var canCancelByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase);
+                            var canPostByStatus = !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase)
+                                && !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase);
+
+                            <div class="border-top pt-3">
+                                <div class="mb-2 text-muted small">تغییر وضعیت</div>
+                                <div class="d-flex flex-wrap">
+                                    <form asp-action="ApproveDocument" method="post" class="mr-1 mb-1" data-loading-form>
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>تایید</button>
+                                    </form>
+                                    <form asp-action="PostDocument" method="post" class="mr-1 mb-1" data-loading-form>
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>پست</button>
+                                    </form>
+                                </div>
+                                <form asp-action="RejectDocument" method="post" class="mt-2" data-loading-form>
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <div class="form-group mb-2">
+                                        <label class="small">علت رد</label>
+                                        <input name="ReasonCode" class="form-control form-control-sm" />
+                                    </div>
+                                    <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>رد سند</button>
+                                </form>
+                                <form asp-action="CancelDocument" method="post" class="mt-2" data-loading-form>
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <div class="form-group mb-2">
+                                        <label class="small">علت لغو</label>
+                                        <input name="ReasonCode" class="form-control form-control-sm" />
+                                    </div>
+                                    <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Document.Cancel", "InventoryDocument.Cancel", "Document.Cancel") && canCancelByStatus ? null : "disabled")>لغو سند</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var lineContainer = document.getElementById('document-lines');
+            var addLineButton = document.getElementById('add-document-line');
+            var documentTypeSelect = document.getElementById('document-type-select');
+            var warehouseSelect = document.getElementById('create-warehouse-select');
+            var createForm = document.getElementById('document-create-form');
+            var typeGuidance = document.getElementById('document-type-guidance');
+            var validationSummary = document.getElementById('document-validation-summary');
+
+            var documentTypeConfig = {
+                Receipt: {
+                    title: 'رسید انبار',
+                    text: 'برای ورود کالا به انبار استفاده می‌شود. در هر ردیف، لوکیشن مقصد الزامی است.',
+                    source: false,
+                    destination: true,
+                    quality: true,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                Issue: {
+                    title: 'حواله انبار',
+                    text: 'برای خروج کالا از انبار استفاده می‌شود. در هر ردیف، لوکیشن مبدا الزامی است.',
+                    source: true,
+                    destination: false,
+                    quality: true,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                Transfer: {
+                    title: 'انتقال بین لوکیشن‌ها',
+                    text: 'برای جابه‌جایی داخلی کالا استفاده می‌شود. مبدا و مقصد هر ردیف الزامی و باید متفاوت باشند.',
+                    source: true,
+                    destination: true,
+                    quality: true,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                Adjustment: {
+                    title: 'تعدیل موجودی',
+                    text: 'برای اصلاح مقدار موجودی استفاده می‌شود. جهت تعدیل و علت ردیف الزامی است.',
+                    source: false,
+                    destination: false,
+                    quality: false,
+                    qualityChange: false,
+                    adjustment: true,
+                    lineReason: true
+                },
+                Return: {
+                    title: 'برگشت کالا',
+                    text: 'برای برگشت کالا به انبار استفاده می‌شود. لوکیشن مقصد هر ردیف الزامی است.',
+                    source: false,
+                    destination: true,
+                    quality: true,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                QualityChange: {
+                    title: 'تغییر کیفیت',
+                    text: 'برای تغییر وضعیت کیفی کالا استفاده می‌شود. کیفیت مبدا و مقصد الزامی و باید متفاوت باشند.',
+                    source: false,
+                    destination: false,
+                    quality: false,
+                    qualityChange: true,
+                    adjustment: false,
+                    lineReason: false
+                }
+            };
+
+            function setRequired(selectors, isRequired, line) {
+                selectors.forEach(function (selector) {
+                    line.querySelectorAll(selector).forEach(function (field) {
+                        if (isRequired) {
+                            field.setAttribute('required', 'required');
+                        } else {
+                            field.removeAttribute('required');
+                        }
+                    });
+                });
+            }
+
+            function clearValidation() {
+                if (validationSummary) {
+                    validationSummary.style.display = 'none';
+                    validationSummary.textContent = '';
+                }
+
+                lineContainer.querySelectorAll('.is-invalid').forEach(function (field) {
+                    field.classList.remove('is-invalid');
+                });
+            }
+
+            function showValidation(message, field) {
+                if (validationSummary) {
+                    validationSummary.textContent = message;
+                    validationSummary.style.display = '';
+                }
+
+                if (field) {
+                    field.classList.add('is-invalid');
+                    field.focus();
+                }
+            }
+
+            function selectedConfig() {
+                var type = documentTypeSelect ? documentTypeSelect.value : 'Receipt';
+                return documentTypeConfig[type] || documentTypeConfig.Receipt;
+            }
+
+            function renumberLines() {
+                var lines = lineContainer.querySelectorAll('.document-line');
+                lines.forEach(function (line, index) {
+                    line.setAttribute('data-line-index', index);
+                    var title = line.querySelector('strong');
+                    if (title) {
+                        title.textContent = 'ردیف ' + (index + 1);
+                    }
+
+                    line.querySelectorAll('input, select, textarea').forEach(function (field) {
+                        if (field.name) {
+                            field.name = field.name.replace(/CreateForm\.Lines\[\d+\]/g, 'CreateForm.Lines[' + index + ']');
+                        }
+                    });
+                });
+            }
+
+            function toggleTypeFields() {
+                var config = selectedConfig();
+                if (typeGuidance) {
+                    typeGuidance.innerHTML = '<strong>' + config.title + '</strong><div class="small mt-1">' + config.text + '</div>';
+                }
+
+                lineContainer.querySelectorAll('.document-line').forEach(function (line) {
+                    line.querySelectorAll('.line-source').forEach(function (el) { el.style.display = config.source ? '' : 'none'; });
+                    line.querySelectorAll('.line-destination').forEach(function (el) { el.style.display = config.destination ? '' : 'none'; });
+                    line.querySelectorAll('.line-adjustment').forEach(function (el) { el.style.display = config.adjustment ? '' : 'none'; });
+                    line.querySelectorAll('.line-quality').forEach(function (el) { el.style.display = config.quality ? '' : 'none'; });
+                    line.querySelectorAll('.line-from-quality, .line-to-quality').forEach(function (el) { el.style.display = config.qualityChange ? '' : 'none'; });
+                    line.querySelectorAll('.line-reason').forEach(function (el) { el.style.display = config.lineReason ? '' : 'none'; });
+
+                    setRequired(['.source-location-select'], config.source, line);
+                    setRequired(['.destination-location-select'], config.destination, line);
+                    setRequired(['.line-adjustment select'], config.adjustment, line);
+                    setRequired(['.line-reason input'], config.lineReason, line);
+                    setRequired(['.line-from-quality select', '.line-to-quality select'], config.qualityChange, line);
+                    setRequired(['.line-quality select'], false, line);
+                });
+            }
+
+            function syncLocationsToWarehouse() {
+                var warehouseId = warehouseSelect ? warehouseSelect.value : '';
+                lineContainer.querySelectorAll('.document-location-select').forEach(function (select) {
+                    Array.prototype.forEach.call(select.options, function (option) {
+                        if (!option.value) {
+                            option.hidden = false;
+                            return;
+                        }
+
+                        var optionWarehouse = option.getAttribute('data-warehouse-ref');
+                        option.hidden = !!warehouseId && optionWarehouse !== warehouseId;
+                    });
+
+                    if (select.value) {
+                        var selectedOption = select.options[select.selectedIndex];
+                        if (selectedOption && selectedOption.hidden) {
+                            select.value = '';
+                        }
+                    }
+                });
+            }
+
+            function syncVariantUom(line) {
+                var select = line.querySelector('.document-variant-select');
+                var uomRef = line.querySelector('.document-uom-ref');
+                var baseUomRef = line.querySelector('.document-base-uom-ref');
+                var hint = line.querySelector('.document-uom-hint');
+                if (!select || !uomRef || !baseUomRef) {
+                    return;
+                }
+
+                var option = select.options[select.selectedIndex];
+                var baseUom = option ? option.getAttribute('data-base-uom-ref') : '';
+                uomRef.value = baseUom || '';
+                baseUomRef.value = baseUom || '';
+                if (hint) {
+                    hint.textContent = baseUom ? ('Base UOM: ' + baseUom) : 'UOM از Base UOM واریانت پر می شود.';
+                }
+            }
+
+            function bindLine(line) {
+                var removeButton = line.querySelector('.remove-document-line');
+                if (removeButton) {
+                    removeButton.addEventListener('click', function () {
+                        if (lineContainer.querySelectorAll('.document-line').length === 1) {
+                            line.querySelectorAll('input[type="text"], input[type="number"]').forEach(function (input) {
+                                input.value = input.type === 'number' ? '1' : '';
+                            });
+                            line.querySelectorAll('select').forEach(function (select) {
+                                select.value = '';
+                            });
+                            syncVariantUom(line);
+                            return;
+                        }
+
+                        line.remove();
+                        renumberLines();
+                        toggleTypeFields();
+                        syncLocationsToWarehouse();
+                    });
+                }
+
+                var variantSelect = line.querySelector('.document-variant-select');
+                if (variantSelect) {
+                    variantSelect.addEventListener('change', function () {
+                        syncVariantUom(line);
+                    });
+                    syncVariantUom(line);
+                }
+            }
+
+            function firstField(line, selector) {
+                return line.querySelector(selector);
+            }
+
+            function validateDocumentForm() {
+                clearValidation();
+
+                if (!createForm) {
+                    return true;
+                }
+
+                var warehouseField = document.getElementById('create-warehouse-select');
+                if (warehouseField && !warehouseField.value) {
+                    showValidation('انتخاب انبار برای سند الزامی است.', warehouseField);
+                    return false;
+                }
+
+                var sellerField = createForm.querySelector('[name="CreateForm.SellerRef"]');
+                if (sellerField && !sellerField.value) {
+                    showValidation('انتخاب فروشنده برای سند الزامی است.', sellerField);
+                    return false;
+                }
+
+                var config = selectedConfig();
+                var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
+                if (lines.length === 0) {
+                    showValidation('حداقل یک ردیف برای سند لازم است.');
+                    return false;
+                }
+
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i];
+                    var lineTitle = 'ردیف ' + (i + 1);
+                    var variant = firstField(line, '.document-variant-select');
+                    var qty = firstField(line, 'input[name$=".Qty"]');
+                    var source = firstField(line, '.source-location-select');
+                    var destination = firstField(line, '.destination-location-select');
+                    var adjustment = firstField(line, '.line-adjustment select');
+                    var reason = firstField(line, '.line-reason input');
+                    var fromQuality = firstField(line, '.line-from-quality select');
+                    var toQuality = firstField(line, '.line-to-quality select');
+
+                    if (!variant || !variant.value) {
+                        showValidation(lineTitle + ': انتخاب واریانت الزامی است.', variant);
+                        return false;
+                    }
+
+                    if (!qty || Number(qty.value) <= 0) {
+                        showValidation(lineTitle + ': تعداد باید بزرگ‌تر از صفر باشد.', qty);
+                        return false;
+                    }
+
+                    if (config.source && (!source || !source.value)) {
+                        showValidation(lineTitle + ': لوکیشن مبدا الزامی است.', source);
+                        return false;
+                    }
+
+                    if (config.destination && (!destination || !destination.value)) {
+                        showValidation(lineTitle + ': لوکیشن مقصد الزامی است.', destination);
+                        return false;
+                    }
+
+                    if (config.source && config.destination && source && destination && source.value && source.value === destination.value) {
+                        showValidation(lineTitle + ': لوکیشن مبدا و مقصد باید متفاوت باشند.', destination);
+                        return false;
+                    }
+
+                    if (config.adjustment && (!adjustment || !adjustment.value)) {
+                        showValidation(lineTitle + ': جهت تعدیل الزامی است.', adjustment);
+                        return false;
+                    }
+
+                    if (config.lineReason && (!reason || !reason.value.trim())) {
+                        showValidation(lineTitle + ': علت ردیف الزامی است.', reason);
+                        return false;
+                    }
+
+                    if (config.qualityChange && (!fromQuality || !fromQuality.value)) {
+                        showValidation(lineTitle + ': کیفیت مبدا الزامی است.', fromQuality);
+                        return false;
+                    }
+
+                    if (config.qualityChange && (!toQuality || !toQuality.value)) {
+                        showValidation(lineTitle + ': کیفیت مقصد الزامی است.', toQuality);
+                        return false;
+                    }
+
+                    if (config.qualityChange && fromQuality && toQuality && fromQuality.value && fromQuality.value === toQuality.value) {
+                        showValidation(lineTitle + ': کیفیت مبدا و مقصد باید متفاوت باشند.', toQuality);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            function addLine() {
+                var lines = lineContainer.querySelectorAll('.document-line');
+                var lastLine = lines[lines.length - 1];
+                var clone = lastLine.cloneNode(true);
+                clone.querySelectorAll('input').forEach(function (input) {
+                    input.value = input.type === 'number' ? '1' : '';
+                });
+                clone.querySelectorAll('select').forEach(function (select) {
+                    select.value = '';
+                });
+                lineContainer.appendChild(clone);
+                renumberLines();
+                bindLine(clone);
+                toggleTypeFields();
+                syncLocationsToWarehouse();
+            }
+
+            if (addLineButton) {
+                addLineButton.addEventListener('click', addLine);
+            }
+
+            if (documentTypeSelect) {
+                documentTypeSelect.addEventListener('change', function () {
+                    clearValidation();
+                    toggleTypeFields();
+                });
+            }
+
+            if (warehouseSelect) {
+                warehouseSelect.addEventListener('change', function () {
+                    clearValidation();
+                    syncLocationsToWarehouse();
+                });
+            }
+
+            if (createForm) {
+                createForm.addEventListener('submit', function (event) {
+                    if (!validateDocumentForm()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                });
+            }
+
+            lineContainer.querySelectorAll('.document-line').forEach(bindLine);
+            renumberLines();
+            toggleTypeFields();
+            syncLocationsToWarehouse();
+        })();
+    </script>
+}

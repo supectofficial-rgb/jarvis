@@ -144,6 +144,10 @@
           "route": "/InventoryManagement/Warehouses"
         },
         {
+<<<<<<< HEAD
+          "itemId": "documents",
+          "title": "اسناد موجودی",
+=======
           "itemId": "locations",
           "title": "مدیریت لوکیشن",
           "icon": "simple-icon-location-pin",
@@ -173,6 +177,7 @@
         {
           "itemId": "documents",
           "title": "مدیریت اسناد",
+>>>>>>> a11ea0616f0b597d6346967f1611b42fd02f86fc
           "icon": "simple-icon-docs",
           "isEnabled": true,
           "roles": [
@@ -180,6 +185,10 @@
             "Admin",
             "InventoryManager"
           ],
+<<<<<<< HEAD
+          "description": "پیگیری، کنترل و تغییر وضعیت اسناد موجودی",
+          "route": "/InventoryManagement/Documents"
+=======
           "description": "ثبت سند انبار و افزودن واریانت با کد یا نام",
           "route": "/InventoryDocuments/Documents"
         }
@@ -275,6 +284,7 @@
           ],
           "description": "ثبت و مدیریت فاکتور",
           "route": "/InvoiceManagement/Invoices"
+>>>>>>> a11ea0616f0b597d6346967f1611b42fd02f86fc
         }
       ]
     }

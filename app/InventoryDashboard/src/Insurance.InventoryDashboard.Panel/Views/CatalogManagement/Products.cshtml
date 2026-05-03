@@ -163,6 +163,7 @@
       class="catalog-page"
       data-selected-product-id="@Model.SelectedProductId"
       data-selected-category-id="@Model.SelectedCategoryId"
+      data-create-attributes-url="@Url.Action("CreateAttributes", "ProductManagement")"
       data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
     <div class="container-fluid">
         <div class="row">
@@ -277,7 +278,7 @@
                                     <h5 class="card-title mb-0">@(isEditMode ? "ویرایش محصول" : "ایجاد محصول")</h5>
                                     @if (isEditMode)
                                     {
-                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ورود محصول جدید</a>
+                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-create="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
                                     }
                                 </div>
 
@@ -349,6 +350,9 @@
                                                 ویژگی‌های غیر واریانت‌ساز در سطح محصول ذخیره می‌شوند. ویژگی‌های واریانت‌ساز به‌صورت چندانتخابی گرفته شده و به ازای هر ترکیب، یک واریانت با نام و SKU خودکار ساخته می‌شود.
                                             </small>
                                         </div>
+
+                                        <div id="product-create-attribute-feedback"></div>
+                                        <div id="product-create-dynamic-sections">
 
                                         @if (string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
                                         {
@@ -514,6 +518,8 @@
                                                 </div>
                                             </div>
                                         }
+
+                                        </div>
                                     }
 
                                     <div class="mt-3">
@@ -1004,9 +1010,13 @@
             var productNameField = document.getElementById('ProductForm_Name');
             var productBaseSkuField = document.getElementById('ProductForm_BaseSku');
             var autoPayloadField = document.getElementById('product-auto-variant-payload');
+            var createAttributeFeedback = document.getElementById('product-create-attribute-feedback');
+            var createDynamicSections = document.getElementById('product-create-dynamic-sections');
             var autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
             var autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
             var autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
+            var createAttributesUrl = pageElement ? (pageElement.getAttribute('data-create-attributes-url') || '') : '';
+            var createAttributesRequestId = 0;
             var isEditMode = !!(productUpsertForm && productUpsertForm.querySelector('[name="ProductForm.ProductId"]') && (productUpsertForm.querySelector('[name="ProductForm.ProductId"]').value || '').trim());
 
             function readState() {
@@ -1223,6 +1233,241 @@
                 setFieldIfMissing(searchForm, 'statusFilter', state.filters.statusFilter);
                 setFieldIfMissing(searchForm, 'sort', state.filters.sort);
                 setFieldIfMissing(searchForm, 'pageSize', state.filters.pageSize);
+            }
+
+            function escapeHtml(value) {
+                return (value || '')
+                    .toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function initSearchableSelects(scope) {
+                if (!scope || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+
+                var $ = window.jQuery;
+                scope.querySelectorAll('select.js-search-select').forEach(function (select) {
+                    if (select.dataset.select2Initialized === 'true') {
+                        return;
+                    }
+
+                    $(select).select2({
+                        theme: 'bootstrap',
+                        dir: document.documentElement.getAttribute('dir') || 'rtl',
+                        width: select.getAttribute('data-width') || '100%',
+                        placeholder: select.getAttribute('data-placeholder') || '',
+                        minimumResultsForSearch: select.hasAttribute('data-no-search') ? Infinity : 0
+                    });
+
+                    select.dataset.select2Initialized = 'true';
+                });
+            }
+
+            function setCreateAttributeFeedback(message, kind) {
+                if (!createAttributeFeedback) {
+                    return;
+                }
+
+                if (!message) {
+                    createAttributeFeedback.innerHTML = '';
+                    return;
+                }
+
+                var alertClass = kind === 'warning'
+                    ? 'alert-warning'
+                    : (kind === 'success' ? 'alert-success' : 'alert-danger');
+                createAttributeFeedback.innerHTML = '<div class="alert ' + alertClass + ' mb-3">' + escapeHtml(message) + '</div>';
+            }
+
+            function buildCreateAttributeOriginText(attribute, includeDisplayOrder) {
+                var parts = [];
+                if (includeDisplayOrder) {
+                    parts.push('اولویت ویژگی: ' + (attribute.displayOrder || 0));
+                }
+
+                parts.push(attribute.isInherited
+                    ? ('ارث‌رسیده از ' + (attribute.sourceCategoryName || ''))
+                    : 'مستقیم');
+                parts.push(attribute.isRequired ? 'الزامی' : 'اختیاری');
+                return parts.join(' - ');
+            }
+
+            function renderCreateAttributeSections(data) {
+                if (!createDynamicSections) {
+                    return;
+                }
+
+                var productAttributes = Array.isArray(data && data.productAttributes) ? data.productAttributes : [];
+                var variantAttributes = Array.isArray(data && data.variantAttributes) ? data.variantAttributes : [];
+
+                if (!data || !data.categoryId) {
+                    createDynamicSections.innerHTML = '<div class="alert alert-warning">ابتدا یک دسته‌بندی انتخاب کنید تا فرم ویژگی‌های محصول و واریانت‌ساز بارگذاری شود.</div>';
+                    autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
+                    autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
+                    autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
+                    return;
+                }
+
+                var productSection = productAttributes.length === 0
+                    ? '<div class="text-muted small">ویژگی محصولی تعریف نشده است.</div>'
+                    : productAttributes.map(function (attribute) {
+                        var label = escapeHtml(attribute.name || '') + ' (' + escapeHtml(attribute.dataType || '') + ')' + (attribute.isRequired ? ' *' : '');
+                        var inputHtml = '';
+                        var options = Array.isArray(attribute.options) ? attribute.options : [];
+                        var dataType = ((attribute.dataType || '') + '').trim().toLowerCase();
+
+                        if (options.length > 0) {
+                            inputHtml = '<select class="form-control js-search-select js-auto-product-value" data-option-input="true" name="AutoProductOption_' + escapeHtml(attribute.attributeId || '') + '" data-placeholder="انتخاب گزینه">'
+                                + '<option value="">انتخاب مقدار</option>'
+                                + options.map(function (option) {
+                                    return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '">'
+                                        + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
+                                }).join('')
+                                + '</select>';
+                        } else if (dataType === 'number') {
+                            inputHtml = '<input type="number" step="any" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="مقدار عددی" />';
+                        } else if (dataType === 'date') {
+                            inputHtml = '<input type="date" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" />';
+                        } else if (dataType === 'boolean') {
+                            inputHtml = '<select class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '">'
+                                + '<option value="">انتخاب ویژگی</option>'
+                                + '<option value="true">بله</option>'
+                                + '<option value="false">خیر</option>'
+                                + '</select>';
+                        } else {
+                            inputHtml = '<input type="text" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="مقدار ویژگی" />';
+                        }
+
+                        return '<div class="form-group js-auto-product-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
+                            + '<label>' + label + '</label>'
+                            + inputHtml
+                            + '<small class="form-text text-muted">' + escapeHtml(buildCreateAttributeOriginText(attribute, false)) + '</small>'
+                            + '</div>';
+                    }).join('');
+
+                var variantSection = variantAttributes.length === 0
+                    ? '<div class="text-muted small">ویژگی واریانت‌ساز تعریف نشده است.</div>'
+                    : variantAttributes.map(function (attribute) {
+                        var options = Array.isArray(attribute.options) ? attribute.options : [];
+                        return '<div class="form-group js-auto-variant-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
+                            + '<label>' + escapeHtml(attribute.name || '') + (attribute.isRequired ? ' *' : '') + '</label>'
+                            + '<select multiple class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="انتخاب چند گزینه">'
+                            + options.map(function (option) {
+                                return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '" data-option-display-order="' + escapeHtml(option.displayOrder || 0) + '">'
+                                    + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
+                            }).join('')
+                            + '</select>'
+                            + '<small class="form-text text-muted">' + escapeHtml(buildCreateAttributeOriginText(attribute, true)) + '</small>'
+                            + '</div>';
+                    }).join('');
+
+                createDynamicSections.innerHTML = ''
+                    + '<div class="card mb-3"><div class="card-body">'
+                    + '<h6 class="card-title mb-3">ویژگی‌های محصول (غیر واریانت‌ساز)</h6>'
+                    + productSection
+                    + '</div></div>'
+                    + '<div class="card mb-3"><div class="card-body">'
+                    + '<h6 class="card-title mb-3">ویژگی‌های واریانت‌ساز (چندانتخابی)</h6>'
+                    + variantSection
+                    + '</div></div>'
+                    + '<div class="card mb-3"><div class="card-body">'
+                    + '<h6 class="card-title mb-2">پیش‌نمایش واریانت‌های قابل تولید</h6>'
+                    + '<div id="auto-variant-preview-empty" class="text-muted small">گزینه‌های واریانت‌ساز را انتخاب کنید تا پیش‌نمایش نام و SKU ساخته شود.</div>'
+                    + '<div id="auto-variant-preview-container" class="table-responsive d-none">'
+                    + '<table class="table table-sm table-striped mb-0"><thead><tr><th>#</th><th>نام واریانت</th><th>SKU</th></tr></thead><tbody id="auto-variant-preview-body"></tbody></table>'
+                    + '</div></div></div>';
+
+                autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
+                autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
+                autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
+
+                initSearchableSelects(createDynamicSections);
+            }
+
+            function bindAutoCreateInputEvents(scope) {
+                if (!scope) {
+                    return;
+                }
+
+                scope.querySelectorAll('.js-auto-product-value, .js-auto-variant-values').forEach(function (input) {
+                    input.addEventListener('change', renderAutoVariantPreview);
+                    input.addEventListener('input', renderAutoVariantPreview);
+                });
+            }
+
+            function loadCreateAttributesForCategory(categoryId) {
+                if (!productUpsertForm || !createDynamicSections) {
+                    return;
+                }
+
+                if (!categoryId) {
+                    if (pageElement) {
+                        pageElement.setAttribute('data-selected-category-id', '');
+                    }
+
+                    setCreateAttributeFeedback('', 'warning');
+                    renderCreateAttributeSections(null);
+                    bindAutoCreateInputEvents(createDynamicSections);
+                    renderAutoVariantPreview();
+                    saveFormDraft(productUpsertForm);
+                    return;
+                }
+
+                var currentRequestId = ++createAttributesRequestId;
+                var currentDraft = captureFormDraft(productUpsertForm);
+
+                setCreateAttributeFeedback('', 'warning');
+                createDynamicSections.innerHTML = '<div class="alert alert-light border">در حال بارگذاری ویژگی‌های دسته‌بندی...</div>';
+
+                var url = new URL(createAttributesUrl || window.location.href, window.location.origin);
+                url.searchParams.set('categoryId', categoryId);
+
+                fetch(url.toString(), {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (currentRequestId !== createAttributesRequestId) {
+                            return;
+                        }
+
+                        if (!data || data.isSuccess === false) {
+                            createDynamicSections.innerHTML = '';
+                            setCreateAttributeFeedback((data && data.errorMessage) || 'بارگذاری ویژگی‌های دسته‌بندی با خطا مواجه شد.', 'danger');
+                            renderCreateAttributeSections(null);
+                            return;
+                        }
+
+                        renderCreateAttributeSections(data);
+                        applyFormDraft(productUpsertForm, currentDraft);
+                        bindAutoCreateInputEvents(createDynamicSections);
+                        if (pageElement) {
+                            pageElement.setAttribute('data-selected-category-id', categoryId);
+                        }
+
+                        if (data.errorMessage) {
+                            setCreateAttributeFeedback(data.errorMessage, 'warning');
+                        }
+
+                        saveFormDraft(productUpsertForm);
+                        renderAutoVariantPreview();
+                    })
+                    .catch(function () {
+                        if (currentRequestId !== createAttributesRequestId) {
+                            return;
+                        }
+
+                        createDynamicSections.innerHTML = '';
+                        setCreateAttributeFeedback('بارگذاری ویژگی‌های دسته‌بندی با خطا مواجه شد.', 'danger');
+                        renderCreateAttributeSections(null);
+                    });
             }
 
             function normalizeSkuSegment(rawValue) {
@@ -1511,22 +1756,13 @@
             if (productCategoryField && productUpsertForm) {
                 productCategoryField.addEventListener('change', function () {
                     var selectedCategoryId = (productCategoryField.value || '').trim();
-                    if (!selectedCategoryId) {
-                        return;
-                    }
-
                     var currentCategoryId = pageElement ? (pageElement.getAttribute('data-selected-category-id') || '').trim() : '';
                     if (currentCategoryId && currentCategoryId.toLowerCase() === selectedCategoryId.toLowerCase()) {
                         renderAutoVariantPreview();
                         return;
                     }
 
-                    saveFormDraft(productUpsertForm);
-                    var url = new URL(window.location.href);
-                    url.searchParams.set('categoryId', selectedCategoryId);
-                    url.searchParams.set('createNew', 'true');
-                    url.searchParams.delete('productId');
-                    window.location.assign(url.toString());
+                    loadCreateAttributesForCategory(selectedCategoryId);
                 });
             }
 
@@ -1564,10 +1800,7 @@
             if (productBaseSkuField) {
                 productBaseSkuField.addEventListener('input', renderAutoVariantPreview);
             }
-            document.querySelectorAll('.js-auto-product-value, .js-auto-variant-values').forEach(function (input) {
-                input.addEventListener('change', renderAutoVariantPreview);
-                input.addEventListener('input', renderAutoVariantPreview);
-            });
+            bindAutoCreateInputEvents(createDynamicSections || document);
             renderAutoVariantPreview();
 
             if (attributeSelect && hiddenValue && form) {

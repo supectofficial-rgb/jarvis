@@ -21,20 +21,26 @@ public sealed class ProductManagementController : CatalogManagementController
     public new Task<IActionResult> Products(
         string? categoryId,
         string? productId,
-        string? searchTerm,
-        string? categoryFilterId,
-        string? statusFilter,
-        string? sort,
-        bool createNew = false,
+        bool create = false,
+        string? searchTerm = null,
+        string? categoryFilterId = null,
+        string? statusFilter = null,
+        string? sort = null,
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
-        => base.Products(categoryId, productId, searchTerm, categoryFilterId, statusFilter, sort, createNew, page, pageSize, cancellationToken);
+        => base.Products(categoryId, productId, create, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize, cancellationToken);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public new Task<IActionResult> SaveProduct([Bind(Prefix = "ProductForm")] ProductUpsertForm form)
         => base.SaveProduct(form);
+
+    [HttpGet]
+    public new Task<IActionResult> CreateAttributes(
+        string categoryId,
+        CancellationToken cancellationToken = default)
+        => base.CreateAttributes(categoryId, cancellationToken);
 
     [HttpPost]
     [ValidateAntiForgeryToken]

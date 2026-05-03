@@ -15,4 +15,23 @@ public class GetInventoryDocumentByBusinessKeyQueryResult
     public DateTime? PostedAt { get; set; }
     public Guid? PostedTransactionRef { get; set; }
     public string? ReasonCode { get; set; }
+    public List<InventoryDocumentLineQueryItem> Lines { get; set; } = new();
+}
+
+public class InventoryDocumentLineQueryItem
+{
+    public Guid LineBusinessKey { get; set; }
+    public Guid VariantRef { get; set; }
+    public decimal Qty { get; set; }
+    public Guid UomRef { get; set; }
+    public decimal BaseQty { get; set; }
+    public Guid BaseUomRef { get; set; }
+    public Guid? SourceLocationRef { get; set; }
+    public Guid? DestinationLocationRef { get; set; }
+    public Guid? QualityStatusRef { get; set; }
+    public Guid? FromQualityStatusRef { get; set; }
+    public Guid? ToQualityStatusRef { get; set; }
+    public string? LotBatchNo { get; set; }
+    public string? ReasonCode { get; set; }
+    public string? AdjustmentDirection { get; set; }
 }

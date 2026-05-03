@@ -69,35 +69,59 @@
     var effectiveVariantAttributeLookup = Model.EffectiveProductAttributes
         .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-    var selectedAttributeOptionIds = (Model.VariantAttributeOptionFilterIds ?? string.Empty)
-        .Split(new[] { ',', ';', ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries)
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
-}
+    string WarehouseName(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return "-";
+        }
 
-<style>
-    #variant-product-selector-card,
-    #variants-page .variant-page-heading,
-    #variants-page .variant-permission-panel,
-    #variants-page .variant-completion-panel,
-    #variants-page .variant-missing-panel,
-    #variants-page .variant-lock-panel,
-    #variant-management-tabs,
-    #variant-management-tabs + .tab-content,
-    #variant-details-card,
-    #variant-uom-conversions-card,
-    #variant-list-scope [data-bulk-form],
-    #variant-list-scope table th:first-child,
-    #variant-list-scope table td:first-child,
-    #variant-list-scope .dropdown-toggle,
-    #variant-list-scope .dropdown-menu,
-    #variant-search-form > div:nth-of-type(4),
-    #variant-search-form > div:nth-of-type(5),
-    #variant-search-form > div:nth-of-type(6),
-    #variant-search-form > div:nth-of-type(7),
-    #variant-search-form > div:nth-of-type(8) {
-        display: none !important;
+        var item = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, id, StringComparison.OrdinalIgnoreCase));
+        return item is null ? id : $"{item.Code} - {item.Name}";
     }
-</style>
+
+    string SellerName(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return "-";
+        }
+
+        var item = Model.SellerLookup.FirstOrDefault(x => string.Equals(x.SellerBusinessKey, id, StringComparison.OrdinalIgnoreCase));
+        return item is null ? id : $"{item.Code} - {item.Name}";
+    }
+
+    string LocationName(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return "-";
+        }
+
+        var item = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, id, StringComparison.OrdinalIgnoreCase));
+        return item is null ? id : item.LocationCode;
+    }
+
+    string QualityStatusName(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return "-";
+        }
+
+        var item = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, id, StringComparison.OrdinalIgnoreCase));
+        return item is null ? id : $"{item.Code} - {item.Name}";
+    }
+
+    string TransactionStatusClass(string? status) => status switch
+    {
+        "Draft" => "badge-outline-secondary",
+        "Posted" => "badge-success",
+        "Cancelled" => "badge-warning",
+        "Reversed" => "badge-danger",
+        _ => "badge-secondary"
+    };
+}
 
 <main id="variants-page"
       class="catalog-page"
@@ -157,6 +181,59 @@
 
         <div class="row mb-2 variant-completion-panel">
             <div class="col-12">
+                @if (Model.SelectedVariantDetails is not null)
+                {
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                <h5 class="card-title mb-1">موجودی فعلی واریانت</h5>
+                                <div>
+                                    <span class="badge badge-pill badge-outline-primary">موجودی کل: @Model.VariantStockTotalQuantity</span>
+                                    <span class="badge badge-pill badge-light">باکت‌ها: @Model.VariantStockBucketCount</span>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>انبار</th>
+                                            <th>لوکیشن</th>
+                                            <th>فروشنده</th>
+                                            <th>کیفیت</th>
+                                            <th>لات/بچ</th>
+                                            <th>مقدار</th>
+                                            <th>آخرین به‌روزرسانی</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (Model.VariantStockDetails.Count == 0)
+                                        {
+                                            <tr>
+                                                <td colspan="7" class="text-muted">برای این واریانت موجودی قابل نمایش ثبت نشده است.</td>
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            foreach (var stock in Model.VariantStockDetails)
+                                            {
+                                                <tr>
+                                                    <td>@WarehouseName(stock.WarehouseRef)</td>
+                                                    <td>@LocationName(stock.LocationRef)</td>
+                                                    <td>@SellerName(stock.SellerRef)</td>
+                                                    <td>@QualityStatusName(stock.QualityStatusRef)</td>
+                                                    <td>@(string.IsNullOrWhiteSpace(stock.LotBatchNo) ? "-" : stock.LotBatchNo)</td>
+                                                    <td>@stock.QuantityOnHand</td>
+                                                    <td>@stock.LastUpdatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                }
+
                 <div class="card">
                     <div class="card-body py-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -171,6 +248,70 @@
                         <small class="text-muted d-block mt-2">
                             فیلدهای اجباری تکمیل‌شده: @completedRequiredVariantAttributeCount از @requiredVariantAttributeCount
                         </small>
+                    </div>
+                    <div class="tab-pane fade" id="variant-tab-inventory-movements" role="tabpanel">
+                        @if (hasSelectedProduct && hasSelectedVariant)
+                        {
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                                        <h5 class="card-title mb-1">گردش موجودی واریانت</h5>
+                                        <span class="text-muted small">@Model.VariantInventoryTransactions.Count تراکنش</span>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>شماره تراکنش</th>
+                                                    <th>نوع</th>
+                                                    <th>وضعیت</th>
+                                                    <th>انبار</th>
+                                                    <th>فروشنده</th>
+                                                    <th>زمان وقوع</th>
+                                                    <th>زمان ثبت نهایی</th>
+                                                    <th>علت</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @if (Model.VariantInventoryTransactions.Count == 0)
+                                                {
+                                                    <tr>
+                                                        <td colspan="8" class="text-muted">برای این واریانت گردش موجودی ثبت نشده است.</td>
+                                                    </tr>
+                                                }
+                                                else
+                                                {
+                                                    foreach (var tx in Model.VariantInventoryTransactions.OrderByDescending(x => x.OccurredAt))
+                                                    {
+                                                        <tr>
+                                                            <td class="text-monospace">@tx.TransactionNo</td>
+                                                            <td>@tx.TransactionType</td>
+                                                            <td><span class="badge badge-pill @TransactionStatusClass(tx.Status)">@tx.Status</span></td>
+                                                            <td>@WarehouseName(tx.WarehouseRef)</td>
+                                                            <td>@SellerName(tx.SellerRef)</td>
+                                                            <td>@tx.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                                            <td>@(tx.PostedAt.HasValue ? tx.PostedAt.Value.ToString("yyyy/MM/dd HH:mm") : "-")</td>
+                                                            <td>@(string.IsNullOrWhiteSpace(tx.ReasonCode) ? "-" : tx.ReasonCode)</td>
+                                                        </tr>
+                                                    }
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="alert alert-light mb-0">
+                                        <h6>واریانتی انتخاب نشده است</h6>
+                                        <p class="mb-0 text-muted">برای مشاهده گردش موجودی، ابتدا یک واریانت را انتخاب کنید.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -321,6 +462,9 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-toggle="tab" href="#variant-tab-conversions" role="tab">تبدیل واحد</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#variant-tab-inventory-movements" role="tab">گردش موجودی</a>
                     </li>
                 </ul>
                 <div class="tab-content">

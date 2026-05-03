@@ -181,6 +181,46 @@ public sealed class VariantAttributeValueModel
     public string? OptionValue { get; set; }
 }
 
+public sealed class StockDetailSearchResultModel
+{
+    public int TotalCount { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 200;
+    public List<StockDetailListItemModel> Items { get; set; } = new();
+}
+
+public sealed class StockDetailListItemModel
+{
+    public string StockDetailBusinessKey { get; set; } = string.Empty;
+    public string VariantRef { get; set; } = string.Empty;
+    public string SellerRef { get; set; } = string.Empty;
+    public string WarehouseRef { get; set; } = string.Empty;
+    public string LocationRef { get; set; } = string.Empty;
+    public string QualityStatusRef { get; set; } = string.Empty;
+    public string? LotBatchNo { get; set; }
+    public decimal QuantityOnHand { get; set; }
+    public DateTime FirstReceivedAt { get; set; }
+    public DateTime LastReceivedAt { get; set; }
+    public DateTime? LastIssuedAt { get; set; }
+    public DateTime LastUpdatedAt { get; set; }
+}
+
+public sealed class InventoryTransactionListItemModel
+{
+    public string TransactionBusinessKey { get; set; } = string.Empty;
+    public string TransactionNo { get; set; } = string.Empty;
+    public string TransactionType { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? ReferenceType { get; set; }
+    public string? ReferenceBusinessId { get; set; }
+    public string WarehouseRef { get; set; } = string.Empty;
+    public string SellerRef { get; set; } = string.Empty;
+    public DateTime OccurredAt { get; set; }
+    public DateTime? PostedAt { get; set; }
+    public string? ReasonCode { get; set; }
+    public string? ReversedTransactionRef { get; set; }
+}
+
 public sealed class UnitOfMeasureLookupModel
 {
     public string Id { get; set; } = string.Empty;

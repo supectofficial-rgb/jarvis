@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Insurance.InventoryDashboard.Panel.Controllers;
 
-public sealed class InventoryManagementController : Controller
+public sealed partial class InventoryManagementController : Controller
 {
     private static readonly int[] PageSizeOptions = [10, 25, 50];
 
@@ -247,6 +247,11 @@ public sealed class InventoryManagementController : Controller
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "انبار با موفقیت ذخیره شد." : result.ErrorMessage ?? "ذخیره انبار با خطا مواجه شد.";
 
+        if (string.IsNullOrWhiteSpace(form.WarehouseId))
+        {
+            return RedirectToAction(nameof(Warehouses), new { warehouseCode = form.Code });
+        }
+
         return RedirectToAction(nameof(Warehouses), new { warehouseId = form.WarehouseId });
     }
 
@@ -290,7 +295,12 @@ public sealed class InventoryManagementController : Controller
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "لوکیشن با موفقیت ذخیره شد." : result.ErrorMessage ?? "ذخیره لوکیشن با خطا مواجه شد.";
 
-        return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
+        if (string.IsNullOrWhiteSpace(form.LocationId))
+        {
+            return RedirectToAction(nameof(Warehouses), new { warehouseId = form.WarehouseId, locationCode = form.LocationCode });
+        }
+
+        return RedirectToAction(nameof(Warehouses), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
     }
 
     [HttpPost]

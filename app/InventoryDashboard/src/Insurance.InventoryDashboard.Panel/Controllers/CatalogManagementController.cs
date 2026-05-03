@@ -495,11 +495,11 @@ public abstract partial class CatalogManagementController : Controller
     protected async Task<IActionResult> Products(
         string? categoryId,
         string? productId,
-        string? searchTerm,
-        string? categoryFilterId,
-        string? statusFilter,
-        string? sort,
-        bool createNew = false,
+        bool create = false,
+        string? searchTerm = null,
+        string? categoryFilterId = null,
+        string? statusFilter = null,
+        string? sort = null,
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
@@ -542,8 +542,8 @@ public abstract partial class CatalogManagementController : Controller
         var filteredProducts = ApplyProductFilters(allProducts, searchTerm, categoryFilterId, statusFilter, sort);
         var pagedProducts = Paginate(filteredProducts, page, pageSize, out var normalizedPage, out var normalizedPageSize, out var totalCount, out var totalPages);
 
-        var isProductCreateMode = createNew;
-        var selectedProductId = isProductCreateMode
+        var isCreateMode = create && string.IsNullOrWhiteSpace(productId);
+        var selectedProductId = isCreateMode
             ? null
             : ResolveSelectedProductId(productId, filteredProducts, pagedProducts);
         var productDetailsResult = !string.IsNullOrWhiteSpace(selectedProductId)
@@ -667,6 +667,110 @@ public abstract partial class CatalogManagementController : Controller
 
         SetLayoutViewBag(model.Modules, model.ActiveModule?.ModuleId, model.ActiveItem?.ItemId, model.UserName);
         return View("~/Views/CatalogManagement/Products.cshtml", model);
+    }
+
+    [HttpGet]
+    protected async Task<IActionResult> CreateAttributes(
+        string categoryId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Catalog.Product.View", "Product.Read", "Product.Search"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده ویژگی‌های محصول را ندارید."
+            });
+        }
+
+        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
+        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
+        var selectedCategory = flatCategories.FirstOrDefault(x =>
+            string.Equals(x.Id, categoryId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedCategory is null)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "دسته‌بندی انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        var (_, effectiveAttributes, attributesError) =
+            await LoadEffectiveCategoryAttributesAsync(selectedCategory.Id, flatCategories, token);
+
+        var productAttributes = FilterEffectiveAttributesForProduct(effectiveAttributes)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                attributeId = x.AttributeId,
+                name = x.Name,
+                dataType = x.DataType,
+                isRequired = x.IsRequired,
+                displayOrder = x.DisplayOrder,
+                isInherited = x.IsInherited,
+                sourceCategoryName = x.SourceCategoryName,
+                options = x.Options
+                    .OrderBy(o => o.DisplayOrder)
+                    .ThenBy(o => o.OptionName)
+                    .Select(o => new
+                    {
+                        id = o.Id,
+                        optionName = o.OptionName,
+                        optionValue = o.OptionValue,
+                        displayOrder = o.DisplayOrder
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        var variantAttributes = FilterEffectiveAttributesForVariant(effectiveAttributes)
+            .Where(x => x.IsVariantLevel)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                attributeId = x.AttributeId,
+                name = x.Name,
+                dataType = x.DataType,
+                isRequired = x.IsRequired,
+                displayOrder = x.DisplayOrder,
+                isInherited = x.IsInherited,
+                sourceCategoryName = x.SourceCategoryName,
+                options = x.Options
+                    .OrderBy(o => o.DisplayOrder)
+                    .ThenBy(o => o.OptionName)
+                    .Select(o => new
+                    {
+                        id = o.Id,
+                        optionName = o.OptionName,
+                        optionValue = o.OptionValue,
+                        displayOrder = o.DisplayOrder
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            categoryId = selectedCategory.Id,
+            categoryName = selectedCategory.Name,
+            errorMessage = JoinErrors(categoriesResult.ErrorMessage, attributesError),
+            productAttributes,
+            variantAttributes
+        });
     }
 
     [HttpPost]
@@ -1171,9 +1275,34 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetVariantUomConversionsByVariantIdAsync(selectedVariantId, token)
             : new ApiResponse<List<VariantUomConversionModel>> { IsSuccess = true, Data = new List<VariantUomConversionModel>() };
 
-        var selectedProductCategoryId =
-            variantDetailsResult.Data?.CategoryId ??
-            selectedCategoryId;
+        var stockDetailsResult = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? await _apiService.SearchStockDetailsAsync(token, variantId: selectedVariantId, isEmpty: false, page: 1, pageSize: 200)
+            : new ApiResponse<StockDetailSearchResultModel> { IsSuccess = true, Data = new StockDetailSearchResultModel() };
+
+        var inventoryTransactionsResult = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? await _apiService.GetInventoryTransactionsByVariantAsync(selectedVariantId, token)
+            : new ApiResponse<List<InventoryTransactionListItemModel>> { IsSuccess = true, Data = new List<InventoryTransactionListItemModel>() };
+
+        var warehouseLookupResult = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? await _apiService.GetWarehouseLookupAsync(token, includeInactive: true)
+            : new ApiResponse<List<WarehouseLookupItemModel>> { IsSuccess = true, Data = new List<WarehouseLookupItemModel>() };
+
+        var sellerLookupResult = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? await _apiService.GetSellerLookupAsync(token, includeInactive: true)
+            : new ApiResponse<List<SellerLookupItemModel>> { IsSuccess = true, Data = new List<SellerLookupItemModel>() };
+
+        var locationLookupResult = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true)
+            : new ApiResponse<List<LocationLookupItemModel>> { IsSuccess = true, Data = new List<LocationLookupItemModel>() };
+
+        var qualityStatusLookupResult = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true)
+            : new ApiResponse<List<QualityStatusLookupItemModel>> { IsSuccess = true, Data = new List<QualityStatusLookupItemModel>() };
+
+        var selectedProductCategoryId = products.FirstOrDefault(p => string.Equals(p.Id, selectedProductId, StringComparison.OrdinalIgnoreCase))?.CategoryId;
+
+        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
+        var flatCategories = FlattenCategories(categoriesResult.Data ?? new List<CategoryNodeModel>()).ToList();
 
         var (attributeGroups, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedProductCategoryId, flatCategories, token);
@@ -1211,6 +1340,12 @@ public abstract partial class CatalogManagementController : Controller
             SelectedVariantDetails = variantDetailsResult.Data,
             UnitOfMeasures = unitOfMeasures,
             VariantUomConversions = variantConversionsResult.Data ?? new List<VariantUomConversionModel>(),
+            VariantStockDetails = stockDetailsResult.Data?.Items ?? new List<StockDetailListItemModel>(),
+            VariantInventoryTransactions = inventoryTransactionsResult.Data ?? new List<InventoryTransactionListItemModel>(),
+            WarehouseLookup = warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>(),
+            SellerLookup = sellerLookupResult.Data ?? new List<SellerLookupItemModel>(),
+            LocationLookup = locationLookupResult.Data ?? new List<LocationLookupItemModel>(),
+            QualityStatusLookup = qualityStatusLookupResult.Data ?? new List<QualityStatusLookupItemModel>(),
 
             ProductAttributeGroups = attributeGroups,
             EffectiveProductAttributes = filteredVariantAttributes,
@@ -1234,6 +1369,12 @@ public abstract partial class CatalogManagementController : Controller
                 variantsSearchResult.ErrorMessage,
                 variantDetailsResult.ErrorMessage,
                 variantConversionsResult.ErrorMessage,
+                stockDetailsResult.ErrorMessage,
+                inventoryTransactionsResult.ErrorMessage,
+                warehouseLookupResult.ErrorMessage,
+                sellerLookupResult.ErrorMessage,
+                locationLookupResult.ErrorMessage,
+                qualityStatusLookupResult.ErrorMessage,
                 categoriesResult.ErrorMessage,
                 attributesError),
 

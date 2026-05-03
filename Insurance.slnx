@@ -104,6 +104,10 @@
     <Project Path="app/InventoryService/src/Infra/Persistence/RDB.Commands/Insurance.InventoryService.Infra.Persistence.RDB.Commands.csproj" />
     <Project Path="app/InventoryService/src/Infra/Persistence/RDB.Queries/Insurance.InventoryService.Infra.Persistence.RDB.Queries.csproj" />
   </Folder>
+  <Folder Name="/app/InventoryDashboard/" />
+  <Folder Name="/app/InventoryDashboard/src/">
+    <Project Path="app/InventoryDashboard/src/Insurance.InventoryDashboard.Panel/Insurance.InventoryDashboard.Panel.csproj" />
+  </Folder>
   <Folder Name="/app/DynamicStructureService/" />
   <Folder Name="/app/DynamicStructureService/src/" />
   <Folder Name="/app/DynamicStructureService/src/AppCore/">

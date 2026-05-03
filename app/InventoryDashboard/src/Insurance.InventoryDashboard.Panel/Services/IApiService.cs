@@ -91,7 +91,20 @@ public interface IApiService
     Task<ApiResponse<bool>> DeactivateLocationAsync(string locationId, string token);
     Task<ApiResponse<bool>> DeleteLocationAsync(string locationId, string token);
     Task<ApiResponse<bool>> MoveLocationToWarehouseAsync(string locationId, string targetWarehouseId, string token);
-    Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, string? locationType = null, string? aisle = null, string? rack = null, string? shelf = null, string? bin = null, bool? isActive = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, string? locationType = null, bool? isActive = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(string token, string? documentNo = null, string? documentType = null, string? status = null, string? warehouseId = null, string? sellerId = null, DateTime? occurredFrom = null, DateTime? occurredTo = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<InventoryDocumentDetailsModel>> GetInventoryDocumentByBusinessKeyAsync(string documentId, string token);
+    Task<ApiResponse<CreateInventoryDocumentResultModel>> CreateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);
+    Task<ApiResponse<bool>> ApproveInventoryDocumentAsync(string documentId, string approvedBy, string token);
+    Task<ApiResponse<bool>> RejectInventoryDocumentAsync(string documentId, string? reasonCode, string token);
+    Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token);
+    Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string? postedBy, string token);
+    Task<ApiResponse<List<SellerLookupItemModel>>> GetSellerLookupAsync(string token, bool includeInactive = true);
+    Task<ApiResponse<List<LocationLookupItemModel>>> GetLocationLookupAsync(string token, string? warehouseId = null, bool includeInactive = false);
+    Task<ApiResponse<List<QualityStatusLookupItemModel>>> GetQualityStatusLookupAsync(string token, bool includeInactive = false);
+    Task<ApiResponse<StockDetailSearchResultModel>> SearchStockDetailsAsync(string token, string? variantId = null, string? sellerId = null, string? warehouseId = null, string? locationId = null, string? qualityStatusId = null, string? lotBatchNo = null, bool? isEmpty = null, int page = 1, int pageSize = 200);
+    Task<ApiResponse<List<InventoryTransactionListItemModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token);
+    Task<ApiResponse<List<ProductVariantSummaryModel>>> SearchVariantsAsync(string token, string? productId = null, string? sku = null, string? barcode = null, bool? isActive = true, int page = 1, int pageSize = 2000);
 
     Task<ApiResponse<List<UnitOfMeasureLookupModel>>> GetUnitOfMeasureLookupAsync(string token);
     Task<ApiResponse<QualityStatusLookupResultModel>> GetQualityStatusLookupAsync(string token, bool includeInactive = false);

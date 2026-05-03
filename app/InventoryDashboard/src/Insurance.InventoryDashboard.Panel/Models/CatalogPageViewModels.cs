@@ -105,6 +105,14 @@ public sealed class VariantManagementPageViewModel
     public ProductVariantDetailsModel? SelectedVariantDetails { get; set; }
     public IReadOnlyList<UnitOfMeasureLookupModel> UnitOfMeasures { get; set; } = Array.Empty<UnitOfMeasureLookupModel>();
     public IReadOnlyList<VariantUomConversionModel> VariantUomConversions { get; set; } = Array.Empty<VariantUomConversionModel>();
+    public IReadOnlyList<StockDetailListItemModel> VariantStockDetails { get; set; } = Array.Empty<StockDetailListItemModel>();
+    public IReadOnlyList<InventoryTransactionListItemModel> VariantInventoryTransactions { get; set; } = Array.Empty<InventoryTransactionListItemModel>();
+    public IReadOnlyList<WarehouseLookupItemModel> WarehouseLookup { get; set; } = Array.Empty<WarehouseLookupItemModel>();
+    public IReadOnlyList<SellerLookupItemModel> SellerLookup { get; set; } = Array.Empty<SellerLookupItemModel>();
+    public IReadOnlyList<LocationLookupItemModel> LocationLookup { get; set; } = Array.Empty<LocationLookupItemModel>();
+    public IReadOnlyList<QualityStatusLookupItemModel> QualityStatusLookup { get; set; } = Array.Empty<QualityStatusLookupItemModel>();
+    public decimal VariantStockTotalQuantity => VariantStockDetails.Sum(x => x.QuantityOnHand);
+    public int VariantStockBucketCount => VariantStockDetails.Count;
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
 
     public IReadOnlyList<CategoryAttributeGroupViewModel> ProductAttributeGroups { get; set; } = Array.Empty<CategoryAttributeGroupViewModel>();
