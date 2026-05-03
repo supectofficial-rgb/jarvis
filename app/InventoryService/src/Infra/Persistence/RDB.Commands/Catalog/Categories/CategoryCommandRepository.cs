@@ -63,6 +63,22 @@ public class CategoryCommandRepository
                 .ExecuteDeleteAsync();
         }
 
+        var formulaRefs = await _dbContext.Set<CategoryVariantNameFormula>()
+            .Where(x => x.CategoryRef == categoryBusinessKey)
+            .Select(x => x.BusinessKey.Value)
+            .ToListAsync();
+
+        if (formulaRefs.Count > 0)
+        {
+            await _dbContext.Set<CategoryVariantNameFormulaPart>()
+                .Where(x => formulaRefs.Contains(x.FormulaRef))
+                .ExecuteDeleteAsync();
+
+            await _dbContext.Set<CategoryVariantNameFormula>()
+                .Where(x => x.CategoryRef == categoryBusinessKey)
+                .ExecuteDeleteAsync();
+        }
+
         var deleted = await _dbContext.Set<Category>()
             .Where(x => x.BusinessKey == categoryKey)
             .ExecuteDeleteAsync();

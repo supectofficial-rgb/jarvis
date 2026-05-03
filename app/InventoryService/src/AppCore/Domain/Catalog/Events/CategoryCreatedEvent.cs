@@ -8,6 +8,7 @@ public sealed record CategoryAttributeRuleSnapshot(
     Guid AttributeRef,
     bool IsRequired,
     bool IsVariant,
+    bool IsVariantCodeCovered,
     int DisplayOrder,
     bool IsOverridden,
     bool IsActive);

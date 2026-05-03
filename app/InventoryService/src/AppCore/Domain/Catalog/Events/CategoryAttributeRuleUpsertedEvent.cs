@@ -10,6 +10,7 @@ public sealed record CategoryAttributeRuleUpsertedEvent : IDomainEvent
     public Guid AttributeRef { get; }
     public bool IsRequired { get; }
     public bool IsVariant { get; }
+    public bool IsVariantCodeCovered { get; }
     public int DisplayOrder { get; }
     public bool IsOverridden { get; }
     public bool IsActive { get; }
@@ -21,6 +22,7 @@ public sealed record CategoryAttributeRuleUpsertedEvent : IDomainEvent
         Guid attributeRef,
         bool isRequired,
         bool isVariant,
+        bool isVariantCodeCovered,
         int displayOrder,
         bool isOverridden,
         bool isActive)
@@ -30,6 +32,7 @@ public sealed record CategoryAttributeRuleUpsertedEvent : IDomainEvent
         AttributeRef = attributeRef;
         IsRequired = isRequired;
         IsVariant = isVariant;
+        IsVariantCodeCovered = isVariantCodeCovered;
         DisplayOrder = displayOrder;
         IsOverridden = isOverridden;
         IsActive = isActive;

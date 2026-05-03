@@ -47,6 +47,7 @@ public class ActivateCategoryAttributeRuleCommandHandler : CommandHandler<Activa
             rule.AttributeRef,
             rule.IsRequired,
             rule.IsVariant,
+            rule.IsVariantCodeCovered,
             rule.DisplayOrder,
             rule.IsOverridden,
             true,

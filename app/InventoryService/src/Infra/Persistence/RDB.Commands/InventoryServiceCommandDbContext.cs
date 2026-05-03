@@ -15,6 +15,7 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Categori
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Products.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.ProductVariants.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.UnitOfMeasures.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.VariantNameFormulas.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.InventoryDocuments.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.InventoryTransactions.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Pricing.PriceChannels.Configs;
@@ -42,6 +43,7 @@ public class InventoryServiceCommandDbContext : CommandDbContext
 
     public DbSet<AttributeDefinition> AttributeDefinitions => Set<AttributeDefinition>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<CategoryVariantNameFormula> CategoryVariantNameFormulas => Set<CategoryVariantNameFormula>();
     public DbSet<CategorySchemaVersion> CategorySchemaVersions => Set<CategorySchemaVersion>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
@@ -74,6 +76,8 @@ public class InventoryServiceCommandDbContext : CommandDbContext
         modelBuilder.ApplyConfiguration(new CategoryConfig());
         modelBuilder.ApplyConfiguration(new CategorySchemaVersionConfig());
         modelBuilder.ApplyConfiguration(new CategoryAttributeRuleConfig());
+        modelBuilder.ApplyConfiguration(new CategoryVariantNameFormulaConfig());
+        modelBuilder.ApplyConfiguration(new CategoryVariantNameFormulaPartConfig());
         modelBuilder.ApplyConfiguration(new ProductConfig());
         modelBuilder.ApplyConfiguration(new ProductAttributeValueConfig());
         modelBuilder.ApplyConfiguration(new ProductVariantConfig());

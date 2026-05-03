@@ -22,6 +22,7 @@ public sealed class AttributeDefinitionModel
 
     public bool IsRequired { get; set; }
     public bool IsVariant { get; set; }
+    public bool IsVariantCodeCovered { get; set; }
     public int DisplayOrder { get; set; }
     public bool IsInherited { get; set; }
     public string? SourceCategoryId { get; set; }
@@ -42,6 +43,7 @@ public sealed class CategoryAttributeRuleModel
     public bool AttributeIsActive { get; set; }
     public bool RuleIsRequired { get; set; }
     public bool RuleIsVariant { get; set; }
+    public bool RuleIsVariantCodeCovered { get; set; }
     public int RuleDisplayOrder { get; set; }
     public bool RuleIsOverridden { get; set; }
     public bool RuleIsActive { get; set; }
@@ -50,6 +52,29 @@ public sealed class CategoryAttributeRuleModel
     public string SourceCategoryCode { get; set; } = string.Empty;
     public string SourceCategoryName { get; set; } = string.Empty;
     public List<AttributeOptionModel> Options { get; set; } = new();
+}
+
+public sealed class CategoryVariantNameFormulaModel
+{
+    public string FormulaId { get; set; } = string.Empty;
+    public string CategoryId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Separator { get; set; } = " ";
+    public int DisplayOrder { get; set; }
+    public bool IsActive { get; set; }
+    public string Preview { get; set; } = string.Empty;
+    public List<CategoryVariantNameFormulaPartModel> Parts { get; set; } = new();
+}
+
+public sealed class CategoryVariantNameFormulaPartModel
+{
+    public string PartId { get; set; } = string.Empty;
+    public string AttributeId { get; set; } = string.Empty;
+    public string AttributeCode { get; set; } = string.Empty;
+    public string AttributeName { get; set; } = string.Empty;
+    public string DataType { get; set; } = string.Empty;
+    public string Scope { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
 }
 
 public sealed class AttributeOptionModel
@@ -276,6 +301,7 @@ public sealed class UpdateCategoryAttributeRuleRequest
 {
     public bool IsRequired { get; set; }
     public bool IsVariant { get; set; }
+    public bool IsVariantCodeCovered { get; set; }
     public int DisplayOrder { get; set; }
     public bool IsOverridden { get; set; }
     public bool IsActive { get; set; }
@@ -286,9 +312,20 @@ public sealed class AddCategoryAttributeRuleRequest
     public string AttributeId { get; set; } = string.Empty;
     public bool IsRequired { get; set; }
     public bool IsVariant { get; set; }
+    public bool IsVariantCodeCovered { get; set; }
     public int DisplayOrder { get; set; }
     public bool IsOverridden { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+public sealed class UpsertCategoryVariantNameFormulaRequest
+{
+    public string? FormulaId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Separator { get; set; } = " ";
+    public int DisplayOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+    public List<string> AttributeIds { get; set; } = new();
 }
 
 public sealed class UpsertProductRequest

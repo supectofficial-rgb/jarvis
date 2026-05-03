@@ -113,7 +113,7 @@ public class UpdateCategoryCommandHandler
 
         if (incomingRules.Count > 0)
         {
-            var validationError = await ValidateRulesAsync(incomingRules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant)).ToList());
+            var validationError = await ValidateRulesAsync(incomingRules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant, x.IsVariantCodeCovered)).ToList());
             if (validationError is not null)
                 return Fail(validationError);
         }
@@ -169,6 +169,7 @@ public class UpdateCategoryCommandHandler
                     rule.AttributeRef,
                     rule.IsRequired,
                     rule.IsVariant,
+                    rule.IsVariantCodeCovered,
                     rule.DisplayOrder,
                     rule.IsOverridden,
                     rule.IsActive,
@@ -257,6 +258,9 @@ public class UpdateCategoryCommandHandler
 
             if (!rule.IsVariant && scope == AttributeScope.Variant)
                 return $"Attribute '{definition.Code}' cannot be used as product rule because its scope is Variant.";
+
+            if (rule.IsVariantCodeCovered && !rule.IsVariant)
+                return $"Attribute '{definition.Code}' must be a variant rule to participate in variant code generation.";
         }
 
         return null;
@@ -274,5 +278,5 @@ public class UpdateCategoryCommandHandler
         return string.Join(" | ", messages.Distinct());
     }
 
-    private sealed record RuleInput(Guid AttributeRef, bool IsVariant);
+    private sealed record RuleInput(Guid AttributeRef, bool IsVariant, bool IsVariantCodeCovered);
 }

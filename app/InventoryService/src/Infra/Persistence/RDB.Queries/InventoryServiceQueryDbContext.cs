@@ -10,6 +10,8 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.ProductVa
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.ProductVariants.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.UnitOfMeasures.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.UnitOfMeasures.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.VariantNameFormulas.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.VariantNameFormulas.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryDocuments.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryDocuments.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.InventoryTransactions.Configs;
@@ -53,6 +55,8 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     public DbSet<AttributeDefinitionReadModel> AttributeDefinitions => Set<AttributeDefinitionReadModel>();
     public DbSet<AttributeOptionReadModel> AttributeOptions => Set<AttributeOptionReadModel>();
     public DbSet<CategoryReadModel> Categories => Set<CategoryReadModel>();
+    public DbSet<CategoryVariantNameFormulaReadModel> CategoryVariantNameFormulas => Set<CategoryVariantNameFormulaReadModel>();
+    public DbSet<CategoryVariantNameFormulaPartReadModel> CategoryVariantNameFormulaParts => Set<CategoryVariantNameFormulaPartReadModel>();
     public DbSet<CategorySchemaVersionReadModel> CategorySchemaVersions => Set<CategorySchemaVersionReadModel>();
     public DbSet<CategoryAttributeRuleReadModel> CategoryAttributeRules => Set<CategoryAttributeRuleReadModel>();
     public DbSet<ProductReadModel> Products => Set<ProductReadModel>();
@@ -92,6 +96,8 @@ public class InventoryServiceQueryDbContext : QueryDbContext
         modelBuilder.ApplyConfiguration(new CategoryReadModelConfig());
         modelBuilder.ApplyConfiguration(new CategorySchemaVersionReadModelConfig());
         modelBuilder.ApplyConfiguration(new CategoryAttributeRuleReadModelConfig());
+        modelBuilder.ApplyConfiguration(new CategoryVariantNameFormulaReadModelConfig());
+        modelBuilder.ApplyConfiguration(new CategoryVariantNameFormulaPartReadModelConfig());
         modelBuilder.ApplyConfiguration(new ProductReadModelConfig());
         modelBuilder.ApplyConfiguration(new ProductAttributeValueReadModelConfig());
         modelBuilder.ApplyConfiguration(new ProductVariantReadModelConfig());

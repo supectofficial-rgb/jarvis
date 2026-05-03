@@ -29,6 +29,11 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.Categories.Queries.GetRe
 using Insurance.InventoryService.AppCore.Shared.Catalog.Categories.Queries.GetRootCategories;
 using Insurance.InventoryService.AppCore.Shared.Catalog.Categories.Queries.GetVariantLevelCategoryAttributeRulesByCategoryId;
 using Insurance.InventoryService.AppCore.Shared.Catalog.Categories.Queries.SearchCategories;
+using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Commands.CreateCategoryVariantNameFormula;
+using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Commands.DeleteCategoryVariantNameFormula;
+using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Commands.UpdateCategoryVariantNameFormula;
+using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Queries.GetByBusinessKey;
+using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Queries.GetByCategoryId;
 using Microsoft.AspNetCore.Mvc;
 using OysterFx.Endpoints.Api.Controllers;
 
@@ -125,6 +130,32 @@ public class CategoryController : OysterFxController
                 AttributeRef = attributeRef
             });
 
+    [HttpPost("{categoryBusinessKey:guid}/variant-name-formulas")]
+    [RequirePermission("Inventory.CategoryVariantNameFormula.Manage", "Catalog.Category.Formula.Manage")]
+    public Task<IActionResult> CreateVariantNameFormula(
+        [FromRoute] Guid categoryBusinessKey,
+        [FromBody] CreateCategoryVariantNameFormulaCommand command)
+    {
+        command.CategoryRef = categoryBusinessKey;
+        return SendCommand<CreateCategoryVariantNameFormulaCommand, CreateCategoryVariantNameFormulaCommandResult>(command);
+    }
+
+    [HttpPut("variant-name-formulas/{formulaBusinessKey:guid}")]
+    [RequirePermission("Inventory.CategoryVariantNameFormula.Manage", "Catalog.Category.Formula.Manage")]
+    public Task<IActionResult> UpdateVariantNameFormula(
+        [FromRoute] Guid formulaBusinessKey,
+        [FromBody] UpdateCategoryVariantNameFormulaCommand command)
+    {
+        command.FormulaBusinessKey = formulaBusinessKey;
+        return SendCommand<UpdateCategoryVariantNameFormulaCommand, UpdateCategoryVariantNameFormulaCommandResult>(command);
+    }
+
+    [HttpDelete("variant-name-formulas/{formulaBusinessKey:guid}")]
+    [RequirePermission("Inventory.CategoryVariantNameFormula.Manage", "Catalog.Category.Formula.Manage")]
+    public Task<IActionResult> DeleteVariantNameFormula([FromRoute] Guid formulaBusinessKey)
+        => SendCommand<DeleteCategoryVariantNameFormulaCommand, DeleteCategoryVariantNameFormulaCommandResult>(
+            new DeleteCategoryVariantNameFormulaCommand { FormulaBusinessKey = formulaBusinessKey });
+
     [HttpGet("{categoryBusinessKey:guid}")]
     public Task<IActionResult> GetByBusinessKey([FromRoute] Guid categoryBusinessKey)
         => ExecuteQueryAsync<GetCategoryByBusinessKeyQuery, GetCategoryByBusinessKeyQueryResult>(
@@ -208,6 +239,16 @@ public class CategoryController : OysterFxController
     public Task<IActionResult> GetProductLevelCategoryAttributeRulesByCategoryId([FromRoute] Guid categoryId, [FromQuery] bool includeInherited = true)
         => ExecuteQueryAsync<GetProductLevelCategoryAttributeRulesByCategoryIdQuery, GetProductLevelCategoryAttributeRulesByCategoryIdQueryResult>(
             new GetProductLevelCategoryAttributeRulesByCategoryIdQuery(categoryId, includeInherited));
+
+    [HttpGet("variant-name-formulas/{formulaBusinessKey:guid}")]
+    public Task<IActionResult> GetVariantNameFormulaByBusinessKey([FromRoute] Guid formulaBusinessKey)
+        => ExecuteQueryAsync<GetCategoryVariantNameFormulaByBusinessKeyQuery, GetCategoryVariantNameFormulaByBusinessKeyQueryResult>(
+            new GetCategoryVariantNameFormulaByBusinessKeyQuery(formulaBusinessKey));
+
+    [HttpGet("{categoryId:guid}/variant-name-formulas")]
+    public Task<IActionResult> GetVariantNameFormulasByCategoryId([FromRoute] Guid categoryId, [FromQuery] bool includeInactive = true)
+        => ExecuteQueryAsync<GetCategoryVariantNameFormulasByCategoryIdQuery, GetCategoryVariantNameFormulasByCategoryIdQueryResult>(
+            new GetCategoryVariantNameFormulasByCategoryIdQuery(categoryId, includeInactive));
 
     [HttpGet("{categoryId:guid}/attribute-form-definition")]
     public Task<IActionResult> GetCategoryAttributeFormDefinition(

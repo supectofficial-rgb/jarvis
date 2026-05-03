@@ -84,6 +84,7 @@ public sealed class CategorySchemaVersion : Aggregate
         Guid attributeRef,
         bool isRequired,
         bool isVariant,
+        bool isVariantCodeCovered,
         int displayOrder,
         bool isOverridden,
         bool isActive)
@@ -99,6 +100,7 @@ public sealed class CategorySchemaVersion : Aggregate
                 attributeRef,
                 isRequired,
                 isVariant,
+                isVariantCodeCovered,
                 displayOrder,
                 isOverridden,
                 isActive);
@@ -107,7 +109,7 @@ public sealed class CategorySchemaVersion : Aggregate
             return created;
         }
 
-        existing.Update(isRequired, isVariant, displayOrder, isOverridden, isActive);
+        existing.Update(isRequired, isVariant, isVariantCodeCovered, displayOrder, isOverridden, isActive);
         return existing;
     }
 

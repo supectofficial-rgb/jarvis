@@ -8,6 +8,7 @@ public sealed class CategoryAttributeRule : Aggregate
     public Guid AttributeRef { get; private set; }
     public bool IsRequired { get; private set; }
     public bool IsVariant { get; private set; }
+    public bool IsVariantCodeCovered { get; private set; }
     public int DisplayOrder { get; private set; }
     public bool IsOverridden { get; private set; }
     public bool IsActive { get; private set; }
@@ -21,6 +22,7 @@ public sealed class CategoryAttributeRule : Aggregate
         Guid attributeRef,
         bool isRequired,
         bool isVariant,
+        bool isVariantCodeCovered,
         int displayOrder,
         bool isOverridden,
         bool isActive)
@@ -37,6 +39,7 @@ public sealed class CategoryAttributeRule : Aggregate
             AttributeRef = attributeRef,
             IsRequired = isRequired,
             IsVariant = isVariant,
+            IsVariantCodeCovered = isVariantCodeCovered,
             DisplayOrder = displayOrder,
             IsOverridden = isOverridden,
             IsActive = isActive
@@ -50,15 +53,17 @@ public sealed class CategoryAttributeRule : Aggregate
             AttributeRef,
             IsRequired,
             IsVariant,
+            IsVariantCodeCovered,
             DisplayOrder,
             IsOverridden,
             IsActive);
     }
 
-    internal void Update(bool isRequired, bool isVariant, int displayOrder, bool isOverridden, bool isActive)
+    internal void Update(bool isRequired, bool isVariant, bool isVariantCodeCovered, int displayOrder, bool isOverridden, bool isActive)
     {
         IsRequired = isRequired;
         IsVariant = isVariant;
+        IsVariantCodeCovered = isVariantCodeCovered;
         DisplayOrder = displayOrder;
         IsOverridden = isOverridden;
         IsActive = isActive;

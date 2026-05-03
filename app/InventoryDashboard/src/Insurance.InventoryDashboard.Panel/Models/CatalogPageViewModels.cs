@@ -19,6 +19,7 @@ public sealed class CategoryManagementPageViewModel
     public IReadOnlyList<AttributeDefinitionModel> AllAttributes { get; set; } = Array.Empty<AttributeDefinitionModel>();
     public IReadOnlyList<AttributeDefinitionModel> CategoryAttributes { get; set; } = Array.Empty<AttributeDefinitionModel>();
     public IReadOnlyList<CategoryAttributeRuleModel> CategoryAttributeRules { get; set; } = Array.Empty<CategoryAttributeRuleModel>();
+    public IReadOnlyList<CategoryVariantNameFormulaModel> CategoryVariantNameFormulas { get; set; } = Array.Empty<CategoryVariantNameFormulaModel>();
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
     public string? CategorySearchTerm { get; set; }
     public string? CategoryStatusFilter { get; set; }
@@ -38,6 +39,7 @@ public sealed class CategoryManagementPageViewModel
     public AttributeOptionUpdateForm OptionUpdateForm { get; set; } = new();
     public AssignAttributeForm AssignForm { get; set; } = new();
     public CategoryAttributeRuleForm RuleForm { get; set; } = new();
+    public VariantNameFormulaForm VariantNameFormulaForm { get; set; } = new();
 }
 
 public sealed class ProductManagementPageViewModel
@@ -155,6 +157,7 @@ public sealed class EffectiveAttributeViewModel
     public string DataType { get; set; } = string.Empty;
     public string Scope { get; set; } = "Both";
     public bool IsVariantLevel { get; set; }
+    public bool IsVariantCodeCovered { get; set; }
     public bool IsRequired { get; set; }
     public int DisplayOrder { get; set; }
     public IReadOnlyList<AttributeOptionModel> Options { get; set; } = Array.Empty<AttributeOptionModel>();
@@ -205,7 +208,6 @@ public sealed class AttributeDefinitionForm
 
     public bool IsRequired { get; set; }
     public bool IsVariant { get; set; }
-
     [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
     public int DisplayOrder { get; set; }
 }
@@ -240,6 +242,7 @@ public sealed class AssignAttributeForm
 
     public bool IsRequired { get; set; }
     public bool IsVariant { get; set; }
+    public bool IsVariantCodeCovered { get; set; }
 
     [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
     public int DisplayOrder { get; set; }
@@ -266,12 +269,35 @@ public sealed class CategoryAttributeRuleForm
 
     public bool IsRequired { get; set; }
     public bool IsVariant { get; set; }
+    public bool IsVariantCodeCovered { get; set; }
 
     [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
     public int DisplayOrder { get; set; }
 
     public bool IsOverridden { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+public sealed class VariantNameFormulaForm
+{
+    public string? FormulaId { get; set; }
+
+    [Required]
+    public string CategoryId { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "نام فرمول الزامی است.")]
+    [StringLength(120, ErrorMessage = "نام فرمول نمی‌تواند بیشتر از ۱۲۰ کاراکتر باشد.")]
+    public string Name { get; set; } = string.Empty;
+
+    [StringLength(32, ErrorMessage = "جداکننده نمی‌تواند بیشتر از ۳۲ کاراکتر باشد.")]
+    public string Separator { get; set; } = " ";
+
+    [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
+    public int DisplayOrder { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public string PartsJson { get; set; } = "[]";
 }
 
 public sealed class AttributeDefinitionUpdateForm

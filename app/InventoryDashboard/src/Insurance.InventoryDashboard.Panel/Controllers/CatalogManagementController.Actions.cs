@@ -232,6 +232,7 @@ public abstract partial class CatalogManagementController
         {
             IsRequired = form.IsRequired,
             IsVariant = form.IsVariant,
+            IsVariantCodeCovered = form.IsVariantCodeCovered,
             DisplayOrder = form.DisplayOrder,
             IsOverridden = form.IsOverridden,
             IsActive = form.IsActive
@@ -303,6 +304,136 @@ public abstract partial class CatalogManagementController
         var result = await _apiService.RemoveCategoryAttributeRuleAsync(categoryId, attributeId, token);
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "Rule حذف شد." : result.ErrorMessage ?? "حذف rule اهمهجاهمه همهشد.";
+        return RedirectToAction(nameof(Categories), new { categoryId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    protected async Task<IActionResult> CreateVariantNameFormula([Bind(Prefix = "VariantNameFormulaForm")] VariantNameFormulaForm form)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.CategoryVariantNameFormula.Manage", "Catalog.Category.Formula.Manage"))
+        {
+            TempData["CatalogError"] = "شما دسترسی ایجاد فرمول واریانت را ندارید.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (!TryValidateModel(form))
+        {
+            TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (!TryParseFormulaAttributeIds(form.PartsJson, out var attributeIds, out var parseError))
+        {
+            TempData["CatalogError"] = parseError;
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        var normalizedResult = await ValidateFormulaAttributeRefs(form.CategoryId, attributeIds, token);
+        if (!normalizedResult.IsSuccess)
+        {
+            TempData["CatalogError"] = normalizedResult.ErrorMessage ?? "اعتبارسنجی فرمول انجام نشد.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        var result = await _apiService.CreateCategoryVariantNameFormulaAsync(
+            form.CategoryId,
+            new UpsertCategoryVariantNameFormulaRequest
+            {
+                Name = form.Name.Trim(),
+                Separator = NormalizeFormulaSeparator(form.Separator),
+                DisplayOrder = form.DisplayOrder,
+                IsActive = form.IsActive,
+                AttributeIds = normalizedResult.Data ?? new List<string>()
+            },
+            token);
+
+        TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
+            result.IsSuccess ? "فرمول واریانت با موفقیت ایجاد شد." : result.ErrorMessage ?? "ایجاد فرمول واریانت انجام نشد.";
+        return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    protected async Task<IActionResult> UpdateVariantNameFormula([Bind(Prefix = "VariantNameFormulaForm")] VariantNameFormulaForm form)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.CategoryVariantNameFormula.Manage", "Catalog.Category.Formula.Manage"))
+        {
+            TempData["CatalogError"] = "شما دسترسی ویرایش فرمول واریانت را ندارید.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (string.IsNullOrWhiteSpace(form.FormulaId))
+        {
+            TempData["CatalogError"] = "فرمول انتخاب‌شده معتبر نیست.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (!TryValidateModel(form))
+        {
+            TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        if (!TryParseFormulaAttributeIds(form.PartsJson, out var attributeIds, out var parseError))
+        {
+            TempData["CatalogError"] = parseError;
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        var normalizedResult = await ValidateFormulaAttributeRefs(form.CategoryId, attributeIds, token);
+        if (!normalizedResult.IsSuccess)
+        {
+            TempData["CatalogError"] = normalizedResult.ErrorMessage ?? "اعتبارسنجی فرمول انجام نشد.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
+        var result = await _apiService.UpdateCategoryVariantNameFormulaAsync(
+            form.FormulaId,
+            new UpsertCategoryVariantNameFormulaRequest
+            {
+                FormulaId = form.FormulaId,
+                Name = form.Name.Trim(),
+                Separator = NormalizeFormulaSeparator(form.Separator),
+                DisplayOrder = form.DisplayOrder,
+                IsActive = form.IsActive,
+                AttributeIds = normalizedResult.Data ?? new List<string>()
+            },
+            token);
+
+        TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
+            result.IsSuccess ? "فرمول واریانت با موفقیت ویرایش شد." : result.ErrorMessage ?? "ویرایش فرمول واریانت انجام نشد.";
+        return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    protected async Task<IActionResult> DeleteVariantNameFormula(string categoryId, string formulaId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.CategoryVariantNameFormula.Manage", "Catalog.Category.Formula.Manage"))
+        {
+            TempData["CatalogError"] = "شما دسترسی حذف فرمول واریانت را ندارید.";
+            return RedirectToAction(nameof(Categories), new { categoryId });
+        }
+
+        var result = await _apiService.DeleteCategoryVariantNameFormulaAsync(formulaId, token);
+        TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
+            result.IsSuccess ? "فرمول واریانت با موفقیت حذف شد." : result.ErrorMessage ?? "حذف فرمول واریانت انجام نشد.";
         return RedirectToAction(nameof(Categories), new { categoryId });
     }
 
@@ -1098,6 +1229,103 @@ public abstract partial class CatalogManagementController
 
         var detailsResult = await _apiService.GetProductVariantFullDetailsAsync(variantId, token);
         return detailsResult.Data?.InventoryMovementLocked ?? false;
+    }
+
+    private async Task<ApiResponse<List<string>>> ValidateFormulaAttributeRefs(
+        string categoryId,
+        IReadOnlyList<string> attributeIds,
+        string token)
+    {
+        if (attributeIds.Count == 0)
+        {
+            return new ApiResponse<List<string>> { IsSuccess = false, ErrorMessage = "حداقل یک ویژگی برای فرمول انتخاب کنید." };
+        }
+
+        var categoryAttributesResult = await _apiService.GetCategoryAttributesAsync(
+            categoryId,
+            token,
+            includeInherited: true,
+            includeInactive: true);
+
+        if (!categoryAttributesResult.IsSuccess)
+        {
+            return new ApiResponse<List<string>>
+            {
+                IsSuccess = false,
+                ErrorMessage = categoryAttributesResult.ErrorMessage ?? "بارگذاری ویژگی‌های دسته‌بندی انجام نشد."
+            };
+        }
+
+        var validAttributeIds = (categoryAttributesResult.Data ?? new List<AttributeDefinitionModel>())
+            .Select(attribute => attribute.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var normalized = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var attributeId in attributeIds)
+        {
+            if (!validAttributeIds.Contains(attributeId))
+            {
+                return new ApiResponse<List<string>>
+                {
+                    IsSuccess = false,
+                    ErrorMessage = $"ویژگی {attributeId} به این دسته‌بندی تعلق ندارد."
+                };
+            }
+
+            if (!seen.Add(attributeId))
+            {
+                return new ApiResponse<List<string>>
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "هر ویژگی فقط یک بار می‌تواند در فرمول استفاده شود."
+                };
+            }
+
+            normalized.Add(attributeId);
+        }
+
+        return new ApiResponse<List<string>> { IsSuccess = true, Data = normalized };
+    }
+
+    private static bool TryParseFormulaAttributeIds(string? partsJson, out List<string> attributeIds, out string errorMessage)
+    {
+        attributeIds = new List<string>();
+        errorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(partsJson))
+        {
+            errorMessage = "حداقل یک ویژگی برای فرمول انتخاب کنید.";
+            return false;
+        }
+
+        try
+        {
+            attributeIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(partsJson) ?? new List<string>();
+        }
+        catch
+        {
+            errorMessage = "ساختار ویژگی‌های فرمول نامعتبر است.";
+            return false;
+        }
+
+        attributeIds = attributeIds
+            .Where(attributeId => !string.IsNullOrWhiteSpace(attributeId))
+            .Select(attributeId => attributeId.Trim())
+            .ToList();
+
+        if (attributeIds.Count == 0)
+        {
+            errorMessage = "حداقل یک ویژگی برای فرمول انتخاب کنید.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string NormalizeFormulaSeparator(string? separator)
+    {
+        return string.IsNullOrWhiteSpace(separator) ? " " : separator.Trim();
     }
 
     private static IReadOnlyList<string> ParseSelectedIds(string? selectedIds)

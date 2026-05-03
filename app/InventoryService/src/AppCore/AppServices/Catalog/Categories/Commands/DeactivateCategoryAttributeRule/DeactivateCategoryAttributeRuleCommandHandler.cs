@@ -37,6 +37,7 @@ public class DeactivateCategoryAttributeRuleCommandHandler : CommandHandler<Deac
             rule.AttributeRef,
             rule.IsRequired,
             rule.IsVariant,
+            rule.IsVariantCodeCovered,
             rule.DisplayOrder,
             rule.IsOverridden,
             false,

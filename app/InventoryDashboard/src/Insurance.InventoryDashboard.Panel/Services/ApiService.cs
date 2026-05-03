@@ -168,6 +168,7 @@ public sealed class ApiService : IApiService
         {
             IsRequired = request.IsRequired,
             IsVariant = request.IsVariant,
+            IsVariantCodeCovered = request.IsVariantCodeCovered,
             DisplayOrder = request.DisplayOrder,
             IsOverridden = request.IsOverridden,
             IsActive = request.IsActive
@@ -199,6 +200,94 @@ public sealed class ApiService : IApiService
             $"{InventoryApiPrefix}/Category/{categoryId}/attribute-rules/{attributeId}",
             token,
             "Removing category attribute rule failed.");
+
+    public async Task<ApiResponse<List<CategoryVariantNameFormulaModel>>> GetCategoryVariantNameFormulasAsync(
+        string categoryId,
+        string token,
+        bool includeInactive = true)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/Category/{categoryId}/variant-name-formulas",
+            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+
+        var result = await GetQueryAsync<CategoryVariantNameFormulasQueryResultDto>(route, token, "Loading variant name formulas failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<CategoryVariantNameFormulaModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        var mapped = result.Data?.Items.Select(MapCategoryVariantNameFormula).ToList() ?? new List<CategoryVariantNameFormulaModel>();
+        return new ApiResponse<List<CategoryVariantNameFormulaModel>> { IsSuccess = true, Data = mapped };
+    }
+
+    public async Task<ApiResponse<CategoryVariantNameFormulaModel>> GetCategoryVariantNameFormulaByBusinessKeyAsync(string formulaId, string token)
+    {
+        var result = await GetQueryAsync<CategoryVariantNameFormulaByBusinessKeyQueryResultDto>(
+            $"{InventoryApiPrefix}/Category/variant-name-formulas/{formulaId}",
+            token,
+            "Loading variant name formula failed.");
+
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<CategoryVariantNameFormulaModel> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        var item = result.Data?.Item;
+        return new ApiResponse<CategoryVariantNameFormulaModel>
+        {
+            IsSuccess = item is not null,
+            Data = item is null ? null : MapCategoryVariantNameFormula(item),
+            ErrorMessage = item is null ? "Variant name formula not found." : null
+        };
+    }
+
+    public Task<ApiResponse<bool>> CreateCategoryVariantNameFormulaAsync(
+        string categoryId,
+        UpsertCategoryVariantNameFormulaRequest request,
+        string token)
+    {
+        var payload = new
+        {
+            Name = request.Name.Trim(),
+            Separator = NormalizeOptional(request.Separator) ?? " ",
+            DisplayOrder = request.DisplayOrder,
+            IsActive = request.IsActive,
+            AttributeRefs = MapGuidList(request.AttributeIds)
+        };
+
+        return PostCommandAsync(
+            $"{InventoryApiPrefix}/Category/{categoryId}/variant-name-formulas",
+            payload,
+            token,
+            "Creating variant name formula failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdateCategoryVariantNameFormulaAsync(
+        string formulaId,
+        UpsertCategoryVariantNameFormulaRequest request,
+        string token)
+    {
+        var payload = new
+        {
+            Name = request.Name.Trim(),
+            Separator = NormalizeOptional(request.Separator) ?? " ",
+            DisplayOrder = request.DisplayOrder,
+            IsActive = request.IsActive,
+            AttributeRefs = MapGuidList(request.AttributeIds)
+        };
+
+        return PutCommandAsync(
+            $"{InventoryApiPrefix}/Category/variant-name-formulas/{formulaId}",
+            payload,
+            token,
+            "Updating variant name formula failed.");
+    }
+
+    public Task<ApiResponse<bool>> DeleteCategoryVariantNameFormulaAsync(string formulaId, string token) =>
+        DeleteCommandAsync(
+            $"{InventoryApiPrefix}/Category/variant-name-formulas/{formulaId}",
+            token,
+            "Deleting variant name formula failed.");
 
     public async Task<ApiResponse<bool>> CreateAttributeDefinitionAsync(string categoryId, CreateAttributeDefinitionRequest request, string token)
     {
@@ -317,6 +406,7 @@ public sealed class ApiService : IApiService
                 AttributeId = attributeId,
                 IsRequired = false,
                 IsVariant = false,
+                IsVariantCodeCovered = false,
                 DisplayOrder = 0,
                 IsOverridden = false,
                 IsActive = true
@@ -345,6 +435,7 @@ public sealed class ApiService : IApiService
             AttributeRef = ParseGuidOrEmpty(request.AttributeId),
             IsRequired = request.IsRequired,
             IsVariant = request.IsVariant,
+            IsVariantCodeCovered = request.IsVariantCodeCovered,
             DisplayOrder = request.DisplayOrder,
             IsOverridden = request.IsOverridden,
             IsActive = request.IsActive
@@ -1472,6 +1563,7 @@ public sealed class ApiService : IApiService
             IsActive = item.AttributeIsActive,
             IsRequired = item.RuleIsRequired,
             IsVariant = item.RuleIsVariant,
+            IsVariantCodeCovered = item.RuleIsVariantCodeCovered,
             DisplayOrder = item.RuleDisplayOrder,
             IsInherited = item.IsInherited,
             SourceCategoryId = item.SourceCategoryRef.ToString("D"),
@@ -1514,6 +1606,7 @@ public sealed class ApiService : IApiService
             AttributeIsActive = item.AttributeIsActive,
             RuleIsRequired = item.RuleIsRequired,
             RuleIsVariant = item.RuleIsVariant,
+            RuleIsVariantCodeCovered = item.RuleIsVariantCodeCovered,
             RuleDisplayOrder = item.RuleDisplayOrder,
             RuleIsOverridden = item.RuleIsOverridden,
             RuleIsActive = item.RuleIsActive,
@@ -1522,6 +1615,39 @@ public sealed class ApiService : IApiService
             SourceCategoryCode = item.SourceCategoryCode,
             SourceCategoryName = item.SourceCategoryName,
             Options = item.Options.Select(MapAttributeOption).ToList()
+        };
+    }
+
+    private static CategoryVariantNameFormulaModel MapCategoryVariantNameFormula(CategoryVariantNameFormulaItemDto item)
+    {
+        return new CategoryVariantNameFormulaModel
+        {
+            FormulaId = item.FormulaBusinessKey.ToString("D"),
+            CategoryId = item.CategoryRef.ToString("D"),
+            Name = item.Name,
+            Separator = item.Separator,
+            DisplayOrder = item.DisplayOrder,
+            IsActive = item.IsActive,
+            Preview = item.Preview,
+            Parts = item.Parts
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.AttributeName)
+                .Select(MapCategoryVariantNameFormulaPart)
+                .ToList()
+        };
+    }
+
+    private static CategoryVariantNameFormulaPartModel MapCategoryVariantNameFormulaPart(CategoryVariantNameFormulaPartItemDto item)
+    {
+        return new CategoryVariantNameFormulaPartModel
+        {
+            PartId = item.PartBusinessKey.ToString("D"),
+            AttributeId = item.AttributeRef.ToString("D"),
+            AttributeCode = item.AttributeCode,
+            AttributeName = item.AttributeName,
+            DataType = item.DataType,
+            Scope = item.Scope,
+            SortOrder = item.SortOrder
         };
     }
 
@@ -1668,6 +1794,20 @@ public sealed class ApiService : IApiService
     private static Guid ParseGuidOrEmpty(string? value)
     {
         return Guid.TryParse(value, out var guid) ? guid : Guid.Empty;
+    }
+
+    private static List<Guid> MapGuidList(IEnumerable<string>? values)
+    {
+        if (values is null)
+        {
+            return new List<Guid>();
+        }
+
+        return values
+            .Select(ParseGuidOrEmpty)
+            .Where(value => value != Guid.Empty)
+            .Distinct()
+            .ToList();
     }
 
     private static int ParseRoundingMode(string? roundingMode)
@@ -1973,6 +2113,17 @@ public sealed class ApiService : IApiService
         public List<CategoryAttributeRuleItemDto> Items { get; set; } = new();
     }
 
+    private sealed class CategoryVariantNameFormulasQueryResultDto
+    {
+        public Guid CategoryRef { get; set; }
+        public List<CategoryVariantNameFormulaItemDto> Items { get; set; } = new();
+    }
+
+    private sealed class CategoryVariantNameFormulaByBusinessKeyQueryResultDto
+    {
+        public CategoryVariantNameFormulaItemDto? Item { get; set; }
+    }
+
     private sealed class AttributeDefinitionsQueryResultDto
     {
         public List<AttributeDefinitionListItemDto> Items { get; set; } = new();
@@ -1999,6 +2150,7 @@ public sealed class ApiService : IApiService
         public bool AttributeIsActive { get; set; }
         public bool RuleIsRequired { get; set; }
         public bool RuleIsVariant { get; set; }
+        public bool RuleIsVariantCodeCovered { get; set; }
         public int RuleDisplayOrder { get; set; }
         public bool IsInherited { get; set; }
         public Guid SourceCategoryRef { get; set; }
@@ -2027,6 +2179,7 @@ public sealed class ApiService : IApiService
         public bool AttributeIsActive { get; set; }
         public bool RuleIsRequired { get; set; }
         public bool RuleIsVariant { get; set; }
+        public bool RuleIsVariantCodeCovered { get; set; }
         public int RuleDisplayOrder { get; set; }
         public bool RuleIsOverridden { get; set; }
         public bool RuleIsActive { get; set; }
@@ -2035,6 +2188,29 @@ public sealed class ApiService : IApiService
         public string SourceCategoryCode { get; set; } = string.Empty;
         public string SourceCategoryName { get; set; } = string.Empty;
         public List<AttributeOptionItemDto> Options { get; set; } = new();
+    }
+
+    private sealed class CategoryVariantNameFormulaItemDto
+    {
+        public Guid FormulaBusinessKey { get; set; }
+        public Guid CategoryRef { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Separator { get; set; } = " ";
+        public int DisplayOrder { get; set; }
+        public bool IsActive { get; set; }
+        public string Preview { get; set; } = string.Empty;
+        public List<CategoryVariantNameFormulaPartItemDto> Parts { get; set; } = new();
+    }
+
+    private sealed class CategoryVariantNameFormulaPartItemDto
+    {
+        public Guid PartBusinessKey { get; set; }
+        public Guid AttributeRef { get; set; }
+        public string AttributeCode { get; set; } = string.Empty;
+        public string AttributeName { get; set; } = string.Empty;
+        public string DataType { get; set; } = string.Empty;
+        public string Scope { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
     }
 
     private sealed class AttributeOptionsQueryResultDto

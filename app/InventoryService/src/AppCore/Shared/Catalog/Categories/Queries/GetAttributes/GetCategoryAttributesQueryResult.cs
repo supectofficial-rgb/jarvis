@@ -21,6 +21,7 @@ public class GetCategoryAttributeItem
     public bool AttributeIsActive { get; set; }
     public bool RuleIsRequired { get; set; }
     public bool RuleIsVariant { get; set; }
+    public bool RuleIsVariantCodeCovered { get; set; }
     public int RuleDisplayOrder { get; set; }
     public bool RuleIsOverridden { get; set; }
     public bool RuleIsActive { get; set; }

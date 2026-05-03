@@ -99,6 +99,10 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetCategoryAttributeRulesAsync(selectedCategoryId, token, includeInherited: true, includeInactive: true)
             : new ApiResponse<List<CategoryAttributeRuleModel>> { IsSuccess = true, Data = new List<CategoryAttributeRuleModel>() };
 
+        var variantNameFormulasResult = !string.IsNullOrWhiteSpace(selectedCategoryId)
+            ? await _apiService.GetCategoryVariantNameFormulasAsync(selectedCategoryId, token, includeInactive: true)
+            : new ApiResponse<List<CategoryVariantNameFormulaModel>> { IsSuccess = true, Data = new List<CategoryVariantNameFormulaModel>() };
+
         var selectedAttribute = (attributesResult.Data ?? new List<AttributeDefinitionModel>())
             .FirstOrDefault();
         var selectedRule = (rulesResult.Data ?? new List<CategoryAttributeRuleModel>())
@@ -121,6 +125,7 @@ public abstract partial class CatalogManagementController : Controller
             AllAttributes = allAttributesResult.Data ?? new List<AttributeDefinitionModel>(),
             CategoryAttributes = attributesResult.Data ?? new List<AttributeDefinitionModel>(),
             CategoryAttributeRules = rulesResult.Data ?? new List<CategoryAttributeRuleModel>(),
+            CategoryVariantNameFormulas = variantNameFormulasResult.Data ?? new List<CategoryVariantNameFormulaModel>(),
             CategorySearchTerm = searchTerm,
             CategoryStatusFilter = statusFilter,
             CategorySort = sort,
@@ -129,7 +134,7 @@ public abstract partial class CatalogManagementController : Controller
             CategoryTotalCount = totalCount,
             CategoryTotalPages = totalPages,
             CategoryPageSizeOptions = PageSizeOptions,
-            ErrorMessage = JoinErrors(categoriesResult.ErrorMessage, attributesResult.ErrorMessage, allAttributesResult.ErrorMessage, rulesResult.ErrorMessage),
+            ErrorMessage = JoinErrors(categoriesResult.ErrorMessage, attributesResult.ErrorMessage, allAttributesResult.ErrorMessage, rulesResult.ErrorMessage, variantNameFormulasResult.ErrorMessage),
             CategoryForm = new CategoryUpsertForm
             {
                 CategoryId = categoryFormSource?.Id,
@@ -168,6 +173,7 @@ public abstract partial class CatalogManagementController : Controller
                 CategoryId = IsLeafCategory(flatCategories, selectedCategoryId) ? selectedCategoryId ?? string.Empty : string.Empty,
                 IsRequired = selectedRule?.RuleIsRequired ?? false,
                 IsVariant = selectedRule?.RuleIsVariant ?? false,
+                IsVariantCodeCovered = selectedRule?.RuleIsVariantCodeCovered ?? false,
                 DisplayOrder = selectedRule?.RuleDisplayOrder ?? 0,
                 IsOverridden = selectedRule?.RuleIsOverridden ?? false,
                 IsActive = selectedRule?.RuleIsActive ?? true
@@ -178,9 +184,17 @@ public abstract partial class CatalogManagementController : Controller
                 AttributeId = selectedRule?.AttributeId ?? string.Empty,
                 IsRequired = selectedRule?.RuleIsRequired ?? false,
                 IsVariant = selectedRule?.RuleIsVariant ?? false,
+                IsVariantCodeCovered = selectedRule?.RuleIsVariantCodeCovered ?? false,
                 DisplayOrder = selectedRule?.RuleDisplayOrder ?? 0,
                 IsOverridden = selectedRule?.RuleIsOverridden ?? false,
                 IsActive = selectedRule?.RuleIsActive ?? true
+            },
+            VariantNameFormulaForm = new VariantNameFormulaForm
+            {
+                CategoryId = selectedCategoryId ?? string.Empty,
+                Separator = " ",
+                IsActive = true,
+                PartsJson = "[]"
             }
         };
 
@@ -451,6 +465,12 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
+        if (form.IsVariantCodeCovered && !form.IsVariant)
+        {
+            TempData["CatalogError"] = "پوشش کد واریانت فقط برای rule واریانت قابل استفاده است.";
+            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
+        }
+
         var existingRulesResult = await _apiService.GetCategoryAttributeRulesAsync(
             form.CategoryId,
             token,
@@ -473,6 +493,7 @@ public abstract partial class CatalogManagementController : Controller
                 AttributeId = form.AttributeId,
                 IsRequired = form.IsRequired,
                 IsVariant = form.IsVariant,
+                IsVariantCodeCovered = form.IsVariantCodeCovered,
                 DisplayOrder = form.DisplayOrder,
                 IsOverridden = form.IsOverridden,
                 IsActive = form.IsActive
@@ -1729,6 +1750,7 @@ public abstract partial class CatalogManagementController : Controller
                     DataType = attribute.DataType,
                     Scope = attribute.Scope,
                     IsVariantLevel = attribute.IsVariant,
+                    IsVariantCodeCovered = attribute.IsVariantCodeCovered,
                     IsRequired = attribute.IsRequired,
                     DisplayOrder = attribute.DisplayOrder,
                     Options = attribute.Options,
@@ -2079,6 +2101,7 @@ public abstract partial class CatalogManagementController : Controller
                 .ToList();
 
             var skuSuffix = string.Join("-", orderedSelection
+                .Where(x => x.IsVariantCodeCovered)
                 .Select(x => NormalizeSkuSegment(x.OptionValue))
                 .Where(x => !string.IsNullOrWhiteSpace(x)));
 
@@ -2138,11 +2161,12 @@ public abstract partial class CatalogManagementController : Controller
                         new VariantCombinationSelection
                         {
                             AttributeId = dimension.AttributeId,
-                            AttributeName = dimension.AttributeName,
-                            AttributeDisplayOrder = dimension.AttributeDisplayOrder,
-                            OptionId = option.OptionId,
-                            OptionName = option.OptionName,
-                            OptionValue = option.OptionValue,
+                        AttributeName = dimension.AttributeName,
+                        AttributeDisplayOrder = dimension.AttributeDisplayOrder,
+                        IsVariantCodeCovered = dimension.IsVariantCodeCovered,
+                        OptionId = option.OptionId,
+                        OptionName = option.OptionName,
+                        OptionValue = option.OptionValue,
                             OptionDisplayOrder = option.OptionDisplayOrder
                         }
                     };
@@ -2748,6 +2772,7 @@ public abstract partial class CatalogManagementController : Controller
         public string AttributeId { get; set; } = string.Empty;
         public string AttributeName { get; set; } = string.Empty;
         public int AttributeDisplayOrder { get; set; }
+        public bool IsVariantCodeCovered { get; set; }
         public List<VariantDimensionOptionSelection> Options { get; set; } = new();
     }
 
@@ -2765,6 +2790,7 @@ public abstract partial class CatalogManagementController : Controller
         public string AttributeId { get; set; } = string.Empty;
         public string AttributeName { get; set; } = string.Empty;
         public int AttributeDisplayOrder { get; set; }
+        public bool IsVariantCodeCovered { get; set; }
         public string OptionId { get; set; } = string.Empty;
         public string OptionName { get; set; } = string.Empty;
         public string OptionValue { get; set; } = string.Empty;

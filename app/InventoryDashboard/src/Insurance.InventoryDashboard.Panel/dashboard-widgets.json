@@ -75,6 +75,19 @@
           ],
           "description": "اختصاص و تنظیم اتریبیوت‌های مرتبط با دسته‌بندی",
           "route": "/CategoryManagement/CategoryAttributes"
+        },
+        {
+          "itemId": "variant_name_formulas",
+          "title": "فرمول واریانت",
+          "icon": "simple-icon-pencil",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مدیریت فرمول نام واریانت برای هر دسته‌بندی",
+          "route": "/CategoryManagement/VariantNameFormulas"
         }
       ]
     },

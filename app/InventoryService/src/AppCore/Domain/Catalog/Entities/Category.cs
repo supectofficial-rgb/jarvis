@@ -105,6 +105,7 @@ public sealed class Category : AggregateRoot
         Guid attributeRef,
         bool isRequired,
         bool isVariant,
+        bool isVariantCodeCovered,
         int displayOrder,
         bool isOverridden = false,
         bool isActive = true,
@@ -119,6 +120,7 @@ public sealed class Category : AggregateRoot
         var isNoOp = existing is not null
             && existing.IsRequired == isRequired
             && existing.IsVariant == isVariant
+            && existing.IsVariantCodeCovered == isVariantCodeCovered
             && existing.DisplayOrder == displayOrder
             && existing.IsOverridden == isOverridden
             && existing.IsActive == isActive;
@@ -136,6 +138,7 @@ public sealed class Category : AggregateRoot
             attributeRef,
             isRequired,
             isVariant,
+            isVariantCodeCovered,
             displayOrder,
             isOverridden,
             isActive));
@@ -274,6 +277,7 @@ public sealed class Category : AggregateRoot
             @event.AttributeRef,
             @event.IsRequired,
             @event.IsVariant,
+            @event.IsVariantCodeCovered,
             @event.DisplayOrder,
             @event.IsOverridden,
             @event.IsActive);
@@ -310,6 +314,7 @@ public sealed class Category : AggregateRoot
                     x.AttributeRef,
                     x.IsRequired,
                     x.IsVariant,
+                    x.IsVariantCodeCovered,
                     x.DisplayOrder,
                     x.IsOverridden,
                     x.IsActive))
@@ -366,6 +371,7 @@ public sealed class Category : AggregateRoot
                         rule.AttributeRef,
                         rule.IsRequired,
                         rule.IsVariant,
+                        rule.IsVariantCodeCovered,
                         rule.DisplayOrder,
                         rule.IsOverridden,
                         rule.IsActive))

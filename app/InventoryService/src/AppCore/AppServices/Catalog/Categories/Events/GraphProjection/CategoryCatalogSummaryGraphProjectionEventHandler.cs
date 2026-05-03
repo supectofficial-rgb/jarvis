@@ -118,6 +118,7 @@ public sealed class CategoryCatalogSummaryGraphProjectionEventHandler :
                 ["lastRuleCategorySchemaVersionRef"] = CatalogGraphProjectionSchema.ToNodeKey(@event.CategorySchemaVersionRef),
                 ["lastRuleIsRequired"] = @event.IsRequired,
                 ["lastRuleIsVariant"] = @event.IsVariant,
+                ["lastRuleIsVariantCodeCovered"] = @event.IsVariantCodeCovered,
                 ["lastRuleDisplayOrder"] = @event.DisplayOrder,
                 ["lastRuleIsOverridden"] = @event.IsOverridden,
                 ["lastRuleIsActive"] = @event.IsActive,

@@ -52,7 +52,7 @@ public class CreateCategoryCommandHandler
                 .Select(x => x.Last())
                 .ToList();
 
-            var validationError = await ValidateRulesAsync(rules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant)).ToList());
+            var validationError = await ValidateRulesAsync(rules.Select(x => new RuleInput(x.AttributeRef, x.IsVariant, x.IsVariantCodeCovered)).ToList());
             if (validationError is not null)
                 return Fail(validationError);
 
@@ -64,6 +64,7 @@ public class CreateCategoryCommandHandler
                     rule.AttributeRef,
                     rule.IsRequired,
                     rule.IsVariant,
+                    rule.IsVariantCodeCovered,
                     rule.DisplayOrder,
                     rule.IsOverridden,
                     rule.IsActive);
@@ -127,10 +128,13 @@ public class CreateCategoryCommandHandler
 
             if (!rule.IsVariant && scope == AttributeScope.Variant)
                 return $"Attribute '{definition.Code}' cannot be used as product rule because its scope is Variant.";
+
+            if (rule.IsVariantCodeCovered && !rule.IsVariant)
+                return $"Attribute '{definition.Code}' must be a variant rule to participate in variant code generation.";
         }
 
         return null;
     }
 
-    private sealed record RuleInput(Guid AttributeRef, bool IsVariant);
+    private sealed record RuleInput(Guid AttributeRef, bool IsVariant, bool IsVariantCodeCovered);
 }

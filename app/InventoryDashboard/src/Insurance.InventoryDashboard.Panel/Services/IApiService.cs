@@ -24,11 +24,16 @@ public interface IApiService
     Task<ApiResponse<bool>> DeleteCategoryAsync(string categoryId, string token);
     Task<ApiResponse<List<CategoryNodeModel>>> GetCategoryTreeAsync(string token);
     Task<ApiResponse<List<CategoryAttributeRuleModel>>> GetCategoryAttributeRulesAsync(string categoryId, string token, bool includeInherited = true, bool includeInactive = true);
+    Task<ApiResponse<List<CategoryVariantNameFormulaModel>>> GetCategoryVariantNameFormulasAsync(string categoryId, string token, bool includeInactive = true);
+    Task<ApiResponse<CategoryVariantNameFormulaModel>> GetCategoryVariantNameFormulaByBusinessKeyAsync(string formulaId, string token);
     Task<ApiResponse<bool>> AddCategoryAttributeRuleAsync(string categoryId, AddCategoryAttributeRuleRequest request, string token);
     Task<ApiResponse<bool>> UpdateCategoryAttributeRuleAsync(string categoryId, string attributeId, UpdateCategoryAttributeRuleRequest request, string token);
     Task<ApiResponse<bool>> ActivateCategoryAttributeRuleAsync(string categoryId, string attributeId, string token);
     Task<ApiResponse<bool>> DeactivateCategoryAttributeRuleAsync(string categoryId, string attributeId, string token);
     Task<ApiResponse<bool>> RemoveCategoryAttributeRuleAsync(string categoryId, string attributeId, string token);
+    Task<ApiResponse<bool>> CreateCategoryVariantNameFormulaAsync(string categoryId, UpsertCategoryVariantNameFormulaRequest request, string token);
+    Task<ApiResponse<bool>> UpdateCategoryVariantNameFormulaAsync(string formulaId, UpsertCategoryVariantNameFormulaRequest request, string token);
+    Task<ApiResponse<bool>> DeleteCategoryVariantNameFormulaAsync(string formulaId, string token);
 
     Task<ApiResponse<bool>> CreateAttributeDefinitionAsync(string categoryId, CreateAttributeDefinitionRequest request, string token);
     Task<ApiResponse<bool>> UpdateAttributeDefinitionAsync(string attributeId, UpdateAttributeDefinitionRequest request, string token);

@@ -61,6 +61,17 @@ public sealed class CategoryManagementController : CatalogManagementController
         CancellationToken cancellationToken = default)
         => base.Categories(categoryId, searchTerm, statusFilter, sort, false, page, pageSize, "category_attribute_rules", cancellationToken);
 
+    [HttpGet]
+    public Task<IActionResult> VariantNameFormulas(
+        string? categoryId,
+        string? searchTerm,
+        string? statusFilter,
+        string? sort,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+        => base.Categories(categoryId, searchTerm, statusFilter, sort, false, page, pageSize, "variant_name_formulas", cancellationToken);
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public new Task<IActionResult> SaveCategory([Bind(Prefix = "CategoryForm")] CategoryUpsertForm form)
@@ -305,6 +316,21 @@ public sealed class CategoryManagementController : CatalogManagementController
     [ValidateAntiForgeryToken]
     public new async Task<IActionResult> RemoveCategoryAttributeRule(string categoryId, string attributeId)
         => KeepCategorySelectionOn(await base.RemoveCategoryAttributeRule(categoryId, attributeId), nameof(CategoryAttributes), categoryId);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public new async Task<IActionResult> CreateVariantNameFormula([Bind(Prefix = "VariantNameFormulaForm")] VariantNameFormulaForm form)
+        => KeepCategorySelectionOn(await base.CreateVariantNameFormula(form), nameof(VariantNameFormulas), form.CategoryId);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public new async Task<IActionResult> UpdateVariantNameFormula([Bind(Prefix = "VariantNameFormulaForm")] VariantNameFormulaForm form)
+        => KeepCategorySelectionOn(await base.UpdateVariantNameFormula(form), nameof(VariantNameFormulas), form.CategoryId);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public new async Task<IActionResult> DeleteVariantNameFormula(string categoryId, string formulaId)
+        => KeepCategorySelectionOn(await base.DeleteVariantNameFormula(categoryId, formulaId), nameof(VariantNameFormulas), categoryId);
 
     private IActionResult KeepCategorySelectionOn(IActionResult result, string actionName, string? categoryId)
     {

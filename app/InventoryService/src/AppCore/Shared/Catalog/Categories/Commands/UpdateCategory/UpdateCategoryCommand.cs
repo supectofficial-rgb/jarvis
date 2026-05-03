@@ -18,6 +18,7 @@ public class UpdateCategoryAttributeRuleItem
     public Guid AttributeRef { get; set; }
     public bool IsRequired { get; set; }
     public bool IsVariant { get; set; }
+    public bool IsVariantCodeCovered { get; set; }
     public int DisplayOrder { get; set; }
     public bool IsOverridden { get; set; }
     public bool IsActive { get; set; } = true;

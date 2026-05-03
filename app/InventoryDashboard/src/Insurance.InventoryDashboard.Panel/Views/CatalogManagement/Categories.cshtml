@@ -1,5 +1,6 @@
 @using System
 @using System.Linq
+@using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
 @{
     ViewData["Title"] = "مدیریت دسته‌بندی";
@@ -80,7 +81,8 @@
         || !Can("Catalog.Category.Delete", "Category.Delete")
         || !Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update")
         || !Can("Catalog.AttributeOption.Update", "AttributeOption.Update")
-        || !Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update");
+        || !Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update")
+        || !Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage");
     var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
     var selectedCategoryPath = GetCategoryPathById(Model.SelectedCategoryId);
     var selectedCategory = Model.FlatCategories.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedCategoryId, StringComparison.OrdinalIgnoreCase));
@@ -91,7 +93,10 @@
     var showCategories = string.Equals(activeSurface, "categories", StringComparison.OrdinalIgnoreCase);
     var showAttributes = string.Equals(activeSurface, "attributes", StringComparison.OrdinalIgnoreCase);
     var showRules = string.Equals(activeSurface, "category_attribute_rules", StringComparison.OrdinalIgnoreCase);
+    var showFormulas = string.Equals(activeSurface, "variant_name_formulas", StringComparison.OrdinalIgnoreCase);
     var localRules = Model.CategoryAttributeRules.Where(x => !x.IsInherited).ToList();
+    var localFormulas = Model.CategoryVariantNameFormulas.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+    var formulaAttributeSource = Model.CategoryAttributes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
 }
 
 <style>
@@ -156,6 +161,7 @@
                     <li class="nav-item"><a class="nav-link @(showCategories ? "active" : null)" data-toggle="tab" href="#category-tab" role="tab">دسته‌بندی</a></li>
                     <li class="nav-item"><a class="nav-link @(showAttributes ? "active" : null)" data-toggle="tab" href="#attribute-tab" role="tab">ویژگی و گزینه</a></li>
                     <li class="nav-item"><a class="nav-link @(showRules ? "active" : null)" data-toggle="tab" href="#rule-tab" role="tab">قوانین ویژگی</a></li>
+                    <li class="nav-item"><a class="nav-link @(showFormulas ? "active" : null)" data-toggle="tab" href="#formula-tab" role="tab">فرمول واریانت</a></li>
                 </ul>
 
                 <div class="tab-content">
@@ -734,6 +740,179 @@
                         </div>
                     </div>
 
+                    <div class="tab-pane @(showFormulas ? "show active" : null)" id="formula-tab" role="tabpanel">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                                    <div>
+                                        <h5 class="card-title mb-1">انتخاب دسته‌بندی برای فرمول واریانت</h5>
+                                        <p class="text-muted mb-0 small">ابتدا دسته‌بندی را انتخاب کنید تا ویژگی‌های همان دسته‌بندی برای ساخت فرمول واریانت لود شوند.</p>
+                                    </div>
+                                </div>
+                                <form asp-action="VariantNameFormulas" method="get" class="row align-items-end" id="formula-category-filter-form">
+                                    <div class="col-lg-8 col-md-8 mb-2">
+                                        <label class="text-muted small">دسته‌بندی</label>
+                                        <select name="categoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته‌بندی">
+                                            <option value="">انتخاب دسته‌بندی</option>
+                                            @foreach (var category in Model.FlatCategories)
+                                            {
+                                                <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-4 col-md-4 mb-2">
+                                        <button type="submit" class="btn btn-primary btn-block">نمایش فرمول‌ها</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-lg-5 col-12 mb-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="card-title mb-0" id="formula-form-title">ایجاد فرمول واریانت</h5>
+                                            <button type="button" class="btn btn-outline-secondary btn-xs" id="formula-edit-cancel">فرم جدید</button>
+                                        </div>
+                                        <form asp-action="CreateVariantNameFormula" method="post" id="variant-name-formula-form" data-loading-form data-dirty-watch>
+                                            @Html.AntiForgeryToken()
+                                            <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                            <input asp-for="VariantNameFormulaForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                            <input asp-for="VariantNameFormulaForm.FormulaId" type="hidden" id="VariantNameFormulaForm_FormulaId" />
+                                            <input asp-for="VariantNameFormulaForm.PartsJson" type="hidden" id="VariantNameFormulaForm_PartsJson" value="[]" />
+
+                                            <div class="form-group">
+                                                <label>نام فرمول</label>
+                                                <input asp-for="VariantNameFormulaForm.Name" class="form-control" id="VariantNameFormulaForm_Name" required maxlength="120" />
+                                            </div>
+
+                                            <div class="form-row">
+                                                <div class="form-group col-md-6">
+                                                    <label>جداکننده</label>
+                                                    <input asp-for="VariantNameFormulaForm.Separator" class="form-control" id="VariantNameFormulaForm_Separator" maxlength="32" />
+                                                </div>
+                                                <div class="form-group col-md-3">
+                                                    <label>ترتیب</label>
+                                                    <input asp-for="VariantNameFormulaForm.DisplayOrder" class="form-control" id="VariantNameFormulaForm_DisplayOrder" type="number" min="0" />
+                                                </div>
+                                                <div class="form-group col-md-3 d-flex align-items-end">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input asp-for="VariantNameFormulaForm.IsActive" class="custom-control-input" id="VariantNameFormulaForm_IsActive" />
+                                                        <label class="custom-control-label" asp-for="VariantNameFormulaForm.IsActive">فعال</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label>ویژگی‌های فرمول</label>
+                                                <div class="input-group mb-2">
+                                                    <select id="formula-attribute-picker" class="form-control js-search-select" data-placeholder="انتخاب ویژگی">
+                                                        <option value="">انتخاب ویژگی</option>
+                                                        @foreach (var attr in formulaAttributeSource)
+                                                        {
+                                                            <option value="@attr.Id">@attr.Name (@attr.Code / @attr.Scope @((attr.IsInherited ? " / ارثی" : string.Empty)))</option>
+                                                        }
+                                                    </select>
+                                                    <div class="input-group-append">
+                                                        <button type="button" class="btn btn-outline-primary" id="formula-add-part-btn" @(formulaAttributeSource.Count == 0 ? "disabled" : null)>افزودن</button>
+                                                    </div>
+                                                </div>
+                                                @if (formulaAttributeSource.Count == 0)
+                                                {
+                                                    <small class="form-text text-warning">برای این دسته‌بندی هنوز ویژگی‌ای در دسترس نیست.</small>
+                                                }
+                                                <div id="formula-parts-empty" class="alert alert-light small mb-2">هنوز هیچ ویژگی‌ای به فرمول اضافه نشده است.</div>
+                                                <div id="formula-parts-list" class="list-group"></div>
+                                                <small class="form-text text-muted mt-2">ترتیب ردیف‌ها، ترتیب ساخت نام واریانت را تعیین می‌کند.</small>
+                                            </div>
+
+                                            <div class="mt-3 d-flex flex-wrap">
+                                                <button class="btn btn-primary mr-2 mb-2" type="submit" id="formula-submit-btn" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>ثبت فرمول</button>
+                                                <button class="btn btn-outline-secondary mb-2" type="button" id="formula-reset-btn">پاک‌سازی</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-7 col-12 mb-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="card-title mb-0">لیست فرمول‌های واریانت</h5>
+                                            <span class="badge badge-pill badge-outline-primary">@localFormulas.Count</span>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped">
+                                                <thead>
+                                                    <tr>
+                                                        <th>نام</th>
+                                                        <th>پیش‌نمایش</th>
+                                                        <th>ترتیب</th>
+                                                        <th>وضعیت</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @if (localFormulas.Count == 0)
+                                                    {
+                                                        <tr>
+                                                            <td colspan="5">
+                                                                <div class="alert alert-light my-2">هنوز فرمولی برای این دسته‌بندی ثبت نشده است.</div>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                    @foreach (var formula in localFormulas)
+                                                    {
+                                                        var formulaParts = formula.Parts.OrderBy(x => x.SortOrder).ThenBy(x => x.AttributeName).ToList();
+                                                        <tr>
+                                                            <td>
+                                                                <div class="font-weight-bold">@formula.Name</div>
+                                                                <div class="small text-muted">@formulaParts.Count ویژگی</div>
+                                                            </td>
+                                                            <td class="text-monospace">@(!string.IsNullOrWhiteSpace(formula.Preview) ? formula.Preview : "-")</td>
+                                                            <td>@formula.DisplayOrder</td>
+                                                            <td>
+                                                                <span class="badge badge-pill @(formula.IsActive ? "badge-success" : "badge-secondary")">
+                                                                    @(formula.IsActive ? "فعال" : "غیرفعال")
+                                                                </span>
+                                                            </td>
+                                                            <td class="text-nowrap">
+                                                                <button type="button"
+                                                                        class="btn btn-outline-secondary btn-xs formula-edit-btn"
+                                                                        data-formula-id="@formula.FormulaId"
+                                                                        @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
+                                                                    ویرایش
+                                                                </button>
+                                                                <form asp-action="DeleteVariantNameFormula" method="post" class="d-inline" data-loading-form>
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                                    <input type="hidden" name="formulaId" value="@formula.FormulaId" />
+                                                                    <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف فرمول" data-confirm="این فرمول واریانت حذف شود؟" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>حذف</button>
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td colspan="5">
+                                                                <div class="d-flex flex-wrap">
+                                                                    @foreach (var part in formulaParts)
+                                                                    {
+                                                                        <span class="badge badge-light border mr-1 mb-1">@part.AttributeName</span>
+                                                                    }
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="tab-pane @(showRules ? "show active" : null)" id="rule-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
@@ -811,6 +990,10 @@
                                                 <label class="custom-control-label" asp-for="AssignForm.IsVariant">سطح واریانت</label>
                                             </div>
                                             <div class="custom-control custom-checkbox mt-2">
+                                                <input asp-for="AssignForm.IsVariantCodeCovered" class="custom-control-input" />
+                                                <label class="custom-control-label" asp-for="AssignForm.IsVariantCodeCovered">پوشش کد واریانت</label>
+                                            </div>
+                                            <div class="custom-control custom-checkbox mt-2">
                                                 <input asp-for="AssignForm.IsOverridden" class="custom-control-input" />
                                                 <label class="custom-control-label" asp-for="AssignForm.IsOverridden">بازنویسی‌شده</label>
                                             </div>
@@ -839,6 +1022,7 @@
                                                                 data-rule-display-order="@rule.RuleDisplayOrder"
                                                                 data-rule-required="@(rule.RuleIsRequired ? "true" : "false")"
                                                                 data-rule-variant="@(rule.RuleIsVariant ? "true" : "false")"
+                                                                data-rule-code-covered="@(rule.RuleIsVariantCodeCovered ? "true" : "false")"
                                                                 data-rule-overridden="@(rule.RuleIsOverridden ? "true" : "false")"
                                                                 data-rule-active="@(rule.RuleIsActive ? "true" : "false")">
                                                             @rule.AttributeName
@@ -849,6 +1033,7 @@
                                             <div class="form-group"><label>ترتیب نمایش</label><input asp-for="RuleForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
                                             <div class="custom-control custom-checkbox"><input asp-for="RuleForm.IsRequired" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsRequired">الزامی</label></div>
                                             <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariant" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariant">سطح واریانت</label></div>
+                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariantCodeCovered" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariantCodeCovered">پوشش کد واریانت</label></div>
                                             <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsOverridden" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsOverridden">بازنویسی‌شده</label></div>
                                             <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsActive" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsActive">فعال</label></div>
                                             @if (localRules.Count == 0)
@@ -879,6 +1064,7 @@
                                                         <th>ویژگی</th>
                                                         <th>الزامی</th>
                                                         <th>سطح واریانت</th>
+                                                        <th>پوشش کد</th>
                                                         <th>ترتیب</th>
                                                         <th>بازنویسی‌شده</th>
                                                         <th>فعال</th>
@@ -893,6 +1079,7 @@
                                                             <td>@rule.AttributeName <span class="text-muted small">(@rule.DataType)</span></td>
                                                             <td>@(rule.RuleIsRequired ? "بله" : "خیر")</td>
                                                             <td>@(rule.RuleIsVariant ? "بله" : "خیر")</td>
+                                                            <td>@(rule.RuleIsVariantCodeCovered ? "بله" : "خیر")</td>
                                                             <td>@rule.RuleDisplayOrder</td>
                                                             <td>@(rule.RuleIsOverridden ? "بله" : "خیر")</td>
                                                             <td>@(rule.RuleIsActive ? "فعال" : "غیرفعال")</td>
@@ -908,6 +1095,7 @@
                                                                             data-rule-display-order="@rule.RuleDisplayOrder"
                                                                             data-rule-required="@(rule.RuleIsRequired ? "true" : "false")"
                                                                             data-rule-variant="@(rule.RuleIsVariant ? "true" : "false")"
+                                                                            data-rule-code-covered="@(rule.RuleIsVariantCodeCovered ? "true" : "false")"
                                                                             data-rule-overridden="@(rule.RuleIsOverridden ? "true" : "false")"
                                                                             data-rule-active="@(rule.RuleIsActive ? "true" : "false")"
                                                                             @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") ? null : "disabled")>
@@ -969,6 +1157,27 @@
             };
             var canUpdateOptions = @Can("Catalog.AttributeOption.Update", "AttributeOption.Update").ToString().ToLowerInvariant();
             var canDeleteOptions = @Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete").ToString().ToLowerInvariant();
+            var canManageFormulas = @Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage").ToString().ToLowerInvariant();
+            var formulaRegistry = @Html.Raw(JsonSerializer.Serialize(localFormulas.Select(formula => new {
+                formulaId = formula.FormulaId,
+                name = formula.Name,
+                separator = formula.Separator,
+                displayOrder = formula.DisplayOrder,
+                isActive = formula.IsActive,
+                parts = formula.Parts.OrderBy(x => x.SortOrder).ThenBy(x => x.AttributeName).Select(part => new {
+                    attributeId = part.AttributeId,
+                    attributeName = part.AttributeName,
+                    attributeCode = part.AttributeCode,
+                    sortOrder = part.SortOrder
+                }).ToList()
+            }).ToList()));
+            var formulaAttributeRegistry = @Html.Raw(JsonSerializer.Serialize(formulaAttributeSource.Select(attr => new {
+                attributeId = attr.Id,
+                attributeName = attr.Name,
+                attributeCode = attr.Code,
+                displayOrder = attr.DisplayOrder,
+                isInherited = attr.IsInherited
+            }).ToList()));
             var dirtyForms = new Set();
             var tabs = document.querySelectorAll('#category-tabs .nav-link');
             var ruleSectionTabs = document.querySelectorAll('#rule-section-tabs .nav-link');
@@ -979,7 +1188,8 @@
                 'create-category-attribute-form',
                 'attribute-update-form',
                 'assign-attribute-to-category-form',
-                'update-category-attribute-rule-form'
+                'update-category-attribute-rule-form',
+                'variant-name-formula-form'
             ];
             var watchedForms = watchedFormIds
                 .map(function (formId) { return document.getElementById(formId); })
@@ -1063,6 +1273,11 @@
                     return form.id + ':' + ((categoryId && categoryId.value) || 'new');
                 }
 
+                if (form.id === 'variant-name-formula-form') {
+                    var formulaCategoryId = form.querySelector('[name="VariantNameFormulaForm.CategoryId"]');
+                    return form.id + ':' + ((formulaCategoryId && formulaCategoryId.value) || 'new');
+                }
+
                 return form.id;
             }
 
@@ -1130,7 +1345,7 @@
                 });
             });
 
-            var activeTab = '@(showAttributes ? "#attribute-tab" : showRules ? "#rule-tab" : "#category-tab")';
+            var activeTab = '@(showAttributes ? "#attribute-tab" : showRules ? "#rule-tab" : showFormulas ? "#formula-tab" : "#category-tab")';
             if (activeTab) {
                 var target = document.querySelector('#category-tabs .nav-link[href="' + activeTab + '"]');
                 if (target && window.jQuery) {
@@ -1574,6 +1789,276 @@
                 });
             }
 
+            var formulaCreateUrl = '@Url.Action("CreateVariantNameFormula", "CategoryManagement")';
+            var formulaUpdateUrl = '@Url.Action("UpdateVariantNameFormula", "CategoryManagement")';
+            var formulaForm = document.getElementById('variant-name-formula-form');
+            var formulaFormTitle = document.getElementById('formula-form-title');
+            var formulaSubmitBtn = document.getElementById('formula-submit-btn');
+            var formulaResetBtn = document.getElementById('formula-reset-btn');
+            var formulaEditCancel = document.getElementById('formula-edit-cancel');
+            var formulaIdField = document.getElementById('VariantNameFormulaForm_FormulaId');
+            var formulaNameField = document.getElementById('VariantNameFormulaForm_Name');
+            var formulaSeparatorField = document.getElementById('VariantNameFormulaForm_Separator');
+            var formulaDisplayOrderField = document.getElementById('VariantNameFormulaForm_DisplayOrder');
+            var formulaIsActiveField = document.getElementById('VariantNameFormulaForm_IsActive');
+            var formulaPartsJsonField = document.getElementById('VariantNameFormulaForm_PartsJson');
+            var formulaAttributePicker = document.getElementById('formula-attribute-picker');
+            var formulaAddPartBtn = document.getElementById('formula-add-part-btn');
+            var formulaPartsList = document.getElementById('formula-parts-list');
+            var formulaPartsEmpty = document.getElementById('formula-parts-empty');
+            var formulaState = { parts: [] };
+
+            function getFormulaById(formulaId) {
+                if (!formulaId || !Array.isArray(formulaRegistry)) {
+                    return null;
+                }
+
+                for (var i = 0; i < formulaRegistry.length; i++) {
+                    if (String(formulaRegistry[i].formulaId || '').toLowerCase() === String(formulaId).toLowerCase()) {
+                        return formulaRegistry[i];
+                    }
+                }
+
+                return null;
+            }
+
+            function getFormulaAttribute(attributeId) {
+                if (!attributeId || !Array.isArray(formulaAttributeRegistry)) {
+                    return null;
+                }
+
+                for (var i = 0; i < formulaAttributeRegistry.length; i++) {
+                    if (String(formulaAttributeRegistry[i].attributeId || '').toLowerCase() === String(attributeId).toLowerCase()) {
+                        return formulaAttributeRegistry[i];
+                    }
+                }
+
+                return null;
+            }
+
+            function updateFormulaSubmitState() {
+                if (!formulaSubmitBtn) {
+                    return;
+                }
+
+                formulaSubmitBtn.disabled = !canManageFormulas || formulaState.parts.length === 0;
+            }
+
+            function syncFormulaPartsJson() {
+                if (!formulaPartsJsonField) {
+                    return;
+                }
+
+                formulaPartsJsonField.value = JSON.stringify(formulaState.parts);
+            }
+
+            function setFormulaMode(isEditMode) {
+                if (formulaForm) {
+                    formulaForm.action = isEditMode ? formulaUpdateUrl : formulaCreateUrl;
+                }
+
+                if (formulaFormTitle) {
+                    formulaFormTitle.textContent = isEditMode ? 'ویرایش فرمول واریانت' : 'ایجاد فرمول واریانت';
+                }
+
+                if (formulaSubmitBtn) {
+                    formulaSubmitBtn.textContent = isEditMode ? 'ثبت تغییرات' : 'ثبت فرمول';
+                }
+            }
+
+            function renderFormulaParts() {
+                if (!formulaPartsList || !formulaPartsEmpty) {
+                    return;
+                }
+
+                formulaPartsList.innerHTML = '';
+                if (formulaState.parts.length === 0) {
+                    formulaPartsEmpty.style.display = '';
+                    updateFormulaSubmitState();
+                    syncFormulaPartsJson();
+                    return;
+                }
+
+                formulaPartsEmpty.style.display = 'none';
+                formulaState.parts.forEach(function (attributeId, index) {
+                    var attribute = getFormulaAttribute(attributeId);
+                    var item = document.createElement('div');
+                    item.className = 'list-group-item';
+                    item.innerHTML = ''
+                        + '<div class="d-flex justify-content-between align-items-center flex-wrap">'
+                        + '<div class="pr-2 mb-2 mb-md-0">'
+                        + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : attributeId) + '</div>'
+                        + '<div class="small text-muted">' + escapeHtml(attribute ? attribute.attributeCode : '') + (attribute && attribute.isInherited ? ' / ارثی' : '') + '</div>'
+                        + '</div>'
+                        + '<div class="btn-group btn-group-sm" role="group">'
+                        + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="up" data-formula-index="' + index + '"' + (index === 0 ? ' disabled' : '') + '>↑</button>'
+                        + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="down" data-formula-index="' + index + '"' + (index === formulaState.parts.length - 1 ? ' disabled' : '') + '>↓</button>'
+                        + '<button type="button" class="btn btn-outline-danger formula-part-action" data-formula-action="remove" data-formula-index="' + index + '">×</button>'
+                        + '</div>'
+                        + '</div>';
+                    formulaPartsList.appendChild(item);
+                });
+
+                updateFormulaSubmitState();
+                syncFormulaPartsJson();
+            }
+
+            function resetFormulaForm() {
+                if (formulaIdField) formulaIdField.value = '';
+                if (formulaNameField) formulaNameField.value = '';
+                if (formulaSeparatorField) formulaSeparatorField.value = ' ';
+                if (formulaDisplayOrderField) formulaDisplayOrderField.value = '0';
+                if (formulaIsActiveField) formulaIsActiveField.checked = true;
+                if (formulaAttributePicker) formulaAttributePicker.value = '';
+                if (formulaAttributePicker && window.jQuery) {
+                    window.jQuery(formulaAttributePicker).val('').trigger('change');
+                }
+                formulaState.parts = [];
+                setFormulaMode(false);
+                renderFormulaParts();
+                if (formulaForm) {
+                    formulaForm.dataset.isDirty = 'false';
+                }
+            }
+
+            function loadFormulaIntoForm(formula) {
+                if (!formula) {
+                    return;
+                }
+
+                if (formulaIdField) formulaIdField.value = formula.formulaId || '';
+                if (formulaNameField) formulaNameField.value = formula.name || '';
+                if (formulaSeparatorField) formulaSeparatorField.value = formula.separator || ' ';
+                if (formulaDisplayOrderField) formulaDisplayOrderField.value = formula.displayOrder != null ? formula.displayOrder : '0';
+                if (formulaIsActiveField) formulaIsActiveField.checked = !!formula.isActive;
+                formulaState.parts = (formula.parts || []).map(function (part) { return part.attributeId; }).filter(function (partId) { return !!partId; });
+                setFormulaMode(true);
+                renderFormulaParts();
+                if (formulaForm) {
+                    formulaForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+
+            function addFormulaPart(attributeId) {
+                if (!attributeId) {
+                    return;
+                }
+
+                if (formulaState.parts.some(function (partId) { return String(partId).toLowerCase() === String(attributeId).toLowerCase(); })) {
+                    return;
+                }
+
+                formulaState.parts.push(attributeId);
+                if (formulaAttributePicker) {
+                    formulaAttributePicker.value = '';
+                    if (window.jQuery) {
+                        window.jQuery(formulaAttributePicker).val('').trigger('change');
+                    }
+                }
+                renderFormulaParts();
+            }
+
+            function moveFormulaPart(index, delta) {
+                var targetIndex = index + delta;
+                if (targetIndex < 0 || targetIndex >= formulaState.parts.length) {
+                    return;
+                }
+
+                var swapped = formulaState.parts[index];
+                formulaState.parts[index] = formulaState.parts[targetIndex];
+                formulaState.parts[targetIndex] = swapped;
+                renderFormulaParts();
+            }
+
+            function removeFormulaPart(index) {
+                if (index < 0 || index >= formulaState.parts.length) {
+                    return;
+                }
+
+                formulaState.parts.splice(index, 1);
+                renderFormulaParts();
+            }
+
+            if (formulaPartsJsonField && formulaPartsJsonField.value) {
+                try {
+                    var initialParts = JSON.parse(formulaPartsJsonField.value || '[]');
+                    if (Array.isArray(initialParts)) {
+                        formulaState.parts = initialParts.filter(function (partId) { return !!partId; });
+                    }
+                } catch (e) {
+                    formulaState.parts = [];
+                }
+            }
+
+            if (formulaIdField && formulaIdField.value) {
+                setFormulaMode(true);
+            }
+            renderFormulaParts();
+
+            if (formulaAddPartBtn) {
+                formulaAddPartBtn.addEventListener('click', function () {
+                    var selectedAttributeId = formulaAttributePicker ? (formulaAttributePicker.value || '') : '';
+                    addFormulaPart(selectedAttributeId);
+                });
+            }
+
+            if (formulaAttributePicker) {
+                formulaAttributePicker.addEventListener('change', function () {
+                    if (formulaAttributePicker.value) {
+                        addFormulaPart(formulaAttributePicker.value);
+                    }
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                var partAction = event.target.closest('.formula-part-action');
+                if (!partAction) {
+                    return;
+                }
+
+                var index = parseInt(partAction.getAttribute('data-formula-index') || '-1', 10);
+                var action = partAction.getAttribute('data-formula-action') || '';
+                if (action === 'up') {
+                    moveFormulaPart(index, -1);
+                } else if (action === 'down') {
+                    moveFormulaPart(index, 1);
+                } else if (action === 'remove') {
+                    removeFormulaPart(index);
+                }
+            });
+
+            document.querySelectorAll('.formula-edit-btn').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var formula = getFormulaById(button.getAttribute('data-formula-id') || '');
+                    if (!formula) {
+                        return;
+                    }
+
+                    loadFormulaIntoForm(formula);
+                });
+            });
+
+            function resetFormulaEditor() {
+                resetFormulaForm();
+                if (formulaForm) {
+                    formulaForm.action = formulaCreateUrl;
+                }
+            }
+
+            if (formulaResetBtn) {
+                formulaResetBtn.addEventListener('click', resetFormulaEditor);
+            }
+
+            if (formulaEditCancel) {
+                formulaEditCancel.addEventListener('click', resetFormulaEditor);
+            }
+
+            if (formulaForm) {
+                formulaForm.addEventListener('submit', function () {
+                    syncFormulaPartsJson();
+                });
+            }
+
             var ruleSectionEditTab = document.querySelector('#rule-section-tabs .nav-link[href="#rule-section-edit"]');
             var ruleInlineEditCard = document.getElementById('rule-inline-edit-card');
             var ruleInlineEditCancel = document.getElementById('rule-inline-edit-cancel');
@@ -1581,6 +2066,7 @@
             var ruleEditDisplayOrder = document.getElementById('RuleForm_DisplayOrder');
             var ruleEditRequired = document.getElementById('RuleForm_IsRequired');
             var ruleEditVariant = document.getElementById('RuleForm_IsVariant');
+            var ruleEditCodeCovered = document.getElementById('RuleForm_IsVariantCodeCovered');
             var ruleEditOverridden = document.getElementById('RuleForm_IsOverridden');
             var ruleEditActive = document.getElementById('RuleForm_IsActive');
             var ruleEditCategoryId = document.getElementById('RuleForm_CategoryId');
@@ -1598,6 +2084,7 @@
                 if (ruleEditDisplayOrder) ruleEditDisplayOrder.value = selected.getAttribute('data-rule-display-order') || '0';
                 if (ruleEditRequired) ruleEditRequired.checked = (selected.getAttribute('data-rule-required') || '').toLowerCase() === 'true';
                 if (ruleEditVariant) ruleEditVariant.checked = (selected.getAttribute('data-rule-variant') || '').toLowerCase() === 'true';
+                if (ruleEditCodeCovered) ruleEditCodeCovered.checked = (selected.getAttribute('data-rule-code-covered') || '').toLowerCase() === 'true';
                 if (ruleEditOverridden) ruleEditOverridden.checked = (selected.getAttribute('data-rule-overridden') || '').toLowerCase() === 'true';
                 if (ruleEditActive) ruleEditActive.checked = (selected.getAttribute('data-rule-active') || '').toLowerCase() === 'true';
             }
@@ -1635,6 +2122,9 @@
                 }
                 if (ruleEditVariant) {
                     ruleEditVariant.checked = (button.getAttribute('data-rule-variant') || '').toLowerCase() === 'true';
+                }
+                if (ruleEditCodeCovered) {
+                    ruleEditCodeCovered.checked = (button.getAttribute('data-rule-code-covered') || '').toLowerCase() === 'true';
                 }
                 if (ruleEditOverridden) {
                     ruleEditOverridden.checked = (button.getAttribute('data-rule-overridden') || '').toLowerCase() === 'true';
