@@ -1022,6 +1022,7 @@
             var createAttributeStatus = document.getElementById('product-create-attribute-status');
             var createAttributesUrl = pageElement ? (pageElement.getAttribute('data-create-attributes-url') || '') : '';
             var createAttributesRequestId = 0;
+            var lastCreateAttributesCategoryId = '';
             var isEditMode = !!(productUpsertForm && productUpsertForm.querySelector('[name="ProductForm.ProductId"]') && (productUpsertForm.querySelector('[name="ProductForm.ProductId"]').value || '').trim());
 
             function readState() {
@@ -1140,6 +1141,10 @@
             }
 
             function shouldRestoreProductDraft(values) {
+                if (@Model.IsProductCreateMode.ToString().ToLowerInvariant()) {
+                    return false;
+                }
+
                 var currentProductId = pageElement ? (pageElement.getAttribute('data-selected-product-id') || '').trim() : '';
                 var draftProductId = getDraftProductId(values);
 
@@ -1154,6 +1159,9 @@
                 var drafts = readDrafts();
                 watchedForms.forEach(function (form) {
                     if (form.id === 'product-upsert-form' && !shouldRestoreProductDraft(drafts[form.id])) {
+                        if (@Model.IsProductCreateMode.ToString().ToLowerInvariant()) {
+                            form.reset();
+                        }
                         return;
                     }
 
@@ -1422,11 +1430,18 @@
                     return;
                 }
 
+                var normalizedCategoryId = (categoryId || '').trim();
+                if (normalizedCategoryId && lastCreateAttributesCategoryId.toLowerCase() === normalizedCategoryId.toLowerCase()) {
+                    setCreateAttributeStatus('دسته تکراری', 'secondary');
+                    return;
+                }
+
                 if (!categoryId) {
                     if (pageElement) {
                         pageElement.setAttribute('data-selected-category-id', '');
                     }
 
+                    lastCreateAttributesCategoryId = '';
                     setCreateAttributeStatus('دسته انتخاب نشده', 'warning');
                     setCreateAttributeFeedback('', 'warning');
                     renderCreateAttributeSections(null);
@@ -1438,6 +1453,7 @@
 
                 var currentRequestId = ++createAttributesRequestId;
                 var currentDraft = captureFormDraft(productUpsertForm);
+                lastCreateAttributesCategoryId = normalizedCategoryId;
 
                 setCreateAttributeStatus('در حال ارسال درخواست', 'warning');
                 setCreateAttributeFeedback('', 'warning');
@@ -1469,7 +1485,7 @@
                         applyFormDraft(productUpsertForm, currentDraft);
                         bindAutoCreateInputEvents(createDynamicSections);
                         if (pageElement) {
-                            pageElement.setAttribute('data-selected-category-id', categoryId);
+                            pageElement.setAttribute('data-selected-category-id', normalizedCategoryId);
                         }
 
                         if (data.errorMessage) {
@@ -1779,16 +1795,15 @@
             showTabByHref(initialTab);
 
             if (productCategoryField && productUpsertForm) {
-                productCategoryField.addEventListener('change', function () {
+                var handleCategoryChange = function () {
                     var selectedCategoryId = (productCategoryField.value || '').trim();
-                    var currentCategoryId = pageElement ? (pageElement.getAttribute('data-selected-category-id') || '').trim() : '';
-                    if (currentCategoryId && currentCategoryId.toLowerCase() === selectedCategoryId.toLowerCase()) {
-                        renderAutoVariantPreview();
-                        return;
-                    }
-
+                    setCreateAttributeStatus('تغییر دسته ثبت شد', 'warning');
                     loadCreateAttributesForCategory(selectedCategoryId);
-                });
+                };
+
+                productCategoryField.addEventListener('change', handleCategoryChange);
+                productCategoryField.addEventListener('select2:select', handleCategoryChange);
+                productCategoryField.addEventListener('select2:clear', handleCategoryChange);
             }
 
             if (productUpsertForm) {
