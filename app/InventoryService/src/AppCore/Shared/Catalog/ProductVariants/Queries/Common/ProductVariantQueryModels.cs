@@ -46,6 +46,27 @@ public class VariantUomConversionViewItem
     public bool IsBasePath { get; set; }
 }
 
+public class VariantComponentViewItem
+{
+    public Guid VariantComponentBusinessKey { get; set; }
+    public Guid VariantRef { get; set; }
+    public Guid ComponentVariantRef { get; set; }
+    public decimal Quantity { get; set; }
+    public string ComponentSku { get; set; } = string.Empty;
+    public string? ComponentBarcode { get; set; }
+    public bool ComponentIsActive { get; set; }
+}
+
+public class VariantAddOnViewItem
+{
+    public Guid VariantAddOnBusinessKey { get; set; }
+    public Guid VariantRef { get; set; }
+    public Guid AddOnVariantRef { get; set; }
+    public string AddOnSku { get; set; } = string.Empty;
+    public string? AddOnBarcode { get; set; }
+    public bool AddOnIsActive { get; set; }
+}
+
 public class MissingRequiredVariantAttributeItem
 {
     public Guid AttributeRef { get; set; }
@@ -91,6 +112,8 @@ public class VariantFullDetailsItem
     public string CategoryCode { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;
     public List<VariantAttributeValueWithDefinitionItem> AttributeValues { get; set; } = new();
+    public List<VariantComponentViewItem> Components { get; set; } = new();
+    public List<VariantAddOnViewItem> AddOns { get; set; } = new();
 }
 
 public class VariantCatalogFormItem

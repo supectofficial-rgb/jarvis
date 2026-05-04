@@ -181,6 +181,8 @@ public sealed class ProductVariantDetailsModel
     public string? CategoryName { get; set; }
 
     public List<VariantAttributeValueModel> Attributes { get; set; } = new();
+    public List<VariantComponentModel> Components { get; set; } = new();
+    public List<VariantAddOnModel> AddOns { get; set; } = new();
 }
 
 public sealed class VariantUomConversionModel
@@ -204,6 +206,27 @@ public sealed class VariantAttributeValueModel
     public string? Value { get; set; }
     public string? OptionId { get; set; }
     public string? OptionValue { get; set; }
+}
+
+public sealed class VariantComponentModel
+{
+    public string ComponentId { get; set; } = string.Empty;
+    public string VariantId { get; set; } = string.Empty;
+    public string ComponentVariantId { get; set; } = string.Empty;
+    public string ComponentSku { get; set; } = string.Empty;
+    public string? ComponentBarcode { get; set; }
+    public bool ComponentIsActive { get; set; }
+    public decimal Quantity { get; set; }
+}
+
+public sealed class VariantAddOnModel
+{
+    public string AddOnId { get; set; } = string.Empty;
+    public string VariantId { get; set; } = string.Empty;
+    public string AddOnVariantId { get; set; } = string.Empty;
+    public string AddOnSku { get; set; } = string.Empty;
+    public string? AddOnBarcode { get; set; }
+    public bool AddOnIsActive { get; set; }
 }
 
 public sealed class StockDetailSearchResultModel
@@ -404,4 +427,15 @@ public sealed class UpsertVariantUomConversionRequest
     public decimal Factor { get; set; }
     public string RoundingMode { get; set; } = "None";
     public bool IsBasePath { get; set; }
+}
+
+public sealed class UpsertVariantComponentRequest
+{
+    public string ComponentVariantRef { get; set; } = string.Empty;
+    public decimal Quantity { get; set; }
+}
+
+public sealed class UpsertVariantAddOnRequest
+{
+    public string AddOnVariantRef { get; set; } = string.Empty;
 }

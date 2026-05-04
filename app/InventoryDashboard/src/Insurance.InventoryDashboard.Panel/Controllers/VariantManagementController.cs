@@ -18,7 +18,7 @@ public sealed class VariantManagementController : CatalogManagementController
     public IActionResult Index() => RedirectToAction(nameof(Variants));
 
     [HttpGet]
-    public new Task<IActionResult> Variants(
+    public new async Task<IActionResult> Variants(
         string? productId,
         string? variantId,
         string? categoryId,
@@ -32,7 +32,42 @@ public sealed class VariantManagementController : CatalogManagementController
         int page = 1,
         int pageSize = 10,
         CancellationToken cancellationToken = default)
-        => base.Variants(productId, variantId, categoryId, searchTerm, attributeOptionIds, trackingPolicy, statusFilter, attributeTypeFilter, sort, createNew, page, pageSize, cancellationToken);
+    {
+        var result = await base.Variants(productId, variantId, categoryId, searchTerm, attributeOptionIds, trackingPolicy, statusFilter, attributeTypeFilter, sort, createNew, page, pageSize, cancellationToken);
+        if (result is not ViewResult { Model: VariantManagementPageViewModel model } viewResult)
+        {
+            return result;
+        }
+
+        if (!TryGetToken(out var token))
+        {
+            return result;
+        }
+
+        var relatedVariantsResult = await _apiService.SearchProductVariantsAsync(token, isActive: true, pageSize: 2000);
+        var relatedVariants = (relatedVariantsResult.Data?.Items ?? new List<ProductVariantSummaryModel>())
+            .Where(x => !string.Equals(x.Id, model.SelectedVariantId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.Sku)
+            .ToList();
+
+        model.RelatedVariantLookup = relatedVariants;
+        model.VariantComponents = model.SelectedVariantDetails?.Components ?? new List<VariantComponentModel>();
+        model.VariantAddOns = model.SelectedVariantDetails?.AddOns ?? new List<VariantAddOnModel>();
+        model.VariantComponentForm = new VariantComponentForm
+        {
+            ProductId = model.SelectedProductId ?? string.Empty,
+            VariantId = model.SelectedVariantId ?? string.Empty,
+            Quantity = 1m
+        };
+        model.VariantAddOnForm = new VariantAddOnForm
+        {
+            ProductId = model.SelectedProductId ?? string.Empty,
+            VariantId = model.SelectedVariantId ?? string.Empty
+        };
+        model.ErrorMessage = string.Join(" | ", new[] { model.ErrorMessage, relatedVariantsResult.ErrorMessage }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        return viewResult;
+    }
 
     [HttpGet]
     public async Task<IActionResult> VariantStocks(string variantId)
@@ -164,4 +199,111 @@ public sealed class VariantManagementController : CatalogManagementController
     [ValidateAntiForgeryToken]
     public new Task<IActionResult> RemoveVariantUomConversion(string productId, string variantId, string fromUomRef, string toUomRef)
         => base.RemoveVariantUomConversion(productId, variantId, fromUomRef, toUomRef);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpsertVariantComponent([Bind(Prefix = "VariantComponentForm")] VariantComponentForm form)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+        }
+
+        var result = await _apiService.UpsertVariantComponentAsync(
+            form.VariantId,
+            new UpsertVariantComponentRequest
+            {
+                ComponentVariantRef = form.ComponentVariantId,
+                Quantity = form.Quantity
+            },
+            token);
+
+        if (!result.IsSuccess)
+        {
+            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت جزء واریانت انجام نشد.";
+        }
+        else
+        {
+            TempData["CatalogSuccess"] = "جزء/معادل واریانت با موفقیت ذخیره شد.";
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveVariantComponent(string productId, string variantId, string componentVariantId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var result = await _apiService.RemoveVariantComponentAsync(variantId, componentVariantId, token);
+        if (!result.IsSuccess)
+        {
+            TempData["CatalogError"] = result.ErrorMessage ?? "حذف جزء واریانت انجام نشد.";
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId, variantId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpsertVariantAddOn([Bind(Prefix = "VariantAddOnForm")] VariantAddOnForm form)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+        }
+
+        var result = await _apiService.UpsertVariantAddOnAsync(
+            form.VariantId,
+            new UpsertVariantAddOnRequest
+            {
+                AddOnVariantRef = form.AddOnVariantId
+            },
+            token);
+
+        if (!result.IsSuccess)
+        {
+            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت Add-on واریانت انجام نشد.";
+        }
+        else
+        {
+            TempData["CatalogSuccess"] = "Add-on واریانت با موفقیت ذخیره شد.";
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveVariantAddOn(string productId, string variantId, string addOnVariantId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var result = await _apiService.RemoveVariantAddOnAsync(variantId, addOnVariantId, token);
+        if (!result.IsSuccess)
+        {
+            TempData["CatalogError"] = result.ErrorMessage ?? "حذف Add-on واریانت انجام نشد.";
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId, variantId });
+    }
 }

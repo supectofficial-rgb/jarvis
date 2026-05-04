@@ -5,5 +5,6 @@ public enum InventorySourceType
     Receipt = 1,
     ReturnRestock = 2,
     AdjustmentIncrease = 3,
-    OpeningBalance = 4
+    OpeningBalance = 4,
+    ConversionProduction = 5
 }

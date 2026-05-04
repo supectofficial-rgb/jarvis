@@ -64,6 +64,8 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     public DbSet<ProductVariantReadModel> ProductVariants => Set<ProductVariantReadModel>();
     public DbSet<VariantAttributeValueReadModel> VariantAttributeValues => Set<VariantAttributeValueReadModel>();
     public DbSet<VariantUomConversionReadModel> VariantUomConversions => Set<VariantUomConversionReadModel>();
+    public DbSet<VariantComponentReadModel> VariantComponents => Set<VariantComponentReadModel>();
+    public DbSet<VariantAddOnReadModel> VariantAddOns => Set<VariantAddOnReadModel>();
     public DbSet<UnitOfMeasureReadModel> UnitOfMeasures => Set<UnitOfMeasureReadModel>();
     public DbSet<InventoryDocumentReadModel> InventoryDocuments => Set<InventoryDocumentReadModel>();
     public DbSet<InventoryDocumentLineReadModel> InventoryDocumentLines => Set<InventoryDocumentLineReadModel>();
@@ -103,6 +105,8 @@ public class InventoryServiceQueryDbContext : QueryDbContext
         modelBuilder.ApplyConfiguration(new ProductVariantReadModelConfig());
         modelBuilder.ApplyConfiguration(new VariantAttributeValueReadModelConfig());
         modelBuilder.ApplyConfiguration(new VariantUomConversionReadModelConfig());
+        modelBuilder.ApplyConfiguration(new VariantComponentReadModelConfig());
+        modelBuilder.ApplyConfiguration(new VariantAddOnReadModelConfig());
         modelBuilder.ApplyConfiguration(new UnitOfMeasureReadModelConfig());
         modelBuilder.ApplyConfiguration(new InventoryDocumentReadModelConfig());
         modelBuilder.ApplyConfiguration(new InventoryDocumentLineReadModelConfig());

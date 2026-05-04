@@ -7,5 +7,6 @@ public enum InventoryDocumentType
     Transfer = 3,
     Adjustment = 4,
     Return = 5,
-    QualityChange = 6
+    QualityChange = 6,
+    Conversion = 7
 }

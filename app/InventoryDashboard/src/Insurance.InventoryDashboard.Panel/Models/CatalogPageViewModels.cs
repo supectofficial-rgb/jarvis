@@ -107,12 +107,15 @@ public sealed class VariantManagementPageViewModel
     public ProductVariantDetailsModel? SelectedVariantDetails { get; set; }
     public IReadOnlyList<UnitOfMeasureLookupModel> UnitOfMeasures { get; set; } = Array.Empty<UnitOfMeasureLookupModel>();
     public IReadOnlyList<VariantUomConversionModel> VariantUomConversions { get; set; } = Array.Empty<VariantUomConversionModel>();
+    public IReadOnlyList<VariantComponentModel> VariantComponents { get; set; } = Array.Empty<VariantComponentModel>();
+    public IReadOnlyList<VariantAddOnModel> VariantAddOns { get; set; } = Array.Empty<VariantAddOnModel>();
     public IReadOnlyList<StockDetailListItemModel> VariantStockDetails { get; set; } = Array.Empty<StockDetailListItemModel>();
     public IReadOnlyList<InventoryTransactionListItemModel> VariantInventoryTransactions { get; set; } = Array.Empty<InventoryTransactionListItemModel>();
     public IReadOnlyList<WarehouseLookupItemModel> WarehouseLookup { get; set; } = Array.Empty<WarehouseLookupItemModel>();
     public IReadOnlyList<SellerLookupItemModel> SellerLookup { get; set; } = Array.Empty<SellerLookupItemModel>();
     public IReadOnlyList<LocationLookupItemModel> LocationLookup { get; set; } = Array.Empty<LocationLookupItemModel>();
     public IReadOnlyList<QualityStatusLookupItemModel> QualityStatusLookup { get; set; } = Array.Empty<QualityStatusLookupItemModel>();
+    public IReadOnlyList<ProductVariantSummaryModel> RelatedVariantLookup { get; set; } = Array.Empty<ProductVariantSummaryModel>();
     public decimal VariantStockTotalQuantity => VariantStockDetails.Sum(x => x.QuantityOnHand);
     public int VariantStockBucketCount => VariantStockDetails.Count;
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
@@ -139,6 +142,8 @@ public sealed class VariantManagementPageViewModel
     public VariantUpsertForm VariantForm { get; set; } = new();
     public VariantAttributeValueForm VariantAttributeForm { get; set; } = new();
     public VariantUomConversionForm VariantUomConversionForm { get; set; } = new();
+    public VariantComponentForm VariantComponentForm { get; set; } = new();
+    public VariantAddOnForm VariantAddOnForm { get; set; } = new();
 }
 
 public sealed class CategoryAttributeGroupViewModel
@@ -467,4 +472,31 @@ public sealed class VariantUomConversionForm
     public string RoundingMode { get; set; } = "None";
 
     public bool IsBasePath { get; set; }
+}
+
+public sealed class VariantComponentForm
+{
+    [Required]
+    public string ProductId { get; set; } = string.Empty;
+
+    [Required]
+    public string VariantId { get; set; } = string.Empty;
+
+    [Required]
+    public string ComponentVariantId { get; set; } = string.Empty;
+
+    [Range(0.000001, double.MaxValue, ErrorMessage = "تعداد باید بزرگ‌تر از صفر باشد.")]
+    public decimal Quantity { get; set; } = 1m;
+}
+
+public sealed class VariantAddOnForm
+{
+    [Required]
+    public string ProductId { get; set; } = string.Empty;
+
+    [Required]
+    public string VariantId { get; set; } = string.Empty;
+
+    [Required]
+    public string AddOnVariantId { get; set; } = string.Empty;
 }

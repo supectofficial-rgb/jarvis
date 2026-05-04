@@ -54,6 +54,9 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             })
             .ToListAsync();
 
+        var components = await GetComponentsByVariantIdAsync(productVariantBusinessKey);
+        var addOns = await GetAddOnsByVariantIdAsync(productVariantBusinessKey);
+
         return new GetProductVariantByBusinessKeyQueryResult
         {
             ProductVariantBusinessKey = aggregate.BusinessKey,
@@ -65,7 +68,9 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             IsActive = aggregate.IsActive,
             InventoryMovementLocked = aggregate.InventoryMovementLocked,
             AttributeValues = attributes,
-            UomConversions = conversions
+            UomConversions = conversions,
+            Components = components,
+            AddOns = addOns
         };
     }
 
@@ -284,7 +289,9 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             CategoryBusinessKey = context.CategoryBusinessKey,
             CategoryCode = context.CategoryCode,
             CategoryName = context.CategoryName,
-            AttributeValues = attrs
+            AttributeValues = attrs,
+            Components = await GetComponentsByVariantIdAsync(variantId),
+            AddOns = await GetAddOnsByVariantIdAsync(variantId)
         };
     }
 
@@ -365,6 +372,43 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             .FirstOrDefaultAsync(x => x.VariantRef == variantId && x.FromUomRef == fromUomRef && x.ToUomRef == toUomRef);
 
         return conversion is null ? null : ToVariantUomConversionItem(conversion);
+    }
+
+    public async Task<List<VariantComponentViewItem>> GetComponentsByVariantIdAsync(Guid variantId)
+    {
+        return await (
+            from component in _dbContext.Set<VariantComponentReadModel>()
+            join variant in _dbContext.Set<ProductVariantReadModel>() on component.ComponentVariantRef equals variant.BusinessKey
+            where component.VariantRef == variantId
+            orderby variant.VariantSku
+            select new VariantComponentViewItem
+            {
+                VariantComponentBusinessKey = component.BusinessKey,
+                VariantRef = component.VariantRef,
+                ComponentVariantRef = component.ComponentVariantRef,
+                Quantity = component.Quantity,
+                ComponentSku = variant.VariantSku,
+                ComponentBarcode = variant.Barcode,
+                ComponentIsActive = variant.IsActive
+            }).ToListAsync();
+    }
+
+    public async Task<List<VariantAddOnViewItem>> GetAddOnsByVariantIdAsync(Guid variantId)
+    {
+        return await (
+            from addOn in _dbContext.Set<VariantAddOnReadModel>()
+            join variant in _dbContext.Set<ProductVariantReadModel>() on addOn.AddOnVariantRef equals variant.BusinessKey
+            where addOn.VariantRef == variantId
+            orderby variant.VariantSku
+            select new VariantAddOnViewItem
+            {
+                VariantAddOnBusinessKey = addOn.BusinessKey,
+                VariantRef = addOn.VariantRef,
+                AddOnVariantRef = addOn.AddOnVariantRef,
+                AddOnSku = variant.VariantSku,
+                AddOnBarcode = variant.Barcode,
+                AddOnIsActive = variant.IsActive
+            }).ToListAsync();
     }
 
     public async Task<List<MissingRequiredVariantAttributeItem>> GetMissingRequiredAttributesAsync(Guid variantId)

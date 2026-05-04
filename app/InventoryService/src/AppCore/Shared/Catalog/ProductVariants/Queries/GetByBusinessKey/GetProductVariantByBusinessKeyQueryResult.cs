@@ -1,5 +1,7 @@
 namespace Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetByBusinessKey;
 
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.Common;
+
 public class GetProductVariantByBusinessKeyQueryResult
 {
     public Guid ProductVariantBusinessKey { get; set; }
@@ -12,6 +14,8 @@ public class GetProductVariantByBusinessKeyQueryResult
     public bool InventoryMovementLocked { get; set; }
     public List<VariantAttributeValueResultItem> AttributeValues { get; set; } = new();
     public List<VariantUomConversionResultItem> UomConversions { get; set; } = new();
+    public List<VariantComponentViewItem> Components { get; set; } = new();
+    public List<VariantAddOnViewItem> AddOns { get; set; } = new();
 }
 
 public class VariantAttributeValueResultItem

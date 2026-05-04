@@ -18,6 +18,8 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
         return _dbContext.Set<ProductVariant>()
             .Include(x => x.AttributeValues)
             .Include(x => x.UomConversions)
+            .Include(x => x.Components)
+            .Include(x => x.AddOns)
             .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey));
     }
 
@@ -86,5 +88,19 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
             query = query.Where(x => x.IsActive);
 
         return query.AnyAsync(x => x.AttributeValues.Any(v => v.OptionRef == optionRef));
+    }
+
+    public Task<bool> ExistsByBusinessKeyAsync(Guid productVariantBusinessKey, bool onlyActive = false)
+    {
+        if (productVariantBusinessKey == Guid.Empty)
+            return Task.FromResult(false);
+
+        var query = _dbContext.Set<ProductVariant>()
+            .Where(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey));
+
+        if (onlyActive)
+            query = query.Where(x => x.IsActive);
+
+        return query.AnyAsync();
     }
 }

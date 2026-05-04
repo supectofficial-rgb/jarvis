@@ -128,6 +128,7 @@ public class PostInventoryDocumentCommandHandler
             InventoryDocumentType.Adjustment => InventoryTransactionType.Adjustment,
             InventoryDocumentType.Return => InventoryTransactionType.Return,
             InventoryDocumentType.QualityChange => InventoryTransactionType.QualityChange,
+            InventoryDocumentType.Conversion => InventoryTransactionType.Conversion,
             _ => InventoryTransactionType.Adjustment
         };
     }
@@ -229,12 +230,13 @@ public class PostInventoryDocumentCommandHandler
             InventoryDocumentType.Receipt => InventorySourceType.Receipt,
             InventoryDocumentType.Return => InventorySourceType.ReturnRestock,
             InventoryDocumentType.Adjustment => InventorySourceType.AdjustmentIncrease,
+            InventoryDocumentType.Conversion => InventorySourceType.ConversionProduction,
             _ => null
         };
     }
 
     private static bool ShouldConsumeSource(InventoryDocumentType documentType)
-        => documentType is InventoryDocumentType.Issue or InventoryDocumentType.Adjustment;
+        => documentType is InventoryDocumentType.Issue or InventoryDocumentType.Adjustment or InventoryDocumentType.Conversion;
 
     private static IEnumerable<InventoryDocumentPostingEffect> BuildEffects(InventoryDocument document)
     {
@@ -348,6 +350,40 @@ public class PostInventoryDocumentCommandHandler
                             newQualityStatusRef: line.ToQualityStatusRef,
                             lotBatchNo: line.LotBatchNo,
                             reasonCode: line.ReasonCode));
+                    break;
+
+                case InventoryDocumentType.Conversion:
+                    if (line.SourceLocationRef.HasValue)
+                    {
+                        yield return CreateEffect(
+                            line,
+                            InventoryTransactionLine.Create(
+                                line.VariantRef,
+                                line.Qty,
+                                line.UomRef,
+                                -line.BaseQty,
+                                line.BaseUomRef,
+                                sourceLocationRef: line.SourceLocationRef,
+                                oldQualityStatusRef: line.QualityStatusRef,
+                                lotBatchNo: line.LotBatchNo,
+                                reasonCode: line.ReasonCode));
+                    }
+
+                    if (line.DestinationLocationRef.HasValue)
+                    {
+                        yield return CreateEffect(
+                            line,
+                            InventoryTransactionLine.Create(
+                                line.VariantRef,
+                                line.Qty,
+                                line.UomRef,
+                                line.BaseQty,
+                                line.BaseUomRef,
+                                destinationLocationRef: line.DestinationLocationRef,
+                                newQualityStatusRef: line.QualityStatusRef,
+                                lotBatchNo: line.LotBatchNo,
+                                reasonCode: line.ReasonCode));
+                    }
                     break;
             }
         }

@@ -63,6 +63,12 @@ public interface ICatalogApiService
     Task<ApiResponse<List<VariantAttributeValueModel>>> GetVariantAttributeValuesByVariantIdAsync(string variantId, string token);
     Task<ApiResponse<bool>> UpsertVariantUomConversionAsync(string variantId, UpsertVariantUomConversionRequest request, string token);
     Task<ApiResponse<bool>> RemoveVariantUomConversionAsync(string variantId, string fromUomRef, string toUomRef, string token);
+    Task<ApiResponse<bool>> UpsertVariantComponentAsync(string variantId, UpsertVariantComponentRequest request, string token);
+    Task<ApiResponse<bool>> RemoveVariantComponentAsync(string variantId, string componentVariantId, string token);
+    Task<ApiResponse<List<VariantComponentModel>>> GetVariantComponentsByVariantIdAsync(string variantId, string token);
+    Task<ApiResponse<bool>> UpsertVariantAddOnAsync(string variantId, UpsertVariantAddOnRequest request, string token);
+    Task<ApiResponse<bool>> RemoveVariantAddOnAsync(string variantId, string addOnVariantId, string token);
+    Task<ApiResponse<List<VariantAddOnModel>>> GetVariantAddOnsByVariantIdAsync(string variantId, string token);
     Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(string productId, string token, bool includeInactive = true);
     Task<ApiResponse<ProductVariantSearchResultModel>> SearchProductVariantsAsync(string token, string? searchTerm = null, string? productId = null, string? categoryId = null, string? attributeOptionIds = null, bool? isActive = null, int page = 1, int pageSize = 10);
     Task<ApiResponse<ProductVariantDetailsModel>> GetProductVariantFullDetailsAsync(string variantId, string token);

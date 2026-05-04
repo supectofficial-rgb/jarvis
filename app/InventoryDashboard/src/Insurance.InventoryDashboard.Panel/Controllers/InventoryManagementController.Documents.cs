@@ -346,6 +346,21 @@ public sealed partial class InventoryManagementController
                         return "در سند تغییر کیفیت، وضعیت کیفیت مبدا و مقصد باید متفاوت باشند.";
                     }
                     break;
+
+                case "Conversion":
+                    var hasSource = !string.IsNullOrWhiteSpace(line.SourceLocationRef);
+                    var hasDestination = !string.IsNullOrWhiteSpace(line.DestinationLocationRef);
+
+                    if (hasSource == hasDestination)
+                    {
+                        return "در سند تبدیل، هر ردیف باید یا خروجی باشد یا ورودی.";
+                    }
+
+                    if (string.IsNullOrWhiteSpace(line.QualityStatusRef))
+                    {
+                        return "در سند تبدیل، وضعیت کیفیت ردیف الزامی است.";
+                    }
+                    break;
             }
         }
 

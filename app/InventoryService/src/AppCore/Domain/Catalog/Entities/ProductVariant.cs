@@ -8,6 +8,8 @@ public sealed class ProductVariant : AggregateRoot
 {
     private readonly List<VariantAttributeValue> _attributeValues = new();
     private readonly List<VariantUomConversion> _uomConversions = new();
+    private readonly List<VariantComponent> _components = new();
+    private readonly List<VariantAddOn> _addOns = new();
 
     public Guid ProductRef { get; private set; }
     public string VariantSku { get; private set; } = string.Empty;
@@ -18,6 +20,8 @@ public sealed class ProductVariant : AggregateRoot
     public bool InventoryMovementLocked { get; private set; }
     public IReadOnlyCollection<VariantAttributeValue> AttributeValues => _attributeValues.AsReadOnly();
     public IReadOnlyCollection<VariantUomConversion> UomConversions => _uomConversions.AsReadOnly();
+    public IReadOnlyCollection<VariantComponent> Components => _components.AsReadOnly();
+    public IReadOnlyCollection<VariantAddOn> AddOns => _addOns.AsReadOnly();
 
     private ProductVariant()
     {
@@ -145,6 +149,51 @@ public sealed class ProductVariant : AggregateRoot
             return;
 
         Apply(new ProductVariantUomConversionRemovedEvent(BusinessKey, fromUomRef, toUomRef));
+    }
+
+    public VariantComponent AddOrUpdateComponent(Guid componentVariantRef, decimal quantity)
+    {
+        if (componentVariantRef == Guid.Empty)
+            throw new ArgumentException("ComponentVariantRef is required.", nameof(componentVariantRef));
+
+        if (componentVariantRef == BusinessKey.Value)
+            throw new ArgumentException("Variant cannot reference itself as a component.", nameof(componentVariantRef));
+
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
+
+        Apply(new ProductVariantComponentUpsertedEvent(BusinessKey, componentVariantRef, quantity));
+        return _components.First(x => x.ComponentVariantRef == componentVariantRef);
+    }
+
+    public void RemoveComponent(Guid componentVariantRef)
+    {
+        var existing = _components.FirstOrDefault(x => x.ComponentVariantRef == componentVariantRef);
+        if (existing is null)
+            return;
+
+        Apply(new ProductVariantComponentRemovedEvent(BusinessKey, componentVariantRef));
+    }
+
+    public VariantAddOn AddOrUpdateAddOn(Guid addOnVariantRef)
+    {
+        if (addOnVariantRef == Guid.Empty)
+            throw new ArgumentException("AddOnVariantRef is required.", nameof(addOnVariantRef));
+
+        if (addOnVariantRef == BusinessKey.Value)
+            throw new ArgumentException("Variant cannot reference itself as an add-on.", nameof(addOnVariantRef));
+
+        Apply(new ProductVariantAddOnUpsertedEvent(BusinessKey, addOnVariantRef));
+        return _addOns.First(x => x.AddOnVariantRef == addOnVariantRef);
+    }
+
+    public void RemoveAddOn(Guid addOnVariantRef)
+    {
+        var existing = _addOns.FirstOrDefault(x => x.AddOnVariantRef == addOnVariantRef);
+        if (existing is null)
+            return;
+
+        Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, addOnVariantRef));
     }
 
     private void EnsureInventoryControlledFieldsAreMutable()
@@ -282,6 +331,45 @@ public sealed class ProductVariant : AggregateRoot
             return;
 
         _uomConversions.Remove(existing);
+    }
+
+    private void On(ProductVariantComponentUpsertedEvent @event)
+    {
+        var existing = _components.FirstOrDefault(x => x.ComponentVariantRef == @event.ComponentVariantRef);
+        if (existing is null)
+        {
+            _components.Add(VariantComponent.Create(BusinessKey.Value, @event.ComponentVariantRef, @event.Quantity));
+            return;
+        }
+
+        existing.Update(@event.Quantity);
+    }
+
+    private void On(ProductVariantComponentRemovedEvent @event)
+    {
+        var existing = _components.FirstOrDefault(x => x.ComponentVariantRef == @event.ComponentVariantRef);
+        if (existing is null)
+            return;
+
+        _components.Remove(existing);
+    }
+
+    private void On(ProductVariantAddOnUpsertedEvent @event)
+    {
+        var existing = _addOns.FirstOrDefault(x => x.AddOnVariantRef == @event.AddOnVariantRef);
+        if (existing is not null)
+            return;
+
+        _addOns.Add(VariantAddOn.Create(BusinessKey.Value, @event.AddOnVariantRef));
+    }
+
+    private void On(ProductVariantAddOnRemovedEvent @event)
+    {
+        var existing = _addOns.FirstOrDefault(x => x.AddOnVariantRef == @event.AddOnVariantRef);
+        if (existing is null)
+            return;
+
+        _addOns.Remove(existing);
     }
 
     private void SyncAttributeValues(IReadOnlyCollection<ProductVariantAttributeValueSnapshot> values)

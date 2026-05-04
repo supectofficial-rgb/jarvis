@@ -185,6 +185,15 @@ public sealed class InventoryDocument : AggregateRoot
                 if (line.FromQualityStatusRef == line.ToQualityStatusRef)
                     throw new AggregateStateExceptions("Quality statuses must differ in quality change document.", nameof(line.ToQualityStatusRef));
                 break;
+
+            case InventoryDocumentType.Conversion:
+                var hasSource = line.SourceLocationRef.HasValue;
+                var hasDestination = line.DestinationLocationRef.HasValue;
+                if (hasSource == hasDestination)
+                    throw new AggregateStateExceptions("Conversion line must be either outbound or inbound.", nameof(line.SourceLocationRef));
+                if (!line.QualityStatusRef.HasValue)
+                    throw new AggregateStateExceptions("Quality status is required for conversion document.", nameof(line.QualityStatusRef));
+                break;
         }
     }
 

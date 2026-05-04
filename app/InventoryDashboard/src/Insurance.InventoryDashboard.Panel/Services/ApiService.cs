@@ -826,6 +826,98 @@ public sealed class ApiService : IApiService
         return DeleteCommandAsync(route, token, "Removing variant UOM conversion failed.");
     }
 
+    public Task<ApiResponse<bool>> UpsertVariantComponentAsync(string variantId, UpsertVariantComponentRequest request, string token)
+    {
+        var payload = new
+        {
+            ComponentVariantRef = ParseGuidOrEmpty(request.ComponentVariantRef),
+            Quantity = request.Quantity
+        };
+
+        return PutCommandAsync(
+            $"{InventoryApiPrefix}/ProductVariant/{variantId}/components",
+            payload,
+            token,
+            "Saving variant component failed.");
+    }
+
+    public Task<ApiResponse<bool>> RemoveVariantComponentAsync(string variantId, string componentVariantId, string token)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/ProductVariant/{variantId}/components",
+            ("componentVariantRef", componentVariantId));
+
+        return DeleteCommandAsync(route, token, "Removing variant component failed.");
+    }
+
+    public async Task<ApiResponse<List<VariantComponentModel>>> GetVariantComponentsByVariantIdAsync(string variantId, string token)
+    {
+        var route = $"{InventoryApiPrefix}/ProductVariant/{variantId}/components";
+        var result = await GetQueryAsync<VariantComponentsQueryResultDto>(route, token, "Loading variant components failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<VariantComponentModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        var mapped = result.Data?.Items.Select(item => new VariantComponentModel
+        {
+            ComponentId = item.VariantComponentBusinessKey.ToString("D"),
+            VariantId = item.VariantRef.ToString("D"),
+            ComponentVariantId = item.ComponentVariantRef.ToString("D"),
+            ComponentSku = item.ComponentSku,
+            ComponentBarcode = item.ComponentBarcode,
+            ComponentIsActive = item.ComponentIsActive,
+            Quantity = item.Quantity
+        }).ToList() ?? new List<VariantComponentModel>();
+
+        return new ApiResponse<List<VariantComponentModel>> { IsSuccess = true, Data = mapped };
+    }
+
+    public Task<ApiResponse<bool>> UpsertVariantAddOnAsync(string variantId, UpsertVariantAddOnRequest request, string token)
+    {
+        var payload = new
+        {
+            AddOnVariantRef = ParseGuidOrEmpty(request.AddOnVariantRef)
+        };
+
+        return PutCommandAsync(
+            $"{InventoryApiPrefix}/ProductVariant/{variantId}/addons",
+            payload,
+            token,
+            "Saving variant add-on failed.");
+    }
+
+    public Task<ApiResponse<bool>> RemoveVariantAddOnAsync(string variantId, string addOnVariantId, string token)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/ProductVariant/{variantId}/addons",
+            ("addOnVariantRef", addOnVariantId));
+
+        return DeleteCommandAsync(route, token, "Removing variant add-on failed.");
+    }
+
+    public async Task<ApiResponse<List<VariantAddOnModel>>> GetVariantAddOnsByVariantIdAsync(string variantId, string token)
+    {
+        var route = $"{InventoryApiPrefix}/ProductVariant/{variantId}/addons";
+        var result = await GetQueryAsync<VariantAddOnsQueryResultDto>(route, token, "Loading variant add-ons failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<VariantAddOnModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        var mapped = result.Data?.Items.Select(item => new VariantAddOnModel
+        {
+            AddOnId = item.VariantAddOnBusinessKey.ToString("D"),
+            VariantId = item.VariantRef.ToString("D"),
+            AddOnVariantId = item.AddOnVariantRef.ToString("D"),
+            AddOnSku = item.AddOnSku,
+            AddOnBarcode = item.AddOnBarcode,
+            AddOnIsActive = item.AddOnIsActive
+        }).ToList() ?? new List<VariantAddOnModel>();
+
+        return new ApiResponse<List<VariantAddOnModel>> { IsSuccess = true, Data = mapped };
+    }
+
     public async Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(
         string productId,
         string token,
@@ -925,6 +1017,25 @@ public sealed class ApiService : IApiService
                 Value = attribute.Value,
                 OptionId = attribute.OptionRef?.ToString("D"),
                 OptionValue = attribute.OptionValue
+            }).ToList(),
+            Components = item.Components.Select(component => new VariantComponentModel
+            {
+                ComponentId = component.VariantComponentBusinessKey.ToString("D"),
+                VariantId = component.VariantRef.ToString("D"),
+                ComponentVariantId = component.ComponentVariantRef.ToString("D"),
+                ComponentSku = component.ComponentSku,
+                ComponentBarcode = component.ComponentBarcode,
+                ComponentIsActive = component.ComponentIsActive,
+                Quantity = component.Quantity
+            }).ToList(),
+            AddOns = item.AddOns.Select(addOn => new VariantAddOnModel
+            {
+                AddOnId = addOn.VariantAddOnBusinessKey.ToString("D"),
+                VariantId = addOn.VariantRef.ToString("D"),
+                AddOnVariantId = addOn.AddOnVariantRef.ToString("D"),
+                AddOnSku = addOn.AddOnSku,
+                AddOnBarcode = addOn.AddOnBarcode,
+                AddOnIsActive = addOn.AddOnIsActive
             }).ToList()
         };
 
@@ -2307,6 +2418,16 @@ public sealed class ApiService : IApiService
         public List<VariantUomConversionItemDto> Items { get; set; } = new();
     }
 
+    private sealed class VariantComponentsQueryResultDto
+    {
+        public List<VariantComponentItemDto> Items { get; set; } = new();
+    }
+
+    private sealed class VariantAddOnsQueryResultDto
+    {
+        public List<VariantAddOnItemDto> Items { get; set; } = new();
+    }
+
     private sealed class VariantFullDetailsItemDto
     {
         public VariantListItemDto Variant { get; set; } = new();
@@ -2316,6 +2437,8 @@ public sealed class ApiService : IApiService
         public Guid CategoryBusinessKey { get; set; }
         public string CategoryName { get; set; } = string.Empty;
         public List<VariantAttributeValueWithDefinitionDto> AttributeValues { get; set; } = new();
+        public List<VariantComponentItemDto> Components { get; set; } = new();
+        public List<VariantAddOnItemDto> AddOns { get; set; } = new();
     }
 
     private sealed class VariantAttributeValueWithDefinitionDto
@@ -2339,6 +2462,27 @@ public sealed class ApiService : IApiService
         public decimal Factor { get; set; }
         public string RoundingMode { get; set; } = string.Empty;
         public bool IsBasePath { get; set; }
+    }
+
+    private sealed class VariantComponentItemDto
+    {
+        public Guid VariantComponentBusinessKey { get; set; }
+        public Guid VariantRef { get; set; }
+        public Guid ComponentVariantRef { get; set; }
+        public decimal Quantity { get; set; }
+        public string ComponentSku { get; set; } = string.Empty;
+        public string? ComponentBarcode { get; set; }
+        public bool ComponentIsActive { get; set; }
+    }
+
+    private sealed class VariantAddOnItemDto
+    {
+        public Guid VariantAddOnBusinessKey { get; set; }
+        public Guid VariantRef { get; set; }
+        public Guid AddOnVariantRef { get; set; }
+        public string AddOnSku { get; set; } = string.Empty;
+        public string? AddOnBarcode { get; set; }
+        public bool AddOnIsActive { get; set; }
     }
 
     private sealed class WarehouseLookupQueryResultDto

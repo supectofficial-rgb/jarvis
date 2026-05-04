@@ -8,5 +8,6 @@ public enum InventoryTransactionType
     Adjustment = 4,
     Return = 5,
     QualityChange = 6,
-    ReserveConsume = 7
+    ReserveConsume = 7,
+    Conversion = 8
 }

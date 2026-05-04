@@ -1060,6 +1060,135 @@
                     </div>
                 </div>
             </div>
+
+            <div class="col-12 mb-4">
+                <div class="card mb-4" id="variant-components-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Ù„ÛŒØ³Øª Ù…Ø¹Ø§Ø¯Ù„ / Ø³Ø§Ø²Ù†Ø¯Ù‡</h5>
+                        @if (hasSelectedProduct && hasSelectedVariant)
+                        {
+                            <p class="text-muted small">Ø§ÛŒÙ† Ù„ÛŒØ³Øª Ù…Ø´Ø®Øµ Ù…ÛŒâ€ŒÚ©Ù†Ø¯ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø§Ø² Ú†Ù‡ ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ÛŒ Ù‚Ø§Ø¨Ù„ ÙØ±ÙˆØ´ Ø¯ÛŒÚ¯Ø±ÛŒ Ùˆ Ø¨Ø§ Ú†Ù‡ ØªØ¹Ø¯Ø§Ø¯ÛŒ Ø³Ø§Ø®ØªÙ‡ Ù…ÛŒâ€ŒØ´ÙˆØ¯.</p>
+                            <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" class="mb-4" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                                <div class="form-row">
+                                    <div class="col-md-8 mb-2">
+                                        <label>ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø³Ø§Ø²Ù†Ø¯Ù‡</label>
+                                        <select asp-for="VariantComponentForm.ComponentVariantId" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª">
+                                            <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª</option>
+                                            @foreach (var variant in Model.RelatedVariantLookup)
+                                            {
+                                                <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label>ØªØ¹Ø¯Ø§Ø¯</label>
+                                        <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
+                                    </div>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Ø°Ø®ÛŒØ±Ù‡ Ø¬Ø²Ø¡</button>
+                            </form>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead><tr><th>SKU</th><th>Ø¨Ø§Ø±Ú©Ø¯</th><th>ØªØ¹Ø¯Ø§Ø¯</th><th></th></tr></thead>
+                                    <tbody>
+                                        @if (Model.VariantComponents.Count == 0)
+                                        {
+                                            <tr><td colspan="4" class="text-muted">Ø¬Ø²Ø¦ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</td></tr>
+                                        }
+                                        else
+                                        {
+                                            foreach (var component in Model.VariantComponents)
+                                            {
+                                                <tr>
+                                                    <td class="text-monospace">@component.ComponentSku</td>
+                                                    <td>@(string.IsNullOrWhiteSpace(component.ComponentBarcode) ? "-" : component.ComponentBarcode)</td>
+                                                    <td>@component.Quantity</td>
+                                                    <td>
+                                                        <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-loading-form>
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                            <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                                            <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
+                                                            <button type="submit" class="btn btn-outline-danger btn-xs">Ø­Ø°Ù</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-light mb-0"><h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6><p class="mb-0 text-muted">Ø§Ø¨ØªØ¯Ø§ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p></div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-4" id="variant-addons-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Ù„ÛŒØ³Øª Add-on</h5>
+                        @if (hasSelectedProduct && hasSelectedVariant)
+                        {
+                            <p class="text-muted small">ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ÛŒÛŒ Ú©Ù‡ Ú©Ø§Ø±Ø¨Ø± Ù…ÛŒâ€ŒØªÙˆØ§Ù†Ø¯ Ø¨Ù‡ ØµÙˆØ±Øª Add-on Ø¨Ù‡ Ù‡Ù…Ø±Ø§Ù‡ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†Ø¯.</p>
+                            <form asp-action="UpsertVariantAddOn" method="post" id="variant-addon-form" class="mb-4" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <input asp-for="VariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                <input asp-for="VariantAddOnForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                                <div class="form-group">
+                                    <label>ÙˆØ§Ø±ÛŒØ§Ù†Øª Add-on</label>
+                                    <select asp-for="VariantAddOnForm.AddOnVariantId" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Add-on">
+                                        <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª</option>
+                                        @foreach (var variant in Model.RelatedVariantLookup)
+                                        {
+                                            <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
+                                        }
+                                    </select>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Ø°Ø®ÛŒØ±Ù‡ Add-on</button>
+                            </form>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead><tr><th>SKU</th><th>Ø¨Ø§Ø±Ú©Ø¯</th><th></th></tr></thead>
+                                    <tbody>
+                                        @if (Model.VariantAddOns.Count == 0)
+                                        {
+                                            <tr><td colspan="3" class="text-muted">Add-onÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</td></tr>
+                                        }
+                                        else
+                                        {
+                                            foreach (var addOn in Model.VariantAddOns)
+                                            {
+                                                <tr>
+                                                    <td class="text-monospace">@addOn.AddOnSku</td>
+                                                    <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
+                                                    <td>
+                                                        <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-loading-form>
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                            <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                                            <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
+                                                            <button type="submit" class="btn btn-outline-danger btn-xs">Ø­Ø°Ù</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-light mb-0"><h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6><p class="mb-0 text-muted">Ø§Ø¨ØªØ¯Ø§ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p></div>
+                        }
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </main>
@@ -1101,7 +1230,9 @@
                 'variant-upsert-form',
                 'variant-tracking-policy-form',
                 'variant-base-uom-form',
-                'variant-uom-conversion-form'
+                'variant-uom-conversion-form',
+                'variant-component-form',
+                'variant-addon-form'
             ];
             var watchedForms = watchedFormIds
                 .map(function (formId) { return document.getElementById(formId); })

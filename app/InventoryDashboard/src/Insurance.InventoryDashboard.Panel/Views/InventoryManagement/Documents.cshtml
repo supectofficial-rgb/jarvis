@@ -52,6 +52,7 @@
         "Adjustment" => "تعدیل",
         "Return" => "برگشت",
         "QualityChange" => "تغییر کیفیت",
+        "Conversion" => "تبدیل",
         _ => type ?? "-"
     };
 
@@ -197,6 +198,7 @@
                                         <option value="Adjustment">تعدیل</option>
                                         <option value="Return">برگشت</option>
                                         <option value="QualityChange">تغییر کیفیت</option>
+                                        <option value="Conversion">تبدیل</option>
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2">
@@ -380,6 +382,7 @@
                                     <option value="Adjustment" selected="@(Model.DocumentTypeFilter == "Adjustment" ? "selected" : null)">تعدیل</option>
                                     <option value="Return" selected="@(Model.DocumentTypeFilter == "Return" ? "selected" : null)">برگشت</option>
                                     <option value="QualityChange" selected="@(Model.DocumentTypeFilter == "QualityChange" ? "selected" : null)">تغییر کیفیت</option>
+                                    <option value="Conversion" selected="@(Model.DocumentTypeFilter == "Conversion" ? "selected" : null)">تبدیل</option>
                                 </select>
                             </div>
                             <div class="form-group col-md-2">
@@ -726,6 +729,17 @@
                     qualityChange: true,
                     adjustment: false,
                     lineReason: false
+                },
+                Conversion: {
+                    title: 'سند تبدیل',
+                    text: 'برای مصرف اجزای سازنده و تولید کالای نهایی استفاده می‌شود. در هر ردیف فقط یکی از مبدا یا مقصد را پر کنید.',
+                    source: true,
+                    destination: true,
+                    quality: true,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false,
+                    exclusiveFlow: true
                 }
             };
 
@@ -800,12 +814,12 @@
                     line.querySelectorAll('.line-from-quality, .line-to-quality').forEach(function (el) { el.style.display = config.qualityChange ? '' : 'none'; });
                     line.querySelectorAll('.line-reason').forEach(function (el) { el.style.display = config.lineReason ? '' : 'none'; });
 
-                    setRequired(['.source-location-select'], config.source, line);
-                    setRequired(['.destination-location-select'], config.destination, line);
+                    setRequired(['.source-location-select'], config.source && !config.exclusiveFlow, line);
+                    setRequired(['.destination-location-select'], config.destination && !config.exclusiveFlow, line);
                     setRequired(['.line-adjustment select'], config.adjustment, line);
                     setRequired(['.line-reason input'], config.lineReason, line);
                     setRequired(['.line-from-quality select', '.line-to-quality select'], config.qualityChange, line);
-                    setRequired(['.line-quality select'], false, line);
+                    setRequired(['.line-quality select'], !!config.quality && !config.qualityChange, line);
                 });
             }
 
@@ -932,19 +946,35 @@
                         return false;
                     }
 
-                    if (config.source && (!source || !source.value)) {
+                    if (config.source && !config.exclusiveFlow && (!source || !source.value)) {
                         showValidation(lineTitle + ': لوکیشن مبدا الزامی است.', source);
                         return false;
                     }
 
-                    if (config.destination && (!destination || !destination.value)) {
+                    if (config.destination && !config.exclusiveFlow && (!destination || !destination.value)) {
                         showValidation(lineTitle + ': لوکیشن مقصد الزامی است.', destination);
                         return false;
                     }
 
-                    if (config.source && config.destination && source && destination && source.value && source.value === destination.value) {
+                    if (!config.exclusiveFlow && config.source && config.destination && source && destination && source.value && source.value === destination.value) {
                         showValidation(lineTitle + ': لوکیشن مبدا و مقصد باید متفاوت باشند.', destination);
                         return false;
+                    }
+
+                    if (config.exclusiveFlow) {
+                        var hasSource = !!(source && source.value);
+                        var hasDestination = !!(destination && destination.value);
+                        var quality = firstField(line, '.line-quality select');
+
+                        if (hasSource === hasDestination) {
+                            showValidation(lineTitle + ': در سند تبدیل، هر ردیف باید یا خروجی باشد یا ورودی.', source || destination);
+                            return false;
+                        }
+
+                        if (!quality || !quality.value) {
+                            showValidation(lineTitle + ': وضعیت کیفیت الزامی است.', quality);
+                            return false;
+                        }
                     }
 
                     if (config.adjustment && (!adjustment || !adjustment.value)) {

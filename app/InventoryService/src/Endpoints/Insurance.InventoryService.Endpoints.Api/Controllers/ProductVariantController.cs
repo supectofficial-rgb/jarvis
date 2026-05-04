@@ -7,12 +7,17 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.DeactivateVariant;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.DeleteVariant;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.LockVariantInventoryMovement;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantAddOn;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantAttributeValue;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantComponent;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantUomConversion;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.SetVariantAttributeValue;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpdateProductVariant;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantAddOn;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantComponent;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantUomConversion;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetActiveVariants;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantAddOnsByVariantId;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetAttributeValueById;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetAttributeValuesByVariantId;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetAttributeValuesWithDefinition;
@@ -28,6 +33,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetSummary;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantCatalogForm;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantCompletionStatus;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantComponentsByVariantId;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantEditorData;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantUomConversionByPath;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantUomConversionsByVariantId;
@@ -109,6 +115,42 @@ public class ProductVariantController : OysterFxController
                 ProductVariantBusinessKey = productVariantBusinessKey,
                 FromUomRef = fromUomRef,
                 ToUomRef = toUomRef
+            });
+
+    [HttpPut("{productVariantBusinessKey:guid}/components")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> UpsertComponent([FromRoute] Guid productVariantBusinessKey, [FromBody] UpsertVariantComponentCommand command)
+    {
+        command.ProductVariantBusinessKey = productVariantBusinessKey;
+        return SendCommand<UpsertVariantComponentCommand, UpsertVariantComponentCommandResult>(command);
+    }
+
+    [HttpDelete("{productVariantBusinessKey:guid}/components")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> RemoveComponent([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid componentVariantRef)
+        => SendCommand<RemoveVariantComponentCommand, RemoveVariantComponentCommandResult>(
+            new RemoveVariantComponentCommand
+            {
+                ProductVariantBusinessKey = productVariantBusinessKey,
+                ComponentVariantRef = componentVariantRef
+            });
+
+    [HttpPut("{productVariantBusinessKey:guid}/addons")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> UpsertAddOn([FromRoute] Guid productVariantBusinessKey, [FromBody] UpsertVariantAddOnCommand command)
+    {
+        command.ProductVariantBusinessKey = productVariantBusinessKey;
+        return SendCommand<UpsertVariantAddOnCommand, UpsertVariantAddOnCommandResult>(command);
+    }
+
+    [HttpDelete("{productVariantBusinessKey:guid}/addons")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> RemoveAddOn([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid addOnVariantRef)
+        => SendCommand<RemoveVariantAddOnCommand, RemoveVariantAddOnCommandResult>(
+            new RemoveVariantAddOnCommand
+            {
+                ProductVariantBusinessKey = productVariantBusinessKey,
+                AddOnVariantRef = addOnVariantRef
             });
 
     [HttpPut("{productVariantBusinessKey:guid}/attributes/{attributeRef:guid}")]
@@ -222,6 +264,18 @@ public class ProductVariantController : OysterFxController
     public Task<IActionResult> GetUomConversionsByVariantId([FromRoute] Guid variantId)
         => ExecuteQueryAsync<GetVariantUomConversionsByVariantIdQuery, GetVariantUomConversionsByVariantIdQueryResult>(
             new GetVariantUomConversionsByVariantIdQuery(variantId));
+
+    [HttpGet("{variantId:guid}/components")]
+    [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]
+    public Task<IActionResult> GetComponentsByVariantId([FromRoute] Guid variantId)
+        => ExecuteQueryAsync<GetVariantComponentsByVariantIdQuery, GetVariantComponentsByVariantIdQueryResult>(
+            new GetVariantComponentsByVariantIdQuery(variantId));
+
+    [HttpGet("{variantId:guid}/addons")]
+    [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]
+    public Task<IActionResult> GetAddOnsByVariantId([FromRoute] Guid variantId)
+        => ExecuteQueryAsync<GetVariantAddOnsByVariantIdQuery, GetVariantAddOnsByVariantIdQueryResult>(
+            new GetVariantAddOnsByVariantIdQuery(variantId));
 
     [HttpGet("{variantId:guid}/uom-conversions/path")]
     [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]
