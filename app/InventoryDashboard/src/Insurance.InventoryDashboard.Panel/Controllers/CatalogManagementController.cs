@@ -738,6 +738,15 @@ public abstract partial class CatalogManagementController : Controller
             });
         }
 
+        if (!IsLeafCategory(flatCategories, selectedCategory.Id))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "ویژگی‌ها فقط برای آخرین سطح دسته‌بندی بارگذاری می‌شوند."
+            });
+        }
+
         var (_, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedCategory.Id, flatCategories, token);
 

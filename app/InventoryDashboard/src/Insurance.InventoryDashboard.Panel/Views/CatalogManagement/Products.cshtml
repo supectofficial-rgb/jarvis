@@ -1784,6 +1784,21 @@
                     return;
                 }
 
+                if (!isLeafCategory(normalizedCategoryId)) {
+                    if (pageElement) {
+                        pageElement.setAttribute('data-selected-category-id', '');
+                    }
+
+                    lastCreateAttributesCategoryId = '';
+                    setCreateAttributeStatus('Ø§ØªØ±ÛŒØ¨ÛŒÙˆØªâ€ŒÙ‡Ø§ ÙÙ‚Ø· Ø¨Ø¹Ø¯ Ø§Ø² Ø§Ù†ØªØ®Ø§Ø¨ Ø¢Ø®Ø±ÛŒÙ† Ø²ÛŒØ±Ø¯Ø³ØªÙ‡ Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯', 'warning');
+                    setCreateAttributeFeedback('', 'warning');
+                    renderCreateAttributeSections(null);
+                    bindAutoCreateInputEvents(createDynamicSections);
+                    renderAutoVariantPreview();
+                    saveFormDraft(productUpsertForm);
+                    return;
+                }
+
                 var currentRequestId = ++createAttributesRequestId;
                 var currentDraft = captureFormDraft(productUpsertForm);
                 lastCreateAttributesCategoryId = normalizedCategoryId;
