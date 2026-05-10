@@ -1,8 +1,8 @@
 namespace Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 
-using OysterFx.AppCore.Domain.Entities;
+using OysterFx.AppCore.Domain.Aggregates;
 
-public sealed class VariantImage : Entity<long>
+public sealed class VariantImage : Aggregate
 {
     public Guid VariantRef { get; private set; }
     public string FileKey { get; private set; } = string.Empty;

@@ -6,6 +6,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.AttributeDefinitions.Com
 using Insurance.InventoryService.AppCore.Shared.Catalog.Categories.Commands;
 using Insurance.InventoryService.AppCore.Shared.Catalog.Products.Commands;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.CreateProductVariant;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpdateProductVariant;
 using Insurance.InventoryService.AppCore.Shared.Catalog.UnitOfMeasures.Commands;
 using OysterFx.AppCore.AppServices.Commands;

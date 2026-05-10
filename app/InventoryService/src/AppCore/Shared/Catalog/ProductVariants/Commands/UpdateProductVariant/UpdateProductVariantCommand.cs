@@ -1,5 +1,6 @@
 namespace Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpdateProductVariant;
 
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.CreateProductVariant;
 using OysterFx.AppCore.Shared.Commands;
 
 public class UpdateProductVariantCommand : ICommand<UpdateProductVariantCommandResult>

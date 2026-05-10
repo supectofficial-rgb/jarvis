@@ -144,6 +144,17 @@
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
+    var categoryTreeUiNodes = Model.FlatCategories
+        .Select(x => new
+        {
+            id = x.Id,
+            parentId = x.ParentCategoryId,
+            name = x.Name,
+            code = x.Code,
+            imageUrl = x.ImageUrl,
+            imageThumbnailUrl = x.ImageThumbnailUrl
+        })
+        .ToList();
 }
 
 <style>
@@ -157,6 +168,99 @@
     #product-list-scope .dropdown-toggle,
     #product-list-scope .dropdown-menu {
         display: none !important;
+    }
+
+    .product-category-tree-shell {
+        border: 1px solid #d7dce1;
+        border-radius: .75rem;
+        background: #fff;
+        padding: 1rem;
+    }
+
+    .product-category-level {
+        border-top: 1px dashed #d7dce1;
+        padding-top: 1rem;
+        margin-top: 1rem;
+    }
+
+    .product-category-level:first-child {
+        border-top: 0;
+        padding-top: 0;
+        margin-top: 0;
+    }
+
+    .product-category-level-title {
+        font-size: .85rem;
+        color: #6c757d;
+        margin-bottom: .75rem;
+    }
+
+    .product-category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: .75rem;
+    }
+
+    .product-category-card {
+        display: block;
+        width: 100%;
+        text-align: center;
+        border: 1px solid #d7dce1;
+        border-radius: .75rem;
+        background: #fff;
+        padding: 1rem .75rem;
+        transition: all .2s ease;
+        cursor: pointer;
+    }
+
+    .product-category-card:hover,
+    .product-category-card:focus {
+        border-color: #145388;
+        box-shadow: 0 .25rem 1rem rgba(20, 83, 136, .12);
+        outline: none;
+    }
+
+    .product-category-card.active {
+        border-color: #145388;
+        background: #145388;
+        color: #fff;
+        box-shadow: 0 .5rem 1.25rem rgba(20, 83, 136, .18);
+    }
+
+    .product-category-card-media {
+        width: 100%;
+        height: 92px;
+        border-radius: .6rem;
+        overflow: hidden;
+        margin-bottom: .75rem;
+        background: #f8f9fa;
+    }
+
+    .product-category-card-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .product-category-card-no-media .product-category-card-name {
+        margin-top: .25rem;
+    }
+
+    .product-category-card-name {
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .product-category-card-code {
+        display: block;
+        font-size: .75rem;
+        opacity: .75;
+        margin-top: .25rem;
+    }
+
+    .product-category-selected-path {
+        min-height: 2rem;
     }
 </style>
 
@@ -313,13 +417,31 @@
                                     }
                                     <div class="form-group">
                                         <label>دسته‌بندی</label>
-                                        <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته‌بندی محصول" required>
-                                            <option value="">انتخاب آخرین سطح دسته‌بندی</option>
-                                            @foreach (var category in Model.LeafCategories)
-                                            {
-                                                <option value="@category.Id" data-category-code="@category.Code">@category.Name</option>
-                                            }
-                                        </select>
+                                        <div class="product-category-tree-shell">
+                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                                                <div>
+                                                    <strong class="d-block">انتخاب مرحله‌ای دسته‌بندی</strong>
+                                                    <small class="text-muted">از بالا به پایین روی کارت‌ها کلیک کنید تا به آخرین سطح برسید.</small>
+                                                </div>
+                                                <button class="btn btn-outline-secondary btn-xs" type="button" data-toggle="collapse" data-target="#product-category-search-fallback" aria-expanded="false" aria-controls="product-category-search-fallback">
+                                                    جست‌وجوی سریع دسته
+                                                </button>
+                                            </div>
+                                            <div class="product-category-selected-path mb-3">
+                                                <span class="badge badge-pill badge-outline-primary d-none" id="product-category-path-badge"></span>
+                                            </div>
+                                            <div id="product-category-tree-levels"></div>
+                                            <div class="collapse mt-3" id="product-category-search-fallback">
+                                                <label class="small text-muted">اگر نام دسته را می‌دانید از این جست‌وجوی سریع استفاده کنید.</label>
+                                                <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" id="ProductForm_CategoryId" data-placeholder="انتخاب دسته‌بندی محصول" required>
+                                                    <option value="">انتخاب آخرین سطح دسته‌بندی</option>
+                                                    @foreach (var category in Model.LeafCategories)
+                                                    {
+                                                        <option value="@category.Id" data-category-code="@category.Code">@category.Name</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
                                         <small class="form-text text-muted">محصول فقط روی آخرین سطح دسته‌بندی قابل ثبت است.</small>
                                     </div>
                                     <div class="form-group">
@@ -1029,6 +1151,8 @@
                 .filter(function (form) { return form instanceof HTMLFormElement; });
             var productUpsertForm = document.getElementById('product-upsert-form');
             var productCategoryField = document.getElementById('ProductForm_CategoryId');
+            var categoryTreeLevels = document.getElementById('product-category-tree-levels');
+            var categoryPathBadge = document.getElementById('product-category-path-badge');
             var productNameField = document.getElementById('ProductForm_Name');
             var productBaseSkuField = document.getElementById('ProductForm_BaseSku');
             var autoPayloadField = document.getElementById('product-auto-variant-payload');
@@ -1042,6 +1166,9 @@
             var createAttributesRequestId = 0;
             var lastCreateAttributesCategoryId = '';
             var isEditMode = !!(productUpsertForm && productUpsertForm.querySelector('[name="ProductForm.ProductId"]') && (productUpsertForm.querySelector('[name="ProductForm.ProductId"]').value || '').trim());
+            var categoryTreeNodes = @Html.Raw(JsonSerializer.Serialize(categoryTreeUiNodes));
+            var categoryNodeLookup = {};
+            var categoryChildrenLookup = {};
 
             function readState() {
                 try {
@@ -1274,6 +1401,194 @@
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
+            }
+
+            function initializeCategoryTreeData() {
+                categoryNodeLookup = {};
+                categoryChildrenLookup = {};
+
+                (Array.isArray(categoryTreeNodes) ? categoryTreeNodes : []).forEach(function (node) {
+                    if (!node || !node.id) {
+                        return;
+                    }
+
+                    var normalizedId = (node.id || '').trim();
+                    var normalizedParentId = (node.parentId || '').trim();
+                    categoryNodeLookup[normalizedId] = {
+                        id: normalizedId,
+                        parentId: normalizedParentId,
+                        name: node.name || normalizedId,
+                        code: node.code || '',
+                        imageUrl: node.imageUrl || '',
+                        imageThumbnailUrl: node.imageThumbnailUrl || ''
+                    };
+
+                    var key = normalizedParentId || '__root__';
+                    if (!categoryChildrenLookup[key]) {
+                        categoryChildrenLookup[key] = [];
+                    }
+
+                    categoryChildrenLookup[key].push(categoryNodeLookup[normalizedId]);
+                });
+
+                Object.keys(categoryChildrenLookup).forEach(function (key) {
+                    categoryChildrenLookup[key].sort(function (left, right) {
+                        return (left.name || '').localeCompare(right.name || '', 'fa');
+                    });
+                });
+            }
+
+            function getCategoryChildren(parentId) {
+                return categoryChildrenLookup[parentId || '__root__'] || [];
+            }
+
+            function isLeafCategory(categoryId) {
+                return getCategoryChildren(categoryId).length === 0;
+            }
+
+            function buildCategoryPathIds(categoryId) {
+                var normalizedCategoryId = (categoryId || '').trim();
+                if (!normalizedCategoryId || !categoryNodeLookup[normalizedCategoryId]) {
+                    return [];
+                }
+
+                var path = [];
+                var current = categoryNodeLookup[normalizedCategoryId];
+                var guard = 0;
+                while (current && guard < 32) {
+                    path.push(current.id);
+                    current = current.parentId ? categoryNodeLookup[current.parentId] : null;
+                    guard++;
+                }
+
+                path.reverse();
+                return path;
+            }
+
+            function syncCategoryPathBadge(pathIds) {
+                if (!categoryPathBadge) {
+                    return;
+                }
+
+                var pathText = (pathIds || [])
+                    .map(function (categoryId) {
+                        return categoryNodeLookup[categoryId] ? categoryNodeLookup[categoryId].name : '';
+                    })
+                    .filter(function (name) { return !!name; })
+                    .join(' / ');
+
+                if (!pathText) {
+                    categoryPathBadge.classList.add('d-none');
+                    categoryPathBadge.textContent = '';
+                    return;
+                }
+
+                categoryPathBadge.textContent = 'مسیر انتخاب: ' + pathText;
+                categoryPathBadge.classList.remove('d-none');
+            }
+
+            function setProductCategoryValue(categoryId, options) {
+                if (!productCategoryField) {
+                    return;
+                }
+
+                var normalizedCategoryId = (categoryId || '').trim();
+                productCategoryField.value = normalizedCategoryId;
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(productCategoryField).trigger('change.select2');
+                }
+
+                if (!options || options.silent !== true) {
+                    productCategoryField.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            function renderCategoryLevelCards(pathIds) {
+                if (!categoryTreeLevels) {
+                    return;
+                }
+
+                var levels = [];
+                var currentParentId = '';
+
+                while (true) {
+                    var children = getCategoryChildren(currentParentId);
+                    if (!children.length) {
+                        break;
+                    }
+
+                    var levelIndex = levels.length;
+                    levels.push({
+                        level: levelIndex + 1,
+                        parentId: currentParentId,
+                        activeId: pathIds[levelIndex] || '',
+                        items: children
+                    });
+
+                    var activeId = pathIds[levelIndex];
+                    if (!activeId || !categoryNodeLookup[activeId] || isLeafCategory(activeId)) {
+                        break;
+                    }
+
+                    currentParentId = activeId;
+                }
+
+                categoryTreeLevels.innerHTML = levels.map(function (level) {
+                    return '<div class="product-category-level" data-level="' + level.level + '">'
+                        + '<div class="product-category-level-title">مرحله ' + level.level + ' انتخاب دسته</div>'
+                        + '<div class="product-category-grid">'
+                        + level.items.map(function (item) {
+                            var isActive = level.activeId && level.activeId.toLowerCase() === item.id.toLowerCase();
+                            var imageUrl = item.imageThumbnailUrl || item.imageUrl || '';
+                            var mediaHtml = imageUrl
+                                ? ('<span class="product-category-card-media"><img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(item.name) + '" /></span>')
+                                : '';
+                            return '<button type="button" class="product-category-card' + (isActive ? ' active' : '') + (!imageUrl ? ' product-category-card-no-media' : '') + '" data-category-card data-category-id="' + escapeHtml(item.id) + '">'
+                                + mediaHtml
+                                + '<span class="product-category-card-name">' + escapeHtml(item.name) + '</span>'
+                                + '<span class="product-category-card-code">' + escapeHtml(item.code || 'بدون کد') + '</span>'
+                                + '</button>';
+                        }).join('')
+                        + '</div>'
+                        + '</div>';
+                }).join('');
+
+                categoryTreeLevels.querySelectorAll('[data-category-card]').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        var selectedId = (button.getAttribute('data-category-id') || '').trim();
+                        if (!selectedId) {
+                            return;
+                        }
+
+                        var nextPath = buildCategoryPathIds(selectedId);
+                        renderCategoryTree(nextPath);
+
+                        if (isLeafCategory(selectedId)) {
+                            setProductCategoryValue(selectedId);
+                        } else {
+                            setProductCategoryValue('', { silent: true });
+                            if (pageElement) {
+                                pageElement.setAttribute('data-selected-category-id', '');
+                            }
+                            setCreateAttributeFeedback('', 'warning');
+                            renderCreateAttributeSections(null);
+                            bindAutoCreateInputEvents(createDynamicSections || document);
+                            renderAutoVariantPreview();
+                            setCreateAttributeStatus('دسته نهایی هنوز انتخاب نشده', 'warning');
+                        }
+                    });
+                });
+            }
+
+            function renderCategoryTree(pathIds) {
+                var effectivePath = Array.isArray(pathIds) ? pathIds.filter(function (item) { return !!item; }) : [];
+                renderCategoryLevelCards(effectivePath);
+                syncCategoryPathBadge(effectivePath);
+            }
+
+            function syncCategoryTreeFromValue(categoryId) {
+                renderCategoryTree(buildCategoryPathIds(categoryId));
             }
 
             function initSearchableSelects(scope) {
@@ -1792,9 +2107,11 @@
             var form = document.getElementById('product-attribute-form');
             var booleanHasValue = false;
 
+            initializeCategoryTreeData();
             clearSubmittedDraftAfterSuccess();
             restorePageState();
             restoreFormDrafts();
+            syncCategoryTreeFromValue(productCategoryField ? productCategoryField.value : '');
             setCreateAttributeStatus(
                 isEditMode ? 'حالت ویرایش' : 'اسکریپت فعال شد',
                 isEditMode ? 'secondary' : 'success'
@@ -1815,6 +2132,12 @@
             if (productCategoryField && productUpsertForm) {
                 var handleCategoryChange = function () {
                     var selectedCategoryId = (productCategoryField.value || '').trim();
+                    syncCategoryTreeFromValue(selectedCategoryId);
+                    if (!selectedCategoryId) {
+                        setCreateAttributeStatus('دسته نهایی انتخاب نشده', 'warning');
+                        return;
+                    }
+
                     setCreateAttributeStatus('تغییر دسته ثبت شد', 'warning');
                     loadCreateAttributesForCategory(selectedCategoryId);
                 };
