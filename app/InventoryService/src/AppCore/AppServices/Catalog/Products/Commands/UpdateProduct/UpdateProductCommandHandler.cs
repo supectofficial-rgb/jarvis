@@ -92,6 +92,7 @@ public class UpdateProductCommandHandler : CommandHandler<UpdateProductCommand, 
         aggregate.Rename(command.Name.Trim());
         aggregate.ChangeDefaultUom(command.DefaultUomRef);
         aggregate.ChangeTaxCategory(command.TaxCategoryRef);
+        aggregate.SetImage(command.ImageFileKey, command.ImageUrl, command.ImageThumbnailUrl);
 
         if (command.IsActive)
             aggregate.Activate();

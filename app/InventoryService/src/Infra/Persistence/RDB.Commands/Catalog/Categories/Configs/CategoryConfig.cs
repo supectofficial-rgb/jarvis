@@ -11,6 +11,9 @@ public sealed class CategoryConfig : IEntityTypeConfiguration<Category>
     {
         builder.ToTable("Categories");
         builder.HasIndex(x => x.Code).IsUnique();
+        builder.Property(x => x.ImageFileKey).HasMaxLength(256);
+        builder.Property(x => x.ImageUrl).HasMaxLength(1024);
+        builder.Property(x => x.ImageThumbnailUrl).HasMaxLength(1024);
         builder.Property(x => x.BusinessKey)
             .HasConversion(
                 key => key.Value,

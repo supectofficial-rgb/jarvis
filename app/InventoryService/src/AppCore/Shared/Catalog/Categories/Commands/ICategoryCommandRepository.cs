@@ -12,6 +12,9 @@ public interface ICategoryCommandRepository : ICommandRepository<Category, long>
         string name,
         int displayOrder,
         Guid? parentCategoryRef,
+        string? imageFileKey,
+        string? imageUrl,
+        string? imageThumbnailUrl,
         bool isActive);
     Task DeleteGraphByBusinessKeyAsync(Guid categoryBusinessKey);
     Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null);

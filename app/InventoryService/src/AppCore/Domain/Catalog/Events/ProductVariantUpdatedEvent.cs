@@ -16,6 +16,7 @@ public sealed record ProductVariantUpdatedEvent : IDomainEvent
     public bool InventoryMovementLocked { get; }
     public IReadOnlyCollection<ProductVariantAttributeValueSnapshot> AttributeValues { get; }
     public IReadOnlyCollection<ProductVariantUomConversionSnapshot> UomConversions { get; }
+    public IReadOnlyCollection<ProductVariantImageSnapshot> Images { get; }
     public DateTime OccurredOn { get; }
 
     public ProductVariantUpdatedEvent(
@@ -28,7 +29,8 @@ public sealed record ProductVariantUpdatedEvent : IDomainEvent
         bool isActive,
         bool inventoryMovementLocked,
         IReadOnlyCollection<ProductVariantAttributeValueSnapshot> attributeValues,
-        IReadOnlyCollection<ProductVariantUomConversionSnapshot> uomConversions)
+        IReadOnlyCollection<ProductVariantUomConversionSnapshot> uomConversions,
+        IReadOnlyCollection<ProductVariantImageSnapshot> images)
     {
         ProductVariantBusinessKey = productVariantBusinessKey;
         ProductRef = productRef;
@@ -40,6 +42,7 @@ public sealed record ProductVariantUpdatedEvent : IDomainEvent
         InventoryMovementLocked = inventoryMovementLocked;
         AttributeValues = attributeValues;
         UomConversions = uomConversions;
+        Images = images;
         OccurredOn = DateTime.UtcNow;
     }
 }

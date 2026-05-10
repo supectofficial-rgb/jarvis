@@ -11,6 +11,6 @@ public sealed class VariantComponentReadModelConfig : IEntityTypeConfiguration<V
         builder.ToTable("VariantComponents");
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.BusinessKey).IsUnique();
-        builder.HasIndex(x => new { x.VariantRef, x.ComponentVariantRef }).IsUnique();
+        builder.HasIndex(x => new { x.VariantRef, x.ComponentVariantRef, x.WarehouseRef, x.LocationRef }).IsUnique();
     }
 }

@@ -144,6 +144,9 @@ public sealed class VariantManagementPageViewModel
     public VariantUomConversionForm VariantUomConversionForm { get; set; } = new();
     public VariantComponentForm VariantComponentForm { get; set; } = new();
     public VariantAddOnForm VariantAddOnForm { get; set; } = new();
+    public VariantAssemblyOperationForm VariantAssemblyOperationForm { get; set; } = new();
+    public BulkVariantAddOnForm BulkVariantAddOnForm { get; set; } = new();
+    public BulkVariantImageForm BulkVariantImageForm { get; set; } = new();
 }
 
 public sealed class CategoryAttributeGroupViewModel
@@ -190,6 +193,9 @@ public sealed class CategoryUpsertForm
     public string? Description { get; set; }
 
     public string? ParentCategoryId { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
 }
 
 public sealed class AttributeDefinitionForm
@@ -382,6 +388,9 @@ public sealed class ProductUpsertForm
     public string? Description { get; set; }
 
     public string? AutoVariantPayload { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
 }
 
 public sealed class ProductAttributeValueForm
@@ -421,6 +430,7 @@ public sealed class VariantUpsertForm
     public string TrackingPolicy { get; set; } = "None";
 
     public bool IsActive { get; set; } = true;
+    public string? SelectedImagesJson { get; set; }
 }
 
 public sealed class VariantAttributeValueForm
@@ -482,8 +492,16 @@ public sealed class VariantComponentForm
     [Required]
     public string VariantId { get; set; } = string.Empty;
 
+    public string? ComponentId { get; set; }
+
     [Required]
     public string ComponentVariantId { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "انتخاب انبار الزامی است.")]
+    public string WarehouseId { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "انتخاب لوکیشن الزامی است.")]
+    public string LocationId { get; set; } = string.Empty;
 
     [Range(0.000001, double.MaxValue, ErrorMessage = "تعداد باید بزرگ‌تر از صفر باشد.")]
     public decimal Quantity { get; set; } = 1m;
@@ -499,4 +517,39 @@ public sealed class VariantAddOnForm
 
     [Required]
     public string AddOnVariantId { get; set; } = string.Empty;
+}
+
+public sealed class VariantAssemblyOperationForm
+{
+    [Required]
+    public string ProductId { get; set; } = string.Empty;
+
+    [Required]
+    public string VariantId { get; set; } = string.Empty;
+
+    [Required]
+    public string OperationType { get; set; } = "Assemble";
+
+    [Range(0.000001, double.MaxValue, ErrorMessage = "تعداد باید بزرگ‌تر از صفر باشد.")]
+    public decimal Quantity { get; set; } = 1m;
+
+    [StringLength(120)]
+    public string? ReasonCode { get; set; }
+}
+
+public sealed class BulkVariantAddOnForm
+{
+    public string? ProductId { get; set; }
+    public string? SelectedVariantIds { get; set; }
+    public string? SelectedAddOnVariantIds { get; set; }
+
+    [Required(ErrorMessage = "انتخاب Add-on الزامی است.")]
+    public string AddOnVariantId { get; set; } = string.Empty;
+}
+
+public sealed class BulkVariantImageForm
+{
+    public string? ProductId { get; set; }
+    public string? SelectedVariantIds { get; set; }
+    public string? ImagesJson { get; set; }
 }

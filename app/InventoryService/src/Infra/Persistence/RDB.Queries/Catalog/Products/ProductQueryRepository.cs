@@ -49,6 +49,9 @@ public class ProductQueryRepository : QueryRepository<InventoryServiceQueryDbCon
             Name = aggregate.Name,
             DefaultUomRef = aggregate.DefaultUomRef,
             TaxCategoryRef = aggregate.TaxCategoryRef,
+            ImageFileKey = aggregate.ImageFileKey,
+            ImageUrl = aggregate.ImageUrl,
+            ImageThumbnailUrl = aggregate.ImageThumbnailUrl,
             IsActive = aggregate.IsActive,
             AttributeValues = attributes
         };
@@ -198,7 +201,10 @@ public class ProductQueryRepository : QueryRepository<InventoryServiceQueryDbCon
             CategoryCode = category?.Code,
             CategoryName = category?.Name,
             ProductAttributes = productAttributes,
-            Variants = variants
+            Variants = variants,
+            ImageFileKey = product.ImageFileKey,
+            ImageUrl = product.ImageUrl,
+            ImageThumbnailUrl = product.ImageThumbnailUrl
         };
     }
 
@@ -590,6 +596,9 @@ public class ProductQueryRepository : QueryRepository<InventoryServiceQueryDbCon
             Name = x.Name,
             DefaultUomRef = x.DefaultUomRef,
             TaxCategoryRef = x.TaxCategoryRef,
+            ImageFileKey = x.ImageFileKey,
+            ImageUrl = x.ImageUrl,
+            ImageThumbnailUrl = x.ImageThumbnailUrl,
             IsActive = x.IsActive
         };
 
@@ -601,7 +610,8 @@ public class ProductQueryRepository : QueryRepository<InventoryServiceQueryDbCon
             Barcode = x.Barcode,
             TrackingPolicy = x.TrackingPolicy.ToString(),
             BaseUomRef = x.BaseUomRef,
-            IsActive = x.IsActive
+            IsActive = x.IsActive,
+            InventoryMovementLocked = x.InventoryMovementLocked
         };
 
     private static ProductAttributeValueViewItem ToProductAttributeValueItem(ProductAttributeValueReadModel x)

@@ -2,6 +2,7 @@
 @using System.Linq
 @using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.ProductManagementPageViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     ViewData["Title"] = "مدیریت محصولات";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
@@ -285,6 +286,9 @@
                                 <form asp-action="SaveProduct" method="post" id="product-upsert-form" data-loading-form data-dirty-watch>
                                     @Html.AntiForgeryToken()
                                     <input asp-for="ProductForm.ProductId" type="hidden" />
+                                    <input asp-for="ProductForm.ImageFileKey" type="hidden" />
+                                    <input asp-for="ProductForm.ImageUrl" type="hidden" />
+                                    <input asp-for="ProductForm.ImageThumbnailUrl" type="hidden" />
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
                                     <div class="form-group">
@@ -339,6 +343,20 @@
                                     <div class="form-group mt-3">
                                         <label>توضیح</label>
                                         <textarea asp-for="ProductForm.Description" class="form-control" rows="3" maxlength="500"></textarea>
+                                    </div>
+                                    <div class="form-group" data-media-uploader data-policy="product-image" data-base-url="@Configuration["FileService:BaseUrl"]">
+                                        <label>ØªØµÙˆÛŒØ± Ù…Ø­ØµÙˆÙ„</label>
+                                        <div class="border rounded p-3 bg-light">
+                                            <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp" data-media-file />
+                                            <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
+                                                <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                                            </div>
+                                            <div class="small text-muted mb-2" data-media-status>ÛŒÚ© ØªØµÙˆÛŒØ± Ø­Ø¯Ø§Ú©Ø«Ø± Ûµ Ù…Ú¯Ø§Ø¨Ø§ÛŒØª.</div>
+                                            <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>Ø­Ø°Ù ØªØµÙˆÛŒØ±</button>
+                                            <div class="mt-3 d-none" data-media-preview-wrap>
+                                                <img src="@Model.ProductForm.ImageThumbnailUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
+                                            </div>
+                                        </div>
                                     </div>
                                     <input asp-for="ProductForm.AutoVariantPayload" type="hidden" id="product-auto-variant-payload" />
 
@@ -2092,6 +2110,80 @@
                 event.preventDefault();
                 event.returnValue = '';
             });
+        })();
+    </script>
+    <script>
+        (function () {
+            var root = document.querySelector('[data-media-uploader][data-policy="product-image"]');
+            if (!root) return;
+            var baseUrl = (root.getAttribute('data-base-url') || '').replace(/\/$/, '');
+            var form = document.getElementById('product-upsert-form');
+            var fileInput = root.querySelector('[data-media-file]');
+            var progressWrap = root.querySelector('[data-media-progress-wrap]');
+            var progressBar = root.querySelector('[data-media-progress]');
+            var status = root.querySelector('[data-media-status]');
+            var previewWrap = root.querySelector('[data-media-preview-wrap]');
+            var preview = root.querySelector('[data-media-preview]');
+            var removeButton = root.querySelector('[data-media-remove]');
+            if (!form || !fileInput || !baseUrl) return;
+            var fileKeyField = form.querySelector('[name="ProductForm.ImageFileKey"]');
+            var imageUrlField = form.querySelector('[name="ProductForm.ImageUrl"]');
+            var thumbField = form.querySelector('[name="ProductForm.ImageThumbnailUrl"]');
+
+            function syncPreview() {
+                if (!thumbField.value) {
+                    previewWrap.classList.add('d-none');
+                    removeButton.classList.add('d-none');
+                    return;
+                }
+                preview.src = thumbField.value.indexOf('http') === 0 ? thumbField.value : baseUrl + thumbField.value;
+                previewWrap.classList.remove('d-none');
+                removeButton.classList.remove('d-none');
+            }
+
+            fileInput.addEventListener('change', function () {
+                if (!fileInput.files || !fileInput.files.length) return;
+                var xhr = new XMLHttpRequest();
+                var formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                xhr.open('POST', baseUrl + '/api/FileService/files/upload?policy=product-image');
+                progressWrap.classList.remove('d-none');
+                xhr.upload.addEventListener('progress', function (event) {
+                    if (!event.lengthComputable) return;
+                    progressBar.style.width = Math.round((event.loaded / event.total) * 100) + '%';
+                });
+                xhr.onload = function () {
+                    progressWrap.classList.add('d-none');
+                    progressBar.style.width = '0%';
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        status.textContent = 'Ø¢Ù¾Ù„ÙˆØ¯ ØªØµÙˆÛŒØ± Ø¨Ø§ Ø®Ø·Ø§ Ù…ÙˆØ§Ø¬Ù‡ Ø´Ø¯.';
+                        return;
+                    }
+                    var result = JSON.parse(xhr.responseText);
+                    fileKeyField.value = result.fileKey || '';
+                    imageUrlField.value = result.url || '';
+                    thumbField.value = result.thumbnailUrl || '';
+                    status.textContent = result.originalFileName || 'ØªØµÙˆÛŒØ± Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯.';
+                    syncPreview();
+                };
+                xhr.onerror = function () {
+                    progressWrap.classList.add('d-none');
+                    progressBar.style.width = '0%';
+                    status.textContent = 'Ø§Ø±ØªØ¨Ø§Ø· Ø¨Ø§ Ø³Ø±ÙˆÛŒØ³ ÙØ§ÛŒÙ„ Ø¨Ø±Ù‚Ø±Ø§Ø± Ù†Ø´Ø¯.';
+                };
+                xhr.send(formData);
+            });
+
+            removeButton.addEventListener('click', function () {
+                fileInput.value = '';
+                fileKeyField.value = '';
+                imageUrlField.value = '';
+                thumbField.value = '';
+                status.textContent = 'ØªØµÙˆÛŒØ± Ø­Ø°Ù Ø´Ø¯.';
+                syncPreview();
+            });
+
+            syncPreview();
         })();
     </script>
 }

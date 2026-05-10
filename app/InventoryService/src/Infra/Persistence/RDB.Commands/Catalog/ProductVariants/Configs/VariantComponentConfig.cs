@@ -9,6 +9,6 @@ public sealed class VariantComponentConfig : IEntityTypeConfiguration<VariantCom
     public void Configure(EntityTypeBuilder<VariantComponent> builder)
     {
         builder.ToTable("VariantComponents");
-        builder.HasIndex(x => new { x.VariantRef, x.ComponentVariantRef }).IsUnique();
+        builder.HasIndex(x => new { x.VariantRef, x.ComponentVariantRef, x.WarehouseRef, x.LocationRef }).IsUnique();
     }
 }

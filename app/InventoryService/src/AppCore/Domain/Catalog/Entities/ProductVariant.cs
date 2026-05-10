@@ -10,6 +10,7 @@ public sealed class ProductVariant : AggregateRoot
     private readonly List<VariantUomConversion> _uomConversions = new();
     private readonly List<VariantComponent> _components = new();
     private readonly List<VariantAddOn> _addOns = new();
+    private readonly List<VariantImage> _images = new();
 
     public Guid ProductRef { get; private set; }
     public string VariantSku { get; private set; } = string.Empty;
@@ -22,6 +23,7 @@ public sealed class ProductVariant : AggregateRoot
     public IReadOnlyCollection<VariantUomConversion> UomConversions => _uomConversions.AsReadOnly();
     public IReadOnlyCollection<VariantComponent> Components => _components.AsReadOnly();
     public IReadOnlyCollection<VariantAddOn> AddOns => _addOns.AsReadOnly();
+    public IReadOnlyCollection<VariantImage> Images => _images.AsReadOnly();
 
     private ProductVariant()
     {
@@ -41,7 +43,8 @@ public sealed class ProductVariant : AggregateRoot
             true,
             false,
             Array.Empty<ProductVariantAttributeValueSnapshot>(),
-            Array.Empty<ProductVariantUomConversionSnapshot>()));
+            Array.Empty<ProductVariantUomConversionSnapshot>(),
+            Array.Empty<ProductVariantImageSnapshot>()));
 
         return variant;
     }
@@ -151,7 +154,7 @@ public sealed class ProductVariant : AggregateRoot
         Apply(new ProductVariantUomConversionRemovedEvent(BusinessKey, fromUomRef, toUomRef));
     }
 
-    public VariantComponent AddOrUpdateComponent(Guid componentVariantRef, decimal quantity)
+    public VariantComponent AddOrUpdateComponent(Guid? variantComponentBusinessKey, Guid componentVariantRef, Guid warehouseRef, Guid locationRef, decimal quantity)
     {
         if (componentVariantRef == Guid.Empty)
             throw new ArgumentException("ComponentVariantRef is required.", nameof(componentVariantRef));
@@ -159,20 +162,47 @@ public sealed class ProductVariant : AggregateRoot
         if (componentVariantRef == BusinessKey.Value)
             throw new ArgumentException("Variant cannot reference itself as a component.", nameof(componentVariantRef));
 
+        if (warehouseRef == Guid.Empty)
+            throw new ArgumentException("WarehouseRef is required.", nameof(warehouseRef));
+
+        if (locationRef == Guid.Empty)
+            throw new ArgumentException("LocationRef is required.", nameof(locationRef));
+
         if (quantity <= 0)
             throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
 
-        Apply(new ProductVariantComponentUpsertedEvent(BusinessKey, componentVariantRef, quantity));
-        return _components.First(x => x.ComponentVariantRef == componentVariantRef);
+        var existing = variantComponentBusinessKey.HasValue && variantComponentBusinessKey.Value != Guid.Empty
+            ? _components.FirstOrDefault(x => x.BusinessKey.Value == variantComponentBusinessKey.Value)
+            : _components.FirstOrDefault(x =>
+                x.ComponentVariantRef == componentVariantRef &&
+                x.WarehouseRef == warehouseRef &&
+                x.LocationRef == locationRef);
+
+        var componentBusinessKey = existing?.BusinessKey.Value
+            ?? (variantComponentBusinessKey.HasValue && variantComponentBusinessKey.Value != Guid.Empty
+                ? variantComponentBusinessKey.Value
+                : Guid.NewGuid());
+
+        Apply(new ProductVariantComponentUpsertedEvent(
+            BusinessKey,
+            componentBusinessKey,
+            componentVariantRef,
+            warehouseRef,
+            locationRef,
+            quantity));
+
+        return _components.First(x => x.BusinessKey.Value == componentBusinessKey);
     }
 
-    public void RemoveComponent(Guid componentVariantRef)
+    public void RemoveComponent(Guid? variantComponentBusinessKey, Guid componentVariantRef)
     {
-        var existing = _components.FirstOrDefault(x => x.ComponentVariantRef == componentVariantRef);
+        var existing = variantComponentBusinessKey.HasValue && variantComponentBusinessKey.Value != Guid.Empty
+            ? _components.FirstOrDefault(x => x.BusinessKey.Value == variantComponentBusinessKey.Value)
+            : _components.FirstOrDefault(x => x.ComponentVariantRef == componentVariantRef);
         if (existing is null)
             return;
 
-        Apply(new ProductVariantComponentRemovedEvent(BusinessKey, componentVariantRef));
+        Apply(new ProductVariantComponentRemovedEvent(BusinessKey, existing.BusinessKey.Value));
     }
 
     public VariantAddOn AddOrUpdateAddOn(Guid addOnVariantRef)
@@ -194,6 +224,47 @@ public sealed class ProductVariant : AggregateRoot
             return;
 
         Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, addOnVariantRef));
+    }
+
+    public VariantImage AddOrUpdateImage(
+        string fileKey,
+        string originalFileName,
+        string contentType,
+        string originalUrl,
+        string thumbnailUrl,
+        int displayOrder,
+        bool isPrimary)
+    {
+        var normalizedFileKey = NormalizeRequired(fileKey, nameof(fileKey));
+        var normalizedOriginalFileName = NormalizeRequired(originalFileName, nameof(originalFileName));
+        var normalizedContentType = NormalizeRequired(contentType, nameof(contentType));
+        var normalizedOriginalUrl = NormalizeRequired(originalUrl, nameof(originalUrl));
+        var normalizedThumbnailUrl = NormalizeRequired(thumbnailUrl, nameof(thumbnailUrl));
+
+        Apply(new ProductVariantImageUpsertedEvent(
+            BusinessKey,
+            normalizedFileKey,
+            normalizedOriginalFileName,
+            normalizedContentType,
+            normalizedOriginalUrl,
+            normalizedThumbnailUrl,
+            displayOrder,
+            isPrimary));
+
+        return _images.First(x => x.FileKey == normalizedFileKey);
+    }
+
+    public void RemoveImage(string fileKey)
+    {
+        var normalizedFileKey = NormalizeOptional(fileKey);
+        if (normalizedFileKey is null)
+            return;
+
+        var existing = _images.FirstOrDefault(x => x.FileKey == normalizedFileKey);
+        if (existing is null)
+            return;
+
+        Apply(new ProductVariantImageRemovedEvent(BusinessKey, normalizedFileKey));
     }
 
     private void EnsureInventoryControlledFieldsAreMutable()
@@ -219,9 +290,12 @@ public sealed class ProductVariant : AggregateRoot
         TrackingPolicy? trackingPolicy = null,
         Guid? baseUomRef = null,
         bool? isActive = null,
-        bool? inventoryMovementLocked = null)
+        bool? inventoryMovementLocked = null,
+        IReadOnlyCollection<ProductVariantImageSnapshot>? images = null,
+        bool updateImages = false)
     {
         var nextBarcode = updateBarcode ? barcode : Barcode;
+        var nextImages = updateImages ? images ?? Array.Empty<ProductVariantImageSnapshot>() : SnapshotImages(_images);
 
         Apply(new ProductVariantUpdatedEvent(
             BusinessKey,
@@ -233,7 +307,8 @@ public sealed class ProductVariant : AggregateRoot
             isActive ?? IsActive,
             inventoryMovementLocked ?? InventoryMovementLocked,
             SnapshotAttributeValues(_attributeValues),
-            SnapshotUomConversions(_uomConversions)));
+            SnapshotUomConversions(_uomConversions),
+            nextImages));
     }
 
     private void On(ProductVariantCreatedEvent @event)
@@ -247,6 +322,7 @@ public sealed class ProductVariant : AggregateRoot
         InventoryMovementLocked = @event.InventoryMovementLocked;
         SyncAttributeValues(@event.AttributeValues);
         SyncUomConversions(@event.UomConversions);
+        SyncImages(@event.Images);
     }
 
     private void On(ProductVariantUpdatedEvent @event)
@@ -260,6 +336,7 @@ public sealed class ProductVariant : AggregateRoot
         InventoryMovementLocked = @event.InventoryMovementLocked;
         SyncAttributeValues(@event.AttributeValues);
         SyncUomConversions(@event.UomConversions);
+        SyncImages(@event.Images);
     }
 
     private void On(ProductVariantTrackingPolicyChangedEvent @event)
@@ -335,19 +412,25 @@ public sealed class ProductVariant : AggregateRoot
 
     private void On(ProductVariantComponentUpsertedEvent @event)
     {
-        var existing = _components.FirstOrDefault(x => x.ComponentVariantRef == @event.ComponentVariantRef);
+        var existing = _components.FirstOrDefault(x => x.BusinessKey.Value == @event.VariantComponentBusinessKey);
         if (existing is null)
         {
-            _components.Add(VariantComponent.Create(BusinessKey.Value, @event.ComponentVariantRef, @event.Quantity));
+            _components.Add(VariantComponent.Create(
+                BusinessKey.Value,
+                @event.VariantComponentBusinessKey,
+                @event.ComponentVariantRef,
+                @event.WarehouseRef,
+                @event.LocationRef,
+                @event.Quantity));
             return;
         }
 
-        existing.Update(@event.Quantity);
+        existing.Update(@event.ComponentVariantRef, @event.WarehouseRef, @event.LocationRef, @event.Quantity);
     }
 
     private void On(ProductVariantComponentRemovedEvent @event)
     {
-        var existing = _components.FirstOrDefault(x => x.ComponentVariantRef == @event.ComponentVariantRef);
+        var existing = _components.FirstOrDefault(x => x.BusinessKey.Value == @event.VariantComponentBusinessKey);
         if (existing is null)
             return;
 
@@ -370,6 +453,52 @@ public sealed class ProductVariant : AggregateRoot
             return;
 
         _addOns.Remove(existing);
+    }
+
+    private void On(ProductVariantImageUpsertedEvent @event)
+    {
+        var existing = _images.FirstOrDefault(x => x.FileKey == @event.FileKey);
+
+        if (@event.IsPrimary)
+        {
+            foreach (var image in _images)
+                image.SetPrimary(image.FileKey == @event.FileKey);
+        }
+
+        if (existing is null)
+        {
+            _images.Add(VariantImage.Create(
+                BusinessKey.Value,
+                @event.FileKey,
+                @event.OriginalFileName,
+                @event.ContentType,
+                @event.OriginalUrl,
+                @event.ThumbnailUrl,
+                @event.DisplayOrder,
+                @event.IsPrimary));
+            return;
+        }
+
+        existing.Update(
+            @event.OriginalFileName,
+            @event.ContentType,
+            @event.OriginalUrl,
+            @event.ThumbnailUrl,
+            @event.DisplayOrder,
+            @event.IsPrimary);
+    }
+
+    private void On(ProductVariantImageRemovedEvent @event)
+    {
+        var existing = _images.FirstOrDefault(x => x.FileKey == @event.FileKey);
+        if (existing is null)
+            return;
+
+        var wasPrimary = existing.IsPrimary;
+        _images.Remove(existing);
+
+        if (wasPrimary && _images.Count > 0)
+            _images.OrderBy(x => x.DisplayOrder).First().SetPrimary(true);
     }
 
     private void SyncAttributeValues(IReadOnlyCollection<ProductVariantAttributeValueSnapshot> values)
@@ -410,6 +539,30 @@ public sealed class ProductVariant : AggregateRoot
         }
     }
 
+    private void SyncImages(IReadOnlyCollection<ProductVariantImageSnapshot> images)
+    {
+        _images.Clear();
+
+        if (images is null || images.Count == 0)
+            return;
+
+        foreach (var snapshot in images.OrderBy(x => x.DisplayOrder))
+        {
+            if (string.IsNullOrWhiteSpace(snapshot.FileKey))
+                continue;
+
+            _images.Add(VariantImage.Create(
+                BusinessKey.Value,
+                snapshot.FileKey,
+                snapshot.OriginalFileName,
+                snapshot.ContentType,
+                snapshot.OriginalUrl,
+                snapshot.ThumbnailUrl,
+                snapshot.DisplayOrder,
+                snapshot.IsPrimary));
+        }
+    }
+
     private static IReadOnlyCollection<ProductVariantAttributeValueSnapshot> SnapshotAttributeValues(IEnumerable<VariantAttributeValue> values)
     {
         return values
@@ -421,6 +574,21 @@ public sealed class ProductVariant : AggregateRoot
     {
         return conversions
             .Select(x => new ProductVariantUomConversionSnapshot(x.FromUomRef, x.ToUomRef, x.Factor, x.RoundingMode, x.IsBasePath))
+            .ToList();
+    }
+
+    private static IReadOnlyCollection<ProductVariantImageSnapshot> SnapshotImages(IEnumerable<VariantImage> images)
+    {
+        return images
+            .OrderBy(x => x.DisplayOrder)
+            .Select(x => new ProductVariantImageSnapshot(
+                x.FileKey,
+                x.OriginalFileName,
+                x.ContentType,
+                x.OriginalUrl,
+                x.ThumbnailUrl,
+                x.DisplayOrder,
+                x.IsPrimary))
             .ToList();
     }
 }

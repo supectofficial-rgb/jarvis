@@ -56,7 +56,14 @@ public class CreateCategoryCommandHandler
             if (validationError is not null)
                 return Fail(validationError);
 
-            var aggregate = Category.Create(normalizedCode, command.Name.Trim(), command.DisplayOrder, command.ParentCategoryRef);
+            var aggregate = Category.Create(
+                normalizedCode,
+                command.Name.Trim(),
+                command.DisplayOrder,
+                command.ParentCategoryRef,
+                command.ImageFileKey,
+                command.ImageUrl,
+                command.ImageThumbnailUrl);
 
             foreach (var rule in rules)
             {

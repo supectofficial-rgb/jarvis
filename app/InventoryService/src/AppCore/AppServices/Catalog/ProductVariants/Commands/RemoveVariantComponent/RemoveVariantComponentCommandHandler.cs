@@ -19,14 +19,15 @@ public class RemoveVariantComponentCommandHandler : CommandHandler<RemoveVariant
         if (command.ProductVariantBusinessKey == Guid.Empty)
             return Fail("ProductVariantBusinessKey is required.");
 
-        if (command.ComponentVariantRef == Guid.Empty)
+        if ((!command.VariantComponentBusinessKey.HasValue || command.VariantComponentBusinessKey.Value == Guid.Empty) &&
+            command.ComponentVariantRef == Guid.Empty)
             return Fail("ComponentVariantRef is required.");
 
         var variant = await _variantRepository.GetByBusinessKeyAsync(command.ProductVariantBusinessKey);
         if (variant is null)
             return Fail("Product variant was not found.");
 
-        variant.RemoveComponent(command.ComponentVariantRef);
+        variant.RemoveComponent(command.VariantComponentBusinessKey, command.ComponentVariantRef);
         await _variantRepository.CommitAsync();
 
         return Ok(new RemoveVariantComponentCommandResult

@@ -8,6 +8,8 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Attribute
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Categories.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Products.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.ProductVariants.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Locations.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Warehouses.Entities;
 using Microsoft.EntityFrameworkCore;
 using OysterFx.Infra.Persistence.RDB.Queries;
 
@@ -56,6 +58,7 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
 
         var components = await GetComponentsByVariantIdAsync(productVariantBusinessKey);
         var addOns = await GetAddOnsByVariantIdAsync(productVariantBusinessKey);
+        var images = await GetImagesByVariantIdAsync(productVariantBusinessKey);
 
         return new GetProductVariantByBusinessKeyQueryResult
         {
@@ -70,7 +73,8 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             AttributeValues = attributes,
             UomConversions = conversions,
             Components = components,
-            AddOns = addOns
+            AddOns = addOns,
+            Images = images
         };
     }
 
@@ -291,7 +295,8 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             CategoryName = context.CategoryName,
             AttributeValues = attrs,
             Components = await GetComponentsByVariantIdAsync(variantId),
-            AddOns = await GetAddOnsByVariantIdAsync(variantId)
+            AddOns = await GetAddOnsByVariantIdAsync(variantId),
+            Images = await GetImagesByVariantIdAsync(variantId)
         };
     }
 
@@ -379,17 +384,23 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         return await (
             from component in _dbContext.Set<VariantComponentReadModel>()
             join variant in _dbContext.Set<ProductVariantReadModel>() on component.ComponentVariantRef equals variant.BusinessKey
+            join location in _dbContext.Set<LocationReadModel>() on component.LocationRef equals location.BusinessKey
+            join warehouse in _dbContext.Set<WarehouseReadModel>() on component.WarehouseRef equals warehouse.BusinessKey
             where component.VariantRef == variantId
-            orderby variant.VariantSku
+            orderby warehouse.Code, location.LocationCode, variant.VariantSku
             select new VariantComponentViewItem
             {
                 VariantComponentBusinessKey = component.BusinessKey,
                 VariantRef = component.VariantRef,
                 ComponentVariantRef = component.ComponentVariantRef,
+                WarehouseRef = component.WarehouseRef,
+                LocationRef = component.LocationRef,
                 Quantity = component.Quantity,
                 ComponentSku = variant.VariantSku,
                 ComponentBarcode = variant.Barcode,
-                ComponentIsActive = variant.IsActive
+                ComponentIsActive = variant.IsActive,
+                WarehouseCode = warehouse.Code,
+                LocationCode = location.LocationCode
             }).ToListAsync();
     }
 
@@ -409,6 +420,26 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
                 AddOnBarcode = variant.Barcode,
                 AddOnIsActive = variant.IsActive
             }).ToListAsync();
+    }
+
+    public async Task<List<VariantImageViewItem>> GetImagesByVariantIdAsync(Guid variantId)
+    {
+        return await _dbContext.Set<VariantImageReadModel>()
+            .Where(x => x.VariantRef == variantId)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.FileKey)
+            .Select(x => new VariantImageViewItem
+            {
+                VariantRef = x.VariantRef,
+                FileKey = x.FileKey,
+                OriginalFileName = x.OriginalFileName,
+                ContentType = x.ContentType,
+                OriginalUrl = x.OriginalUrl,
+                ThumbnailUrl = x.ThumbnailUrl,
+                DisplayOrder = x.DisplayOrder,
+                IsPrimary = x.IsPrimary
+            })
+            .ToListAsync();
     }
 
     public async Task<List<MissingRequiredVariantAttributeItem>> GetMissingRequiredAttributesAsync(Guid variantId)

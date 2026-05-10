@@ -13,6 +13,9 @@ public sealed class Product : AggregateRoot
     public string Name { get; private set; } = string.Empty;
     public Guid DefaultUomRef { get; private set; }
     public Guid? TaxCategoryRef { get; private set; }
+    public string? ImageFileKey { get; private set; }
+    public string? ImageUrl { get; private set; }
+    public string? ImageThumbnailUrl { get; private set; }
     public bool IsActive { get; private set; }
     public IReadOnlyCollection<ProductAttributeValue> AttributeValues => _attributeValues.AsReadOnly();
 
@@ -26,7 +29,10 @@ public sealed class Product : AggregateRoot
         string baseSku,
         string name,
         Guid defaultUomRef,
-        Guid? taxCategoryRef = null)
+        Guid? taxCategoryRef = null,
+        string? imageFileKey = null,
+        string? imageUrl = null,
+        string? imageThumbnailUrl = null)
     {
         if (categorySchemaVersionRef == Guid.Empty)
             throw new ArgumentException("CategorySchemaVersionRef is required.", nameof(categorySchemaVersionRef));
@@ -41,6 +47,9 @@ public sealed class Product : AggregateRoot
             NormalizeRequired(name, nameof(name)),
             defaultUomRef,
             taxCategoryRef,
+            NormalizeOptional(imageFileKey),
+            NormalizeOptional(imageUrl),
+            NormalizeOptional(imageThumbnailUrl),
             true,
             Array.Empty<ProductAttributeValueSnapshot>()));
 
@@ -90,6 +99,26 @@ public sealed class Product : AggregateRoot
         RaiseUpdatedEvent(taxCategoryRef: taxCategoryRef, updateTaxCategoryRef: true);
     }
 
+    public void SetImage(string? imageFileKey, string? imageUrl, string? imageThumbnailUrl)
+    {
+        var normalizedFileKey = NormalizeOptional(imageFileKey);
+        var normalizedImageUrl = NormalizeOptional(imageUrl);
+        var normalizedThumbnailUrl = NormalizeOptional(imageThumbnailUrl);
+
+        if (ImageFileKey == normalizedFileKey
+            && ImageUrl == normalizedImageUrl
+            && ImageThumbnailUrl == normalizedThumbnailUrl)
+        {
+            return;
+        }
+
+        RaiseUpdatedEvent(
+            imageFileKey: normalizedFileKey,
+            imageUrl: normalizedImageUrl,
+            imageThumbnailUrl: normalizedThumbnailUrl,
+            updateImage: true);
+    }
+
     public void Activate()
     {
         if (IsActive)
@@ -133,6 +162,8 @@ public sealed class Product : AggregateRoot
         return value.Trim();
     }
 
+    private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private void RaiseUpdatedEvent(
         Guid? categoryRef = null,
         Guid? categorySchemaVersionRef = null,
@@ -140,9 +171,16 @@ public sealed class Product : AggregateRoot
         Guid? defaultUomRef = null,
         Guid? taxCategoryRef = null,
         bool updateTaxCategoryRef = false,
+        string? imageFileKey = null,
+        string? imageUrl = null,
+        string? imageThumbnailUrl = null,
+        bool updateImage = false,
         bool? isActive = null)
     {
         var nextTaxCategoryRef = updateTaxCategoryRef ? taxCategoryRef : TaxCategoryRef;
+        var nextImageFileKey = updateImage ? imageFileKey : ImageFileKey;
+        var nextImageUrl = updateImage ? imageUrl : ImageUrl;
+        var nextImageThumbnailUrl = updateImage ? imageThumbnailUrl : ImageThumbnailUrl;
 
         Apply(new ProductUpdatedEvent(
             BusinessKey,
@@ -152,6 +190,9 @@ public sealed class Product : AggregateRoot
             name ?? Name,
             defaultUomRef ?? DefaultUomRef,
             nextTaxCategoryRef,
+            nextImageFileKey,
+            nextImageUrl,
+            nextImageThumbnailUrl,
             isActive ?? IsActive,
             SnapshotAttributeValues(_attributeValues)));
     }
@@ -164,6 +205,9 @@ public sealed class Product : AggregateRoot
         Name = @event.Name;
         DefaultUomRef = @event.DefaultUomRef;
         TaxCategoryRef = @event.TaxCategoryRef;
+        ImageFileKey = @event.ImageFileKey;
+        ImageUrl = @event.ImageUrl;
+        ImageThumbnailUrl = @event.ImageThumbnailUrl;
         IsActive = @event.IsActive;
         SyncAttributeValues(@event.AttributeValues);
     }
@@ -176,6 +220,9 @@ public sealed class Product : AggregateRoot
         Name = @event.Name;
         DefaultUomRef = @event.DefaultUomRef;
         TaxCategoryRef = @event.TaxCategoryRef;
+        ImageFileKey = @event.ImageFileKey;
+        ImageUrl = @event.ImageUrl;
+        ImageThumbnailUrl = @event.ImageThumbnailUrl;
         IsActive = @event.IsActive;
         SyncAttributeValues(@event.AttributeValues);
     }

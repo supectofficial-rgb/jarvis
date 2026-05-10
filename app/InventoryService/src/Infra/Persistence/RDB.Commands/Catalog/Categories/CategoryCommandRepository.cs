@@ -29,6 +29,9 @@ public class CategoryCommandRepository
         string name,
         int displayOrder,
         Guid? parentCategoryRef,
+        string? imageFileKey,
+        string? imageUrl,
+        string? imageThumbnailUrl,
         bool isActive)
     {
         var businessKey = BusinessKey.FromGuid(categoryBusinessKey);
@@ -39,6 +42,9 @@ public class CategoryCommandRepository
                 .SetProperty(x => x.Name, name)
                 .SetProperty(x => x.DisplayOrder, displayOrder)
                 .SetProperty(x => x.ParentCategoryRef, parentCategoryRef)
+                .SetProperty(x => x.ImageFileKey, imageFileKey)
+                .SetProperty(x => x.ImageUrl, imageUrl)
+                .SetProperty(x => x.ImageThumbnailUrl, imageThumbnailUrl)
                 .SetProperty(x => x.IsActive, isActive));
     }
 

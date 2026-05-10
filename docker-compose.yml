@@ -352,6 +352,25 @@ services:
       - "8090:8080"
     restart: unless-stopped
 
+  file-service:
+    build:
+      context: .
+      dockerfile: docker/file-service.Dockerfile
+    image: insurance/file-service:latest
+    container_name: insurance-file-service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      FileStorage__RootPath: /data/media
+      MediaProcessing__Video__EnableTranscoding: "true"
+      MediaProcessing__Video__FfmpegPath: ffmpeg
+      MediaProcessing__Video__FfprobePath: ffprobe
+    ports:
+      - "5230:8080"
+    volumes:
+      - file_service_media:/data/media
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   pgadmin_data:
@@ -360,3 +379,4 @@ volumes:
   elasticsearch_data:
   neo4j_data:
   neo4j_logs:
+  file_service_media:

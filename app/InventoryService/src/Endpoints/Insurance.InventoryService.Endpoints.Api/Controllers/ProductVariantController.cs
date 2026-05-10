@@ -10,11 +10,13 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantAddOn;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantAttributeValue;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantComponent;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantImage;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantUomConversion;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.SetVariantAttributeValue;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpdateProductVariant;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantAddOn;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantComponent;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantImage;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantUomConversion;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetActiveVariants;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantAddOnsByVariantId;
@@ -127,11 +129,12 @@ public class ProductVariantController : OysterFxController
 
     [HttpDelete("{productVariantBusinessKey:guid}/components")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
-    public Task<IActionResult> RemoveComponent([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid componentVariantRef)
+    public Task<IActionResult> RemoveComponent([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid? variantComponentBusinessKey, [FromQuery] Guid componentVariantRef)
         => SendCommand<RemoveVariantComponentCommand, RemoveVariantComponentCommandResult>(
             new RemoveVariantComponentCommand
             {
                 ProductVariantBusinessKey = productVariantBusinessKey,
+                VariantComponentBusinessKey = variantComponentBusinessKey,
                 ComponentVariantRef = componentVariantRef
             });
 
@@ -151,6 +154,24 @@ public class ProductVariantController : OysterFxController
             {
                 ProductVariantBusinessKey = productVariantBusinessKey,
                 AddOnVariantRef = addOnVariantRef
+            });
+
+    [HttpPut("{productVariantBusinessKey:guid}/images")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> UpsertImage([FromRoute] Guid productVariantBusinessKey, [FromBody] UpsertVariantImageCommand command)
+    {
+        command.ProductVariantBusinessKey = productVariantBusinessKey;
+        return SendCommand<UpsertVariantImageCommand, UpsertVariantImageCommandResult>(command);
+    }
+
+    [HttpDelete("{productVariantBusinessKey:guid}/images")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> RemoveImage([FromRoute] Guid productVariantBusinessKey, [FromQuery] string fileKey)
+        => SendCommand<RemoveVariantImageCommand, RemoveVariantImageCommandResult>(
+            new RemoveVariantImageCommand
+            {
+                ProductVariantBusinessKey = productVariantBusinessKey,
+                FileKey = fileKey
             });
 
     [HttpPut("{productVariantBusinessKey:guid}/attributes/{attributeRef:guid}")]

@@ -12,6 +12,9 @@ public sealed class ProductConfig : IEntityTypeConfiguration<Product>
         builder.HasIndex(x => x.BaseSku).IsUnique();
         builder.HasIndex(x => x.CategoryRef);
         builder.HasIndex(x => x.CategorySchemaVersionRef);
+        builder.Property(x => x.ImageFileKey).HasMaxLength(256);
+        builder.Property(x => x.ImageUrl).HasMaxLength(1024);
+        builder.Property(x => x.ImageThumbnailUrl).HasMaxLength(1024);
 
         builder.HasMany(x => x.AttributeValues)
             .WithOne()

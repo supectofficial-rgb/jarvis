@@ -80,7 +80,10 @@ public class CreateProductCommandHandler : CommandHandler<CreateProductCommand, 
             normalizedBaseSku,
             command.Name.Trim(),
             command.DefaultUomRef,
-            command.TaxCategoryRef);
+            command.TaxCategoryRef,
+            command.ImageFileKey,
+            command.ImageUrl,
+            command.ImageThumbnailUrl);
 
         foreach (var attribute in attributes)
             aggregate.SetAttributeValue(attribute.AttributeRef, attribute.Value, attribute.OptionRef);

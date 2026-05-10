@@ -66,6 +66,10 @@
     <Project Path="app/CoreService/src/Infra/Persistence/Sql.Commands/Insurance.Infra.Persistence.Sql.Commands.csproj" />
     <Project Path="app/CoreService/src/Infra/Persistence/Sql.Queries/Insurance.Infra.Persistence.Sql.Queries.csproj" />
   </Folder>
+  <Folder Name="/app/FileService/" />
+  <Folder Name="/app/FileService/src/">
+    <Project Path="app/FileService/src/Insurance.FileService.Endpoints.Api/Insurance.FileService.Endpoints.Api.csproj" />
+  </Folder>
   <Folder Name="/app/HubService/" />
   <Folder Name="/app/HubService/src/" />
   <Folder Name="/app/HubService/src/AppCore/">

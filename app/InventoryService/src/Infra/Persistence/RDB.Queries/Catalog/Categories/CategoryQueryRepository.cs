@@ -60,6 +60,9 @@ public class CategoryQueryRepository
             Code = aggregate.Code,
             Name = aggregate.Name,
             DisplayOrder = aggregate.DisplayOrder,
+            ImageFileKey = aggregate.ImageFileKey,
+            ImageUrl = aggregate.ImageUrl,
+            ImageThumbnailUrl = aggregate.ImageThumbnailUrl,
             IsActive = aggregate.IsActive,
             AttributeRules = rules
         };
@@ -133,6 +136,9 @@ public class CategoryQueryRepository
                 Code = x.Code,
                 Name = x.Name,
                 DisplayOrder = x.DisplayOrder,
+                ImageFileKey = x.ImageFileKey,
+                ImageUrl = x.ImageUrl,
+                ImageThumbnailUrl = x.ImageThumbnailUrl,
                 IsActive = x.IsActive
             });
 
@@ -163,6 +169,9 @@ public class CategoryQueryRepository
                 Code = x.Code,
                 Name = x.Name,
                 DisplayOrder = x.DisplayOrder,
+                ImageFileKey = x.ImageFileKey,
+                ImageUrl = x.ImageUrl,
+                ImageThumbnailUrl = x.ImageThumbnailUrl,
                 IsActive = x.IsActive
             })
             .ToListAsync();
@@ -182,6 +191,9 @@ public class CategoryQueryRepository
                 Code = x.Code,
                 Name = x.Name,
                 DisplayOrder = x.DisplayOrder,
+                ImageFileKey = x.ImageFileKey,
+                ImageUrl = x.ImageUrl,
+                ImageThumbnailUrl = x.ImageThumbnailUrl,
                 IsActive = x.IsActive
             })
             .ToListAsync();
@@ -254,6 +266,9 @@ public class CategoryQueryRepository
                 Code = x.Code,
                 Name = x.Name,
                 DisplayOrder = x.DisplayOrder,
+                ImageFileKey = x.ImageFileKey,
+                ImageUrl = x.ImageUrl,
+                ImageThumbnailUrl = x.ImageThumbnailUrl,
                 IsActive = x.IsActive
             })
             .ToListAsync();
@@ -280,6 +295,9 @@ public class CategoryQueryRepository
                 Code = x.Code,
                 Name = x.Name,
                 DisplayOrder = x.DisplayOrder,
+                ImageFileKey = x.ImageFileKey,
+                ImageUrl = x.ImageUrl,
+                ImageThumbnailUrl = x.ImageThumbnailUrl,
                 IsActive = x.IsActive
             })
             .ToListAsync();

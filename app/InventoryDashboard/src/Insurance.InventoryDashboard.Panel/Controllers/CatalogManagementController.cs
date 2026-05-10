@@ -141,7 +141,10 @@ public abstract partial class CatalogManagementController : Controller
                 Code = categoryFormSource?.Code ?? string.Empty,
                 Name = categoryFormSource?.Name ?? string.Empty,
                 DisplayOrder = categoryFormSource?.DisplayOrder ?? 0,
-                ParentCategoryId = categoryFormSource?.ParentCategoryId
+                ParentCategoryId = categoryFormSource?.ParentCategoryId,
+                ImageFileKey = categoryFormSource?.ImageFileKey,
+                ImageUrl = categoryFormSource?.ImageUrl,
+                ImageThumbnailUrl = categoryFormSource?.ImageThumbnailUrl
             },
             MoveCategoryForm = new MoveCategoryForm
             {
@@ -261,7 +264,10 @@ public abstract partial class CatalogManagementController : Controller
             Code = form.Code.Trim(),
             Name = form.Name.Trim(),
             DisplayOrder = form.DisplayOrder,
-            ParentCategoryId = string.IsNullOrWhiteSpace(form.ParentCategoryId) ? null : form.ParentCategoryId.Trim()
+            ParentCategoryId = string.IsNullOrWhiteSpace(form.ParentCategoryId) ? null : form.ParentCategoryId.Trim(),
+            ImageFileKey = string.IsNullOrWhiteSpace(form.ImageFileKey) ? null : form.ImageFileKey.Trim(),
+            ImageUrl = string.IsNullOrWhiteSpace(form.ImageUrl) ? null : form.ImageUrl.Trim(),
+            ImageThumbnailUrl = string.IsNullOrWhiteSpace(form.ImageThumbnailUrl) ? null : form.ImageThumbnailUrl.Trim()
         };
 
         ApiResponse<bool> result;
@@ -673,7 +679,10 @@ public abstract partial class CatalogManagementController : Controller
                 DefaultUomRef = productDetailsResult.Data?.DefaultUomRef ?? string.Empty,
                 TaxCategoryRef = productDetailsResult.Data?.TaxCategoryRef,
                 IsActive = productDetailsResult.Data?.IsActive ?? true,
-                Description = productDetailsResult.Data?.Description
+                Description = productDetailsResult.Data?.Description,
+                ImageFileKey = productDetailsResult.Data?.ImageFileKey,
+                ImageUrl = productDetailsResult.Data?.ImageUrl,
+                ImageThumbnailUrl = productDetailsResult.Data?.ImageThumbnailUrl
             },
             ProductAttributeForm = new ProductAttributeValueForm
             {
@@ -968,6 +977,9 @@ public abstract partial class CatalogManagementController : Controller
             TaxCategoryRef = string.IsNullOrWhiteSpace(form.TaxCategoryRef) ? null : form.TaxCategoryRef.Trim(),
             IsActive = form.IsActive,
             Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
+            ImageFileKey = string.IsNullOrWhiteSpace(form.ImageFileKey) ? null : form.ImageFileKey.Trim(),
+            ImageUrl = string.IsNullOrWhiteSpace(form.ImageUrl) ? null : form.ImageUrl.Trim(),
+            ImageThumbnailUrl = string.IsNullOrWhiteSpace(form.ImageThumbnailUrl) ? null : form.ImageThumbnailUrl.Trim(),
             AttributeValues = productCreateAttributes
         };
 
@@ -1406,7 +1418,8 @@ public abstract partial class CatalogManagementController : Controller
                 Barcode = variantDetailsResult.Data?.Barcode,
                 BaseUomRef = variantDetailsResult.Data?.BaseUomRef ?? string.Empty,
                 TrackingPolicy = variantDetailsResult.Data?.TrackingPolicy ?? "None",
-                IsActive = variantDetailsResult.Data?.IsActive ?? true
+                IsActive = variantDetailsResult.Data?.IsActive ?? true,
+                SelectedImagesJson = JsonSerializer.Serialize(variantDetailsResult.Data?.Images ?? new List<VariantImageModel>())
             },
             VariantAttributeForm = new VariantAttributeValueForm
             {
@@ -1419,6 +1432,11 @@ public abstract partial class CatalogManagementController : Controller
                 VariantId = selectedVariantId ?? string.Empty,
                 RoundingMode = "None",
                 Factor = 1m
+            },
+            BulkVariantImageForm = new BulkVariantImageForm
+            {
+                ProductId = selectedProductId,
+                ImagesJson = "[]"
             }
         };
 
@@ -1517,7 +1535,8 @@ public abstract partial class CatalogManagementController : Controller
             Barcode = string.IsNullOrWhiteSpace(form.Barcode) ? null : form.Barcode.Trim(),
             BaseUomRef = form.BaseUomRef,
             TrackingPolicy = form.TrackingPolicy.Trim(),
-            IsActive = form.IsActive
+            IsActive = form.IsActive,
+            Images = ParseVariantImagesJson(form.SelectedImagesJson)
         };
 
         ApiResponse<bool> result;
@@ -1920,6 +1939,29 @@ public abstract partial class CatalogManagementController : Controller
         {
             payload = new ProductAutoVariantPayload();
             return false;
+        }
+    }
+
+    private static List<VariantImageModel> ParseVariantImagesJson(string? rawPayload)
+    {
+        if (string.IsNullOrWhiteSpace(rawPayload))
+            return new List<VariantImageModel>();
+
+        try
+        {
+            var items = JsonSerializer.Deserialize<List<VariantImageModel>>(rawPayload, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<VariantImageModel>();
+
+            return items
+                .Where(x => !string.IsNullOrWhiteSpace(x.FileKey))
+                .OrderBy(x => x.DisplayOrder)
+                .ToList();
+        }
+        catch
+        {
+            return new List<VariantImageModel>();
         }
     }
 

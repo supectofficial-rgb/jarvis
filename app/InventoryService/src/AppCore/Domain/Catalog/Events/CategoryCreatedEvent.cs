@@ -29,6 +29,9 @@ public sealed record CategoryCreatedEvent : IDomainEvent
     public string Name { get; }
     public int DisplayOrder { get; }
     public Guid? ParentCategoryRef { get; }
+    public string? ImageFileKey { get; }
+    public string? ImageUrl { get; }
+    public string? ImageThumbnailUrl { get; }
     public bool IsActive { get; }
     public IReadOnlyCollection<CategorySchemaVersionSnapshot> SchemaVersions { get; }
     public IReadOnlyCollection<CategoryAttributeRuleSnapshot> AttributeRules =>
@@ -42,6 +45,9 @@ public sealed record CategoryCreatedEvent : IDomainEvent
         string name,
         int displayOrder,
         Guid? parentCategoryRef,
+        string? imageFileKey,
+        string? imageUrl,
+        string? imageThumbnailUrl,
         bool isActive,
         IReadOnlyCollection<CategorySchemaVersionSnapshot> schemaVersions)
     {
@@ -50,6 +56,9 @@ public sealed record CategoryCreatedEvent : IDomainEvent
         Name = name;
         DisplayOrder = displayOrder;
         ParentCategoryRef = parentCategoryRef;
+        ImageFileKey = imageFileKey;
+        ImageUrl = imageUrl;
+        ImageThumbnailUrl = imageThumbnailUrl;
         IsActive = isActive;
         SchemaVersions = schemaVersions;
         OccurredOn = DateTime.UtcNow;

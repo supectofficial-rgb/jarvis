@@ -8,6 +8,9 @@ public class CreateCategoryCommand : ICommand<CreateCategoryCommandResult>
     public string Name { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
     public Guid? ParentCategoryRef { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
     public List<CreateCategoryAttributeRuleItem> AttributeRules { get; set; } = new();
 }
 

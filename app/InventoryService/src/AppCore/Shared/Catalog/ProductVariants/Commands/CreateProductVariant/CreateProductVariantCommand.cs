@@ -11,6 +11,7 @@ public class CreateProductVariantCommand : ICommand<CreateProductVariantCommandR
     public Guid BaseUomRef { get; set; }
     public List<CreateVariantAttributeValueItem> AttributeValues { get; set; } = new();
     public List<CreateVariantUomConversionItem> UomConversions { get; set; } = new();
+    public List<UpsertVariantImageItem> Images { get; set; } = new();
 }
 
 public class CreateVariantAttributeValueItem
@@ -27,4 +28,15 @@ public class CreateVariantUomConversionItem
     public decimal Factor { get; set; }
     public string RoundingMode { get; set; } = string.Empty;
     public bool IsBasePath { get; set; }
+}
+
+public class UpsertVariantImageItem
+{
+    public string FileKey { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string OriginalUrl { get; set; } = string.Empty;
+    public string ThumbnailUrl { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+    public bool IsPrimary { get; set; }
 }

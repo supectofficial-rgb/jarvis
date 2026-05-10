@@ -9,6 +9,9 @@ public class UpdateCategoryCommand : ICommand<UpdateCategoryCommandResult>
     public string Name { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
     public Guid? ParentCategoryRef { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
     public bool IsActive { get; set; } = true;
     public List<UpdateCategoryAttributeRuleItem> AttributeRules { get; set; } = new();
 }

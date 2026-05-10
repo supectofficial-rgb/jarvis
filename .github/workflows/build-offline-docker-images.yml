@@ -82,6 +82,7 @@ jobs:
           if [[ "$EVENT_NAME" == "workflow_dispatch" && "$BUILD_SCOPE" == "all" ]]; then
             add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
             add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
             add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
             add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
             add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
@@ -89,6 +90,7 @@ jobs:
           elif [[ "$shared_docker_changed" == "true" ]]; then
             add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
             add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
             add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
             add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
             add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
@@ -100,6 +102,10 @@ jobs:
 
             if has_match "app/CacheService/*" || has_match "docker/cache-api.Dockerfile" || has_match "fx/*"; then
               add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            fi
+
+            if has_match "app/FileService/*" || has_match "docker/file-service.Dockerfile"; then
+              add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
             fi
 
             if has_match "app/GraphService/*" || has_match "docker/graph-service.Dockerfile" || has_match "fx/*"; then

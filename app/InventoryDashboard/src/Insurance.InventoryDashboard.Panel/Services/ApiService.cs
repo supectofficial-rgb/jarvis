@@ -79,7 +79,10 @@ public sealed class ApiService : IApiService
             Code = NormalizeCode(request.Code, request.Name, "CAT"),
             Name = request.Name.Trim(),
             DisplayOrder = request.DisplayOrder,
-            ParentCategoryRef = ParseNullableGuid(request.ParentCategoryId)
+            ParentCategoryRef = ParseNullableGuid(request.ParentCategoryId),
+            ImageFileKey = request.ImageFileKey,
+            ImageUrl = request.ImageUrl,
+            ImageThumbnailUrl = request.ImageThumbnailUrl
         };
 
         return PostCommandAsync($"{InventoryApiPrefix}/Category", payload, token, "ایجاد دسته‌بندی انجام نشد.");
@@ -93,6 +96,9 @@ public sealed class ApiService : IApiService
             Name = request.Name.Trim(),
             DisplayOrder = request.DisplayOrder,
             ParentCategoryRef = ParseNullableGuid(request.ParentCategoryId),
+            ImageFileKey = request.ImageFileKey,
+            ImageUrl = request.ImageUrl,
+            ImageThumbnailUrl = request.ImageThumbnailUrl,
             IsActive = true
         };
 
@@ -494,6 +500,9 @@ public sealed class ApiService : IApiService
             Name = request.Name.Trim(),
             DefaultUomRef = ParseGuidOrEmpty(request.DefaultUomRef),
             TaxCategoryRef = ParseNullableGuid(request.TaxCategoryRef),
+            ImageFileKey = request.ImageFileKey,
+            ImageUrl = request.ImageUrl,
+            ImageThumbnailUrl = request.ImageThumbnailUrl,
             AttributeValues = MapAttributeValues(request.AttributeValues)
         };
 
@@ -544,6 +553,9 @@ public sealed class ApiService : IApiService
             Name = request.Name.Trim(),
             DefaultUomRef = ParseGuidOrEmpty(request.DefaultUomRef),
             TaxCategoryRef = ParseNullableGuid(request.TaxCategoryRef),
+            ImageFileKey = request.ImageFileKey,
+            ImageUrl = request.ImageUrl,
+            ImageThumbnailUrl = request.ImageThumbnailUrl,
             IsActive = request.IsActive
         };
 
@@ -637,6 +649,9 @@ public sealed class ApiService : IApiService
             Name = item.Name,
             DefaultUomRef = item.DefaultUomRef.ToString("D"),
             TaxCategoryRef = item.TaxCategoryRef?.ToString("D"),
+            ImageFileKey = item.ImageFileKey,
+            ImageUrl = item.ImageUrl,
+            ImageThumbnailUrl = item.ImageThumbnailUrl,
             IsActive = item.IsActive
         }).ToList() ?? new List<ProductSummaryModel>();
 
@@ -666,6 +681,9 @@ public sealed class ApiService : IApiService
             Name = item.Product.Name,
             DefaultUomRef = item.Product.DefaultUomRef.ToString("D"),
             TaxCategoryRef = item.Product.TaxCategoryRef?.ToString("D"),
+            ImageFileKey = item.Product.ImageFileKey,
+            ImageUrl = item.Product.ImageUrl,
+            ImageThumbnailUrl = item.Product.ImageThumbnailUrl,
             IsActive = item.Product.IsActive,
             CategoryName = item.CategoryName,
             Attributes = item.ProductAttributes.Select(attribute => new ProductAttributeValueModel
@@ -694,7 +712,8 @@ public sealed class ApiService : IApiService
             Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim(),
             TrackingPolicy = request.TrackingPolicy.Trim(),
             BaseUomRef = ParseGuidOrEmpty(request.BaseUomRef),
-            AttributeValues = MapAttributeValues(request.AttributeValues)
+            AttributeValues = MapAttributeValues(request.AttributeValues),
+            Images = MapVariantImages(request.Images)
         };
 
         return PostCommandAsync($"{InventoryApiPrefix}/ProductVariant", payload, token, "Creating variant failed.");
@@ -708,6 +727,7 @@ public sealed class ApiService : IApiService
             Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim(),
             TrackingPolicy = request.TrackingPolicy.Trim(),
             BaseUomRef = ParseGuidOrEmpty(request.BaseUomRef),
+            Images = MapVariantImages(request.Images),
             IsActive = request.IsActive
         };
 
@@ -830,7 +850,10 @@ public sealed class ApiService : IApiService
     {
         var payload = new
         {
+            VariantComponentBusinessKey = ParseNullableGuid(request.ComponentId),
             ComponentVariantRef = ParseGuidOrEmpty(request.ComponentVariantRef),
+            WarehouseRef = ParseGuidOrEmpty(request.WarehouseRef),
+            LocationRef = ParseGuidOrEmpty(request.LocationRef),
             Quantity = request.Quantity
         };
 
@@ -841,10 +864,11 @@ public sealed class ApiService : IApiService
             "Saving variant component failed.");
     }
 
-    public Task<ApiResponse<bool>> RemoveVariantComponentAsync(string variantId, string componentVariantId, string token)
+    public Task<ApiResponse<bool>> RemoveVariantComponentAsync(string variantId, string componentVariantId, string? componentId, string token)
     {
         var route = BuildRouteWithQuery(
             $"{InventoryApiPrefix}/ProductVariant/{variantId}/components",
+            ("variantComponentBusinessKey", componentId),
             ("componentVariantRef", componentVariantId));
 
         return DeleteCommandAsync(route, token, "Removing variant component failed.");
@@ -864,9 +888,13 @@ public sealed class ApiService : IApiService
             ComponentId = item.VariantComponentBusinessKey.ToString("D"),
             VariantId = item.VariantRef.ToString("D"),
             ComponentVariantId = item.ComponentVariantRef.ToString("D"),
+            WarehouseId = item.WarehouseRef.ToString("D"),
+            LocationId = item.LocationRef.ToString("D"),
             ComponentSku = item.ComponentSku,
             ComponentBarcode = item.ComponentBarcode,
             ComponentIsActive = item.ComponentIsActive,
+            WarehouseCode = item.WarehouseCode,
+            LocationCode = item.LocationCode,
             Quantity = item.Quantity
         }).ToList() ?? new List<VariantComponentModel>();
 
@@ -894,6 +922,35 @@ public sealed class ApiService : IApiService
             ("addOnVariantRef", addOnVariantId));
 
         return DeleteCommandAsync(route, token, "Removing variant add-on failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpsertVariantImageAsync(string variantId, UpsertVariantImageRequest request, string token)
+    {
+        var payload = new
+        {
+            FileKey = request.FileKey,
+            OriginalFileName = request.OriginalFileName,
+            ContentType = request.ContentType,
+            OriginalUrl = request.OriginalUrl,
+            ThumbnailUrl = request.ThumbnailUrl,
+            DisplayOrder = request.DisplayOrder,
+            IsPrimary = request.IsPrimary
+        };
+
+        return PutCommandAsync(
+            $"{InventoryApiPrefix}/ProductVariant/{variantId}/images",
+            payload,
+            token,
+            "Saving variant image failed.");
+    }
+
+    public Task<ApiResponse<bool>> RemoveVariantImageAsync(string variantId, string fileKey, string token)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/ProductVariant/{variantId}/images",
+            ("fileKey", fileKey));
+
+        return DeleteCommandAsync(route, token, "Removing variant image failed.");
     }
 
     public async Task<ApiResponse<List<VariantAddOnModel>>> GetVariantAddOnsByVariantIdAsync(string variantId, string token)
@@ -1023,9 +1080,13 @@ public sealed class ApiService : IApiService
                 ComponentId = component.VariantComponentBusinessKey.ToString("D"),
                 VariantId = component.VariantRef.ToString("D"),
                 ComponentVariantId = component.ComponentVariantRef.ToString("D"),
+                WarehouseId = component.WarehouseRef.ToString("D"),
+                LocationId = component.LocationRef.ToString("D"),
                 ComponentSku = component.ComponentSku,
                 ComponentBarcode = component.ComponentBarcode,
                 ComponentIsActive = component.ComponentIsActive,
+                WarehouseCode = component.WarehouseCode,
+                LocationCode = component.LocationCode,
                 Quantity = component.Quantity
             }).ToList(),
             AddOns = item.AddOns.Select(addOn => new VariantAddOnModel
@@ -1036,6 +1097,16 @@ public sealed class ApiService : IApiService
                 AddOnSku = addOn.AddOnSku,
                 AddOnBarcode = addOn.AddOnBarcode,
                 AddOnIsActive = addOn.AddOnIsActive
+            }).ToList(),
+            Images = item.Images.Select(image => new VariantImageModel
+            {
+                FileKey = image.FileKey,
+                OriginalFileName = image.OriginalFileName,
+                ContentType = image.ContentType,
+                OriginalUrl = image.OriginalUrl,
+                ThumbnailUrl = image.ThumbnailUrl,
+                DisplayOrder = image.DisplayOrder,
+                IsPrimary = image.IsPrimary
             }).ToList()
         };
 
@@ -1657,6 +1728,9 @@ public sealed class ApiService : IApiService
             Name = item.Name,
             ParentCategoryId = item.ParentCategoryRef?.ToString("D"),
             DisplayOrder = item.DisplayOrder,
+            ImageFileKey = item.ImageFileKey,
+            ImageUrl = item.ImageUrl,
+            ImageThumbnailUrl = item.ImageThumbnailUrl,
             IsActive = item.IsActive,
             Children = children
         };
@@ -1787,6 +1861,22 @@ public sealed class ApiService : IApiService
             IsActive = item.IsActive,
             InventoryMovementLocked = item.InventoryMovementLocked
         }).ToList();
+
+    private static List<object> MapVariantImages(IEnumerable<VariantImageModel> images)
+        => images
+            .Where(x => !string.IsNullOrWhiteSpace(x.FileKey))
+            .OrderBy(x => x.DisplayOrder)
+            .Select(x => (object)new
+            {
+                FileKey = x.FileKey,
+                OriginalFileName = x.OriginalFileName,
+                ContentType = x.ContentType,
+                OriginalUrl = x.OriginalUrl,
+                ThumbnailUrl = x.ThumbnailUrl,
+                DisplayOrder = x.DisplayOrder,
+                IsPrimary = x.IsPrimary
+            })
+            .ToList();
 
     private static string NormalizeAttributeDataType(string? dataType)
     {
@@ -2209,6 +2299,9 @@ public sealed class ApiService : IApiService
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
+        public string? ImageFileKey { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? ImageThumbnailUrl { get; set; }
         public bool IsActive { get; set; }
         public List<CategoryTreeItemDto> Children { get; set; } = new();
     }
@@ -2351,6 +2444,9 @@ public sealed class ApiService : IApiService
         public string Name { get; set; } = string.Empty;
         public Guid DefaultUomRef { get; set; }
         public Guid? TaxCategoryRef { get; set; }
+        public string? ImageFileKey { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? ImageThumbnailUrl { get; set; }
         public bool IsActive { get; set; }
     }
 
@@ -2439,6 +2535,7 @@ public sealed class ApiService : IApiService
         public List<VariantAttributeValueWithDefinitionDto> AttributeValues { get; set; } = new();
         public List<VariantComponentItemDto> Components { get; set; } = new();
         public List<VariantAddOnItemDto> AddOns { get; set; } = new();
+        public List<VariantImageItemDto> Images { get; set; } = new();
     }
 
     private sealed class VariantAttributeValueWithDefinitionDto
@@ -2469,10 +2566,14 @@ public sealed class ApiService : IApiService
         public Guid VariantComponentBusinessKey { get; set; }
         public Guid VariantRef { get; set; }
         public Guid ComponentVariantRef { get; set; }
+        public Guid WarehouseRef { get; set; }
+        public Guid LocationRef { get; set; }
         public decimal Quantity { get; set; }
         public string ComponentSku { get; set; } = string.Empty;
         public string? ComponentBarcode { get; set; }
         public bool ComponentIsActive { get; set; }
+        public string WarehouseCode { get; set; } = string.Empty;
+        public string LocationCode { get; set; } = string.Empty;
     }
 
     private sealed class VariantAddOnItemDto
@@ -2483,6 +2584,17 @@ public sealed class ApiService : IApiService
         public string AddOnSku { get; set; } = string.Empty;
         public string? AddOnBarcode { get; set; }
         public bool AddOnIsActive { get; set; }
+    }
+
+    private sealed class VariantImageItemDto
+    {
+        public string FileKey { get; set; } = string.Empty;
+        public string OriginalFileName { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty;
+        public string OriginalUrl { get; set; } = string.Empty;
+        public string ThumbnailUrl { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
+        public bool IsPrimary { get; set; }
     }
 
     private sealed class WarehouseLookupQueryResultDto

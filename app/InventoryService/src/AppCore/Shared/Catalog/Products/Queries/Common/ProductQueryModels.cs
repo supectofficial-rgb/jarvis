@@ -9,6 +9,9 @@ public class ProductListItem
     public string Name { get; set; } = string.Empty;
     public Guid DefaultUomRef { get; set; }
     public Guid? TaxCategoryRef { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
     public bool IsActive { get; set; }
 }
 
@@ -20,6 +23,7 @@ public class ProductVariantListItem
     public string TrackingPolicy { get; set; } = string.Empty;
     public Guid BaseUomRef { get; set; }
     public bool IsActive { get; set; }
+    public bool InventoryMovementLocked { get; set; }
 }
 
 public class ProductAttributeValueViewItem
@@ -85,6 +89,9 @@ public class ProductFullDetailsItem
     public string? CategoryName { get; set; }
     public List<ProductAttributeValueWithDefinitionItem> ProductAttributes { get; set; } = new();
     public List<ProductVariantFullItem> Variants { get; set; } = new();
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
 }
 
 public class ProductVariantFullItem

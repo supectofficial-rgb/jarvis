@@ -9,6 +9,9 @@ public class CreateProductCommand : ICommand<CreateProductCommandResult>
     public string Name { get; set; } = string.Empty;
     public Guid DefaultUomRef { get; set; }
     public Guid? TaxCategoryRef { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
     public List<CreateProductAttributeValueItem> AttributeValues { get; set; } = new();
 }
 

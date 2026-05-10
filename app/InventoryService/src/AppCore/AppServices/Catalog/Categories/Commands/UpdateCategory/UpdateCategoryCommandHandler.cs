@@ -128,6 +128,9 @@ public class UpdateCategoryCommandHandler
                     command.Name.Trim(),
                     command.DisplayOrder,
                     command.ParentCategoryRef,
+                    command.ImageFileKey,
+                    command.ImageUrl,
+                    command.ImageThumbnailUrl,
                     command.IsActive);
 
                 if (updated == 0)
@@ -152,6 +155,7 @@ public class UpdateCategoryCommandHandler
         aggregate.Rename(command.Name.Trim());
         aggregate.ChangeDisplayOrder(command.DisplayOrder);
         aggregate.ChangeParent(command.ParentCategoryRef);
+        aggregate.SetImage(command.ImageFileKey, command.ImageUrl, command.ImageThumbnailUrl);
 
         if (command.IsActive)
             aggregate.Activate();

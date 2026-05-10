@@ -10,6 +10,9 @@ public sealed class Category : AggregateRoot
     public Guid? ParentCategoryRef { get; private set; }
     public string Code { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
+    public string? ImageFileKey { get; private set; }
+    public string? ImageUrl { get; private set; }
+    public string? ImageThumbnailUrl { get; private set; }
     public bool IsActive { get; private set; }
     public int DisplayOrder { get; private set; }
     public IReadOnlyCollection<CategorySchemaVersion> SchemaVersions => _schemaVersions.AsReadOnly();
@@ -20,7 +23,14 @@ public sealed class Category : AggregateRoot
     {
     }
 
-    public static Category Create(string code, string name, int displayOrder = 0, Guid? parentCategoryRef = null)
+    public static Category Create(
+        string code,
+        string name,
+        int displayOrder = 0,
+        Guid? parentCategoryRef = null,
+        string? imageFileKey = null,
+        string? imageUrl = null,
+        string? imageThumbnailUrl = null)
     {
         var category = new Category();
         var initialVersion = CategorySchemaVersion.CreateInitial(category.BusinessKey.Value);
@@ -31,6 +41,9 @@ public sealed class Category : AggregateRoot
             NormalizeRequired(name, nameof(name)),
             displayOrder,
             parentCategoryRef,
+            NormalizeOptional(imageFileKey),
+            NormalizeOptional(imageUrl),
+            NormalizeOptional(imageThumbnailUrl),
             true,
             new List<CategorySchemaVersionSnapshot>
             {
@@ -83,6 +96,26 @@ public sealed class Category : AggregateRoot
             return;
 
         RaiseUpdatedEvent(displayOrder: displayOrder);
+    }
+
+    public void SetImage(string? imageFileKey, string? imageUrl, string? imageThumbnailUrl)
+    {
+        var normalizedFileKey = NormalizeOptional(imageFileKey);
+        var normalizedImageUrl = NormalizeOptional(imageUrl);
+        var normalizedThumbnailUrl = NormalizeOptional(imageThumbnailUrl);
+
+        if (ImageFileKey == normalizedFileKey
+            && ImageUrl == normalizedImageUrl
+            && ImageThumbnailUrl == normalizedThumbnailUrl)
+        {
+            return;
+        }
+
+        RaiseUpdatedEvent(
+            imageFileKey: normalizedFileKey,
+            imageUrl: normalizedImageUrl,
+            imageThumbnailUrl: normalizedThumbnailUrl,
+            updateImage: true);
     }
 
     public void Activate()
@@ -186,6 +219,8 @@ public sealed class Category : AggregateRoot
         return value.Trim();
     }
 
+    private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private CategorySchemaVersion GetCurrentSchemaVersion()
     {
         var current = _schemaVersions.FirstOrDefault(x => x.IsCurrent);
@@ -220,9 +255,16 @@ public sealed class Category : AggregateRoot
         int? displayOrder = null,
         Guid? parentCategoryRef = null,
         bool updateParentCategoryRef = false,
+        string? imageFileKey = null,
+        string? imageUrl = null,
+        string? imageThumbnailUrl = null,
+        bool updateImage = false,
         bool? isActive = null)
     {
         var nextParent = updateParentCategoryRef ? parentCategoryRef : ParentCategoryRef;
+        var nextImageFileKey = updateImage ? imageFileKey : ImageFileKey;
+        var nextImageUrl = updateImage ? imageUrl : ImageUrl;
+        var nextImageThumbnailUrl = updateImage ? imageThumbnailUrl : ImageThumbnailUrl;
 
         Apply(new CategoryUpdatedEvent(
             BusinessKey,
@@ -230,6 +272,9 @@ public sealed class Category : AggregateRoot
             name ?? Name,
             displayOrder ?? DisplayOrder,
             nextParent,
+            nextImageFileKey,
+            nextImageUrl,
+            nextImageThumbnailUrl,
             isActive ?? IsActive,
             SnapshotSchemaVersions(_schemaVersions)));
     }
@@ -240,6 +285,9 @@ public sealed class Category : AggregateRoot
         Name = @event.Name;
         DisplayOrder = @event.DisplayOrder;
         ParentCategoryRef = @event.ParentCategoryRef;
+        ImageFileKey = @event.ImageFileKey;
+        ImageUrl = @event.ImageUrl;
+        ImageThumbnailUrl = @event.ImageThumbnailUrl;
         IsActive = @event.IsActive;
         SyncSchemaVersions(@event.SchemaVersions);
     }
@@ -250,6 +298,9 @@ public sealed class Category : AggregateRoot
         Name = @event.Name;
         DisplayOrder = @event.DisplayOrder;
         ParentCategoryRef = @event.ParentCategoryRef;
+        ImageFileKey = @event.ImageFileKey;
+        ImageUrl = @event.ImageUrl;
+        ImageThumbnailUrl = @event.ImageThumbnailUrl;
         IsActive = @event.IsActive;
         SyncSchemaVersions(@event.SchemaVersions);
     }

@@ -1,9 +1,10 @@
-@using System
+﻿@using System
 @using System.Linq
 @using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.VariantManagementPageViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
-    ViewData["Title"] = "مدیریت واریانت‌ها";
+    ViewData["Title"] = "Ù…Ø¯ÛŒØ±ÛŒØª ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -48,6 +49,15 @@
     var selectedProduct = Model.Products.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedProductId, StringComparison.OrdinalIgnoreCase));
     var selectedVariant = Model.Variants.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedVariantId, StringComparison.OrdinalIgnoreCase));
     var selectedVariantName = selectedVariant?.Sku ?? Model.SelectedVariantDetails?.Sku;
+    string? RelatedVariantProductId(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return null;
+        }
+
+        return Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase))?.ProductId;
+    }
     var variantValues = (Model.SelectedVariantDetails?.Attributes ?? new List<Insurance.InventoryDashboard.Panel.Models.VariantAttributeValueModel>())
         .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(
@@ -134,27 +144,27 @@
     <div class="container-fluid">
         <div class="row variant-page-heading">
             <div class="col-12">
-                <h1>مدیریت واریانت‌ها</h1>
-                <p class="text-muted">مدیریت کامل واریانت، چرخه عمر، قفل موجودی و تبدیل واحد.</p>
+                <h1>Ù…Ø¯ÛŒØ±ÛŒØª ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§</h1>
+                <p class="text-muted">Ù…Ø¯ÛŒØ±ÛŒØª Ú©Ø§Ù…Ù„ ÙˆØ§Ø±ÛŒØ§Ù†ØªØŒ Ú†Ø±Ø®Ù‡ Ø¹Ù…Ø±ØŒ Ù‚ÙÙ„ Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ùˆ ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯.</p>
                 <div class="mb-3">
-                    <span class="badge badge-pill badge-outline-primary mb-1">هدف اصلی: مدیریت واریانت</span>
-                    <span class="badge badge-pill badge-outline-primary mb-1">عملیات فرعی: ویژگی‌ها، تبدیل واحد، چرخه عمر</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">Ù‡Ø¯Ù Ø§ØµÙ„ÛŒ: Ù…Ø¯ÛŒØ±ÛŒØª ÙˆØ§Ø±ÛŒØ§Ù†Øª</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">Ø¹Ù…Ù„ÛŒØ§Øª ÙØ±Ø¹ÛŒ: ÙˆÛŒÚ˜Ú¯ÛŒâ€ŒÙ‡Ø§ØŒ ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯ØŒ Ú†Ø±Ø®Ù‡ Ø¹Ù…Ø±</span>
                     @if (selectedProduct is not null)
                     {
-                        <span class="badge badge-pill badge-outline-primary mb-1">محصول: @selectedProduct.Name</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">Ù…Ø­ØµÙˆÙ„: @selectedProduct.Name</span>
                     }
                     @if (!string.IsNullOrWhiteSpace(selectedVariantName))
                     {
-                        <span class="badge badge-pill badge-outline-primary mb-1">واریانت منتخب: @selectedVariantName</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù…Ù†ØªØ®Ø¨: @selectedVariantName</span>
                     }
-                    <span class="badge badge-pill badge-outline-primary mb-1">تکمیل اجباری‌ها: @completedRequiredVariantAttributeCount / @requiredVariantAttributeCount</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">ØªÚ©Ù…ÛŒÙ„ Ø§Ø¬Ø¨Ø§Ø±ÛŒâ€ŒÙ‡Ø§: @completedRequiredVariantAttributeCount / @requiredVariantAttributeCount</span>
                     @if (movementLocked)
                     {
-                        <span class="badge badge-pill badge-outline-primary mb-1">وضعیت قفل: فعال</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">ÙˆØ¶Ø¹ÛŒØª Ù‚ÙÙ„: ÙØ¹Ø§Ù„</span>
                     }
                 </div>
                 <p class="small text-muted mb-3">
-                    راهنمای سریع: محصول را انتخاب کنید، واریانت را بسازید، سپس ویژگی‌ها و تبدیل واحد را در همان صفحه مدیریت کنید.
+                    Ø±Ø§Ù‡Ù†Ù…Ø§ÛŒ Ø³Ø±ÛŒØ¹: Ù…Ø­ØµÙˆÙ„ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ØŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø¨Ø³Ø§Ø²ÛŒØ¯ØŒ Ø³Ù¾Ø³ ÙˆÛŒÚ˜Ú¯ÛŒâ€ŒÙ‡Ø§ Ùˆ ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯ Ø±Ø§ Ø¯Ø± Ù‡Ù…Ø§Ù† ØµÙØ­Ù‡ Ù…Ø¯ÛŒØ±ÛŒØª Ú©Ù†ÛŒØ¯.
                 </p>
             </div>
         </div>
@@ -189,30 +199,30 @@
                     <div class="card mb-4">
                         <div class="card-body">
                             <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                <h5 class="card-title mb-1">موجودی فعلی واریانت</h5>
+                                <h5 class="card-title mb-1">Ù…ÙˆØ¬ÙˆØ¯ÛŒ ÙØ¹Ù„ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
                                 <div>
-                                    <span class="badge badge-pill badge-outline-primary">موجودی کل: @Model.VariantStockTotalQuantity</span>
-                                    <span class="badge badge-pill badge-light">باکت‌ها: @Model.VariantStockBucketCount</span>
+                                    <span class="badge badge-pill badge-outline-primary">Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ú©Ù„: @Model.VariantStockTotalQuantity</span>
+                                    <span class="badge badge-pill badge-light">Ø¨Ø§Ú©Øªâ€ŒÙ‡Ø§: @Model.VariantStockBucketCount</span>
                                 </div>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-striped mb-0">
                                     <thead>
                                         <tr>
-                                            <th>انبار</th>
-                                            <th>لوکیشن</th>
-                                            <th>فروشنده</th>
-                                            <th>کیفیت</th>
-                                            <th>لات/بچ</th>
-                                            <th>مقدار</th>
-                                            <th>آخرین به‌روزرسانی</th>
+                                            <th>Ø§Ù†Ø¨Ø§Ø±</th>
+                                            <th>Ù„ÙˆÚ©ÛŒØ´Ù†</th>
+                                            <th>ÙØ±ÙˆØ´Ù†Ø¯Ù‡</th>
+                                            <th>Ú©ÛŒÙÛŒØª</th>
+                                            <th>Ù„Ø§Øª/Ø¨Ú†</th>
+                                            <th>Ù…Ù‚Ø¯Ø§Ø±</th>
+                                            <th>Ø¢Ø®Ø±ÛŒÙ† Ø¨Ù‡â€ŒØ±ÙˆØ²Ø±Ø³Ø§Ù†ÛŒ</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @if (Model.VariantStockDetails.Count == 0)
                                         {
                                             <tr>
-                                                <td colspan="7" class="text-muted">برای این واریانت موجودی قابل نمایش ثبت نشده است.</td>
+                                                <td colspan="7" class="text-muted">Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ù‚Ø§Ø¨Ù„ Ù†Ù…Ø§ÛŒØ´ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</td>
                                             </tr>
                                         }
                                         else
@@ -240,7 +250,7 @@
                 <div class="card">
                     <div class="card-body py-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong>وضعیت تکمیل اطلاعات واریانت</strong>
+                            <strong>ÙˆØ¶Ø¹ÛŒØª ØªÚ©Ù…ÛŒÙ„ Ø§Ø·Ù„Ø§Ø¹Ø§Øª ÙˆØ§Ø±ÛŒØ§Ù†Øª</strong>
                             <span class="badge badge-pill @(variantCompletionPercent >= 100 ? "badge-primary" : variantCompletionPercent >= 70 ? "badge-outline-primary" : "badge-danger")">
                                 @variantCompletionPercent%
                             </span>
@@ -249,7 +259,7 @@
                             <div class="progress-bar" role="progressbar" style="width:@variantCompletionPercent%"></div>
                         </div>
                         <small class="text-muted d-block mt-2">
-                            فیلدهای اجباری تکمیل‌شده: @completedRequiredVariantAttributeCount از @requiredVariantAttributeCount
+                            ÙÛŒÙ„Ø¯Ù‡Ø§ÛŒ Ø§Ø¬Ø¨Ø§Ø±ÛŒ ØªÚ©Ù…ÛŒÙ„â€ŒØ´Ø¯Ù‡: @completedRequiredVariantAttributeCount Ø§Ø² @requiredVariantAttributeCount
                         </small>
                     </div>
                     <div class="tab-pane fade" id="variant-tab-inventory-movements" role="tabpanel">
@@ -258,28 +268,28 @@
                             <div class="card">
                                 <div class="card-body">
                                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                                        <h5 class="card-title mb-1">گردش موجودی واریانت</h5>
-                                        <span class="text-muted small">@Model.VariantInventoryTransactions.Count تراکنش</span>
+                                        <h5 class="card-title mb-1">Ú¯Ø±Ø¯Ø´ Ù…ÙˆØ¬ÙˆØ¯ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
+                                        <span class="text-muted small">@Model.VariantInventoryTransactions.Count ØªØ±Ø§Ú©Ù†Ø´</span>
                                     </div>
                                     <div class="table-responsive">
                                         <table class="table table-sm table-striped mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th>شماره تراکنش</th>
-                                                    <th>نوع</th>
-                                                    <th>وضعیت</th>
-                                                    <th>انبار</th>
-                                                    <th>فروشنده</th>
-                                                    <th>زمان وقوع</th>
-                                                    <th>زمان ثبت نهایی</th>
-                                                    <th>علت</th>
+                                                    <th>Ø´Ù…Ø§Ø±Ù‡ ØªØ±Ø§Ú©Ù†Ø´</th>
+                                                    <th>Ù†ÙˆØ¹</th>
+                                                    <th>ÙˆØ¶Ø¹ÛŒØª</th>
+                                                    <th>Ø§Ù†Ø¨Ø§Ø±</th>
+                                                    <th>ÙØ±ÙˆØ´Ù†Ø¯Ù‡</th>
+                                                    <th>Ø²Ù…Ø§Ù† ÙˆÙ‚ÙˆØ¹</th>
+                                                    <th>Ø²Ù…Ø§Ù† Ø«Ø¨Øª Ù†Ù‡Ø§ÛŒÛŒ</th>
+                                                    <th>Ø¹Ù„Øª</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 @if (Model.VariantInventoryTransactions.Count == 0)
                                                 {
                                                     <tr>
-                                                        <td colspan="8" class="text-muted">برای این واریانت گردش موجودی ثبت نشده است.</td>
+                                                        <td colspan="8" class="text-muted">Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ú¯Ø±Ø¯Ø´ Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</td>
                                                     </tr>
                                                 }
                                                 else
@@ -309,8 +319,8 @@
                             <div class="card">
                                 <div class="card-body">
                                     <div class="alert alert-light mb-0">
-                                        <h6>واریانتی انتخاب نشده است</h6>
-                                        <p class="mb-0 text-muted">برای مشاهده گردش موجودی، ابتدا یک واریانت را انتخاب کنید.</p>
+                                        <h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6>
+                                        <p class="mb-0 text-muted">Ø¨Ø±Ø§ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ú¯Ø±Ø¯Ø´ Ù…ÙˆØ¬ÙˆØ¯ÛŒØŒ Ø§Ø¨ØªØ¯Ø§ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p>
                                     </div>
                                 </div>
                             </div>
@@ -325,8 +335,8 @@
             <div class="row variant-missing-panel">
                 <div class="col-12">
                     <div class="alert alert-danger mb-3">
-                        ویژگی‌های الزامی واریانت کامل نشده‌اند:
-                        @string.Join("، ", Model.MissingRequiredVariantAttributes.Select(x => x.Name))
+                        ÙˆÛŒÚ˜Ú¯ÛŒâ€ŒÙ‡Ø§ÛŒ Ø§Ù„Ø²Ø§Ù…ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ú©Ø§Ù…Ù„ Ù†Ø´Ø¯Ù‡â€ŒØ§Ù†Ø¯:
+                        @string.Join("ØŒ ", Model.MissingRequiredVariantAttributes.Select(x => x.Name))
                     </div>
                 </div>
             </div>
@@ -337,7 +347,7 @@
             <div class="row variant-lock-panel">
                 <div class="col-12">
                     <div class="alert alert-secondary mb-3">
-                        این واریانت دارای قفل حرکت موجودی است. تغییر سیاست رهگیری و واحد پایه باید با احتیاط انجام شود.
+                        Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø¯Ø§Ø±Ø§ÛŒ Ù‚ÙÙ„ Ø­Ø±Ú©Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ø§Ø³Øª. ØªØºÛŒÛŒØ± Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ùˆ ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡ Ø¨Ø§ÛŒØ¯ Ø¨Ø§ Ø§Ø­ØªÛŒØ§Ø· Ø§Ù†Ø¬Ø§Ù… Ø´ÙˆØ¯.
                     </div>
                 </div>
             </div>
@@ -347,10 +357,10 @@
             <div class="col-12 mb-2" id="variant-product-selector-card">
                 <div class="card h-100">
                     <div class="card-body">
-                        <h6 class="card-title">انتخاب محصول</h6>
+                        <h6 class="card-title">Ø§Ù†ØªØ®Ø§Ø¨ Ù…Ø­ØµÙˆÙ„</h6>
                         <form method="get" asp-action="Variants" id="variant-product-selector-form" data-state-form>
                             <div class="form-group mb-0">
-                                <select name="productId" class="form-control js-search-select" data-placeholder="انتخاب محصول" onchange="this.form.submit()">
+                                <select name="productId" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ù…Ø­ØµÙˆÙ„" onchange="this.form.submit()">
                                     @foreach (var product in Model.Products)
                                     {
                                         <option value="@product.Id" selected="@(product.Id == Model.SelectedProductId ? "selected" : null)">@product.Name (@product.BaseSku)</option>
@@ -364,17 +374,17 @@
             <div class="col-12 mb-2">
                 <div class="card h-100">
                     <div class="card-body">
-                        <h6 class="card-title mb-3">جستجو و فیلتر واریانت‌ها</h6>
+                        <h6 class="card-title mb-3">Ø¬Ø³ØªØ¬Ùˆ Ùˆ ÙÛŒÙ„ØªØ± ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§</h6>
                         <form method="get" asp-action="Variants" class="row" id="variant-search-form" data-state-form>
                             <input type="hidden" name="attributeOptionIds" id="variant-attribute-option-ids" value="@Model.VariantAttributeOptionFilterIds" />
                             <div class="col-md-3 mb-2">
-                                <label class="text-muted small">نام یا کد کالا</label>
-                                <input name="searchTerm" value="@Model.VariantSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام یا کد کالا/واریانت..." />
+                                <label class="text-muted small">Ù†Ø§Ù… ÛŒØ§ Ú©Ø¯ Ú©Ø§Ù„Ø§</label>
+                                <input name="searchTerm" value="@Model.VariantSearchTerm" class="form-control" data-filter-label="Ø¬Ø³ØªØ¬Ùˆ" placeholder="Ù†Ø§Ù… ÛŒØ§ Ú©Ø¯ Ú©Ø§Ù„Ø§/ÙˆØ§Ø±ÛŒØ§Ù†Øª..." />
                             </div>
                             <div class="col-md-3 mb-2">
-                                <label class="text-muted small">دسته‌بندی</label>
-                                <select name="categoryId" class="form-control js-search-select" data-placeholder="انتخاب دسته">
-                                    <option value="">همه دسته‌ها</option>
+                                <label class="text-muted small">Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ</label>
+                                <select name="categoryId" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ø¯Ø³ØªÙ‡">
+                                    <option value="">Ù‡Ù…Ù‡ Ø¯Ø³ØªÙ‡â€ŒÙ‡Ø§</option>
                                     @foreach (var category in Model.LeafCategories)
                                     {
                                         <option value="@category.Id" selected="@(string.Equals(Model.VariantCategoryFilterId, category.Id, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@category.Name</option>
@@ -382,8 +392,8 @@
                                 </select>
                             </div>
                             <div class="col-md-3 mb-2">
-                                <label class="text-muted small">اتریبیوت‌ها</label>
-                                <select id="variant-attribute-options-filter" class="form-control js-search-select" multiple data-placeholder="انتخاب گزینه‌ها">
+                                <label class="text-muted small">Ø§ØªØ±ÛŒØ¨ÛŒÙˆØªâ€ŒÙ‡Ø§</label>
+                                <select id="variant-attribute-options-filter" class="form-control js-search-select" multiple data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ú¯Ø²ÛŒÙ†Ù‡â€ŒÙ‡Ø§">
                                     @foreach (var attr in Model.EffectiveProductAttributes.Where(x => x.Options.Count > 0).OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
                                     {
                                         <optgroup label="@attr.Name">
@@ -396,26 +406,26 @@
                                 </select>
                             </div>
                             <div class="col-md-3 mb-2">
-                                <label class="text-muted small">سیاست رهگیری</label>
-                                <select name="trackingPolicy" class="form-control" data-filter-label="سیاست رهگیری">
-                                    <option value="">همه</option>
-                                    <option value="None" selected="@(Model.VariantTrackingFilter == "None" ? "selected" : null)">بدون رهگیری (None)</option>
-                                    <option value="Batch" selected="@(Model.VariantTrackingFilter == "Batch" ? "selected" : null)">رهگیری بچ (Batch)</option>
-                                    <option value="Serial" selected="@(Model.VariantTrackingFilter == "Serial" ? "selected" : null)">رهگیری سریال (Serial)</option>
+                                <label class="text-muted small">Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ</label>
+                                <select name="trackingPolicy" class="form-control" data-filter-label="Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ">
+                                    <option value="">Ù‡Ù…Ù‡</option>
+                                    <option value="None" selected="@(Model.VariantTrackingFilter == "None" ? "selected" : null)">Ø¨Ø¯ÙˆÙ† Ø±Ù‡Ú¯ÛŒØ±ÛŒ (None)</option>
+                                    <option value="Batch" selected="@(Model.VariantTrackingFilter == "Batch" ? "selected" : null)">Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ø¨Ú† (Batch)</option>
+                                    <option value="Serial" selected="@(Model.VariantTrackingFilter == "Serial" ? "selected" : null)">Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ø³Ø±ÛŒØ§Ù„ (Serial)</option>
                                 </select>
                             </div>
                             <div class="col-md-2 mb-2">
-                                <label class="text-muted small">وضعیت</label>
-                                <select name="statusFilter" class="form-control" data-filter-label="وضعیت">
-                                    <option value="">بله</option>
-                                    <option value="active" selected="@(string.Equals(Model.VariantStatusFilter, "active", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">فعال</option>
-                                    <option value="inactive" selected="@(string.Equals(Model.VariantStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">غیرفعال</option>
+                                <label class="text-muted small">ÙˆØ¶Ø¹ÛŒØª</label>
+                                <select name="statusFilter" class="form-control" data-filter-label="ÙˆØ¶Ø¹ÛŒØª">
+                                    <option value="">Ø¨Ù„Ù‡</option>
+                                    <option value="active" selected="@(string.Equals(Model.VariantStatusFilter, "active", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">ÙØ¹Ø§Ù„</option>
+                                    <option value="inactive" selected="@(string.Equals(Model.VariantStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">ØºÛŒØ±ÙØ¹Ø§Ù„</option>
                                 </select>
                             </div>
                             <div class="col-md-2 mb-2">
-                                <label class="text-muted small">نوع ویژگی</label>
-                                <select name="attributeTypeFilter" class="form-control js-search-select" data-filter-label="نوع ویژگی" data-no-search="true">
-                                    <option value="">خیر</option>
+                                <label class="text-muted small">Ù†ÙˆØ¹ ÙˆÛŒÚ˜Ú¯ÛŒ</label>
+                                <select name="attributeTypeFilter" class="form-control js-search-select" data-filter-label="Ù†ÙˆØ¹ ÙˆÛŒÚ˜Ú¯ÛŒ" data-no-search="true">
+                                    <option value="">Ø®ÛŒØ±</option>
                                     @foreach (var type in attributeTypeOptions)
                                     {
                                         <option value="@type" selected="@(string.Equals(Model.SelectedAttributeTypeFilter, type, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@type</option>
@@ -423,19 +433,19 @@
                                 </select>
                             </div>
                             <div class="col-md-2 mb-2">
-                                <label class="text-muted small">مرتب‌سازی</label>
-                                <select name="sort" class="form-control" data-filter-label="مرتب‌سازی">
-                                    <option value="">SKU (صعودی)</option>
-                                    <option value="sku_desc" selected="@(string.Equals(Model.VariantSort, "sku_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">SKU (نزولی)</option>
-                                    <option value="tracking_asc" selected="@(string.Equals(Model.VariantSort, "tracking_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">سیاست رهگیری (صعودی)</option>
-                                    <option value="tracking_desc" selected="@(string.Equals(Model.VariantSort, "tracking_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">سیاست رهگیری (نزولی)</option>
-                                    <option value="status_asc" selected="@(string.Equals(Model.VariantSort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (فعال اول)</option>
-                                    <option value="status_desc" selected="@(string.Equals(Model.VariantSort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (غیرفعال اول)</option>
+                                <label class="text-muted small">Ù…Ø±ØªØ¨â€ŒØ³Ø§Ø²ÛŒ</label>
+                                <select name="sort" class="form-control" data-filter-label="Ù…Ø±ØªØ¨â€ŒØ³Ø§Ø²ÛŒ">
+                                    <option value="">SKU (ØµØ¹ÙˆØ¯ÛŒ)</option>
+                                    <option value="sku_desc" selected="@(string.Equals(Model.VariantSort, "sku_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">SKU (Ù†Ø²ÙˆÙ„ÛŒ)</option>
+                                    <option value="tracking_asc" selected="@(string.Equals(Model.VariantSort, "tracking_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ (ØµØ¹ÙˆØ¯ÛŒ)</option>
+                                    <option value="tracking_desc" selected="@(string.Equals(Model.VariantSort, "tracking_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ (Ù†Ø²ÙˆÙ„ÛŒ)</option>
+                                    <option value="status_asc" selected="@(string.Equals(Model.VariantSort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">ÙˆØ¶Ø¹ÛŒØª (ÙØ¹Ø§Ù„ Ø§ÙˆÙ„)</option>
+                                    <option value="status_desc" selected="@(string.Equals(Model.VariantSort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">ÙˆØ¶Ø¹ÛŒØª (ØºÛŒØ±ÙØ¹Ø§Ù„ Ø§ÙˆÙ„)</option>
                                 </select>
                             </div>
                             <div class="col-md-1 mb-2">
-                                <label class="text-muted small">تعداد</label>
-                                <select name="pageSize" class="form-control" data-filter-label="تعداد">
+                                <label class="text-muted small">ØªØ¹Ø¯Ø§Ø¯</label>
+                                <select name="pageSize" class="form-control" data-filter-label="ØªØ¹Ø¯Ø§Ø¯">
                                     @foreach (var size in Model.VariantPageSizeOptions)
                                     {
                                         <option value="@size" selected="@(size == Model.VariantPageSize ? "selected" : null)">@size</option>
@@ -443,7 +453,7 @@
                                 </select>
                             </div>
                             <div class="col-md-1 mb-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary btn-block">اعمال</button>
+                                <button type="submit" class="btn btn-primary btn-block">Ø§Ø¹Ù…Ø§Ù„</button>
                             </div>
                         </form>
                     </div>
@@ -455,19 +465,19 @@
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="variant-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-toggle="tab" href="#variant-tab-main" role="tab">فرم واریانت</a>
+                        <a class="nav-link active" data-toggle="tab" href="#variant-tab-main" role="tab">ÙØ±Ù… ÙˆØ§Ø±ÛŒØ§Ù†Øª</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#variant-tab-actions" role="tab">عملیات دامنه</a>
+                        <a class="nav-link" data-toggle="tab" href="#variant-tab-actions" role="tab">Ø¹Ù…Ù„ÛŒØ§Øª Ø¯Ø§Ù…Ù†Ù‡</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#variant-tab-attributes" role="tab">ویژگی‌ها</a>
+                        <a class="nav-link" data-toggle="tab" href="#variant-tab-attributes" role="tab">ÙˆÛŒÚ˜Ú¯ÛŒâ€ŒÙ‡Ø§</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#variant-tab-conversions" role="tab">تبدیل واحد</a>
+                        <a class="nav-link" data-toggle="tab" href="#variant-tab-conversions" role="tab">ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#variant-tab-inventory-movements" role="tab">گردش موجودی</a>
+                        <a class="nav-link" data-toggle="tab" href="#variant-tab-inventory-movements" role="tab">Ú¯Ø±Ø¯Ø´ Ù…ÙˆØ¬ÙˆØ¯ÛŒ</a>
                     </li>
                 </ul>
                 <div class="tab-content">
@@ -475,10 +485,10 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="card-title mb-0">@(isEditMode ? "ویرایش واریانت" : "ایجاد واریانت")</h5>
+                                    <h5 class="card-title mb-0">@(isEditMode ? "ÙˆÛŒØ±Ø§ÛŒØ´ ÙˆØ§Ø±ÛŒØ§Ù†Øª" : "Ø§ÛŒØ¬Ø§Ø¯ ÙˆØ§Ø±ÛŒØ§Ù†Øª")</h5>
                                     @if (isEditMode)
                                     {
-                                        <a asp-action="Variants" asp-route-productId="@Model.SelectedProductId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                        <a asp-action="Variants" asp-route-productId="@Model.SelectedProductId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">Ø§ÛŒØ¬Ø§Ø¯ Ø¬Ø¯ÛŒØ¯</a>
                                     }
                                 </div>
 
@@ -486,13 +496,14 @@
                                     @Html.AntiForgeryToken()
                                     <input asp-for="VariantForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                                     <input asp-for="VariantForm.VariantId" type="hidden" />
+                                    <input asp-for="VariantForm.SelectedImagesJson" type="hidden" />
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
-                                    <div class="form-group"><label>SKU</label><input asp-for="VariantForm.Sku" class="form-control text-monospace" required maxlength="100" placeholder="مثال: VR-0001" /></div>
-                                    <div class="form-group"><label>بارکد</label><input asp-for="VariantForm.Barcode" class="form-control" maxlength="100" /></div>
+                                    <div class="form-group"><label>SKU</label><input asp-for="VariantForm.Sku" class="form-control text-monospace" required maxlength="100" placeholder="Ù…Ø«Ø§Ù„: VR-0001" /></div>
+                                    <div class="form-group"><label>Ø¨Ø§Ø±Ú©Ø¯</label><input asp-for="VariantForm.Barcode" class="form-control" maxlength="100" /></div>
                                     <div class="form-group">
-                                        <label>واحد پایه</label>
-                                        <select asp-for="VariantForm.BaseUomRef" class="form-control js-search-select" data-placeholder="انتخاب واحد پایه" required>
-                                            <option value="">انتخاب واحد</option>
+                                        <label>ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡</label>
+                                        <select asp-for="VariantForm.BaseUomRef" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡" required>
+                                            <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø­Ø¯</option>
                                             @foreach (var uom in Model.UnitOfMeasures)
                                             {
                                                 <option value="@uom.Id">@uom.Code - @uom.Name</option>
@@ -500,21 +511,38 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label>سیاست رهگیری</label>
+                                        <label>Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ</label>
                                         <select asp-for="VariantForm.TrackingPolicy" class="form-control js-search-select" data-no-search="true">
-                                            <option value="None">بدون رهگیری (None)</option>
-                                            <option value="Batch">رهگیری بچ (Batch)</option>
-                                            <option value="Serial">رهگیری سریال (Serial)</option>
+                                            <option value="None">Ø¨Ø¯ÙˆÙ† Ø±Ù‡Ú¯ÛŒØ±ÛŒ (None)</option>
+                                            <option value="Batch">Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ø¨Ú† (Batch)</option>
+                                            <option value="Serial">Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ø³Ø±ÛŒØ§Ù„ (Serial)</option>
                                         </select>
-                                        <small class="form-text text-muted">تغییر سیاست رهگیری می‌تواند روی عملیات موجودی تاثیر بگذارد.</small>
+                                        <small class="form-text text-muted">ØªØºÛŒÛŒØ± Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ù…ÛŒâ€ŒØªÙˆØ§Ù†Ø¯ Ø±ÙˆÛŒ Ø¹Ù…Ù„ÛŒØ§Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ ØªØ§Ø«ÛŒØ± Ø¨Ú¯Ø°Ø§Ø±Ø¯.</small>
                                     </div>
                                     <div class="custom-control custom-checkbox mt-2">
                                         <input asp-for="VariantForm.IsActive" class="custom-control-input" />
-                                        <label class="custom-control-label" asp-for="VariantForm.IsActive">واریانت فعال باشد</label>
+                                        <label class="custom-control-label" asp-for="VariantForm.IsActive">ÙˆØ§Ø±ÛŒØ§Ù†Øª ÙØ¹Ø§Ù„ Ø¨Ø§Ø´Ø¯</label>
+                                    </div>
+                                    <div class="form-group mt-3"
+                                         data-media-manager
+                                         data-policy="variant-gallery"
+                                         data-base-url="@Configuration["FileService:BaseUrl"]"
+                                         data-input-name="VariantForm.SelectedImagesJson">
+                                        <label>Ù…Ø¯ÛŒØ§ ÙˆØ§Ø±ÛŒØ§Ù†Øª</label>
+                                        <div class="border rounded p-3 bg-light">
+                                            <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
+                                            <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
+                                                <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                                            </div>
+                                            <div class="small text-muted mb-2" data-media-status>ØªØµÙˆÛŒØ± ÛŒØ§ ÙˆÛŒØ¯ÛŒÙˆ Ø±Ø§ Ø¢Ù¾Ù„ÙˆØ¯ Ú©Ù†ÛŒØ¯. ÙØ§ÛŒÙ„â€ŒÙ‡Ø§ Ø¨Ø¹Ø¯ Ø§Ø² Ø°Ø®ÛŒØ±Ù‡ ÙØ±Ù… Ø¨Ù‡ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù…ØªØµÙ„ Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯.</div>
+                                            <div class="small text-muted mb-3">Ù…Ø¯ÛŒØ§ÛŒ Ø§ØµÙ„ÛŒ Ø±Ø§ Ù…Ø´Ø®Øµ Ú©Ù†ÛŒØ¯ØŒ ØªØ±ØªÛŒØ¨ Ø±Ø§ Ø¬Ø§Ø¨Ù‡â€ŒØ¬Ø§ Ú©Ù†ÛŒØ¯ Ùˆ Ø¯Ø± ØµÙˆØ±Øª Ù†ÛŒØ§Ø² Ù‚Ø¨Ù„ Ø§Ø² Ø°Ø®ÛŒØ±Ù‡ Ø­Ø°Ù Ú©Ù†ÛŒØ¯.</div>
+                                            <div class="row" data-media-items></div>
+                                            <div class="alert alert-light mb-0" data-media-empty>Ù‡Ù†ÙˆØ² Ù…Ø¯ÛŒØ§ÛŒÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</div>
+                                        </div>
                                     </div>
                                     <div class="mt-3">
                                         <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.Variant.Create", "Catalog.Variant.Update", "ProductVariant.Create", "ProductVariant.Update") ? null : "disabled")>
-                                            @(isEditMode ? "به‌روزرسانی واریانت" : "ایجاد واریانت")
+                                            @(isEditMode ? "Ø¨Ù‡â€ŒØ±ÙˆØ²Ø±Ø³Ø§Ù†ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª" : "Ø§ÛŒØ¬Ø§Ø¯ ÙˆØ§Ø±ÛŒØ§Ù†Øª")
                                         </button>
                                     </div>
                                 </form>
@@ -526,30 +554,30 @@
                         {
                             <div class="card mb-4">
                                 <div class="card-body">
-                                    <h5 class="card-title">عملیات واریانت</h5>
+                                    <h5 class="card-title">Ø¹Ù…Ù„ÛŒØ§Øª ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
                                     <form asp-action="ActivateVariant" method="post" class="d-inline" data-loading-form>
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>فعال</button>
+                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>ÙØ¹Ø§Ù„</button>
                                     </form>
                                     <form asp-action="DeactivateVariant" method="post" class="d-inline" data-loading-form>
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>غیرفعال</button>
+                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>ØºÛŒØ±ÙØ¹Ø§Ù„</button>
                                     </form>
                                     <form asp-action="DeleteVariant" method="post" class="d-inline" data-loading-form>
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف واریانت" data-confirm="این واریانت حذف شود؟ این عملیات قابل بازگشت نیست." @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>حذف</button>
+                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="Ø­Ø°Ù ÙˆØ§Ø±ÛŒØ§Ù†Øª" data-confirm="Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø­Ø°Ù Ø´ÙˆØ¯ØŸ Ø§ÛŒÙ† Ø¹Ù…Ù„ÛŒØ§Øª Ù‚Ø§Ø¨Ù„ Ø¨Ø§Ø²Ú¯Ø´Øª Ù†ÛŒØ³Øª." @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>Ø­Ø°Ù</button>
                                     </form>
                                     <form asp-action="LockVariantInventoryMovement" method="post" class="d-inline" data-loading-form>
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                        <button class="btn btn-outline-dark btn-xs" type="submit" data-confirm-title="قفل حرکت موجودی" data-confirm="حرکت موجودی این واریانت قفل شود؟ بعد از قفل، تغییر سیاست رهگیری و واحد پایه محدود می‌شود." @(Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement") ? null : "disabled")>قفل حرکت موجودی</button>
+                                        <button class="btn btn-outline-dark btn-xs" type="submit" data-confirm-title="Ù‚ÙÙ„ Ø­Ø±Ú©Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ" data-confirm="Ø­Ø±Ú©Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù‚ÙÙ„ Ø´ÙˆØ¯ØŸ Ø¨Ø¹Ø¯ Ø§Ø² Ù‚ÙÙ„ØŒ ØªØºÛŒÛŒØ± Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ùˆ ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡ Ù…Ø­Ø¯ÙˆØ¯ Ù…ÛŒâ€ŒØ´ÙˆØ¯." @(Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement") ? null : "disabled")>Ù‚ÙÙ„ Ø­Ø±Ú©Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ</button>
                                     </form>
 
                                     <hr />
@@ -558,14 +586,14 @@
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                        <label class="mr-2">تغییر سیاست رهگیری</label>
+                                        <label class="mr-2">ØªØºÛŒÛŒØ± Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ</label>
                                         <select name="trackingPolicy" class="form-control form-control-sm mr-2 js-search-select" data-no-search="true" @(movementLocked ? "disabled" : null)>
-                                            <option value="None">بدون رهگیری (None)</option>
-                                            <option value="Batch">رهگیری بچ (Batch)</option>
-                                            <option value="Serial">رهگیری سریال (Serial)</option>
+                                            <option value="None">Ø¨Ø¯ÙˆÙ† Ø±Ù‡Ú¯ÛŒØ±ÛŒ (None)</option>
+                                            <option value="Batch">Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ø¨Ú† (Batch)</option>
+                                            <option value="Serial">Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ø³Ø±ÛŒØ§Ù„ (Serial)</option>
                                         </select>
                                         <div class="mt-3">
-                                            <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="تغییر سیاست رهگیری" data-confirm="سیاست رهگیری این واریانت تغییر کند؟ این تغییر می‌تواند روی سیاست ردیابی موجودی اثر بگذارد." @((Can("Catalog.Variant.ChangeTrackingPolicy", "ProductVariant.ChangeTrackingPolicy") && !movementLocked) ? null : "disabled")>اعمال</button>
+                                            <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="ØªØºÛŒÛŒØ± Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ" data-confirm="Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª ØªØºÛŒÛŒØ± Ú©Ù†Ø¯ØŸ Ø§ÛŒÙ† ØªØºÛŒÛŒØ± Ù…ÛŒâ€ŒØªÙˆØ§Ù†Ø¯ Ø±ÙˆÛŒ Ø³ÛŒØ§Ø³Øª Ø±Ø¯ÛŒØ§Ø¨ÛŒ Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ø§Ø«Ø± Ø¨Ú¯Ø°Ø§Ø±Ø¯." @((Can("Catalog.Variant.ChangeTrackingPolicy", "ProductVariant.ChangeTrackingPolicy") && !movementLocked) ? null : "disabled")>Ø§Ø¹Ù…Ø§Ù„</button>
                                         </div>
                                     </form>
                                     <form asp-action="ChangeVariantBaseUom" method="post" id="variant-base-uom-form" class="mt-2" data-loading-form data-dirty-watch>
@@ -573,8 +601,8 @@
                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
                                         <div class="form-group mb-2">
-                                            <label class="small">تغییر واحد پایه</label>
-                                            <select name="baseUomRef" class="form-control form-control-sm js-search-select" data-placeholder="انتخاب واحد مقصد" @(movementLocked ? "disabled" : null)>
+                                            <label class="small">ØªØºÛŒÛŒØ± ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡</label>
+                                            <select name="baseUomRef" class="form-control form-control-sm js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø­Ø¯ Ù…Ù‚ØµØ¯" @(movementLocked ? "disabled" : null)>
                                                 @foreach (var uom in Model.UnitOfMeasures)
                                                 {
                                                     <option value="@uom.Id">@uom.Code - @uom.Name</option>
@@ -582,12 +610,12 @@
                                             </select>
                                         </div>
                                         <div class="mt-3">
-                                            <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="تغییر واحد پایه" data-confirm="واحد پایه تغییر کند؟ قبل از تایید از سازگاری تبدیل‌ها مطمئن شوید." @((Can("Catalog.Variant.ChangeBaseUom", "ProductVariant.ChangeBaseUom") && !movementLocked) ? null : "disabled")>اعمال</button>
+                                            <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="ØªØºÛŒÛŒØ± ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡" data-confirm="ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡ ØªØºÛŒÛŒØ± Ú©Ù†Ø¯ØŸ Ù‚Ø¨Ù„ Ø§Ø² ØªØ§ÛŒÛŒØ¯ Ø§Ø² Ø³Ø§Ø²Ú¯Ø§Ø±ÛŒ ØªØ¨Ø¯ÛŒÙ„â€ŒÙ‡Ø§ Ù…Ø·Ù…Ø¦Ù† Ø´ÙˆÛŒØ¯." @((Can("Catalog.Variant.ChangeBaseUom", "ProductVariant.ChangeBaseUom") && !movementLocked) ? null : "disabled")>Ø§Ø¹Ù…Ø§Ù„</button>
                                         </div>
                                     </form>
                                     @if (movementLocked)
                                     {
-                                        <p class="text-warning small mt-2 mb-0">این واریانت قفل است؛ تغییر سیاست رهگیری و واحد پایه غیرفعال شد.</p>
+                                        <p class="text-warning small mt-2 mb-0">Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù‚ÙÙ„ Ø§Ø³ØªØ› ØªØºÛŒÛŒØ± Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ Ùˆ ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡ ØºÛŒØ±ÙØ¹Ø§Ù„ Ø´Ø¯.</p>
                                     }
                                 </div>
                             </div>
@@ -597,8 +625,8 @@
                             <div class="card mb-4">
                                 <div class="card-body">
                                     <div class="alert alert-light mb-0">
-                                        <h6>واریانتی انتخاب نشده است</h6>
-                                        <p class="mb-0 text-muted">برای عملیات دامنه، ابتدا محصول و سپس واریانت را انتخاب کنید.</p>
+                                        <h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6>
+                                        <p class="mb-0 text-muted">Ø¨Ø±Ø§ÛŒ Ø¹Ù…Ù„ÛŒØ§Øª Ø¯Ø§Ù…Ù†Ù‡ØŒ Ø§Ø¨ØªØ¯Ø§ Ù…Ø­ØµÙˆÙ„ Ùˆ Ø³Ù¾Ø³ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p>
                                     </div>
                                 </div>
                             </div>
@@ -609,15 +637,15 @@
                         {
                             <div class="card mb-4">
                                 <div class="card-body">
-                                    <h5 class="card-title">ثبت مقدار ویژگی برای واریانت</h5>
+                                    <h5 class="card-title">Ø«Ø¨Øª Ù…Ù‚Ø¯Ø§Ø± ÙˆÛŒÚ˜Ú¯ÛŒ Ø¨Ø±Ø§ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
                                     <form asp-action="SetVariantAttributeValue" method="post" id="variant-attribute-form" data-loading-form data-dirty-watch>
                                         @Html.AntiForgeryToken()
                                         <input asp-for="VariantAttributeForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                                         <input asp-for="VariantAttributeForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
                                         <div class="form-group">
-                                            <label>ویژگی</label>
-                                            <select asp-for="VariantAttributeForm.AttributeId" class="form-control js-search-select" id="variant-attribute-select" data-placeholder="انتخاب ویژگی" required>
-                                                <option value="">انتخاب ویژگی</option>
+                                            <label>ÙˆÛŒÚ˜Ú¯ÛŒ</label>
+                                            <select asp-for="VariantAttributeForm.AttributeId" class="form-control js-search-select" id="variant-attribute-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ÙˆÛŒÚ˜Ú¯ÛŒ" required>
+                                                <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆÛŒÚ˜Ú¯ÛŒ</option>
                                                 @foreach (var attr in Model.EffectiveProductAttributes)
                                                 {
                                                     var optionsJson = JsonSerializer.Serialize(attr.Options.Select(o => new { name = o.OptionName, value = o.OptionValue }));
@@ -626,27 +654,27 @@
                                                             data-required="@(attr.IsRequired ? "true" : "false")"
                                                             data-options='@optionsJson'>
                                                         @attr.Name (@attr.DataType / @attr.Scope)
-                                                        @(attr.IsRequired ? " - الزامی" : " - اختیاری")
-                                                        @(attr.IsInherited ? $" - ارث‌رسیده از {attr.SourceCategoryName}" : " - مستقیم")
+                                                        @(attr.IsRequired ? " - Ø§Ù„Ø²Ø§Ù…ÛŒ" : " - Ø§Ø®ØªÛŒØ§Ø±ÛŒ")
+                                                        @(attr.IsInherited ? $" - Ø§Ø±Ø«â€ŒØ±Ø³ÛŒØ¯Ù‡ Ø§Ø² {attr.SourceCategoryName}" : " - Ù…Ø³ØªÙ‚ÛŒÙ…")
                                                     </option>
                                                 }
                                             </select>
                                         </div>
-                                        <div class="form-group" id="variant-value-text-group"><label>مقدار</label><input type="text" class="form-control" id="variant-value-text" /></div>
-                                        <div class="form-group d-none" id="variant-value-number-group"><label>مقدار عددی</label><input type="number" step="any" class="form-control" id="variant-value-number" /></div>
-                                        <div class="form-group d-none" id="variant-value-date-group"><label>تاریخ</label><input type="date" class="form-control" id="variant-value-date" /></div>
+                                        <div class="form-group" id="variant-value-text-group"><label>Ù…Ù‚Ø¯Ø§Ø±</label><input type="text" class="form-control" id="variant-value-text" /></div>
+                                        <div class="form-group d-none" id="variant-value-number-group"><label>Ù…Ù‚Ø¯Ø§Ø± Ø¹Ø¯Ø¯ÛŒ</label><input type="number" step="any" class="form-control" id="variant-value-number" /></div>
+                                        <div class="form-group d-none" id="variant-value-date-group"><label>ØªØ§Ø±ÛŒØ®</label><input type="date" class="form-control" id="variant-value-date" /></div>
                                         <div class="form-group d-none" id="variant-value-boolean-group">
-                                            <label class="d-block">مقدار بولی</label>
+                                            <label class="d-block">Ù…Ù‚Ø¯Ø§Ø± Ø¨ÙˆÙ„ÛŒ</label>
                                             <div class="custom-control custom-switch mb-2">
                                                 <input type="checkbox" class="custom-control-input" id="variant-value-boolean">
-                                                <label class="custom-control-label" for="variant-value-boolean">بله / خیر</label>
+                                                <label class="custom-control-label" for="variant-value-boolean">Ø¨Ù„Ù‡ / Ø®ÛŒØ±</label>
                                             </div>
-                                            <button type="button" class="btn btn-outline-secondary btn-xs" id="variant-value-boolean-clear">پاک کردن مقدار</button>
+                                            <button type="button" class="btn btn-outline-secondary btn-xs" id="variant-value-boolean-clear">Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ù…Ù‚Ø¯Ø§Ø±</button>
                                         </div>
-                                        <div class="form-group d-none" id="variant-value-option-group"><label>گزینه</label><select class="form-control js-search-select" id="variant-value-option" data-no-search="true"></select></div>
+                                        <div class="form-group d-none" id="variant-value-option-group"><label>Ú¯Ø²ÛŒÙ†Ù‡</label><select class="form-control js-search-select" id="variant-value-option" data-no-search="true"></select></div>
                                         <input asp-for="VariantAttributeForm.Value" type="hidden" id="variant-value-hidden" />
                                         <div class="mt-3">
-                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.VariantAttributeValue.Set", "VariantAttributeValue.Set") ? null : "disabled")>ثبت مقدار</button>
+                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.VariantAttributeValue.Set", "VariantAttributeValue.Set") ? null : "disabled")>Ø«Ø¨Øª Ù…Ù‚Ø¯Ø§Ø±</button>
                                         </div>
                                     </form>
                                 </div>
@@ -657,8 +685,8 @@
                             <div class="card mb-4">
                                 <div class="card-body">
                                     <div class="alert alert-light mb-0">
-                                        <h6>واریانتی انتخاب نشده است</h6>
-                                        <p class="mb-0 text-muted">برای ثبت مقدار ویژگی، ابتدا یک واریانت را از لیست انتخاب کنید.</p>
+                                        <h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6>
+                                        <p class="mb-0 text-muted">Ø¨Ø±Ø§ÛŒ Ø«Ø¨Øª Ù…Ù‚Ø¯Ø§Ø± ÙˆÛŒÚ˜Ú¯ÛŒØŒ Ø§Ø¨ØªØ¯Ø§ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ø² Ù„ÛŒØ³Øª Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p>
                                     </div>
                                 </div>
                             </div>
@@ -669,15 +697,15 @@
                         {
                             <div class="card">
                                 <div class="card-body">
-                                    <h5 class="card-title">مدیریت تبدیل واحد واریانت</h5>
+                                    <h5 class="card-title">Ù…Ø¯ÛŒØ±ÛŒØª ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯ ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
                                     <form asp-action="UpsertVariantUomConversion" method="post" id="variant-uom-conversion-form" data-loading-form data-dirty-watch>
                                         @Html.AntiForgeryToken()
                                         <input asp-for="VariantUomConversionForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                                         <input asp-for="VariantUomConversionForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
                                         <div class="form-row">
                                             <div class="col-md-6 mb-2">
-                                                <label>از واحد</label>
-                                                <select asp-for="VariantUomConversionForm.FromUomRef" class="form-control js-search-select" data-placeholder="انتخاب واحد مبدا">
+                                                <label>Ø§Ø² ÙˆØ§Ø­Ø¯</label>
+                                                <select asp-for="VariantUomConversionForm.FromUomRef" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø­Ø¯ Ù…Ø¨Ø¯Ø§">
                                                     @foreach (var uom in Model.UnitOfMeasures)
                                                     {
                                                         <option value="@uom.Id">@uom.Code - @uom.Name</option>
@@ -685,8 +713,8 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-6 mb-2">
-                                                <label>به واحد</label>
-                                                <select asp-for="VariantUomConversionForm.ToUomRef" class="form-control js-search-select" data-placeholder="انتخاب واحد مقصد">
+                                                <label>Ø¨Ù‡ ÙˆØ§Ø­Ø¯</label>
+                                                <select asp-for="VariantUomConversionForm.ToUomRef" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø­Ø¯ Ù…Ù‚ØµØ¯">
                                                     @foreach (var uom in Model.UnitOfMeasures)
                                                     {
                                                         <option value="@uom.Id">@uom.Code - @uom.Name</option>
@@ -695,22 +723,22 @@
                                             </div>
                                         </div>
                                         <div class="form-row">
-                                            <div class="col-md-4 mb-2"><label>ضریب تبدیل</label><input asp-for="VariantUomConversionForm.Factor" type="number" step="0.000001" class="form-control" /></div>
+                                            <div class="col-md-4 mb-2"><label>Ø¶Ø±ÛŒØ¨ ØªØ¨Ø¯ÛŒÙ„</label><input asp-for="VariantUomConversionForm.Factor" type="number" step="0.000001" class="form-control" /></div>
                                             <div class="col-md-4 mb-2">
-                                                <label>نحوه گرد کردن</label>
+                                                <label>Ù†Ø­ÙˆÙ‡ Ú¯Ø±Ø¯ Ú©Ø±Ø¯Ù†</label>
                                                 <select asp-for="VariantUomConversionForm.RoundingMode" class="form-control js-search-select" data-no-search="true">
-                                                    <option value="None">بدون گرد کردن</option><option value="Up">به بالا</option><option value="Down">به پایین</option><option value="Nearest">نزدیک‌ترین</option>
+                                                    <option value="None">Ø¨Ø¯ÙˆÙ† Ú¯Ø±Ø¯ Ú©Ø±Ø¯Ù†</option><option value="Up">Ø¨Ù‡ Ø¨Ø§Ù„Ø§</option><option value="Down">Ø¨Ù‡ Ù¾Ø§ÛŒÛŒÙ†</option><option value="Nearest">Ù†Ø²Ø¯ÛŒÚ©â€ŒØªØ±ÛŒÙ†</option>
                                                 </select>
                                             </div>
                                             <div class="col-md-4 mb-2 d-flex align-items-center">
                                                 <div class="custom-control custom-checkbox mt-3">
                                                     <input asp-for="VariantUomConversionForm.IsBasePath" class="custom-control-input" />
-                                                    <label class="custom-control-label" asp-for="VariantUomConversionForm.IsBasePath">مسیر پایه</label>
+                                                    <label class="custom-control-label" asp-for="VariantUomConversionForm.IsBasePath">Ù…Ø³ÛŒØ± Ù¾Ø§ÛŒÙ‡</label>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="mt-3">
-                                            <button class="btn btn-outline-primary btn-sm" type="submit" @(Can("Catalog.VariantUomConversion.Upsert", "ProductVariantUomConversion.Upsert") ? null : "disabled")>ذخیره تبدیل</button>
+                                            <button class="btn btn-outline-primary btn-sm" type="submit" @(Can("Catalog.VariantUomConversion.Upsert", "ProductVariantUomConversion.Upsert") ? null : "disabled")>Ø°Ø®ÛŒØ±Ù‡ ØªØ¨Ø¯ÛŒÙ„</button>
                                         </div>
                                     </form>
                                 </div>
@@ -721,8 +749,8 @@
                             <div class="card">
                                 <div class="card-body">
                                     <div class="alert alert-light mb-0">
-                                        <h6>واریانتی انتخاب نشده است</h6>
-                                        <p class="mb-0 text-muted">برای مدیریت تبدیل واحد، ابتدا واریانت را انتخاب کنید.</p>
+                                        <h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6>
+                                        <p class="mb-0 text-muted">Ø¨Ø±Ø§ÛŒ Ù…Ø¯ÛŒØ±ÛŒØª ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯ØŒ Ø§Ø¨ØªØ¯Ø§ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p>
                                     </div>
                                 </div>
                             </div>
@@ -735,8 +763,8 @@
                 <div class="card mb-4">
                     <div class="card-body" id="variant-list-scope">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0">لیست واریانت‌ها</h5>
-                            <span class="text-muted small">@Model.VariantTotalCount رکورد</span>
+                            <h5 class="card-title mb-0">Ù„ÛŒØ³Øª ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§</h5>
+                            <span class="text-muted small">@Model.VariantTotalCount Ø±Ú©ÙˆØ±Ø¯</span>
                         </div>
                         <form asp-action="ApplyVariantBulkAction"
                               method="post"
@@ -756,38 +784,129 @@
                             <input type="hidden" name="page" value="@Model.VariantPage" />
                             <input type="hidden" name="pageSize" value="@Model.VariantPageSize" />
                             <div class="small text-muted mr-2 mb-2">
-                                تعداد انتخاب‌شده: <span data-bulk-count>0</span>
+                                ØªØ¹Ø¯Ø§Ø¯ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡: <span data-bulk-count>0</span>
                             </div>
                             <div class="btn-group btn-group-sm mb-2">
                                 <button type="submit"
                                         class="btn btn-outline-success btn-xs"
                                         data-bulk-action="activate"
                                         data-bulk-permission="@(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? "allowed" : "denied")"
-                                        data-confirm-title="فعال‌سازی گروهی واریانت"
-                                        data-confirm="واریانت‌های انتخاب‌شده فعال شوند؟"
+                                        data-confirm-title="ÙØ¹Ø§Ù„â€ŒØ³Ø§Ø²ÛŒ Ú¯Ø±ÙˆÙ‡ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª"
+                                        data-confirm="ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ ÙØ¹Ø§Ù„ Ø´ÙˆÙ†Ø¯ØŸ"
                                         disabled
                                         @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>
-                                    فعال‌سازی گروهی
+                                    ÙØ¹Ø§Ù„â€ŒØ³Ø§Ø²ÛŒ Ú¯Ø±ÙˆÙ‡ÛŒ
                                 </button>
                                 <button type="submit"
                                         class="btn btn-outline-warning btn-xs"
                                         data-bulk-action="deactivate"
                                         data-bulk-permission="@(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? "allowed" : "denied")"
-                                        data-confirm-title="غیرفعال‌سازی گروهی واریانت"
-                                        data-confirm="واریانت‌های انتخاب‌شده غیرفعال شوند؟"
+                                        data-confirm-title="ØºÛŒØ±ÙØ¹Ø§Ù„â€ŒØ³Ø§Ø²ÛŒ Ú¯Ø±ÙˆÙ‡ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª"
+                                        data-confirm="ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ ØºÛŒØ±ÙØ¹Ø§Ù„ Ø´ÙˆÙ†Ø¯ØŸ"
                                         disabled
                                         @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>
-                                    غیرفعال‌سازی گروهی
+                                    ØºÛŒØ±ÙØ¹Ø§Ù„â€ŒØ³Ø§Ø²ÛŒ Ú¯Ø±ÙˆÙ‡ÛŒ
                                 </button>
                                 <button type="submit"
                                         class="btn btn-outline-danger btn-xs"
                                         data-bulk-action="delete"
                                         data-bulk-permission="@(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? "allowed" : "denied")"
-                                        data-confirm-title="حذف گروهی واریانت"
-                                        data-confirm="واریانت‌های انتخاب‌شده حذف شوند؟ این عملیات غیرقابل بازگشت است."
+                                        data-confirm-title="Ø­Ø°Ù Ú¯Ø±ÙˆÙ‡ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª"
+                                        data-confirm="ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø­Ø°Ù Ø´ÙˆÙ†Ø¯ØŸ Ø§ÛŒÙ† Ø¹Ù…Ù„ÛŒØ§Øª ØºÛŒØ±Ù‚Ø§Ø¨Ù„ Ø¨Ø§Ø²Ú¯Ø´Øª Ø§Ø³Øª."
                                         disabled
                                         @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>
-                                    حذف گروهی
+                                    Ø­Ø°Ù Ú¯Ø±ÙˆÙ‡ÛŒ
+                                </button>
+                            </div>
+                        </form>
+                        <form asp-action="BulkAssignVariantAddOn"
+                              method="post"
+                              class="border rounded p-3 mb-3 bg-light"
+                              data-loading-form
+                              data-bulk-form
+                              data-bulk-scope="#variant-list-scope">
+                            @Html.AntiForgeryToken()
+                            <input asp-for="BulkVariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                            <input asp-for="BulkVariantAddOnForm.SelectedVariantIds" type="hidden" data-bulk-target />
+                            <input asp-for="BulkVariantAddOnForm.SelectedAddOnVariantIds" type="hidden" id="bulk-addon-selected-ids" />
+                            <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" id="bulk-addon-primary-id" />
+                            <input type="hidden" data-bulk-action-input />
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>Ø«Ø¨Øª Ú¯Ø±ÙˆÙ‡ÛŒ Add-on</strong>
+                                    <div class="small text-muted">ÛŒÚ© ÛŒØ§ Ú†Ù†Ø¯ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ø² Ø¬Ø¯ÙˆÙ„ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ØŒ Ø³Ù¾Ø³ Add-on Ø±Ø§ ÛŒÚ©â€ŒØ¨Ø§Ø± Ø«Ø¨Øª Ú©Ù†ÛŒØ¯ ØªØ§ Ø¨Ø±Ø§ÛŒ Ù‡Ù…Ù‡ Ø§Ø¹Ù…Ø§Ù„ Ø´ÙˆØ¯.</div>
+                                </div>
+                                <span class="badge badge-pill badge-outline-primary">Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡: <span data-bulk-count>0</span></span>
+                            </div>
+                            <div class="form-row align-items-end">
+                                <div class="col-md-9 mb-2">
+                                    <label>ÙˆØ§Ø±ÛŒØ§Ù†Øª Add-on</label>
+                                    <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
+                                            class="form-control js-search-select"
+                                            data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Add-on">
+                                        <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª</option>
+                                        @foreach (var variant in Model.RelatedVariantLookup)
+                                        {
+                                            <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
+                                        }
+                                    </select>
+                                    <button type="button"
+                                            class="btn btn-outline-secondary btn-block text-left mt-2"
+                                            data-toggle="modal"
+                                            data-target="#bulk-addon-selector-modal">
+                                        Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Ãšâ€ Ã™â€ Ã˜Â¯ Add-on
+                                    </button>
+                                    <div class="small text-muted mt-2">Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜ÂªÃ™Ë†Ã˜Â§Ã™â€ Ã›Å’Ã˜Â¯ Ãšâ€ Ã™â€ Ã˜Â¯ Add-on Ã˜Â±Ã˜Â§ Ã˜Â¨Ã˜Â§ Ã˜Â¬Ã˜Â³Ã˜ÂªÃ˜Â¬Ã™Ë† Ã™Ë† Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Ãšâ€ Ã™â€ Ã˜Â¯Ã˜ÂªÃ˜Â§Ã›Å’Ã›Å’ Ã˜Â«Ã˜Â¨Ã˜Âª ÃšÂ©Ã™â€ Ã›Å’Ã˜Â¯.</div>
+                                    <div class="border rounded bg-white p-2 mt-2" id="bulk-addon-selection-summary">
+                                        <span class="text-muted small" data-empty-text>Ã™â€¡Ã™â€ Ã™Ë†Ã˜Â² Add-onÃ›Å’ Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Ã™â€ Ã˜Â´Ã˜Â¯Ã™â€¡ Ã˜Â§Ã˜Â³Ã˜Âª.</span>
+                                        <div class="d-flex flex-wrap" id="bulk-addon-selection-pills"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <button type="submit"
+                                            class="btn btn-outline-primary btn-block"
+                                            data-bulk-action="assign-addon"
+                                            data-bulk-permission="allowed">
+                                        Ø«Ø¨Øª Ø¨Ø±Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒÙ‡Ø§
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        <form asp-action="BulkAssignVariantImages"
+                              method="post"
+                              class="border rounded p-3 mb-3 bg-light"
+                              data-loading-form
+                              data-bulk-form
+                              data-bulk-scope="#variant-list-scope">
+                            @Html.AntiForgeryToken()
+                            <input asp-for="BulkVariantImageForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                            <input asp-for="BulkVariantImageForm.SelectedVariantIds" type="hidden" data-bulk-target />
+                            <input asp-for="BulkVariantImageForm.ImagesJson" type="hidden" />
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>Ø«Ø¨Øª Ú¯Ø±ÙˆÙ‡ÛŒ Ù…Ø¯ÛŒØ§</strong>
+                                    <div class="small text-muted">Ú†Ù†Ø¯ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ø² Ø¬Ø¯ÙˆÙ„ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ Ùˆ ÛŒÚ© Ù…Ø¬Ù…ÙˆØ¹Ù‡ Ø¹Ú©Ø³/ÙˆÛŒØ¯ÛŒÙˆ Ø±Ø§ Ø¨Ø±Ø§ÛŒ Ù‡Ù…Ù‡ Ø«Ø¨Øª Ú©Ù†ÛŒØ¯.</div>
+                                </div>
+                                <span class="badge badge-pill badge-outline-primary">Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡: <span data-bulk-count>0</span></span>
+                            </div>
+                            <div data-media-manager
+                                 data-policy="variant-gallery"
+                                 data-base-url="@Configuration["FileService:BaseUrl"]"
+                                 data-input-name="BulkVariantImageForm.ImagesJson">
+                                <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
+                                <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
+                                    <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                                </div>
+                                <div class="small text-muted mb-2" data-media-status>Ù…Ø¯ÛŒØ§Ù‡Ø§ Ø±Ø§ Ø¢Ù¾Ù„ÙˆØ¯ Ú©Ù†ÛŒØ¯ØŒ Ø³Ù¾Ø³ Ø±ÙˆÛŒ Ø¯Ú©Ù…Ù‡ Ø«Ø¨Øª Ø¨Ø±Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒÙ‡Ø§ Ø¨Ø²Ù†ÛŒØ¯.</div>
+                                <div class="row" data-media-items></div>
+                                <div class="alert alert-light mb-3" data-media-empty>Ù‡Ù†ÙˆØ² Ù…Ø¯ÛŒØ§ÛŒÛŒ Ø¨Ø±Ø§ÛŒ Ø«Ø¨Øª Ú¯Ø±ÙˆÙ‡ÛŒ Ø¢Ù…Ø§Ø¯Ù‡ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</div>
+                            </div>
+                            <div class="text-right">
+                                <button type="submit"
+                                        class="btn btn-outline-primary"
+                                        data-bulk-action="assign-media"
+                                        data-bulk-permission="allowed">
+                                    Ø«Ø¨Øª Ù…Ø¯ÛŒØ§ Ø¨Ø±Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒÙ‡Ø§
                                 </button>
                             </div>
                         </form>
@@ -795,12 +914,12 @@
                             <table class="table table-sm table-striped">
                                 <thead>
                                     <tr>
-                                        <th><input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" /></th>
+                                        <th><input type="checkbox" data-bulk-toggle aria-label="Ø§Ù†ØªØ®Ø§Ø¨ Ù‡Ù…Ù‡" /></th>
                                         <th>SKU</th>
-                                        <th>بارکد</th>
-                                        <th>واحد پایه</th>
-                                        <th>سیاست رهگیری</th>
-                                        <th>وضعیت</th>
+                                        <th>Ø¨Ø§Ø±Ú©Ø¯</th>
+                                        <th>ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡</th>
+                                        <th>Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ</th>
+                                        <th>ÙˆØ¶Ø¹ÛŒØª</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -810,8 +929,8 @@
                                         <tr>
                                             <td colspan="7">
                                                 <div class="alert alert-light my-2">
-                                                    <h6>واریانتی پیدا نشد</h6>
-                                                    <p class="mb-0 text-muted">فیلترها را بازبینی کنید یا واریانت جدید بسازید.</p>
+                                                    <h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯</h6>
+                                                    <p class="mb-0 text-muted">ÙÛŒÙ„ØªØ±Ù‡Ø§ Ø±Ø§ Ø¨Ø§Ø²Ø¨ÛŒÙ†ÛŒ Ú©Ù†ÛŒØ¯ ÛŒØ§ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø¬Ø¯ÛŒØ¯ Ø¨Ø³Ø§Ø²ÛŒØ¯.</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -821,52 +940,52 @@
                                         @foreach (var variant in Model.Variants)
                                         {
                                             <tr>
-                                                <td><input type="checkbox" data-bulk-row value="@variant.Id" aria-label="الزامی @variant.Sku" /></td>
+                                                <td><input type="checkbox" data-bulk-row value="@variant.Id" aria-label="Ø§Ù„Ø²Ø§Ù…ÛŒ @variant.Sku" /></td>
                                                 <td><span class="text-monospace">@variant.Sku</span></td>
                                                 <td>@(string.IsNullOrWhiteSpace(variant.Barcode) ? "-" : $"#{variant.Barcode}")</td>
                                                 <td>@variant.BaseUom</td>
                                                 <td>@variant.TrackingPolicy</td>
                                                 <td>
                                                     <span class="badge badge-pill @(variant.IsActive ? "badge-primary" : "badge-secondary")">
-                                                        @(variant.IsActive ? "فعال" : "غیرفعال")
+                                                        @(variant.IsActive ? "ÙØ¹Ø§Ù„" : "ØºÛŒØ±ÙØ¹Ø§Ù„")
                                                     </span>
                                                     @if (variant.InventoryMovementLocked)
                                                     {
-                                                        <span class="badge badge-warning ml-1">قفل‌شده</span>
+                                                        <span class="badge badge-warning ml-1">Ù‚ÙÙ„â€ŒØ´Ø¯Ù‡</span>
                                                     }
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm">
                                                     <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
                                                             data-detail-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
-                                                            data-detail-title="موجودی و انبارها">
-                                                        انبارها
+                                                            data-detail-title="Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ùˆ Ø§Ù†Ø¨Ø§Ø±Ù‡Ø§">
+                                                        Ø§Ù†Ø¨Ø§Ø±Ù‡Ø§
                                                     </button>
                                                         <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
                                                                 data-detail-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
-                                                                data-detail-title="قیمت‌ها">
-                                                            قیمت‌ها
+                                                                data-detail-title="Ù‚ÛŒÙ…Øªâ€ŒÙ‡Ø§">
+                                                            Ù‚ÛŒÙ…Øªâ€ŒÙ‡Ø§
                                                         </button>
                                                         <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
                                                                 data-detail-url="@Url.Action("VariantDocuments", "VariantManagement", new { variantId = variant.Id })"
-                                                                data-detail-title="اسناد و تراکنش‌ها">
-                                                            اسناد
+                                                                data-detail-title="Ø§Ø³Ù†Ø§Ø¯ Ùˆ ØªØ±Ø§Ú©Ù†Ø´â€ŒÙ‡Ø§">
+                                                            Ø§Ø³Ù†Ø§Ø¯
                                                         </button>
                                                         <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                            <span class="sr-only">عملیات</span>
+                                                            <span class="sr-only">Ø¹Ù…Ù„ÛŒØ§Øª</span>
                                                         </button>
                                                         <div class="dropdown-menu dropdown-menu-right">
                                                             <form asp-action="ActivateVariant" method="post" class="px-3 py-1" data-loading-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                                                 <input type="hidden" name="variantId" value="@variant.Id" />
-                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>فعال‌سازی</button>
+                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>ÙØ¹Ø§Ù„â€ŒØ³Ø§Ø²ÛŒ</button>
                                                             </form>
                                                             <form asp-action="DeactivateVariant" method="post" class="px-3 py-1" data-loading-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                                                 <input type="hidden" name="variantId" value="@variant.Id" />
-                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>غیرفعال‌سازی</button>
+                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>ØºÛŒØ±ÙØ¹Ø§Ù„â€ŒØ³Ø§Ø²ÛŒ</button>
                                                             </form>
                                                             <form asp-action="LockVariantInventoryMovement" method="post" class="px-3 py-1" data-loading-form>
                                                                 @Html.AntiForgeryToken()
@@ -874,10 +993,10 @@
                                                                 <input type="hidden" name="variantId" value="@variant.Id" />
                                                                 <button type="submit"
                                                                         class="btn btn-link p-0"
-                                                                        data-confirm-title="قفل حرکت موجودی"
-                                                                        data-confirm="این واریانت قفل حرکت موجودی شود؟"
+                                                                        data-confirm-title="Ù‚ÙÙ„ Ø­Ø±Ú©Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ"
+                                                                        data-confirm="Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù‚ÙÙ„ Ø­Ø±Ú©Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ Ø´ÙˆØ¯ØŸ"
                                                                         @(Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement") ? null : "disabled")>
-                                                                    قفل حرکت
+                                                                    Ù‚ÙÙ„ Ø­Ø±Ú©Øª
                                                                 </button>
                                                             </form>
                                                             <form asp-action="DeleteVariant" method="post" class="px-3 py-1" data-loading-form>
@@ -886,10 +1005,10 @@
                                                                 <input type="hidden" name="variantId" value="@variant.Id" />
                                                                 <button type="submit"
                                                                         class="btn btn-link text-danger p-0"
-                                                                        data-confirm-title="حذف واریانت"
-                                                                        data-confirm="این واریانت حذف شود؟ این عملیات قابل بازگشت نیست."
+                                                                        data-confirm-title="Ø­Ø°Ù ÙˆØ§Ø±ÛŒØ§Ù†Øª"
+                                                                        data-confirm="Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø­Ø°Ù Ø´ÙˆØ¯ØŸ Ø§ÛŒÙ† Ø¹Ù…Ù„ÛŒØ§Øª Ù‚Ø§Ø¨Ù„ Ø¨Ø§Ø²Ú¯Ø´Øª Ù†ÛŒØ³Øª."
                                                                         @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>
-                                                                    حذف
+                                                                    Ø­Ø°Ù
                                                                 </button>
                                                             </form>
                                                         </div>
@@ -929,30 +1048,30 @@
 
                 <div class="card mb-4" id="variant-details-card">
                     <div class="card-body">
-                        <h5 class="card-title">جزئیات واریانت</h5>
+                        <h5 class="card-title">Ø¬Ø²Ø¦ÛŒØ§Øª ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
                         @if (Model.SelectedVariantDetails is null)
                         {
                             <div class="alert alert-light mb-0">
-                                <h6>واریانتی انتخاب نشده است</h6>
-                                <p class="mb-0 text-muted">از لیست، یک واریانت را انتخاب کنید تا جزئیات نمایش داده شود.</p>
+                                <h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6>
+                                <p class="mb-0 text-muted">Ø§Ø² Ù„ÛŒØ³ØªØŒ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ ØªØ§ Ø¬Ø²Ø¦ÛŒØ§Øª Ù†Ù…Ø§ÛŒØ´ Ø¯Ø§Ø¯Ù‡ Ø´ÙˆØ¯.</p>
                             </div>
                         }
                         else
                         {
                             <p class="mb-1"><strong>SKU:</strong> <span class="text-monospace">@Model.SelectedVariantDetails.Sku</span></p>
-                            <p class="mb-1"><strong>بارکد:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedVariantDetails.Barcode) ? "-" : Model.SelectedVariantDetails.Barcode)</p>
-                            <p class="mb-1"><strong>واحد پایه:</strong> @Model.SelectedVariantDetails.BaseUom</p>
-                            <p class="mb-1"><strong>سیاست رهگیری:</strong> @Model.SelectedVariantDetails.TrackingPolicy</p>
+                            <p class="mb-1"><strong>Ø¨Ø§Ø±Ú©Ø¯:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedVariantDetails.Barcode) ? "-" : Model.SelectedVariantDetails.Barcode)</p>
+                            <p class="mb-1"><strong>ÙˆØ§Ø­Ø¯ Ù¾Ø§ÛŒÙ‡:</strong> @Model.SelectedVariantDetails.BaseUom</p>
+                            <p class="mb-1"><strong>Ø³ÛŒØ§Ø³Øª Ø±Ù‡Ú¯ÛŒØ±ÛŒ:</strong> @Model.SelectedVariantDetails.TrackingPolicy</p>
                             <p class="mb-3">
-                                <strong>قفل حرکت موجودی:</strong>
+                                <strong>Ù‚ÙÙ„ Ø­Ø±Ú©Øª Ù…ÙˆØ¬ÙˆØ¯ÛŒ:</strong>
                                 <span class="badge badge-pill @(Model.SelectedVariantDetails.InventoryMovementLocked ? "badge-warning" : "badge-primary")">
-                                    @(Model.SelectedVariantDetails.InventoryMovementLocked ? "فعال" : "غیرفعال")
+                                    @(Model.SelectedVariantDetails.InventoryMovementLocked ? "ÙØ¹Ø§Ù„" : "ØºÛŒØ±ÙØ¹Ø§Ù„")
                                 </span>
                             </p>
-                            <h6>مقادیر ویژگی ثبت‌شده</h6>
+                            <h6>Ù…Ù‚Ø§Ø¯ÛŒØ± ÙˆÛŒÚ˜Ú¯ÛŒ Ø«Ø¨Øªâ€ŒØ´Ø¯Ù‡</h6>
                             <div class="table-responsive">
                                 <table class="table table-sm">
-                                    <thead><tr><th>ویژگی</th><th>مقدار</th><th>متادیتا</th><th></th></tr></thead>
+                                    <thead><tr><th>ÙˆÛŒÚ˜Ú¯ÛŒ</th><th>Ù…Ù‚Ø¯Ø§Ø±</th><th>Ù…ØªØ§Ø¯ÛŒØªØ§</th><th></th></tr></thead>
                                     <tbody>
                                         @foreach (var attr in Model.SelectedVariantDetails.Attributes)
                                         {
@@ -972,8 +1091,8 @@
                                                 <td>
                                                     @if (attrMeta is not null)
                                                     {
-                                                        <span class="badge badge-pill @(attrMeta.IsRequired ? "badge-danger" : "badge-light")">@(attrMeta.IsRequired ? "الزامی" : "اختیاری")</span>
-                                                        <span class="badge badge-pill @(attrMeta.IsInherited ? "badge-outline-primary" : "badge-outline-secondary")">@(attrMeta.IsInherited ? "ارث‌رسیده" : "مستقیم")</span>
+                                                        <span class="badge badge-pill @(attrMeta.IsRequired ? "badge-danger" : "badge-light")">@(attrMeta.IsRequired ? "Ø§Ù„Ø²Ø§Ù…ÛŒ" : "Ø§Ø®ØªÛŒØ§Ø±ÛŒ")</span>
+                                                        <span class="badge badge-pill @(attrMeta.IsInherited ? "badge-outline-primary" : "badge-outline-secondary")">@(attrMeta.IsInherited ? "Ø§Ø±Ø«â€ŒØ±Ø³ÛŒØ¯Ù‡" : "Ù…Ø³ØªÙ‚ÛŒÙ…")</span>
                                                     }
                                                 </td>
                                                 <td>
@@ -982,14 +1101,14 @@
                                                             data-attribute-id="@attr.AttributeId"
                                                             data-current-value="@currentValue"
                                                             @(Can("Catalog.VariantAttributeValue.Set", "VariantAttributeValue.Set") ? null : "disabled")>
-                                                        ویرایش
+                                                        ÙˆÛŒØ±Ø§ÛŒØ´
                                                     </button>
                                                     <form asp-action="RemoveVariantAttributeValue" method="post" class="d-inline" data-loading-form>
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantDetails.Id" />
                                                         <input type="hidden" name="attributeId" value="@attr.AttributeId" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف مقدار ویژگی" data-confirm="مقدار این ویژگی از واریانت حذف شود؟" @(Can("Catalog.VariantAttributeValue.Remove", "VariantAttributeValue.Remove") ? null : "disabled")>حذف</button>
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="Ø­Ø°Ù Ù…Ù‚Ø¯Ø§Ø± ÙˆÛŒÚ˜Ú¯ÛŒ" data-confirm="Ù…Ù‚Ø¯Ø§Ø± Ø§ÛŒÙ† ÙˆÛŒÚ˜Ú¯ÛŒ Ø§Ø² ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø­Ø°Ù Ø´ÙˆØ¯ØŸ" @(Can("Catalog.VariantAttributeValue.Remove", "VariantAttributeValue.Remove") ? null : "disabled")>Ø­Ø°Ù</button>
                                                     </form>
                                                 </td>
                                             </tr>
@@ -1001,20 +1120,81 @@
                     </div>
                 </div>
 
+                <div class="card mb-4" id="variant-media-library-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Ù…Ø¯ÛŒØ§ÛŒ ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
+                        @if (Model.SelectedVariantDetails is null)
+                        {
+                            <div class="alert alert-light mb-0">
+                                <h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6>
+                                <p class="mb-0 text-muted">Ø¨Ø±Ø§ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ ÛŒØ§ Ø­Ø°Ù Ø§Ø±ØªØ¨Ø§Ø· Ù…Ø¯ÛŒØ§ØŒ Ø§Ø¨ØªØ¯Ø§ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p>
+                            </div>
+                        }
+                        else if (Model.SelectedVariantDetails.Images.Count == 0)
+                        {
+                            <div class="alert alert-light mb-0">
+                                Ù‡Ù†ÙˆØ² Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù…Ø¯ÛŒØ§ÛŒÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="row">
+                                @foreach (var media in Model.SelectedVariantDetails.Images.OrderBy(x => x.DisplayOrder))
+                                {
+                                    var isVideo = !string.IsNullOrWhiteSpace(media.ContentType) && media.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
+                                    <div class="col-lg-4 col-md-6 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                @if (isVideo)
+                                                {
+                                                    <video src="@media.OriginalUrl" class="w-100 rounded border mb-2" style="max-height:200px;" controls preload="metadata"></video>
+                                                }
+                                                else
+                                                {
+                                                    <img src="@media.ThumbnailUrl" alt="@media.OriginalFileName" class="img-fluid rounded border mb-2" style="max-height:200px;" />
+                                                }
+                                                <div class="small text-muted mb-2">@media.OriginalFileName</div>
+                                                <div class="mb-2">
+                                                    <span class="badge badge-pill badge-outline-primary">ØªØ±ØªÛŒØ¨: @media.DisplayOrder</span>
+                                                    @if (media.IsPrimary)
+                                                    {
+                                                        <span class="badge badge-pill badge-primary">Ø§ØµÙ„ÛŒ</span>
+                                                    }
+                                                    <span class="badge badge-pill badge-light">@(isVideo ? "ÙˆÛŒØ¯ÛŒÙˆ" : "ØªØµÙˆÛŒØ±")</span>
+                                                </div>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="@media.OriginalUrl" target="_blank" rel="noopener" class="btn btn-outline-info btn-xs">Ù…Ø´Ø§Ù‡Ø¯Ù‡</a>
+                                                    <form asp-action="RemoveVariantImage" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantDetails.Id" />
+                                                        <input type="hidden" name="fileKey" value="@media.FileKey" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs">Ø­Ø°Ù Ø§Ø±ØªØ¨Ø§Ø·</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
                 <div class="card" id="variant-uom-conversions-card">
                     <div class="card-body">
-                        <h5 class="card-title">لیست تبدیل‌ها</h5>
+                        <h5 class="card-title">Ù„ÛŒØ³Øª ØªØ¨Ø¯ÛŒÙ„â€ŒÙ‡Ø§</h5>
                         <div class="table-responsive">
                             <table class="table table-sm table-striped">
-                                <thead><tr><th>از واحد</th><th>به واحد</th><th>ضریب</th><th>گرد کردن</th><th>مسیر پایه</th><th></th></tr></thead>
+                                <thead><tr><th>Ø§Ø² ÙˆØ§Ø­Ø¯</th><th>Ø¨Ù‡ ÙˆØ§Ø­Ø¯</th><th>Ø¶Ø±ÛŒØ¨</th><th>Ú¯Ø±Ø¯ Ú©Ø±Ø¯Ù†</th><th>Ù…Ø³ÛŒØ± Ù¾Ø§ÛŒÙ‡</th><th></th></tr></thead>
                                 <tbody>
                                     @if (Model.VariantUomConversions.Count == 0)
                                     {
                                         <tr>
                                             <td colspan="6">
                                                 <div class="alert alert-light my-2">
-                                                    <h6>مسیر تبدیلی ثبت نشده است</h6>
-                                                    <p class="mb-0 text-muted">از فرم سمت چپ یک مسیر تبدیل جدید ثبت کنید.</p>
+                                                    <h6>Ù…Ø³ÛŒØ± ØªØ¨Ø¯ÛŒÙ„ÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6>
+                                                    <p class="mb-0 text-muted">Ø§Ø² ÙØ±Ù… Ø³Ù…Øª Ú†Ù¾ ÛŒÚ© Ù…Ø³ÛŒØ± ØªØ¨Ø¯ÛŒÙ„ Ø¬Ø¯ÛŒØ¯ Ø«Ø¨Øª Ú©Ù†ÛŒØ¯.</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1030,7 +1210,7 @@
                                                 <td>@(to is null ? conversion.ToUomRef : $"{to.Code} - {to.Name}")</td>
                                                 <td>@conversion.Factor</td>
                                                 <td>@conversion.RoundingMode</td>
-                                                <td>@(conversion.IsBasePath ? "بله" : "خیر")</td>
+                                                <td>@(conversion.IsBasePath ? "Ø¨Ù„Ù‡" : "Ø®ÛŒØ±")</td>
                                                 <td>
                                                     <button type="button"
                                                             class="btn btn-outline-secondary btn-xs conversion-edit-btn"
@@ -1040,7 +1220,7 @@
                                                             data-rounding="@conversion.RoundingMode"
                                                             data-is-base-path="@(conversion.IsBasePath ? "true" : "false")"
                                                             @(Can("Catalog.VariantUomConversion.Upsert", "ProductVariantUomConversion.Upsert") ? null : "disabled")>
-                                                        ویرایش
+                                                        ÙˆÛŒØ±Ø§ÛŒØ´
                                                     </button>
                                                     <form asp-action="RemoveVariantUomConversion" method="post" class="d-inline" data-loading-form>
                                                         @Html.AntiForgeryToken()
@@ -1048,7 +1228,7 @@
                                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
                                                         <input type="hidden" name="fromUomRef" value="@conversion.FromUomRef" />
                                                         <input type="hidden" name="toUomRef" value="@conversion.ToUomRef" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف تبدیل واحد" data-confirm="این مسیر تبدیل واحد حذف شود؟" @(Can("Catalog.VariantUomConversion.Remove", "ProductVariantUomConversion.Remove") ? null : "disabled")>حذف</button>
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="Ø­Ø°Ù ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯" data-confirm="Ø§ÛŒÙ† Ù…Ø³ÛŒØ± ØªØ¨Ø¯ÛŒÙ„ ÙˆØ§Ø­Ø¯ Ø­Ø°Ù Ø´ÙˆØ¯ØŸ" @(Can("Catalog.VariantUomConversion.Remove", "ProductVariantUomConversion.Remove") ? null : "disabled")>Ø­Ø°Ù</button>
                                                     </form>
                                                 </td>
                                             </tr>
@@ -1062,21 +1242,71 @@
             </div>
 
             <div class="col-12 mb-4">
-                <div class="card mb-4" id="variant-components-card">
+                <div class="card mb-4" id="variant-assembly-card">
                     <div class="card-body">
-                        <h5 class="card-title">Ù„ÛŒØ³Øª Ù…Ø¹Ø§Ø¯Ù„ / Ø³Ø§Ø²Ù†Ø¯Ù‡</h5>
+                        <h5 class="card-title mb-2">Ù…ÙˆÙ†ØªØ§Ú˜ / Ø¯ÛŒâ€ŒØ§Ø³Ù…Ø¨Ù„ Ø®ÙˆØ¯Ú©Ø§Ø±</h5>
                         @if (hasSelectedProduct && hasSelectedVariant)
                         {
-                            <p class="text-muted small">Ø§ÛŒÙ† Ù„ÛŒØ³Øª Ù…Ø´Ø®Øµ Ù…ÛŒâ€ŒÚ©Ù†Ø¯ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø§Ø² Ú†Ù‡ ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ÛŒ Ù‚Ø§Ø¨Ù„ ÙØ±ÙˆØ´ Ø¯ÛŒÚ¯Ø±ÛŒ Ùˆ Ø¨Ø§ Ú†Ù‡ ØªØ¹Ø¯Ø§Ø¯ÛŒ Ø³Ø§Ø®ØªÙ‡ Ù…ÛŒâ€ŒØ´ÙˆØ¯.</p>
-                            <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" class="mb-4" data-loading-form data-dirty-watch>
+                            <p class="text-muted small">ÙÙ‚Ø· Ù†ÙˆØ¹ Ø¹Ù…Ù„ÛŒØ§Øª Ùˆ ØªØ¹Ø¯Ø§Ø¯ Ø±Ø§ Ù…Ø´Ø®Øµ Ú©Ù†ÛŒØ¯. Ø³ÛŒØ³ØªÙ… Ø¨Ø± Ø§Ø³Ø§Ø³ recipe Ø«Ø¨Øªâ€ŒØ´Ø¯Ù‡ Ùˆ Ù…ÙˆØ¬ÙˆØ¯ÛŒ ÙˆØ§Ù‚Ø¹ÛŒØŒ Ø³Ù†Ø¯ ØªØ¨Ø¯ÛŒÙ„ Ø±Ø§ Ø®ÙˆØ¯Ø´ Ù…ÛŒâ€ŒØ³Ø§Ø²Ø¯ Ùˆ Ù¾Ø³Øª Ù…ÛŒâ€ŒÚ©Ù†Ø¯.</p>
+                            <form asp-action="ExecuteVariantAssembly" method="post" id="variant-assembly-form" class="mb-0" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <input asp-for="VariantAssemblyOperationForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                <input asp-for="VariantAssemblyOperationForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                                <div class="form-row">
+                                    <div class="col-md-3 mb-2">
+                                        <label>Ù†ÙˆØ¹ Ø¹Ù…Ù„ÛŒØ§Øª</label>
+                                        <select asp-for="VariantAssemblyOperationForm.OperationType" class="form-control js-search-select" data-no-search="true">
+                                            <option value="Assemble">Ù…ÙˆÙ†ØªØ§Ú˜</option>
+                                            <option value="Disassemble">Ø¯ÛŒâ€ŒØ§Ø³Ù…Ø¨Ù„</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <label>ØªØ¹Ø¯Ø§Ø¯ Ù†Ù‡Ø§ÛŒÛŒ</label>
+                                        <input asp-for="VariantAssemblyOperationForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label>Ø¹Ù„Øª / ØªÙˆØ¶ÛŒØ­</label>
+                                        <input asp-for="VariantAssemblyOperationForm.ReasonCode" class="form-control" placeholder="Ø§Ø®ØªÛŒØ§Ø±ÛŒ" />
+                                    </div>
+                                    <div class="col-md-2 mb-2 d-flex align-items-end">
+                                        <button class="btn btn-primary btn-block" type="submit">Ø«Ø¨Øª Ø¹Ù…Ù„ÛŒØ§Øª</button>
+                                    </div>
+                                </div>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="alert alert-light mb-0"><h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6><p class="mb-0 text-muted">Ø§Ø¨ØªØ¯Ø§ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ø² Ù„ÛŒØ³Øª Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ ØªØ§ Ø¹Ù…Ù„ÛŒØ§Øª Ù…ÙˆÙ†ØªØ§Ú˜ ÛŒØ§ Ø¯ÛŒâ€ŒØ§Ø³Ù…Ø¨Ù„ Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ø¨Ø§Ø´Ø¯.</p></div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-4" id="variant-components-card">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="card-title mb-1">Ù„ÛŒØ³Øª Ø§Ø¬Ø²Ø§ / Ø³Ø§Ø²Ù†Ø¯Ù‡â€ŒÙ‡Ø§</h5>
+                                <p class="text-muted small mb-0">recipe Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ù†Ú¯Ù‡ Ù…ÛŒâ€ŒØ¯Ø§Ø±ÛŒÙ… Ùˆ Ø¹Ù…Ù„ÛŒØ§Øª Ù…ÙˆÙ†ØªØ§Ú˜ Ø§Ø² Ù‡Ù…ÛŒÙ† Ù„ÛŒØ³Øª Ø§Ø³ØªÙØ§Ø¯Ù‡ Ù…ÛŒâ€ŒÚ©Ù†Ø¯.</p>
+                            </div>
+                            @if (hasSelectedProduct && hasSelectedVariant)
+                            {
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="collapse" data-target="#variant-component-editor" aria-expanded="false" aria-controls="variant-component-editor">Ø§ÙØ²ÙˆØ¯Ù† ÛŒØ§ ÙˆÛŒØ±Ø§ÛŒØ´ Ø¬Ø²Ø¡</button>
+                            }
+                        </div>
+                        @if (hasSelectedProduct && hasSelectedVariant)
+                        {
+                            <p class="text-muted small">Ã˜Â§Ã›Å’Ã™â€  Ã™â€žÃ›Å’Ã˜Â³Ã˜Âª Ã™â€¦Ã˜Â´Ã˜Â®Ã˜Âµ Ã™â€¦Ã›Å’Ã¢â‚¬Å’ÃšÂ©Ã™â€ Ã˜Â¯ Ã˜Â§Ã›Å’Ã™â€  Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã˜Â² Ãšâ€ Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜ÂªÃ¢â‚¬Å’Ã™â€¡Ã˜Â§Ã›Å’ Ã™â€šÃ˜Â§Ã˜Â¨Ã™â€ž Ã™ÂÃ˜Â±Ã™Ë†Ã˜Â´ Ã˜Â¯Ã›Å’ÃšÂ¯Ã˜Â±Ã›Å’ Ã™Ë† Ã˜Â¨Ã˜Â§ Ãšâ€ Ã™â€¡ Ã˜ÂªÃ˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯Ã›Å’ Ã˜Â³Ã˜Â§Ã˜Â®Ã˜ÂªÃ™â€¡ Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜Â´Ã™Ë†Ã˜Â¯.</p>
+                            <div class="collapse mb-4" id="variant-component-editor">
+                            <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-loading-form data-dirty-watch>
                                 @Html.AntiForgeryToken()
                                 <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                                 <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                                <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
                                 <div class="form-row">
                                     <div class="col-md-8 mb-2">
-                                        <label>ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø³Ø§Ø²Ù†Ø¯Ù‡</label>
-                                        <select asp-for="VariantComponentForm.ComponentVariantId" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª">
-                                            <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª</option>
+                                        <label>Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â³Ã˜Â§Ã˜Â²Ã™â€ Ã˜Â¯Ã™â€¡</label>
+                                        <select asp-for="VariantComponentForm.ComponentVariantId" class="form-control js-search-select" data-placeholder="Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª">
+                                            <option value="">Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª</option>
                                             @foreach (var variant in Model.RelatedVariantLookup)
                                             {
                                                 <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
@@ -1084,19 +1314,91 @@
                                         </select>
                                     </div>
                                     <div class="col-md-4 mb-2">
-                                        <label>ØªØ¹Ø¯Ø§Ø¯</label>
+                                        <label>Ã˜ÂªÃ˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯</label>
                                         <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
                                     </div>
                                 </div>
-                                <button class="btn btn-outline-primary btn-sm" type="submit">Ø°Ø®ÛŒØ±Ù‡ Ø¬Ø²Ø¡</button>
+                                <div class="form-row">
+                                    <div class="col-md-6 mb-2">
+                                        <label>انبار جزء</label>
+                                        <select asp-for="VariantComponentForm.WarehouseId" class="form-control" id="VariantComponentForm_WarehouseId">
+                                            <option value="">انتخاب انبار</option>
+                                            @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label>لوکیشن جزء</label>
+                                        <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
+                                            <option value="">انتخاب لوکیشن</option>
+                                            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                            {
+                                                <option value="@location.LocationBusinessKey" data-warehouse-id="@location.WarehouseRef">@location.LocationCode (@location.LocationType)</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" type="submit">ذخیره جزء</button>
                             </form>
+                            </div>
+                            <h6>مدیای ثبت‌شده</h6>
+                            @if (Model.SelectedVariantDetails!.Images.Count == 0)
+                            {
+                                <div class="alert alert-light">
+                                    هنوز برای این واریانت مدیایی ثبت نشده است.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="row mb-4">
+                                    @foreach (var media in Model.SelectedVariantDetails.Images.OrderBy(x => x.DisplayOrder))
+                                    {
+                                        var isVideo = !string.IsNullOrWhiteSpace(media.ContentType) && media.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
+                                        <div class="col-lg-4 col-md-6 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-body">
+                                                    @if (isVideo)
+                                                    {
+                                                        <video src="@media.OriginalUrl" class="w-100 rounded border mb-2" style="max-height:200px;" controls preload="metadata"></video>
+                                                    }
+                                                    else
+                                                    {
+                                                        <img src="@media.ThumbnailUrl" alt="@media.OriginalFileName" class="img-fluid rounded border mb-2" style="max-height:200px;" />
+                                                    }
+                                                    <div class="small text-muted mb-2">@media.OriginalFileName</div>
+                                                    <div class="mb-2">
+                                                        <span class="badge badge-pill badge-outline-primary">ترتیب: @media.DisplayOrder</span>
+                                                        @if (media.IsPrimary)
+                                                        {
+                                                            <span class="badge badge-pill badge-primary">اصلی</span>
+                                                        }
+                                                        <span class="badge badge-pill badge-light">@(isVideo ? "ویدیو" : "تصویر")</span>
+                                                    </div>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <a href="@media.OriginalUrl" target="_blank" rel="noopener" class="btn btn-outline-info btn-xs">مشاهده</a>
+                                                        <form asp-action="RemoveVariantImage" method="post" class="d-inline" data-loading-form>
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                            <input type="hidden" name="variantId" value="@Model.SelectedVariantDetails.Id" />
+                                                            <input type="hidden" name="fileKey" value="@media.FileKey" />
+                                                            <button type="submit" class="btn btn-outline-danger btn-xs">حذف ارتباط</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
                             <div class="table-responsive">
                                 <table class="table table-sm table-striped">
-                                    <thead><tr><th>SKU</th><th>Ø¨Ø§Ø±Ú©Ø¯</th><th>ØªØ¹Ø¯Ø§Ø¯</th><th></th></tr></thead>
+                                    <thead><tr><th>SKU</th><th>بارکد</th><th>تعداد</th><th>انبار</th><th>لوکیشن</th><th></th></tr></thead>
                                     <tbody>
                                         @if (Model.VariantComponents.Count == 0)
                                         {
-                                            <tr><td colspan="4" class="text-muted">Ø¬Ø²Ø¦ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</td></tr>
+                                            <tr><td colspan="6" class="text-muted">جزئی برای این واریانت ثبت نشده است.</td></tr>
                                         }
                                         else
                                         {
@@ -1106,14 +1408,27 @@
                                                     <td class="text-monospace">@component.ComponentSku</td>
                                                     <td>@(string.IsNullOrWhiteSpace(component.ComponentBarcode) ? "-" : component.ComponentBarcode)</td>
                                                     <td>@component.Quantity</td>
+                                                    <td>@(string.IsNullOrWhiteSpace(component.WarehouseCode) ? "-" : component.WarehouseCode)</td>
+                                                    <td>@(string.IsNullOrWhiteSpace(component.LocationCode) ? "-" : component.LocationCode)</td>
                                                     <td>
-                                                        <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-loading-form>
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                            <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                            <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
-                                                            <button type="submit" class="btn btn-outline-danger btn-xs">Ø­Ø°Ù</button>
-                                                        </form>
+                                                        @{
+                                                            var componentProductId = RelatedVariantProductId(component.ComponentVariantId);
+                                                        }
+                                                        <div class="btn-group btn-group-sm">
+                                                            @if (!string.IsNullOrWhiteSpace(componentProductId))
+                                                            {
+                                                                <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@componentProductId" asp-route-variantId="@component.ComponentVariantId">مشاهده</a>
+                                                            }
+                                                            <button type="button" class="btn btn-outline-secondary btn-xs js-component-edit" data-component-id="@component.ComponentId" data-component-variant-id="@component.ComponentVariantId" data-component-warehouse-id="@component.WarehouseId" data-component-location-id="@component.LocationId" data-component-quantity="@component.Quantity">ویرایش</button>
+                                                            <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-loading-form>
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                                                <input type="hidden" name="componentId" value="@component.ComponentId" />
+                                                                <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
+                                                                <button type="submit" class="btn btn-outline-danger btn-xs">حذف</button>
+                                                            </form>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             }
@@ -1124,33 +1439,16 @@
                         }
                         else
                         {
-                            <div class="alert alert-light mb-0"><h6>ÙˆØ§Ø±ÛŒØ§Ù†ØªÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª</h6><p class="mb-0 text-muted">Ø§Ø¨ØªØ¯Ø§ ÛŒÚ© ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</p></div>
+                            <div class="alert alert-light mb-0"><h6>واریانتی انتخاب نشده است</h6><p class="mb-0 text-muted">ابتدا یک واریانت را انتخاب کنید.</p></div>
                         }
                     </div>
-                </div>
 
                 <div class="card mb-4" id="variant-addons-card">
                     <div class="card-body">
-                        <h5 class="card-title">Ù„ÛŒØ³Øª Add-on</h5>
+                        <h5 class="card-title mb-1">Ù„ÛŒØ³Øª Add-on</h5>
                         @if (hasSelectedProduct && hasSelectedVariant)
                         {
-                            <p class="text-muted small">ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ÛŒÛŒ Ú©Ù‡ Ú©Ø§Ø±Ø¨Ø± Ù…ÛŒâ€ŒØªÙˆØ§Ù†Ø¯ Ø¨Ù‡ ØµÙˆØ±Øª Add-on Ø¨Ù‡ Ù‡Ù…Ø±Ø§Ù‡ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†Ø¯.</p>
-                            <form asp-action="UpsertVariantAddOn" method="post" id="variant-addon-form" class="mb-4" data-loading-form data-dirty-watch>
-                                @Html.AntiForgeryToken()
-                                <input asp-for="VariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                <input asp-for="VariantAddOnForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
-                                <div class="form-group">
-                                    <label>ÙˆØ§Ø±ÛŒØ§Ù†Øª Add-on</label>
-                                    <select asp-for="VariantAddOnForm.AddOnVariantId" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Add-on">
-                                        <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª</option>
-                                        @foreach (var variant in Model.RelatedVariantLookup)
-                                        {
-                                            <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
-                                        }
-                                    </select>
-                                </div>
-                                <button class="btn btn-outline-primary btn-sm" type="submit">Ø°Ø®ÛŒØ±Ù‡ Add-on</button>
-                            </form>
+                            <p class="text-muted small">Ø«Ø¨Øª Add-on Ø¬Ø¯ÛŒØ¯ Ø§Ø² Ø¨Ø®Ø´ Ø¨Ø§Ù„Ø§ÛŒ Ù„ÛŒØ³Øª ÙˆØ§Ø±ÛŒØ§Ù†Øªâ€ŒÙ‡Ø§ Ø¨Ù‡â€ŒØµÙˆØ±Øª ØªÚ©ÛŒ ÛŒØ§ Ú¯Ø±ÙˆÙ‡ÛŒ Ø§Ù†Ø¬Ø§Ù… Ù…ÛŒâ€ŒØ´ÙˆØ¯. Ø§ÛŒÙ†Ø¬Ø§ ÙÙ‚Ø· Add-onÙ‡Ø§ÛŒ Ù‡Ù…ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ù…ÛŒâ€ŒØ¨ÛŒÙ†ÛŒØ¯ Ùˆ Ù…Ø¯ÛŒØ±ÛŒØª Ù…ÛŒâ€ŒÚ©Ù†ÛŒØ¯.</p>
                             <div class="table-responsive">
                                 <table class="table table-sm table-striped">
                                     <thead><tr><th>SKU</th><th>Ø¨Ø§Ø±Ú©Ø¯</th><th></th></tr></thead>
@@ -1167,13 +1465,22 @@
                                                     <td class="text-monospace">@addOn.AddOnSku</td>
                                                     <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
                                                     <td>
-                                                        <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-loading-form>
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                            <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                            <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
-                                                            <button type="submit" class="btn btn-outline-danger btn-xs">Ø­Ø°Ù</button>
-                                                        </form>
+                                                        @{
+                                                            var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
+                                                        }
+                                                        <div class="btn-group btn-group-sm">
+                                                            @if (!string.IsNullOrWhiteSpace(addOnProductId))
+                                                            {
+                                                                <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">Ù…Ø´Ø§Ù‡Ø¯Ù‡</a>
+                                                            }
+                                                            <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-loading-form>
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                                                <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
+                                                                <button type="submit" class="btn btn-outline-danger btn-xs">Ø­Ø°Ù</button>
+                                                            </form>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             }
@@ -1197,13 +1504,35 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="variant-detail-modal-title">جزئیات واریانت</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                <h5 class="modal-title" id="variant-detail-modal-title">Ø¬Ø²Ø¦ÛŒØ§Øª ÙˆØ§Ø±ÛŒØ§Ù†Øª</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Ø¨Ø³ØªÙ†">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <div id="variant-detail-modal-body" class="table-responsive small text-muted">در حال بارگذاری...</div>
+                <div id="variant-detail-modal-body" class="table-responsive small text-muted">Ø¯Ø± Ø­Ø§Ù„ Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bulk-addon-selector-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Add-on</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Ã˜Â¨Ã˜Â³Ã˜ÂªÃ™â€ ">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="search" class="form-control mb-3" id="bulk-addon-search" placeholder="Ã˜Â¬Ã˜Â³Ã˜ÂªÃ˜Â¬Ã™Ë†Ã›Å’ SKU Ã›Å’Ã˜Â§ Ã˜Â¨Ã˜Â§Ã˜Â±ÃšÂ©Ã˜Â¯" />
+                <div class="small text-muted mb-2">Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜ÂªÃ™Ë†Ã˜Â§Ã™â€ Ã›Å’Ã˜Â¯ Ãšâ€ Ã™â€ Ã˜Â¯ Add-on Ã˜Â±Ã˜Â§ Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ ÃšÂ©Ã™â€ Ã›Å’Ã˜Â¯.</div>
+                <div class="list-group" id="bulk-addon-selector-list" style="max-height:420px; overflow:auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Ã˜Â¨Ã˜Â³Ã˜ÂªÃ™â€ </button>
+                <button type="button" class="btn btn-primary" id="bulk-addon-apply-selection">Ã˜Â§Ã˜Â¹Ã™â€¦Ã˜Â§Ã™â€ž Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨</button>
             </div>
         </div>
     </div>
@@ -1232,7 +1561,7 @@
                 'variant-base-uom-form',
                 'variant-uom-conversion-form',
                 'variant-component-form',
-                'variant-addon-form'
+                'variant-assembly-form'
             ];
             var watchedForms = watchedFormIds
                 .map(function (formId) { return document.getElementById(formId); })
@@ -1249,7 +1578,7 @@
 
             function renderDetailTable(items) {
                 if (!Array.isArray(items) || items.length === 0) {
-                    return '<div class="text-muted">داده‌ای برای نمایش وجود ندارد.</div>';
+                    return '<div class="text-muted">Ø¯Ø§Ø¯Ù‡â€ŒØ§ÛŒ Ø¨Ø±Ø§ÛŒ Ù†Ù…Ø§ÛŒØ´ ÙˆØ¬ÙˆØ¯ Ù†Ø¯Ø§Ø±Ø¯.</div>';
                 }
 
                 var keys = Object.keys(items[0] || {});
@@ -1272,9 +1601,9 @@
                     }
 
                     if (detailModalTitle) {
-                        detailModalTitle.textContent = button.getAttribute('data-detail-title') || 'جزئیات واریانت';
+                        detailModalTitle.textContent = button.getAttribute('data-detail-title') || 'Ø¬Ø²Ø¦ÛŒØ§Øª ÙˆØ§Ø±ÛŒØ§Ù†Øª';
                     }
-                    detailModalBody.innerHTML = '<div class="text-muted">در حال بارگذاری...</div>';
+                    detailModalBody.innerHTML = '<div class="text-muted">Ø¯Ø± Ø­Ø§Ù„ Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ...</div>';
                     detailModal.modal('show');
 
                     fetch(url, { headers: { 'Accept': 'application/json' } })
@@ -1288,7 +1617,7 @@
                             detailModalBody.innerHTML = renderDetailTable(payload);
                         })
                         .catch(function () {
-                            detailModalBody.innerHTML = '<div class="text-danger">بارگذاری اطلاعات انجام نشد.</div>';
+                            detailModalBody.innerHTML = '<div class="text-danger">Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.</div>';
                         });
                 });
             });
@@ -1550,7 +1879,7 @@
 
                 function isTrueLike(rawValue) {
                     var normalized = (rawValue || '').toString().trim().toLowerCase();
-                    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'بله';
+                    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'Ø¨Ù„Ù‡';
                 }
 
                 function clearEditors() {
@@ -1583,7 +1912,7 @@
                     var options = parseOptions(selectedOption);
                     if (options.length > 0) {
                         optionGroup.classList.remove('d-none');
-                        optionSelect.innerHTML = '<option value="">انتخاب گزینه</option>';
+                        optionSelect.innerHTML = '<option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ú¯Ø²ÛŒÙ†Ù‡</option>';
                         options.forEach(function (item) {
                             var optionElement = document.createElement('option');
                             optionElement.value = item.value;
@@ -1668,7 +1997,7 @@
                     var isRequired = selectedOption.getAttribute('data-required') === 'true';
                     if (isRequired && (!hiddenValue.value || !hiddenValue.value.trim())) {
                         event.preventDefault();
-                        window.alert('این ویژگی الزامی است و مقدار آن نباید خالی باشد.');
+                        window.alert('Ø§ÛŒÙ† ÙˆÛŒÚ˜Ú¯ÛŒ Ø§Ù„Ø²Ø§Ù…ÛŒ Ø§Ø³Øª Ùˆ Ù…Ù‚Ø¯Ø§Ø± Ø¢Ù† Ù†Ø¨Ø§ÛŒØ¯ Ø®Ø§Ù„ÛŒ Ø¨Ø§Ø´Ø¯.');
                     }
                 });
 
@@ -1708,6 +2037,12 @@
             var conversionFactorInput = document.getElementById('VariantUomConversionForm_Factor');
             var conversionRoundingInput = document.getElementById('VariantUomConversionForm_RoundingMode');
             var conversionBasePathInput = document.getElementById('VariantUomConversionForm_IsBasePath');
+            var componentEditor = window.jQuery ? window.jQuery('#variant-component-editor') : null;
+            var componentIdInput = document.getElementById('VariantComponentForm_ComponentId');
+            var componentVariantInput = document.getElementById('VariantComponentForm_ComponentVariantId');
+            var componentWarehouseInput = document.getElementById('VariantComponentForm_WarehouseId');
+            var componentLocationInput = document.getElementById('VariantComponentForm_LocationId');
+            var componentQuantityInput = document.getElementById('VariantComponentForm_Quantity');
 
             document.querySelectorAll('.conversion-edit-btn').forEach(function (button) {
                 button.addEventListener('click', function () {
@@ -1738,6 +2073,174 @@
                     conversionForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 });
             });
+
+            function filterComponentLocations(selectedWarehouseId) {
+                if (!componentLocationInput) {
+                    return;
+                }
+
+                Array.from(componentLocationInput.options || []).forEach(function (option) {
+                    if (!option.value) {
+                        option.hidden = false;
+                        return;
+                    }
+
+                    var optionWarehouseId = option.getAttribute('data-warehouse-id') || '';
+                    option.hidden = Boolean(selectedWarehouseId) && optionWarehouseId !== selectedWarehouseId;
+                });
+
+                if (componentLocationInput.value) {
+                    var selectedOption = componentLocationInput.options[componentLocationInput.selectedIndex];
+                    if (selectedOption && selectedOption.hidden) {
+                        componentLocationInput.value = '';
+                    }
+                }
+            }
+
+            if (componentWarehouseInput) {
+                componentWarehouseInput.addEventListener('change', function () {
+                    filterComponentLocations(componentWarehouseInput.value || '');
+                });
+
+                filterComponentLocations(componentWarehouseInput.value || '');
+            }
+
+            document.querySelectorAll('.js-component-edit').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    if (componentEditor && componentEditor.collapse) {
+                        componentEditor.collapse('show');
+                    }
+
+                    if (componentIdInput) {
+                        componentIdInput.value = button.getAttribute('data-component-id') || '';
+                    }
+
+                    if (componentVariantInput) {
+                        componentVariantInput.value = button.getAttribute('data-component-variant-id') || '';
+                        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                            window.jQuery(componentVariantInput).trigger('change.select2');
+                        }
+                    }
+
+                    if (componentWarehouseInput) {
+                        componentWarehouseInput.value = button.getAttribute('data-component-warehouse-id') || '';
+                        filterComponentLocations(componentWarehouseInput.value || '');
+                    }
+
+                    if (componentLocationInput) {
+                        componentLocationInput.value = button.getAttribute('data-component-location-id') || '';
+                    }
+
+                    if (componentQuantityInput) {
+                        componentQuantityInput.value = button.getAttribute('data-component-quantity') || '1';
+                        componentQuantityInput.focus();
+                    }
+                });
+            });
+
+            var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
+            var bulkAddonPrimaryInput = document.getElementById('bulk-addon-primary-id');
+            var bulkAddonSelectedIdsInput = document.getElementById('bulk-addon-selected-ids');
+            var bulkAddonSearchInput = document.getElementById('bulk-addon-search');
+            var bulkAddonSelectorList = document.getElementById('bulk-addon-selector-list');
+            var bulkAddonApplyButton = document.getElementById('bulk-addon-apply-selection');
+            var bulkAddonPills = document.getElementById('bulk-addon-selection-pills');
+            var bulkAddonSummary = document.getElementById('bulk-addon-selection-summary');
+
+            function readBulkAddonSelection() {
+                var rawValue = bulkAddonSelectedIdsInput ? bulkAddonSelectedIdsInput.value : '';
+                return rawValue ? rawValue.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : [];
+            }
+
+            function renderBulkAddonSummary() {
+                if (!bulkAddonPills || !bulkAddonSelect || !bulkAddonSummary) {
+                    return;
+                }
+
+                var selectedIds = readBulkAddonSelection();
+                bulkAddonPills.innerHTML = '';
+                var emptyText = bulkAddonSummary.querySelector('[data-empty-text]');
+                if (emptyText) {
+                    emptyText.classList.toggle('d-none', selectedIds.length > 0);
+                }
+
+                selectedIds.forEach(function (id) {
+                    var option = Array.from(bulkAddonSelect.options || []).find(function (item) { return item.value === id; });
+                    if (!option) {
+                        return;
+                    }
+
+                    var badge = document.createElement('span');
+                    badge.className = 'badge badge-light border mr-2 mb-2';
+                    badge.textContent = option.textContent || id;
+                    bulkAddonPills.appendChild(badge);
+                });
+            }
+
+            function renderBulkAddonSelector() {
+                if (!bulkAddonSelect || !bulkAddonSelectorList) {
+                    return;
+                }
+
+                var selectedIds = new Set(readBulkAddonSelection());
+                var filterText = (bulkAddonSearchInput && bulkAddonSearchInput.value ? bulkAddonSearchInput.value : '').toLowerCase();
+                bulkAddonSelectorList.innerHTML = '';
+
+                Array.from(bulkAddonSelect.options || []).forEach(function (option) {
+                    if (!option.value) {
+                        return;
+                    }
+
+                    var label = option.textContent || '';
+                    if (filterText && label.toLowerCase().indexOf(filterText) < 0) {
+                        return;
+                    }
+
+                    var item = document.createElement('label');
+                    item.className = 'list-group-item list-group-item-action d-flex align-items-center';
+
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'mr-2';
+                    checkbox.value = option.value;
+                    checkbox.checked = selectedIds.has(option.value);
+
+                    var text = document.createElement('span');
+                    text.textContent = label;
+
+                    item.appendChild(checkbox);
+                    item.appendChild(text);
+                    bulkAddonSelectorList.appendChild(item);
+                });
+            }
+
+            if (bulkAddonSearchInput) {
+                bulkAddonSearchInput.addEventListener('input', renderBulkAddonSelector);
+            }
+
+            if (bulkAddonApplyButton) {
+                bulkAddonApplyButton.addEventListener('click', function () {
+                    if (!bulkAddonSelectorList || !bulkAddonSelectedIdsInput || !bulkAddonPrimaryInput || !bulkAddonSelect) {
+                        return;
+                    }
+
+                    var selectedIds = Array.from(bulkAddonSelectorList.querySelectorAll('input[type="checkbox"]:checked'))
+                        .map(function (input) { return input.value || ''; })
+                        .filter(Boolean);
+
+                    bulkAddonSelectedIdsInput.value = selectedIds.join(',');
+                    bulkAddonPrimaryInput.value = selectedIds[0] || '';
+                    bulkAddonSelect.value = selectedIds[0] || '';
+                    renderBulkAddonSummary();
+                    $('#bulk-addon-selector-modal').modal('hide');
+                });
+            }
+
+            $('#bulk-addon-selector-modal').on('show.bs.modal', function () {
+                renderBulkAddonSelector();
+            });
+
+            renderBulkAddonSummary();
 
             [searchForm, productSelectorForm].forEach(function (formElement) {
                 if (!formElement) {
@@ -1806,6 +2309,270 @@
                 event.preventDefault();
                 event.returnValue = '';
             });
+        })();
+    </script>
+    <script>
+        (function () {
+            function parseJson(value) {
+                if (!value) {
+                    return [];
+                }
+
+                try {
+                    var parsed = JSON.parse(value);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function resolveUrl(baseUrl, path) {
+                if (!path) {
+                    return '';
+                }
+
+                return /^https?:\/\//i.test(path) ? path : baseUrl + path;
+            }
+
+            function isVideoItem(item) {
+                var contentType = (item && item.contentType) || '';
+                return contentType.toLowerCase().indexOf('video/') === 0;
+            }
+
+            function normalizeItems(items) {
+                var normalized = (items || [])
+                    .filter(function (item) { return item && item.fileKey; })
+                    .map(function (item, index) {
+                        return {
+                            fileKey: item.fileKey,
+                            originalFileName: item.originalFileName || item.fileKey,
+                            contentType: item.contentType || '',
+                            originalUrl: item.originalUrl || item.url || '',
+                            thumbnailUrl: item.thumbnailUrl || item.originalUrl || item.url || '',
+                            displayOrder: typeof item.displayOrder === 'number' ? item.displayOrder : index,
+                            isPrimary: !!item.isPrimary
+                        };
+                    })
+                    .sort(function (left, right) { return left.displayOrder - right.displayOrder; });
+
+                if (normalized.length > 0 && !normalized.some(function (item) { return item.isPrimary; })) {
+                    normalized[0].isPrimary = true;
+                }
+
+                normalized.forEach(function (item, index) {
+                    item.displayOrder = index;
+                });
+
+                return normalized;
+            }
+
+            function createMediaManager(root) {
+                var baseUrl = (root.getAttribute('data-base-url') || '').replace(/\/$/, '');
+                var policy = (root.getAttribute('data-policy') || '').trim();
+                var inputName = root.getAttribute('data-input-name') || '';
+                var fileInput = root.querySelector('[data-media-file]');
+                var progressWrap = root.querySelector('[data-media-progress-wrap]');
+                var progressBar = root.querySelector('[data-media-progress]');
+                var status = root.querySelector('[data-media-status]');
+                var itemsWrap = root.querySelector('[data-media-items]');
+                var emptyState = root.querySelector('[data-media-empty]');
+                var form = root.closest('form');
+                var hiddenInput = form && inputName ? form.querySelector('[name="' + inputName + '"]') : null;
+
+                if (!baseUrl || !policy || !fileInput || !itemsWrap || !hiddenInput) {
+                    return;
+                }
+
+                var state = {
+                    items: normalizeItems(parseJson(hiddenInput.value))
+                };
+
+                function sync() {
+                    state.items = normalizeItems(state.items);
+                    hiddenInput.value = JSON.stringify(state.items);
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (emptyState) {
+                        emptyState.classList.toggle('d-none', state.items.length > 0);
+                    }
+                }
+
+                function render() {
+                    itemsWrap.innerHTML = state.items.map(function (item, index) {
+                        var previewHtml = isVideoItem(item)
+                            ? '<video src="' + escapeHtml(resolveUrl(baseUrl, item.originalUrl)) + '" class="w-100 rounded border mb-2" style="max-height:180px;" controls preload="metadata"></video>'
+                            : '<img src="' + escapeHtml(resolveUrl(baseUrl, item.thumbnailUrl || item.originalUrl)) + '" alt="' + escapeHtml(item.originalFileName) + '" class="img-fluid rounded border mb-2" style="max-height:180px;" />';
+
+                        return '' +
+                            '<div class="col-lg-4 col-md-6 mb-3" data-media-index="' + index + '">' +
+                                '<div class="card h-100"><div class="card-body">' +
+                                    previewHtml +
+                                    '<div class="small text-muted mb-2">' + escapeHtml(item.originalFileName) + '</div>' +
+                                    '<div class="mb-2">' +
+                                        '<span class="badge badge-pill badge-outline-primary">ØªØ±ØªÛŒØ¨: ' + item.displayOrder + '</span> ' +
+                                        (item.isPrimary ? '<span class="badge badge-pill badge-primary">Ø§ØµÙ„ÛŒ</span> ' : '') +
+                                        '<span class="badge badge-pill badge-light">' + (isVideoItem(item) ? 'ÙˆÛŒØ¯ÛŒÙˆ' : 'ØªØµÙˆÛŒØ±') + '</span>' +
+                                    '</div>' +
+                                    '<div class="btn-group btn-group-sm flex-wrap">' +
+                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-up">Ø¨Ø§Ù„Ø§</button>' +
+                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-down">Ù¾Ø§ÛŒÛŒÙ†</button>' +
+                                        '<button type="button" class="btn btn-outline-primary btn-xs" data-media-action="make-primary">Ø§ØµÙ„ÛŒ</button>' +
+                                        '<button type="button" class="btn btn-outline-danger btn-xs" data-media-action="remove">Ø­Ø°Ù</button>' +
+                                    '</div>' +
+                                '</div></div>' +
+                            '</div>';
+                    }).join('');
+
+                    sync();
+                }
+
+                function setStatus(message) {
+                    if (status) {
+                        status.textContent = message;
+                    }
+                }
+
+                function uploadFile(file) {
+                    return new Promise(function (resolve, reject) {
+                        var xhr = new XMLHttpRequest();
+                        var formData = new FormData();
+                        formData.append('file', file);
+                        xhr.open('POST', baseUrl + '/api/FileService/files/upload?policy=' + encodeURIComponent(policy));
+
+                        if (progressWrap) {
+                            progressWrap.classList.remove('d-none');
+                        }
+
+                        xhr.upload.addEventListener('progress', function (event) {
+                            if (!event.lengthComputable || !progressBar) {
+                                return;
+                            }
+
+                            progressBar.style.width = Math.round((event.loaded / event.total) * 100) + '%';
+                        });
+
+                        xhr.onload = function () {
+                            if (progressWrap) {
+                                progressWrap.classList.add('d-none');
+                            }
+                            if (progressBar) {
+                                progressBar.style.width = '0%';
+                            }
+
+                            if (xhr.status < 200 || xhr.status >= 300) {
+                                reject(new Error('upload-failed'));
+                                return;
+                            }
+
+                            try {
+                                resolve(JSON.parse(xhr.responseText));
+                            } catch (e) {
+                                reject(e);
+                            }
+                        };
+
+                        xhr.onerror = function () {
+                            if (progressWrap) {
+                                progressWrap.classList.add('d-none');
+                            }
+                            if (progressBar) {
+                                progressBar.style.width = '0%';
+                            }
+                            reject(new Error('network-error'));
+                        };
+
+                        xhr.send(formData);
+                    });
+                }
+
+                async function handleUpload(files) {
+                    var list = Array.prototype.slice.call(files || []);
+                    if (list.length === 0) {
+                        return;
+                    }
+
+                    for (var i = 0; i < list.length; i++) {
+                        var file = list[i];
+                        setStatus('Ø¯Ø± Ø­Ø§Ù„ Ø¢Ù¾Ù„ÙˆØ¯: ' + file.name);
+
+                        try {
+                            var result = await uploadFile(file);
+                            state.items.push({
+                                fileKey: result.fileKey || '',
+                                originalFileName: result.originalFileName || file.name,
+                                contentType: result.contentType || file.type || '',
+                                originalUrl: result.url || '',
+                                thumbnailUrl: result.thumbnailUrl || result.url || '',
+                                displayOrder: state.items.length,
+                                isPrimary: state.items.length === 0
+                            });
+                            render();
+                            setStatus((result.originalFileName || file.name) + ' Ø¢Ù¾Ù„ÙˆØ¯ Ø´Ø¯.');
+                        } catch (e) {
+                            setStatus('Ø¢Ù¾Ù„ÙˆØ¯ ÙØ§ÛŒÙ„ Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.');
+                            break;
+                        }
+                    }
+
+                    fileInput.value = '';
+                }
+
+                fileInput.addEventListener('change', function () {
+                    handleUpload(fileInput.files);
+                });
+
+                root.addEventListener('click', function (event) {
+                    var actionButton = event.target.closest('[data-media-action]');
+                    if (!actionButton) {
+                        return;
+                    }
+
+                    var host = actionButton.closest('[data-media-index]');
+                    if (!host) {
+                        return;
+                    }
+
+                    var index = parseInt(host.getAttribute('data-media-index') || '-1', 10);
+                    if (index < 0 || index >= state.items.length) {
+                        return;
+                    }
+
+                    var action = actionButton.getAttribute('data-media-action');
+                    if (action === 'remove') {
+                        var removedPrimary = !!state.items[index].isPrimary;
+                        state.items.splice(index, 1);
+                        if (removedPrimary && state.items.length > 0) {
+                            state.items[0].isPrimary = true;
+                        }
+                    } else if (action === 'make-primary') {
+                        state.items.forEach(function (item, itemIndex) {
+                            item.isPrimary = itemIndex === index;
+                        });
+                    } else if (action === 'move-up' && index > 0) {
+                        var current = state.items[index];
+                        state.items[index] = state.items[index - 1];
+                        state.items[index - 1] = current;
+                    } else if (action === 'move-down' && index < state.items.length - 1) {
+                        var next = state.items[index];
+                        state.items[index] = state.items[index + 1];
+                        state.items[index + 1] = next;
+                    }
+
+                    render();
+                });
+
+                render();
+            }
+
+            document.querySelectorAll('[data-media-manager]').forEach(createMediaManager);
         })();
     </script>
 }

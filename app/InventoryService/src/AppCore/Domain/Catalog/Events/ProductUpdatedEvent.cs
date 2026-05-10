@@ -12,6 +12,9 @@ public sealed record ProductUpdatedEvent : IDomainEvent
     public string Name { get; }
     public Guid DefaultUomRef { get; }
     public Guid? TaxCategoryRef { get; }
+    public string? ImageFileKey { get; }
+    public string? ImageUrl { get; }
+    public string? ImageThumbnailUrl { get; }
     public bool IsActive { get; }
     public IReadOnlyCollection<ProductAttributeValueSnapshot> AttributeValues { get; }
     public DateTime OccurredOn { get; }
@@ -24,6 +27,9 @@ public sealed record ProductUpdatedEvent : IDomainEvent
         string name,
         Guid defaultUomRef,
         Guid? taxCategoryRef,
+        string? imageFileKey,
+        string? imageUrl,
+        string? imageThumbnailUrl,
         bool isActive,
         IReadOnlyCollection<ProductAttributeValueSnapshot> attributeValues)
     {
@@ -34,6 +40,9 @@ public sealed record ProductUpdatedEvent : IDomainEvent
         Name = name;
         DefaultUomRef = defaultUomRef;
         TaxCategoryRef = taxCategoryRef;
+        ImageFileKey = imageFileKey;
+        ImageUrl = imageUrl;
+        ImageThumbnailUrl = imageThumbnailUrl;
         IsActive = isActive;
         AttributeValues = attributeValues;
         OccurredOn = DateTime.UtcNow;

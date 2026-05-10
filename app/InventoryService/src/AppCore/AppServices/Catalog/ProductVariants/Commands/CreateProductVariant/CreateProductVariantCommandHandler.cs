@@ -112,6 +112,27 @@ public class CreateProductVariantCommandHandler : CommandHandler<CreateProductVa
             }
         }
 
+        foreach (var image in (command.Images ?? new List<UpsertVariantImageItem>())
+                     .Where(x => !string.IsNullOrWhiteSpace(x.FileKey))
+                     .OrderBy(x => x.DisplayOrder))
+        {
+            try
+            {
+                aggregate.AddOrUpdateImage(
+                    image.FileKey,
+                    image.OriginalFileName,
+                    image.ContentType,
+                    image.OriginalUrl,
+                    image.ThumbnailUrl,
+                    image.DisplayOrder,
+                    image.IsPrimary);
+            }
+            catch (Exception ex)
+            {
+                return Fail(ex.Message);
+            }
+        }
+
         await _variantRepository.InsertAsync(aggregate);
         await _variantRepository.CommitAsync();
 

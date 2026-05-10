@@ -159,6 +159,39 @@ public class UpdateProductVariantCommandHandler : CommandHandler<UpdateProductVa
                 aggregate.RemoveConversion(existing.FromUomRef, existing.ToUomRef);
         }
 
+        var incomingImages = (command.Images ?? new List<UpsertVariantImageItem>())
+            .Where(x => !string.IsNullOrWhiteSpace(x.FileKey))
+            .GroupBy(x => x.FileKey, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Last())
+            .OrderBy(x => x.DisplayOrder)
+            .ToList();
+
+        foreach (var image in incomingImages)
+        {
+            try
+            {
+                aggregate.AddOrUpdateImage(
+                    image.FileKey,
+                    image.OriginalFileName,
+                    image.ContentType,
+                    image.OriginalUrl,
+                    image.ThumbnailUrl,
+                    image.DisplayOrder,
+                    image.IsPrimary);
+            }
+            catch (Exception ex)
+            {
+                return Fail(ex.Message);
+            }
+        }
+
+        var incomingImageSet = incomingImages.Select(x => x.FileKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var existing in aggregate.Images.ToList())
+        {
+            if (!incomingImageSet.Contains(existing.FileKey))
+                aggregate.RemoveImage(existing.FileKey);
+        }
+
         await _variantRepository.CommitAsync();
 
         return Ok(new UpdateProductVariantCommandResult

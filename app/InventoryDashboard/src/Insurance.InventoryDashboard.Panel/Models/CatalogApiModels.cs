@@ -7,6 +7,9 @@ public sealed class CategoryNodeModel
     public string Name { get; set; } = string.Empty;
     public string? ParentCategoryId { get; set; }
     public int DisplayOrder { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
     public bool IsActive { get; set; }
     public List<CategoryNodeModel> Children { get; set; } = new();
 }
@@ -95,6 +98,9 @@ public sealed class ProductSummaryModel
     public string DefaultUomRef { get; set; } = string.Empty;
     public string? TaxCategoryRef { get; set; }
     public bool IsActive { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
 
     public string? CategoryName { get; set; }
     public string? Description { get; set; }
@@ -109,6 +115,9 @@ public sealed class ProductDetailsModel
     public string DefaultUomRef { get; set; } = string.Empty;
     public string? TaxCategoryRef { get; set; }
     public bool IsActive { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
 
     public string? CategoryName { get; set; }
     public string? Description { get; set; }
@@ -183,6 +192,7 @@ public sealed class ProductVariantDetailsModel
     public List<VariantAttributeValueModel> Attributes { get; set; } = new();
     public List<VariantComponentModel> Components { get; set; } = new();
     public List<VariantAddOnModel> AddOns { get; set; } = new();
+    public List<VariantImageModel> Images { get; set; } = new();
 }
 
 public sealed class VariantUomConversionModel
@@ -213,9 +223,13 @@ public sealed class VariantComponentModel
     public string ComponentId { get; set; } = string.Empty;
     public string VariantId { get; set; } = string.Empty;
     public string ComponentVariantId { get; set; } = string.Empty;
+    public string WarehouseId { get; set; } = string.Empty;
+    public string LocationId { get; set; } = string.Empty;
     public string ComponentSku { get; set; } = string.Empty;
     public string? ComponentBarcode { get; set; }
     public bool ComponentIsActive { get; set; }
+    public string? WarehouseCode { get; set; }
+    public string? LocationCode { get; set; }
     public decimal Quantity { get; set; }
 }
 
@@ -227,6 +241,17 @@ public sealed class VariantAddOnModel
     public string AddOnSku { get; set; } = string.Empty;
     public string? AddOnBarcode { get; set; }
     public bool AddOnIsActive { get; set; }
+}
+
+public sealed class VariantImageModel
+{
+    public string FileKey { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string OriginalUrl { get; set; } = string.Empty;
+    public string ThumbnailUrl { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+    public bool IsPrimary { get; set; }
 }
 
 public sealed class StockDetailSearchResultModel
@@ -283,6 +308,9 @@ public sealed class UpsertCategoryRequest
     public string Name { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
     public string? ParentCategoryId { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
 }
 
 public sealed class CreateAttributeDefinitionRequest
@@ -361,8 +389,10 @@ public sealed class UpsertProductRequest
     public string? TaxCategoryRef { get; set; }
     public bool IsActive { get; set; } = true;
     public List<CatalogAttributeValueInputModel> AttributeValues { get; set; } = new();
-
     public string? Description { get; set; }
+    public string? ImageFileKey { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
 }
 
 public sealed class CatalogAttributeValueInputModel
@@ -401,6 +431,7 @@ public sealed class UpsertVariantRequest
     public string TrackingPolicy { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     public List<CatalogAttributeValueInputModel> AttributeValues { get; set; } = new();
+    public List<VariantImageModel> Images { get; set; } = new();
 }
 
 public sealed class SetVariantAttributeValueRequest
@@ -431,11 +462,25 @@ public sealed class UpsertVariantUomConversionRequest
 
 public sealed class UpsertVariantComponentRequest
 {
+    public string? ComponentId { get; set; }
     public string ComponentVariantRef { get; set; } = string.Empty;
+    public string WarehouseRef { get; set; } = string.Empty;
+    public string LocationRef { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
 }
 
 public sealed class UpsertVariantAddOnRequest
 {
     public string AddOnVariantRef { get; set; } = string.Empty;
+}
+
+public sealed class UpsertVariantImageRequest
+{
+    public string FileKey { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string OriginalUrl { get; set; } = string.Empty;
+    public string ThumbnailUrl { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+    public bool IsPrimary { get; set; }
 }

@@ -6,6 +6,14 @@ using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed record ProductVariantAttributeValueSnapshot(Guid AttributeRef, string? Value, Guid? OptionRef);
 public sealed record ProductVariantUomConversionSnapshot(Guid FromUomRef, Guid ToUomRef, decimal Factor, UomRoundingMode RoundingMode, bool IsBasePath);
+public sealed record ProductVariantImageSnapshot(
+    string FileKey,
+    string OriginalFileName,
+    string ContentType,
+    string OriginalUrl,
+    string ThumbnailUrl,
+    int DisplayOrder,
+    bool IsPrimary);
 
 public sealed record ProductVariantCreatedEvent : IDomainEvent
 {
@@ -19,6 +27,7 @@ public sealed record ProductVariantCreatedEvent : IDomainEvent
     public bool InventoryMovementLocked { get; }
     public IReadOnlyCollection<ProductVariantAttributeValueSnapshot> AttributeValues { get; }
     public IReadOnlyCollection<ProductVariantUomConversionSnapshot> UomConversions { get; }
+    public IReadOnlyCollection<ProductVariantImageSnapshot> Images { get; }
     public DateTime OccurredOn { get; }
 
     public ProductVariantCreatedEvent(
@@ -31,7 +40,8 @@ public sealed record ProductVariantCreatedEvent : IDomainEvent
         bool isActive,
         bool inventoryMovementLocked,
         IReadOnlyCollection<ProductVariantAttributeValueSnapshot> attributeValues,
-        IReadOnlyCollection<ProductVariantUomConversionSnapshot> uomConversions)
+        IReadOnlyCollection<ProductVariantUomConversionSnapshot> uomConversions,
+        IReadOnlyCollection<ProductVariantImageSnapshot> images)
     {
         ProductVariantBusinessKey = productVariantBusinessKey;
         ProductRef = productRef;
@@ -43,6 +53,7 @@ public sealed record ProductVariantCreatedEvent : IDomainEvent
         InventoryMovementLocked = inventoryMovementLocked;
         AttributeValues = attributeValues;
         UomConversions = uomConversions;
+        Images = images;
         OccurredOn = DateTime.UtcNow;
     }
 }

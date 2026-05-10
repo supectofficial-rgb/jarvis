@@ -12,6 +12,7 @@ public class UpdateProductVariantCommand : ICommand<UpdateProductVariantCommandR
     public bool IsActive { get; set; } = true;
     public List<UpdateVariantAttributeValueItem> AttributeValues { get; set; } = new();
     public List<UpdateVariantUomConversionItem> UomConversions { get; set; } = new();
+    public List<UpsertVariantImageItem> Images { get; set; } = new();
 }
 
 public class UpdateVariantAttributeValueItem

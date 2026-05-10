@@ -5,7 +5,7 @@ using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed record ProductVariantComponentRemovedEvent(
     BusinessKey ProductVariantBusinessKey,
-    Guid ComponentVariantRef) : IDomainEvent
+    Guid VariantComponentBusinessKey) : IDomainEvent
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }

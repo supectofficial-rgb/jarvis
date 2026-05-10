@@ -16,6 +16,7 @@ public class GetProductVariantByBusinessKeyQueryResult
     public List<VariantUomConversionResultItem> UomConversions { get; set; } = new();
     public List<VariantComponentViewItem> Components { get; set; } = new();
     public List<VariantAddOnViewItem> AddOns { get; set; } = new();
+    public List<VariantImageViewItem> Images { get; set; } = new();
 }
 
 public class VariantAttributeValueResultItem
