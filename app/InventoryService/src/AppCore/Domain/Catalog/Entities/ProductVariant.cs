@@ -251,7 +251,7 @@ public sealed class ProductVariant : AggregateRoot
             displayOrder,
             isPrimary));
 
-        return _images.First(x => x.FileKey == normalizedFileKey);
+        return _images.First(x => string.Equals(x.FileKey, normalizedFileKey, StringComparison.OrdinalIgnoreCase));
     }
 
     public void RemoveImage(string fileKey)
@@ -260,7 +260,7 @@ public sealed class ProductVariant : AggregateRoot
         if (normalizedFileKey is null)
             return;
 
-        var existing = _images.FirstOrDefault(x => x.FileKey == normalizedFileKey);
+        var existing = _images.FirstOrDefault(x => string.Equals(x.FileKey, normalizedFileKey, StringComparison.OrdinalIgnoreCase));
         if (existing is null)
             return;
 
@@ -457,12 +457,12 @@ public sealed class ProductVariant : AggregateRoot
 
     private void On(ProductVariantImageUpsertedEvent @event)
     {
-        var existing = _images.FirstOrDefault(x => x.FileKey == @event.FileKey);
+        var existing = _images.FirstOrDefault(x => string.Equals(x.FileKey, @event.FileKey, StringComparison.OrdinalIgnoreCase));
 
         if (@event.IsPrimary)
         {
             foreach (var image in _images)
-                image.SetPrimary(image.FileKey == @event.FileKey);
+                image.SetPrimary(string.Equals(image.FileKey, @event.FileKey, StringComparison.OrdinalIgnoreCase));
         }
 
         if (existing is null)
@@ -490,7 +490,7 @@ public sealed class ProductVariant : AggregateRoot
 
     private void On(ProductVariantImageRemovedEvent @event)
     {
-        var existing = _images.FirstOrDefault(x => x.FileKey == @event.FileKey);
+        var existing = _images.FirstOrDefault(x => string.Equals(x.FileKey, @event.FileKey, StringComparison.OrdinalIgnoreCase));
         if (existing is null)
             return;
 

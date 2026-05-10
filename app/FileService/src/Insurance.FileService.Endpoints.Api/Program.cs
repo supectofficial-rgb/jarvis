@@ -91,10 +91,14 @@ app.MapDelete("/api/FileService/files", (string fileKey) =>
     if (string.IsNullOrWhiteSpace(fileKey))
         return Results.BadRequest(new { message = "fileKey is required." });
 
-    var originalFullPath = Path.Combine(storageRoot, fileKey.Replace('/', Path.DirectorySeparatorChar));
+    var normalizedFileKey = fileKey.Trim().TrimStart('/', '\\');
+    if (string.IsNullOrWhiteSpace(normalizedFileKey))
+        return Results.BadRequest(new { message = "fileKey is required." });
+
+    var originalFullPath = Path.Combine(storageRoot, normalizedFileKey.Replace('/', Path.DirectorySeparatorChar));
     DeleteDerivedFiles(originalFullPath);
 
-    return Results.Ok(new { deleted = true, fileKey });
+    return Results.Ok(new { deleted = true, fileKey = normalizedFileKey });
 });
 
 app.Run();
