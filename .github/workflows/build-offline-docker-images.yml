@@ -11,8 +11,9 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     steps:
-      # 1️⃣ Checkout repo
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -20,10 +21,10 @@ jobs:
       - name: Detect changed services
         id: detect
         run: |
-          # همه فولدرهای microservices که تحت services/ هستند
+          # فرض بر اینه که همه microservices در فولدر services/ قرار دارند
           CHANGED_SERVICES=$(git diff --name-only HEAD~1 HEAD | grep -E '^services/[^/]+/' | cut -d/ -f2 | sort | uniq)
           echo "Changed services: $CHANGED_SERVICES"
-          echo "::set-output name=changed::$CHANGED_SERVICES"
+          echo "changed=$CHANGED_SERVICES" >> $GITHUB_OUTPUT
 
       # 3️⃣ Login به GHCR
       - name: Log in to GHCR
@@ -33,7 +34,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      # 4️⃣ Build و push سرویس‌های تغییر کرده
+      # 4️⃣ Build و push ایمیج‌های تغییر کرده
       - name: Build and optionally push changed images
         run: |
           if [ -z "${{ steps.detect.outputs.changed }}" ]; then
