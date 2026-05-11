@@ -1,210 +1,239 @@
-name: Build & Push Changed Docker Images
+name: Build & Export Docker Images for Offline Deployment
 
 on:
   workflow_dispatch:
     inputs:
       push_to_ghcr:
-        description: Push detected images to GHCR after build
+        description: push built application images to GHCR
         required: true
         default: true
         type: boolean
       build_scope:
-        description: Build only changed services or rebuild all dockerized services
+        description: changed or all buildable microservices
         required: true
         default: changed
         type: choice
         options:
           - changed
           - all
-      compare_ref:
-        description: Optional git ref or SHA to diff against when build_scope is changed
-        required: false
-        default: ""
-        type: string
+      include_infra:
+        description: also export infrastructure images
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build-and-push:
+  detect-images:
+    name: Detect changed images
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_images: ${{ steps.set-matrix.outputs.has_images }}
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Resolve changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          separator: "\n"
+
+      - name: Build export matrix
+        id: set-matrix
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BUILD_SCOPE: ${{ inputs.build_scope || 'changed' }}
+          INCLUDE_INFRA: ${{ inputs.include_infra || 'false' }}
+          PUSH_TO_GHCR: ${{ inputs.push_to_ghcr || 'false' }}
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t changed_files <<< "$CHANGED_FILES"
+
+          add_item() {
+            local artifact="$1"
+            local image="$2"
+            local service="$3"
+            local mode="$4"
+            matrix_items+=("{\"artifact\":\"${artifact}\",\"image\":\"${image}\",\"service\":\"${service}\",\"mode\":\"${mode}\"}")
+          }
+
+          has_match() {
+            local pattern="$1"
+            for file in "${changed_files[@]}"; do
+              [[ -z "$file" ]] && continue
+              if [[ "$file" == $pattern ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          matrix_items=()
+          shared_docker_changed=false
+
+          if has_match "docker-compose.yml" || has_match ".dockerignore" || has_match ".github/workflows/build-offline-docker-images.yml" || has_match ".github/workflows/new.yml" || has_match ".github/workflows/*docker*.yml"; then
+            shared_docker_changed=true
+          fi
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$BUILD_SCOPE" == "all" ]]; then
+            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
+            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
+            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
+            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
+            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
+            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+          elif [[ "$shared_docker_changed" == "true" ]]; then
+            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
+            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
+            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
+            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
+            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
+            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+          else
+            if has_match "agw/*" || has_match "docker/api-gateway.Dockerfile" || has_match "docker/consul/*"; then
+              add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
+            fi
+
+            if has_match "app/CacheService/*" || has_match "docker/cache-api.Dockerfile" || has_match "fx/*"; then
+              add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+            fi
+
+            if has_match "app/FileService/*" || has_match "docker/file-service.Dockerfile"; then
+              add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
+            fi
+
+            if has_match "app/GraphService/*" || has_match "docker/graph-service.Dockerfile" || has_match "fx/*"; then
+              add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
+            fi
+
+            if has_match "app/InventoryService/*" || has_match "docker/inventory-api.Dockerfile" || has_match "fx/*"; then
+              add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
+            fi
+
+            if has_match "app/InventoryDashboard/*" || has_match "docker/inventory-dashboard.Dockerfile"; then
+              add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
+            fi
+
+            if has_match "app/UserService/*" || has_match "docker/user-api.Dockerfile" || has_match "fx/*" || has_match "app/PanelPayamakService/*"; then
+              add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+            fi
+          fi
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$INCLUDE_INFRA" == "true" ]]; then
+            add_item "postgres" "postgres:16" "" "pull"
+            add_item "pgadmin" "dpage/pgadmin4:latest" "" "pull"
+            add_item "redis-stack" "redis/redis-stack:latest" "" "pull"
+            add_item "rabbitmq" "rabbitmq:3-management" "" "pull"
+            add_item "consul" "hashicorp/consul:1.19" "" "pull"
+            add_item "elasticsearch" "docker.elastic.co/elasticsearch/elasticsearch:8.13.4" "" "pull"
+            add_item "kibana" "docker.elastic.co/kibana/kibana:8.13.4" "" "pull"
+            add_item "apm-server" "docker.elastic.co/apm/apm-server:8.13.4" "" "pull"
+            add_item "neo4j" "neo4j:5" "" "pull"
+          fi
+
+          if [[ ${#matrix_items[@]} -eq 0 ]]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo 'has_images=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          matrix_json=$(printf '%s\n' "${matrix_items[@]}" | jq -cs '{include: .}')
+          echo "matrix=${matrix_json}" >> "$GITHUB_OUTPUT"
+          echo 'has_images=true' >> "$GITHUB_OUTPUT"
+          echo "$matrix_json"
+
+  export-image:
+    name: Export ${{ matrix.artifact }}
+    needs: detect-images
+    if: needs.detect-images.outputs.has_images == 'true'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-images.outputs.matrix) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: ${{ inputs.push_to_ghcr }}
+        if: github.event_name == 'workflow_dispatch' && inputs.push_to_ghcr && matrix.mode == 'build'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Detect, build and optionally push changed images
+      - name: Show disk space
+        run: df -h
+
+      - name: Validate docker compose
+        if: matrix.mode == 'build'
+        run: docker compose config
+
+      - name: Build application image
+        if: matrix.mode == 'build'
+        run: docker compose build ${{ matrix.service }}
+
+      - name: Pull infrastructure image
+        if: matrix.mode == 'pull'
+        run: docker pull ${{ matrix.image }}
+
+      - name: Push application image to GHCR
+        if: github.event_name == 'workflow_dispatch' && inputs.push_to_ghcr && matrix.mode == 'build'
         shell: bash
-        env:
-          PUSH_TO_GHCR: ${{ inputs.push_to_ghcr }}
-          BUILD_SCOPE: ${{ inputs.build_scope }}
-          COMPARE_REF: ${{ inputs.compare_ref }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          CURRENT_BRANCH: ${{ github.ref_name }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          ghcr_image="ghcr.io/${owner}/${{ matrix.service }}:latest"
+          docker tag "${{ matrix.image }}" "${ghcr_image}"
+          docker push "${ghcr_image}"
 
-          all_services=(
-            cache-api
-            user-api
-            inventory-api
-            graph-service
-            api-gateway
-            inventory-dashboard
-            file-service
-          )
-
-          shared_change_prefixes=(
-            "_Framework/"
-            "fx/"
-          )
-
-          shared_change_files=(
-            "Directory.Build.props"
-            "Directory.Packages.props"
-            "global.json"
-            "NuGet.config"
-            "Insurance.slnx"
-            "docker-compose.yml"
-            ".github/workflows/build-offline-docker-images.yml"
-          )
-
-          diff_base=""
-          if [[ "${BUILD_SCOPE}" == "all" ]]; then
-            diff_base="all"
-          elif [[ -n "${COMPARE_REF}" ]]; then
-            diff_base="$(git rev-parse "${COMPARE_REF}")"
-          else
-            git fetch origin "${DEFAULT_BRANCH}" --depth=1 >/dev/null 2>&1 || true
-            if [[ "${CURRENT_BRANCH}" != "${DEFAULT_BRANCH}" ]] && git rev-parse "origin/${DEFAULT_BRANCH}" >/dev/null 2>&1; then
-              diff_base="$(git merge-base HEAD "origin/${DEFAULT_BRANCH}")"
-            elif git rev-parse HEAD^ >/dev/null 2>&1; then
-              diff_base="$(git rev-parse HEAD^)"
-            else
-              diff_base="$(git rev-list --max-parents=0 HEAD)"
-            fi
-          fi
-
-          declare -A selected=()
-          add_service() {
-            local service_name="$1"
-            selected["${service_name}"]=1
-          }
-
-          if [[ "${BUILD_SCOPE}" == "all" ]]; then
-            echo "Build scope is all. Rebuilding every dockerized service."
-            for service_name in "${all_services[@]}"; do
-              add_service "${service_name}"
-            done
-          else
-            mapfile -t changed_files < <(git diff --name-only "${diff_base}" HEAD | sed '/^[[:space:]]*$/d')
-
-            echo "Diff base: ${diff_base}"
-            echo "Changed files:"
-            printf '%s\n' "${changed_files[@]:-}"
-
-            rebuild_all=false
-            for changed_file in "${changed_files[@]}"; do
-              for shared_prefix in "${shared_change_prefixes[@]}"; do
-                if [[ "${changed_file}" == "${shared_prefix}"* ]]; then
-                  rebuild_all=true
-                  break 2
-                fi
-              done
-
-              for shared_file in "${shared_change_files[@]}"; do
-                if [[ "${changed_file}" == "${shared_file}" ]]; then
-                  rebuild_all=true
-                  break 2
-                fi
-              done
-            done
-
-            if [[ "${rebuild_all}" == "true" ]]; then
-              echo "Shared infrastructure changed. Rebuilding all dockerized services."
-              for service_name in "${all_services[@]}"; do
-                add_service "${service_name}"
-              done
-            else
-              for changed_file in "${changed_files[@]}"; do
-                case "${changed_file}" in
-                  app/CacheService/*|docker/cache-api.Dockerfile)
-                    add_service "cache-api"
-                    ;;
-                  app/UserService/*|docker/user-api.Dockerfile)
-                    add_service "user-api"
-                    ;;
-                  app/InventoryService/*|docker/inventory-api.Dockerfile)
-                    add_service "inventory-api"
-                    ;;
-                  app/GraphService/*|docker/graph-service.Dockerfile)
-                    add_service "graph-service"
-                    ;;
-                  agw/*|docker/api-gateway.Dockerfile)
-                    add_service "api-gateway"
-                    ;;
-                  app/InventoryDashboard/*|docker/inventory-dashboard.Dockerfile)
-                    add_service "inventory-dashboard"
-                    ;;
-                  app/FileService/*|docker/file-service.Dockerfile)
-                    add_service "file-service"
-                    ;;
-                esac
-              done
-            fi
-          fi
-
-          services_to_build=()
-          for service_name in "${all_services[@]}"; do
-            if [[ -n "${selected[${service_name}]:-}" ]]; then
-              services_to_build+=("${service_name}")
-            fi
-          done
-
-          if [[ ${#services_to_build[@]} -eq 0 ]]; then
-            echo "No dockerized services matched the current change set."
-            exit 0
-          fi
-
-          echo "Detected services:"
-          printf '%s\n' "${services_to_build[@]}"
-
-          owner="$(echo "${REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+      - name: Save image as tar.gz
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p docker-image
+          echo "${{ matrix.image }}" > docker-image/image.txt
+          docker image inspect "${{ matrix.image }}" > /dev/null
+          docker save "${{ matrix.image }}" | gzip > "docker-image/${{ matrix.artifact }}.tar.gz"
+          test -s "docker-image/${{ matrix.artifact }}.tar.gz"
+          ls -lh docker-image
 
-          for service_name in "${services_to_build[@]}"; do
-            echo "Building ${service_name}..."
-            docker compose build "${service_name}"
-
-            if [[ "${PUSH_TO_GHCR}" == "true" ]]; then
-              ghcr_image="ghcr.io/${owner}/${service_name}:latest"
-              echo "Pushing ${ghcr_image}..."
-              docker tag "insurance/${service_name}:latest" "${ghcr_image}"
-              docker push "${ghcr_image}"
-            fi
-
-            echo "Exporting ${service_name} archive..."
-            docker save "insurance/${service_name}:latest" | gzip > "docker-image/${service_name}.tar.gz"
-          done
-
-      - name: Upload image archives
-        if: always()
+      - name: Upload image artifact
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: docker-image-archives
-          path: docker-image/*.tar.gz
-          if-no-files-found: ignore
+          name: docker-image-${{ matrix.artifact }}
+          path: docker-image/
+          if-no-files-found: error
+          retention-days: 1
+
+  nothing-to-build:
+    name: Nothing to build
+    needs: detect-images
+    if: needs.detect-images.outputs.has_images != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: No changed microservice images
+        run: echo "No changed microservice image detected for this run."
