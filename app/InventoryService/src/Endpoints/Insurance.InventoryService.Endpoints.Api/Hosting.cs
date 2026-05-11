@@ -23,7 +23,7 @@ public static class Hosting
             .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables();
 
-        // Keep telemetry registration close to the core platform bootstrap sequence.
+        // Telemetry registration intentionally stays near the core platform bootstrap sequence.
         builder.Services.AddAllElasticApm();
         builder.Services.AddOysterFxApiCore("OysterFx", "Insurance", "Insurance.InventoryService");
         builder.Services.AddEndpointsApiExplorer();

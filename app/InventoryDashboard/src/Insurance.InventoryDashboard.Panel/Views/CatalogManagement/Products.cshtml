@@ -37,7 +37,7 @@
         || !Can("Catalog.ProductAttributeValue.Remove", "ProductAttributeValue.Remove");
     var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
 
-    // Flat category lookup is reused by both the card-based picker and the quick-search fallback.
+    // Flat category lookup stays shared between the card picker and the quick-search fallback.
     var categoryLookup = Model.FlatCategories
         .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);

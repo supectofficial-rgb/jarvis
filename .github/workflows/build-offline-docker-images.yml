@@ -4,59 +4,241 @@ on:
   workflow_dispatch:
     inputs:
       push_to_ghcr:
-        description: 'Push changed images to GHCR after build'
+        description: Push detected images to GHCR after build
         required: true
-        default: 'true'
+        default: true
+        type: boolean
+      build_scope:
+        description: Build only changed services or rebuild all dockerized services
+        required: true
+        default: changed
+        type: choice
+        options:
+          - changed
+          - all
+      compare_ref:
+        description: Optional git ref or SHA to diff against when build_scope is changed
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build-and-push:
+  detect-changes:
     runs-on: ubuntu-latest
-
+    outputs:
+      diff_base: ${{ steps.detect.outputs.diff_base }}
+      services: ${{ steps.detect.outputs.services }}
+      services_display: ${{ steps.detect.outputs.services_display }}
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # 2️⃣ Detect changed microservices
       - name: Detect changed services
         id: detect
+        shell: bash
         run: |
-          # فرض بر اینه که همه microservices در فولدر services/ قرار دارند
-          CHANGED_SERVICES=$(git diff --name-only HEAD~1 HEAD | grep -E '^services/[^/]+/' | cut -d/ -f2 | sort | uniq)
-          echo "Changed services: $CHANGED_SERVICES"
-          echo "changed=$CHANGED_SERVICES" >> $GITHUB_OUTPUT
+          set -euo pipefail
 
-      # 3️⃣ Login به GHCR
-      - name: Log in to GHCR
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          all_services=(
+            cache-api
+            user-api
+            inventory-api
+            graph-service
+            api-gateway
+            inventory-dashboard
+            file-service
+          )
 
-      # 4️⃣ Build و push ایمیج‌های تغییر کرده
-      - name: Build and optionally push changed images
-        run: |
-          if [ -z "${{ steps.detect.outputs.changed }}" ]; then
-            echo "No changed services detected. Exiting."
-            exit 0
+          declare -A service_roots=(
+            [cache-api]="app/CacheService/ docker/cache-api.Dockerfile"
+            [user-api]="app/UserService/ docker/user-api.Dockerfile"
+            [inventory-api]="app/InventoryService/ docker/inventory-api.Dockerfile"
+            [graph-service]="app/GraphService/ docker/graph-service.Dockerfile"
+            [api-gateway]="agw/ docker/api-gateway.Dockerfile"
+            [inventory-dashboard]="app/InventoryDashboard/ docker/inventory-dashboard.Dockerfile"
+            [file-service]="app/FileService/ docker/file-service.Dockerfile"
+          )
+
+          shared_change_prefixes=(
+            "_Framework/"
+            "fx/"
+          )
+
+          shared_change_files=(
+            "Directory.Build.props"
+            "Directory.Packages.props"
+            "global.json"
+            "NuGet.config"
+            "Insurance.slnx"
+            "docker-compose.yml"
+          )
+
+          build_scope="${{ github.event.inputs.build_scope }}"
+          compare_ref_input="${{ github.event.inputs.compare_ref }}"
+          default_branch="${{ github.event.repository.default_branch }}"
+          current_branch="${GITHUB_REF_NAME}"
+
+          diff_base=""
+          if [[ "${build_scope}" == "all" ]]; then
+            diff_base="all"
+          elif [[ -n "${compare_ref_input}" ]]; then
+            diff_base="$(git rev-parse "${compare_ref_input}")"
+          else
+            git fetch origin "${default_branch}" --depth=1 >/dev/null 2>&1 || true
+            if [[ "${current_branch}" != "${default_branch}" ]] && git rev-parse "origin/${default_branch}" >/dev/null 2>&1; then
+              diff_base="$(git merge-base HEAD "origin/${default_branch}")"
+            elif git rev-parse HEAD^ >/dev/null 2>&1; then
+              diff_base="$(git rev-parse HEAD^)"
+            else
+              diff_base="$(git rev-list --max-parents=0 HEAD)"
+            fi
           fi
 
-          for service in ${{ steps.detect.outputs.changed }}; do
-            echo "Building $service..."
-            docker compose build $service
+          declare -A selected=()
+          add_service() {
+            local service_name="$1"
+            selected["${service_name}"]=1
+          }
 
-            if [ "${{ github.event.inputs.push_to_ghcr }}" == "true" ]; then
-              echo "Pushing $service to GHCR..."
-              docker tag insurance/$service:latest ghcr.io/supectofficial-rgb/$service:latest
-              docker push ghcr.io/supectofficial-rgb/$service:latest
+          if [[ "${build_scope}" == "all" ]]; then
+            for service_name in "${all_services[@]}"; do
+              add_service "${service_name}"
+            done
+          else
+            mapfile -t changed_files < <(git diff --name-only "${diff_base}" HEAD | sed '/^\s*$/d')
+            echo "Diff base: ${diff_base}"
+            printf 'Changed files:\n'
+            printf '%s\n' "${changed_files[@]:-}"
+
+            rebuild_all=false
+
+            for changed_file in "${changed_files[@]}"; do
+              for shared_prefix in "${shared_change_prefixes[@]}"; do
+                if [[ "${changed_file}" == "${shared_prefix}"* ]]; then
+                  rebuild_all=true
+                  break 2
+                fi
+              done
+
+              for shared_file in "${shared_change_files[@]}"; do
+                if [[ "${changed_file}" == "${shared_file}" ]]; then
+                  rebuild_all=true
+                  break 2
+                fi
+              done
+            done
+
+            if [[ "${rebuild_all}" == "true" ]]; then
+              echo "Shared infrastructure changed. Rebuilding all dockerized services."
+              for service_name in "${all_services[@]}"; do
+                add_service "${service_name}"
+              done
+            else
+              for service_name in "${all_services[@]}"; do
+                for service_root in ${service_roots["${service_name}"]}; do
+                  if printf '%s\n' "${changed_files[@]}" | grep -F -q -e "${service_root}"; then
+                    add_service "${service_name}"
+                    break
+                  fi
+
+                  if printf '%s\n' "${changed_files[@]}" | grep -F -q -e "${service_root%/}/"; then
+                    add_service "${service_name}"
+                    break
+                  fi
+                done
+              done
+            fi
+          fi
+
+          services_list=()
+          for service_name in "${all_services[@]}"; do
+            if [[ -n "${selected[${service_name}]:-}" ]]; then
+              services_list+=("${service_name}")
             fi
           done
 
-      # 5️⃣ Optional: Export tar.gz برای backup
-      - name: Export changed Docker images to tar.gz
+          if [[ ${#services_list[@]} -eq 0 ]]; then
+            services_json='[]'
+            services_display=''
+          else
+            services_json="$(printf '%s\n' "${services_list[@]}" | jq -R . | jq -s -c .)"
+            services_display="$(printf '%s ' "${services_list[@]}")"
+            services_display="${services_display% }"
+          fi
+
+          echo "Detected services: ${services_display:-<none>}"
+          echo "diff_base=${diff_base}" >> "${GITHUB_OUTPUT}"
+          echo "services=${services_json}" >> "${GITHUB_OUTPUT}"
+          echo "services_display=${services_display}" >> "${GITHUB_OUTPUT}"
+
+  build-and-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ github.event.inputs.push_to_ghcr == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        shell: bash
         run: |
+          set -euo pipefail
+          echo "Building ${{ matrix.service }}"
+          docker compose build "${{ matrix.service }}"
+
+      - name: Push image to GHCR
+        if: ${{ github.event.inputs.push_to_ghcr == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          image_name="ghcr.io/${owner}/${{ matrix.service }}:latest"
+          docker tag "insurance/${{ matrix.service }}:latest" "${image_name}"
+          docker push "${image_name}"
+
+      - name: Export image archive
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p docker-image
-          for service in ${{ steps.detect.outputs.changed }}; do
-            docker save insurance/$service | gzip > docker-image/$service.tar.gz
-          done
+          docker save "insurance/${{ matrix.service }}:latest" | gzip > "docker-image/${{ matrix.service }}.tar.gz"
+
+      - name: Upload image archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ matrix.service }}
+          path: docker-image/${{ matrix.service }}.tar.gz
+          if-no-files-found: error
+
+  no-changes:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services == '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: No changed services detected
+        run: |
+          echo "No dockerized services matched the current change set."
+          echo "Diff base: ${{ needs.detect-changes.outputs.diff_base }}"
