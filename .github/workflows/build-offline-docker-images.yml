@@ -27,21 +27,34 @@ permissions:
   packages: write
 
 jobs:
-  detect-changes:
+  build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      diff_base: ${{ steps.detect.outputs.diff_base }}
-      services: ${{ steps.detect.outputs.services }}
-      services_display: ${{ steps.detect.outputs.services_display }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Detect changed services
-        id: detect
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ inputs.push_to_ghcr }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect, build and optionally push changed images
         shell: bash
+        env:
+          PUSH_TO_GHCR: ${{ inputs.push_to_ghcr }}
+          BUILD_SCOPE: ${{ inputs.build_scope }}
+          COMPARE_REF: ${{ inputs.compare_ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CURRENT_BRANCH: ${{ github.ref_name }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
 
@@ -70,20 +83,15 @@ jobs:
             ".github/workflows/build-offline-docker-images.yml"
           )
 
-          build_scope="${{ github.event.inputs.build_scope }}"
-          compare_ref_input="${{ github.event.inputs.compare_ref }}"
-          default_branch="${{ github.event.repository.default_branch }}"
-          current_branch="${GITHUB_REF_NAME}"
-
           diff_base=""
-          if [[ "${build_scope}" == "all" ]]; then
+          if [[ "${BUILD_SCOPE}" == "all" ]]; then
             diff_base="all"
-          elif [[ -n "${compare_ref_input}" ]]; then
-            diff_base="$(git rev-parse "${compare_ref_input}")"
+          elif [[ -n "${COMPARE_REF}" ]]; then
+            diff_base="$(git rev-parse "${COMPARE_REF}")"
           else
-            git fetch origin "${default_branch}" --depth=1 >/dev/null 2>&1 || true
-            if [[ "${current_branch}" != "${default_branch}" ]] && git rev-parse "origin/${default_branch}" >/dev/null 2>&1; then
-              diff_base="$(git merge-base HEAD "origin/${default_branch}")"
+            git fetch origin "${DEFAULT_BRANCH}" --depth=1 >/dev/null 2>&1 || true
+            if [[ "${CURRENT_BRANCH}" != "${DEFAULT_BRANCH}" ]] && git rev-parse "origin/${DEFAULT_BRANCH}" >/dev/null 2>&1; then
+              diff_base="$(git merge-base HEAD "origin/${DEFAULT_BRANCH}")"
             elif git rev-parse HEAD^ >/dev/null 2>&1; then
               diff_base="$(git rev-parse HEAD^)"
             else
@@ -97,18 +105,19 @@ jobs:
             selected["${service_name}"]=1
           }
 
-          if [[ "${build_scope}" == "all" ]]; then
+          if [[ "${BUILD_SCOPE}" == "all" ]]; then
+            echo "Build scope is all. Rebuilding every dockerized service."
             for service_name in "${all_services[@]}"; do
               add_service "${service_name}"
             done
           else
-            mapfile -t changed_files < <(git diff --name-only "${diff_base}" HEAD | sed '/^\s*$/d')
+            mapfile -t changed_files < <(git diff --name-only "${diff_base}" HEAD | sed '/^[[:space:]]*$/d')
+
             echo "Diff base: ${diff_base}"
-            printf 'Changed files:\n'
+            echo "Changed files:"
             printf '%s\n' "${changed_files[@]:-}"
 
             rebuild_all=false
-
             for changed_file in "${changed_files[@]}"; do
               for shared_prefix in "${shared_change_prefixes[@]}"; do
                 if [[ "${changed_file}" == "${shared_prefix}"* ]]; then
@@ -159,89 +168,43 @@ jobs:
             fi
           fi
 
-          services_list=()
+          services_to_build=()
           for service_name in "${all_services[@]}"; do
             if [[ -n "${selected[${service_name}]:-}" ]]; then
-              services_list+=("${service_name}")
+              services_to_build+=("${service_name}")
             fi
           done
 
-          if [[ ${#services_list[@]} -eq 0 ]]; then
-            services_json='[]'
-            services_display=''
-          else
-            services_json="$(printf '%s\n' "${services_list[@]}" | jq -R . | jq -s -c .)"
-            services_display="$(printf '%s ' "${services_list[@]}")"
-            services_display="${services_display% }"
+          if [[ ${#services_to_build[@]} -eq 0 ]]; then
+            echo "No dockerized services matched the current change set."
+            exit 0
           fi
 
-          echo "Detected services: ${services_display:-<none>}"
-          echo "diff_base=${diff_base}" >> "${GITHUB_OUTPUT}"
-          echo "services=${services_json}" >> "${GITHUB_OUTPUT}"
-          echo "services_display=${services_display}" >> "${GITHUB_OUTPUT}"
+          echo "Detected services:"
+          printf '%s\n' "${services_to_build[@]}"
 
-  build-and-push:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.services != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: ${{ github.event.inputs.push_to_ghcr == 'true' }}
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build image
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Building ${{ matrix.service }}"
-          docker compose build "${{ matrix.service }}"
-
-      - name: Push image to GHCR
-        if: ${{ github.event.inputs.push_to_ghcr == 'true' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          image_name="ghcr.io/${owner}/${{ matrix.service }}:latest"
-          docker tag "insurance/${{ matrix.service }}:latest" "${image_name}"
-          docker push "${image_name}"
-
-      - name: Export image archive
-        shell: bash
-        run: |
-          set -euo pipefail
+          owner="$(echo "${REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           mkdir -p docker-image
-          docker save "insurance/${{ matrix.service }}:latest" | gzip > "docker-image/${{ matrix.service }}.tar.gz"
 
-      - name: Upload image archive
+          for service_name in "${services_to_build[@]}"; do
+            echo "Building ${service_name}..."
+            docker compose build "${service_name}"
+
+            if [[ "${PUSH_TO_GHCR}" == "true" ]]; then
+              ghcr_image="ghcr.io/${owner}/${service_name}:latest"
+              echo "Pushing ${ghcr_image}..."
+              docker tag "insurance/${service_name}:latest" "${ghcr_image}"
+              docker push "${ghcr_image}"
+            fi
+
+            echo "Exporting ${service_name} archive..."
+            docker save "insurance/${service_name}:latest" | gzip > "docker-image/${service_name}.tar.gz"
+          done
+
+      - name: Upload image archives
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: docker-image-${{ matrix.service }}
-          path: docker-image/${{ matrix.service }}.tar.gz
-          if-no-files-found: error
-
-  no-changes:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.services == '[]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: No changed services detected
-        run: |
-          echo "No dockerized services matched the current change set."
-          echo "Diff base: ${{ needs.detect-changes.outputs.diff_base }}"
+          name: docker-image-archives
+          path: docker-image/*.tar.gz
+          if-no-files-found: ignore
