@@ -1,211 +1,57 @@
-name: Build & Export Docker Images for Offline Deployment
+name: Build & Push Changed Docker Images
 
 on:
   workflow_dispatch:
     inputs:
-      build_scope:
-        description: changed or all buildable microservices
+      push_to_ghcr:
+        description: 'Push changed images to GHCR'
         required: true
-        default: changed
-        type: choice
-        options:
-          - changed
-          - all
-      include_infra:
-        description: also export infrastructure images
-        required: true
-        default: false
-        type: boolean
-  push:
-    branches:
-      - main
+        default: 'true'
 
 jobs:
-  detect-images:
-    name: Detect changed images
+  detect-and-build:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      has_images: ${{ steps.set-matrix.outputs.has_images }}
+      images: ${{ steps.detect.outputs.changed-images }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Resolve changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v45
-        with:
-          separator: "\n"
-
-      - name: Build export matrix
-        id: set-matrix
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BUILD_SCOPE: ${{ inputs.build_scope || 'changed' }}
-          INCLUDE_INFRA: ${{ inputs.include_infra || 'false' }}
-          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+      # 1️⃣ تشخیص سرویس‌های تغییر کرده
+      - name: Detect changed services
+        id: detect
         run: |
-          set -euo pipefail
+          CHANGED_SERVICES=$(git diff --name-only HEAD~1 HEAD | grep -E '^services/[^/]+/' | cut -d/ -f2 | sort | uniq)
+          echo "Changed services: $CHANGED_SERVICES"
+          echo "changed-images=$CHANGED_SERVICES" >> $GITHUB_OUTPUT
 
-          mapfile -t changed_files <<< "$CHANGED_FILES"
-
-          add_item() {
-            local artifact="$1"
-            local image="$2"
-            local service="$3"
-            local mode="$4"
-            matrix_items+=("{\"artifact\":\"${artifact}\",\"image\":\"${image}\",\"service\":\"${service}\",\"mode\":\"${mode}\"}")
-          }
-
-          has_match() {
-            local pattern="$1"
-            for file in "${changed_files[@]}"; do
-              [[ -z "$file" ]] && continue
-              if [[ "$file" == $pattern ]]; then
-                return 0
-              fi
-            done
-            return 1
-          }
-
-          matrix_items=()
-          shared_docker_changed=false
-
-          if has_match "docker-compose.yml" || has_match ".dockerignore" || has_match ".github/workflows/build-offline-docker-images.yml"; then
-            shared_docker_changed=true
-          fi
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$BUILD_SCOPE" == "all" ]]; then
-            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
-            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
-            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
-            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
-            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
-            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
-            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
-          elif [[ "$shared_docker_changed" == "true" ]]; then
-            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
-            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
-            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
-            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
-            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
-            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
-            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
-          else
-            if has_match "agw/*" || has_match "docker/api-gateway.Dockerfile" || has_match "docker/consul/*"; then
-              add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
-            fi
-
-            if has_match "app/CacheService/*" || has_match "docker/cache-api.Dockerfile" || has_match "fx/*"; then
-              add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
-            fi
-
-            if has_match "app/FileService/*" || has_match "docker/file-service.Dockerfile"; then
-              add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
-            fi
-
-            if has_match "app/GraphService/*" || has_match "docker/graph-service.Dockerfile" || has_match "fx/*"; then
-              add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
-            fi
-
-            if has_match "app/InventoryService/*" || has_match "docker/inventory-api.Dockerfile" || has_match "fx/*"; then
-              add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
-            fi
-
-            if has_match "app/InventoryDashboard/*" || has_match "docker/inventory-dashboard.Dockerfile"; then
-              add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
-            fi
-
-            if has_match "app/UserService/*" || has_match "docker/user-api.Dockerfile" || has_match "fx/*" || has_match "app/PanelPayamakService/*"; then
-              add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
-            fi
-          fi
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$INCLUDE_INFRA" == "true" ]]; then
-            add_item "postgres" "postgres:16" "" "pull"
-            add_item "pgadmin" "dpage/pgadmin4:latest" "" "pull"
-            add_item "redis-stack" "redis/redis-stack:latest" "" "pull"
-            add_item "rabbitmq" "rabbitmq:3-management" "" "pull"
-            add_item "consul" "hashicorp/consul:1.19" "" "pull"
-            add_item "elasticsearch" "docker.elastic.co/elasticsearch/elasticsearch:8.13.4" "" "pull"
-            add_item "kibana" "docker.elastic.co/kibana/kibana:8.13.4" "" "pull"
-            add_item "apm-server" "docker.elastic.co/apm/apm-server:8.13.4" "" "pull"
-            add_item "neo4j" "neo4j:5" "" "pull"
-          fi
-
-          if [[ ${#matrix_items[@]} -eq 0 ]]; then
-            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
-            echo 'has_images=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          matrix_json=$(printf '%s\n' "${matrix_items[@]}" | jq -cs '{include: .}')
-          echo "matrix=${matrix_json}" >> "$GITHUB_OUTPUT"
-          echo 'has_images=true' >> "$GITHUB_OUTPUT"
-          echo "$matrix_json"
-
-  export-image:
-    name: Export ${{ matrix.artifact }}
-    needs: detect-images
-    if: needs.detect-images.outputs.has_images == 'true'
+  build-and-push:
+    needs: detect-and-build
     runs-on: ubuntu-latest
-
     strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.detect-images.outputs.matrix) }}
-
+      matrix:
+        image: [${{ fromJSON(needs.detect-and-build.outputs.images) }}]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Show disk space
-        run: df -h
-
-      - name: Validate docker compose
-        if: matrix.mode == 'build'
-        run: docker compose config
-
-      - name: Build application image
-        if: matrix.mode == 'build'
-        run: docker compose build ${{ matrix.service }}
-
-      - name: Pull infrastructure image
-        if: matrix.mode == 'pull'
-        run: docker pull ${{ matrix.image }}
-
-      - name: Save image as tar.gz
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p docker-image
-          echo "${{ matrix.image }}" > docker-image/image.txt
-          docker image inspect "${{ matrix.image }}" > /dev/null
-          docker save "${{ matrix.image }}" | gzip > "docker-image/${{ matrix.artifact }}.tar.gz"
-          test -s "docker-image/${{ matrix.artifact }}.tar.gz"
-          ls -lh docker-image
-
-      - name: Upload image artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+      # 2️⃣ Login به GHCR
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
         with:
-          name: docker-image-${{ matrix.artifact }}
-          path: docker-image/
-          if-no-files-found: error
-          retention-days: 1
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
 
-  nothing-to-build:
-    name: Nothing to build
-    needs: detect-images
-    if: needs.detect-images.outputs.has_images != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: No changed microservice images
-        run: echo "No changed microservice image detected for this run."
+      # 3️⃣ Build ایمیج تغییر کرده
+      - name: Build Docker image
+        run: |
+          docker compose build ${{ matrix.image }}
+
+      # 4️⃣ Push اختیاری به GHCR
+      - name: Push to GHCR (if selected)
+        if: ${{ github.event.inputs.push_to_ghcr == 'true' }}
+        run: |
+          docker tag insurance/${{ matrix.image }}:latest ghcr.io/supectofficial-rgb/${{ matrix.image }}:latest
+          docker push ghcr.io/supectofficial-rgb/${{ matrix.image }}:latest
