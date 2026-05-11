@@ -55,16 +55,6 @@ jobs:
             file-service
           )
 
-          declare -A service_roots=(
-            [cache-api]="app/CacheService/ docker/cache-api.Dockerfile"
-            [user-api]="app/UserService/ docker/user-api.Dockerfile"
-            [inventory-api]="app/InventoryService/ docker/inventory-api.Dockerfile"
-            [graph-service]="app/GraphService/ docker/graph-service.Dockerfile"
-            [api-gateway]="agw/ docker/api-gateway.Dockerfile"
-            [inventory-dashboard]="app/InventoryDashboard/ docker/inventory-dashboard.Dockerfile"
-            [file-service]="app/FileService/ docker/file-service.Dockerfile"
-          )
-
           shared_change_prefixes=(
             "_Framework/"
             "fx/"
@@ -77,6 +67,7 @@ jobs:
             "NuGet.config"
             "Insurance.slnx"
             "docker-compose.yml"
+            ".github/workflows/build-offline-docker-images.yml"
           )
 
           build_scope="${{ github.event.inputs.build_scope }}"
@@ -140,18 +131,30 @@ jobs:
                 add_service "${service_name}"
               done
             else
-              for service_name in "${all_services[@]}"; do
-                for service_root in ${service_roots["${service_name}"]}; do
-                  if printf '%s\n' "${changed_files[@]}" | grep -F -q -e "${service_root}"; then
-                    add_service "${service_name}"
-                    break
-                  fi
-
-                  if printf '%s\n' "${changed_files[@]}" | grep -F -q -e "${service_root%/}/"; then
-                    add_service "${service_name}"
-                    break
-                  fi
-                done
+              for changed_file in "${changed_files[@]}"; do
+                case "${changed_file}" in
+                  app/CacheService/*|docker/cache-api.Dockerfile)
+                    add_service "cache-api"
+                    ;;
+                  app/UserService/*|docker/user-api.Dockerfile)
+                    add_service "user-api"
+                    ;;
+                  app/InventoryService/*|docker/inventory-api.Dockerfile)
+                    add_service "inventory-api"
+                    ;;
+                  app/GraphService/*|docker/graph-service.Dockerfile)
+                    add_service "graph-service"
+                    ;;
+                  agw/*|docker/api-gateway.Dockerfile)
+                    add_service "api-gateway"
+                    ;;
+                  app/InventoryDashboard/*|docker/inventory-dashboard.Dockerfile)
+                    add_service "inventory-dashboard"
+                    ;;
+                  app/FileService/*|docker/file-service.Dockerfile)
+                    add_service "file-service"
+                    ;;
+                esac
               done
             fi
           fi
