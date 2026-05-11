@@ -396,14 +396,14 @@ jobs:
           DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
-          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
         run: |
           set -euo pipefail
           [[ -n "${DEPLOY_HOST}" ]] || { echo "Missing repo variable DEPLOY_HOST" >&2; exit 1; }
           [[ -n "${DEPLOY_USER}" ]] || { echo "Missing repo variable DEPLOY_USER" >&2; exit 1; }
           [[ -n "${DEPLOY_SSH_KEY}" ]] || { echo "Missing secret DEPLOY_SSH_KEY" >&2; exit 1; }
-          if [[ -z "${GHCR_PULL_USERNAME}" || -z "${GHCR_PULL_TOKEN}" ]]; then
-            echo "Missing GHCR_PULL_USERNAME or GHCR_PULL_TOKEN secret. Remote docker login would be unreliable with runner token." >&2
+          if [[ -z "${GHCR_PULL_USERNAME}" || -z "${GHCR_PAT}" ]]; then
+            echo "Missing GHCR_PULL_USERNAME or GHCR_PAT secret. Remote docker login would be unreliable with runner token." >&2
             exit 1
           fi
           echo "Deploy host: ${DEPLOY_HOST}"
@@ -428,7 +428,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
-          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ vars.DEPLOY_USER }}
@@ -437,7 +437,7 @@ jobs:
           script_stop: true
           timeout: 30m
           command_timeout: 30m
-          envs: GHCR_PULL_USERNAME,GHCR_PULL_TOKEN
+          envs: GHCR_PULL_USERNAME,GHCR_PAT
           script: |
             $ErrorActionPreference = 'Stop'
             $projectDir = 'C:\inetpub\nivad'
@@ -457,11 +457,11 @@ jobs:
             & docker version
             & docker compose version
 
-            if ([string]::IsNullOrWhiteSpace($env:GHCR_PULL_USERNAME) -or [string]::IsNullOrWhiteSpace($env:GHCR_PULL_TOKEN)) {
+            if ([string]::IsNullOrWhiteSpace($env:GHCR_PULL_USERNAME) -or [string]::IsNullOrWhiteSpace($env:GHCR_PAT)) {
               throw 'GHCR pull credentials were not provided to the deploy step.'
             }
 
-            $env:GHCR_PULL_TOKEN | docker login ghcr.io --username $env:GHCR_PULL_USERNAME --password-stdin
+            $env:GHCR_PAT | docker login ghcr.io --username $env:GHCR_PULL_USERNAME --password-stdin
             if ($LASTEXITCODE -ne 0) {
               throw 'docker login to ghcr.io failed.'
             }
