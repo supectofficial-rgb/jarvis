@@ -391,9 +391,9 @@ jobs:
       - name: Validate deploy settings
         shell: bash
         env:
-          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
           GHCR_PAT: ${{ secrets.GHCR_PAT }}
@@ -417,9 +417,9 @@ jobs:
           {
             echo "## Deploy Plan"
             echo
-            echo "- Host: ${{ vars.DEPLOY_HOST }}"
-            echo "- User: ${{ vars.DEPLOY_USER }}"
-            echo "- Port: ${{ vars.DEPLOY_PORT || '22' }}"
+            echo "- Host: [redacted]"
+            echo "- User: [redacted]"
+            echo "- Port: ${{ secrets.DEPLOY_PORT || '22' }}"
             echo "- Project path: C:\\inetpub\\nivad"
             echo "- Services: ${{ needs.detect-images.outputs.deploy_services_csv }}"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -430,10 +430,10 @@ jobs:
           GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
           GHCR_PAT: ${{ secrets.GHCR_PAT }}
         with:
-          host: ${{ vars.DEPLOY_HOST }}
-          username: ${{ vars.DEPLOY_USER }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ vars.DEPLOY_PORT || '22' }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
           script_stop: true
           timeout: 30m
           command_timeout: 30m
