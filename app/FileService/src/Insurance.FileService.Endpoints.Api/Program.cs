@@ -30,6 +30,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Storage root is resolved once so uploads, thumbnails and cleanup share the same base path.
 var storageRoot = ResolveStorageRoot(app.Configuration, app.Environment);
 var videoProcessing = VideoProcessingOptions.FromConfiguration(app.Configuration);
 Directory.CreateDirectory(storageRoot);
