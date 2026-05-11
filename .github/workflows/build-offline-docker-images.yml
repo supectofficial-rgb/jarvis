@@ -4,39 +4,28 @@ on:
   workflow_dispatch:
     inputs:
       push_to_ghcr:
-        description: 'Push changed images to GHCR'
+        description: 'Push changed images to GHCR after build'
         required: true
         default: 'true'
 
 jobs:
-  detect-and-build:
+  build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      images: ${{ steps.detect.outputs.changed-images }}
-
     steps:
+      # 1️⃣ Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 1️⃣ تشخیص سرویس‌های تغییر کرده
+      # 2️⃣ Detect changed microservices
       - name: Detect changed services
         id: detect
         run: |
+          # همه فولدرهای microservices که تحت services/ هستند
           CHANGED_SERVICES=$(git diff --name-only HEAD~1 HEAD | grep -E '^services/[^/]+/' | cut -d/ -f2 | sort | uniq)
           echo "Changed services: $CHANGED_SERVICES"
-          echo "changed-images=$CHANGED_SERVICES" >> $GITHUB_OUTPUT
+          echo "::set-output name=changed::$CHANGED_SERVICES"
 
-  build-and-push:
-    needs: detect-and-build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        image: [${{ fromJSON(needs.detect-and-build.outputs.images) }}]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # 2️⃣ Login به GHCR
+      # 3️⃣ Login به GHCR
       - name: Log in to GHCR
         uses: docker/login-action@v2
         with:
@@ -44,14 +33,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      # 3️⃣ Build ایمیج تغییر کرده
-      - name: Build Docker image
+      # 4️⃣ Build و push سرویس‌های تغییر کرده
+      - name: Build and optionally push changed images
         run: |
-          docker compose build ${{ matrix.image }}
+          if [ -z "${{ steps.detect.outputs.changed }}" ]; then
+            echo "No changed services detected. Exiting."
+            exit 0
+          fi
 
-      # 4️⃣ Push اختیاری به GHCR
-      - name: Push to GHCR (if selected)
-        if: ${{ github.event.inputs.push_to_ghcr == 'true' }}
+          for service in ${{ steps.detect.outputs.changed }}; do
+            echo "Building $service..."
+            docker compose build $service
+
+            if [ "${{ github.event.inputs.push_to_ghcr }}" == "true" ]; then
+              echo "Pushing $service to GHCR..."
+              docker tag insurance/$service:latest ghcr.io/supectofficial-rgb/$service:latest
+              docker push ghcr.io/supectofficial-rgb/$service:latest
+            fi
+          done
+
+      # 5️⃣ Optional: Export tar.gz برای backup
+      - name: Export changed Docker images to tar.gz
         run: |
-          docker tag insurance/${{ matrix.image }}:latest ghcr.io/supectofficial-rgb/${{ matrix.image }}:latest
-          docker push ghcr.io/supectofficial-rgb/${{ matrix.image }}:latest
+          mkdir -p docker-image
+          for service in ${{ steps.detect.outputs.changed }}; do
+            docker save insurance/$service | gzip > docker-image/$service.tar.gz
+          done
