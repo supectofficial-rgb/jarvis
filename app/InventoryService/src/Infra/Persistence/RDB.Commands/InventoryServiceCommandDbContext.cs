@@ -49,6 +49,7 @@ public class InventoryServiceCommandDbContext : CommandDbContext
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
     public DbSet<VariantComponent> VariantComponents => Set<VariantComponent>();
     public DbSet<VariantAddOn> VariantAddOns => Set<VariantAddOn>();
+    public DbSet<VariantImage> VariantImages => Set<VariantImage>();
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
     public DbSet<InventoryDocument> InventoryDocuments => Set<InventoryDocument>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
@@ -87,6 +88,7 @@ public class InventoryServiceCommandDbContext : CommandDbContext
         modelBuilder.ApplyConfiguration(new VariantUomConversionConfig());
         modelBuilder.ApplyConfiguration(new VariantComponentConfig());
         modelBuilder.ApplyConfiguration(new VariantAddOnConfig());
+        modelBuilder.ApplyConfiguration(new VariantImageConfig());
         modelBuilder.ApplyConfiguration(new UnitOfMeasureConfig());
         modelBuilder.ApplyConfiguration(new InventoryDocumentConfig());
         modelBuilder.ApplyConfiguration(new InventoryDocumentLineConfig());

@@ -1,10 +1,11 @@
 ﻿namespace Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 
 using OysterFx.AppCore.Domain.Aggregates;
+using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class CategoryAttributeRule : Aggregate
 {
-    public Guid CategorySchemaVersionRef { get; private set; }
+    public BusinessKey CategorySchemaVersionRef { get; private set; } = null!;
     public Guid AttributeRef { get; private set; }
     public bool IsRequired { get; private set; }
     public bool IsVariant { get; private set; }
@@ -35,7 +36,7 @@ public sealed class CategoryAttributeRule : Aggregate
 
         return new CategoryAttributeRule
         {
-            CategorySchemaVersionRef = categorySchemaVersionRef,
+            CategorySchemaVersionRef = BusinessKey.FromGuid(categorySchemaVersionRef),
             AttributeRef = attributeRef,
             IsRequired = isRequired,
             IsVariant = isVariant,

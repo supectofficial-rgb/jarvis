@@ -38,7 +38,7 @@ public class CategoryVariantNameFormulaCommandRepository
     {
         var key = BusinessKey.FromGuid(formulaBusinessKey);
         await _dbContext.Set<CategoryVariantNameFormulaPart>()
-            .Where(x => x.FormulaRef == formulaBusinessKey)
+            .Where(x => x.FormulaRef == key)
             .ExecuteDeleteAsync();
 
         return await _dbContext.Set<CategoryVariantNameFormula>()

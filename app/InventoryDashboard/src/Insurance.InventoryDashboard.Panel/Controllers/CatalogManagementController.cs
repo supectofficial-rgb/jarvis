@@ -849,7 +849,12 @@ public abstract partial class CatalogManagementController : Controller
         if (string.IsNullOrWhiteSpace(form.ProductId))
         {
             var categoryProductsResult = await _apiService.SearchProductsAsync(token, categoryId: form.CategoryId);
-            form.BaseSku = GenerateProductNumber(selectedCategory, categoryProductsResult.Data ?? new List<ProductSummaryModel>());
+            var existingCategoryProducts = categoryProductsResult.Data ?? new List<ProductSummaryModel>();
+            form.BaseSku = GenerateProductNumber(selectedCategory, existingCategoryProducts);
+            if (string.IsNullOrWhiteSpace(form.Name))
+            {
+                form.Name = GenerateProductName(selectedCategory, existingCategoryProducts, form.BaseSku);
+            }
         }
 
         if (!TryValidateModel(form))
@@ -2290,6 +2295,33 @@ public abstract partial class CatalogManagementController : Controller
         return $"{prefix}-{nextSequence:000000}";
     }
 
+    private static string GenerateProductName(CategoryNodeModel category, IReadOnlyList<ProductSummaryModel> existingProducts, string generatedProductNumber)
+    {
+        var categoryName = string.IsNullOrWhiteSpace(category.Name)
+            ? "محصول"
+            : category.Name.Trim();
+        var namePrefix = $"محصول {categoryName} شماره ";
+
+        var nextFromNames = existingProducts
+            .Select(x => TryReadGeneratedProductNameSequence(x.Name, namePrefix))
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        var nextFromSku = TryReadProductNumberSequence(generatedProductNumber, NormalizeSkuSegment(category.Code))
+            ?? TryReadProductNumberSequence(generatedProductNumber, NormalizeSkuSegment(category.Name))
+            ?? 0;
+
+        var nextSequence = Math.Max(nextFromNames, nextFromSku);
+        if (nextSequence <= 0)
+        {
+            nextSequence = existingProducts.Count + 1;
+        }
+
+        return $"{namePrefix}{nextSequence}";
+    }
+
     private static int? TryReadProductNumberSequence(string? productNumber, string prefix)
     {
         if (string.IsNullOrWhiteSpace(productNumber))
@@ -2308,6 +2340,23 @@ public abstract partial class CatalogManagementController : Controller
         var suffix = normalized[expectedStart.Length..];
         var firstSegment = suffix.Split('-', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
         return int.TryParse(firstSegment, out var sequence) ? sequence : null;
+    }
+
+    private static int? TryReadGeneratedProductNameSequence(string? productName, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(productName) || string.IsNullOrWhiteSpace(prefix))
+        {
+            return null;
+        }
+
+        var normalizedName = productName.Trim();
+        if (!normalizedName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var suffix = normalizedName[prefix.Length..].Trim();
+        return int.TryParse(suffix, out var sequence) ? sequence : null;
     }
 
     private static bool TryValidateAttributeValue(EffectiveAttributeViewModel attribute, string rawValue, out string errorMessage)

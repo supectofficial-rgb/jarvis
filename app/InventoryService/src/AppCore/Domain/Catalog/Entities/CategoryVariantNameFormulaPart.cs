@@ -1,10 +1,11 @@
 namespace Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 
 using OysterFx.AppCore.Domain.Aggregates;
+using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class CategoryVariantNameFormulaPart : Aggregate
 {
-    public Guid FormulaRef { get; private set; }
+    public BusinessKey FormulaRef { get; private set; } = null!;
     public Guid AttributeRef { get; private set; }
     public int SortOrder { get; private set; }
 
@@ -22,7 +23,7 @@ public sealed class CategoryVariantNameFormulaPart : Aggregate
 
         return new CategoryVariantNameFormulaPart
         {
-            FormulaRef = formulaRef,
+            FormulaRef = BusinessKey.FromGuid(formulaRef),
             AttributeRef = attributeRef,
             SortOrder = sortOrder
         };

@@ -528,16 +528,16 @@
                                          data-policy="variant-gallery"
                                          data-base-url="@Configuration["FileService:BaseUrl"]"
                                          data-input-name="VariantForm.SelectedImagesJson">
-                                        <label>Ù…Ø¯ÛŒØ§ ÙˆØ§Ø±ÛŒØ§Ù†Øª</label>
+                                        <label>مدیای واریانت</label>
                                         <div class="border rounded p-3 bg-light">
                                             <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
                                             <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
                                                 <div class="progress-bar" style="width:0%;" data-media-progress></div>
                                             </div>
-                                            <div class="small text-muted mb-2" data-media-status>ØªØµÙˆÛŒØ± ÛŒØ§ ÙˆÛŒØ¯ÛŒÙˆ Ø±Ø§ Ø¢Ù¾Ù„ÙˆØ¯ Ú©Ù†ÛŒØ¯. ÙØ§ÛŒÙ„â€ŒÙ‡Ø§ Ø¨Ø¹Ø¯ Ø§Ø² Ø°Ø®ÛŒØ±Ù‡ ÙØ±Ù… Ø¨Ù‡ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù…ØªØµÙ„ Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯.</div>
-                                            <div class="small text-muted mb-3">Ù…Ø¯ÛŒØ§ÛŒ Ø§ØµÙ„ÛŒ Ø±Ø§ Ù…Ø´Ø®Øµ Ú©Ù†ÛŒØ¯ØŒ ØªØ±ØªÛŒØ¨ Ø±Ø§ Ø¬Ø§Ø¨Ù‡â€ŒØ¬Ø§ Ú©Ù†ÛŒØ¯ Ùˆ Ø¯Ø± ØµÙˆØ±Øª Ù†ÛŒØ§Ø² Ù‚Ø¨Ù„ Ø§Ø² Ø°Ø®ÛŒØ±Ù‡ Ø­Ø°Ù Ú©Ù†ÛŒØ¯.</div>
+                                            <div class="small text-muted mb-2" data-media-status>تصویر یا ویدیو را آپلود کنید. فایل‌ها بعد از ذخیره فرم به واریانت متصل می‌شوند.</div>
+                                            <div class="small text-muted mb-3">مدیای اصلی را مشخص کنید، ترتیب را جابه‌جا کنید و در صورت نیاز قبل از ذخیره حذف کنید.</div>
                                             <div class="row" data-media-items></div>
-                                            <div class="alert alert-light mb-0" data-media-empty>Ù‡Ù†ÙˆØ² Ù…Ø¯ÛŒØ§ÛŒÛŒ Ø§Ù†ØªØ®Ø§Ø¨ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</div>
+                                            <div class="alert alert-light mb-0" data-media-empty>هنوز مدیایی انتخاب نشده است.</div>
                                         </div>
                                     </div>
                                     <div class="mt-3">
@@ -884,10 +884,10 @@
                             <input asp-for="BulkVariantImageForm.ImagesJson" type="hidden" />
                             <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
                                 <div>
-                                    <strong>Ø«Ø¨Øª Ú¯Ø±ÙˆÙ‡ÛŒ Ù…Ø¯ÛŒØ§</strong>
-                                    <div class="small text-muted">Ú†Ù†Ø¯ ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø±Ø§ Ø§Ø² Ø¬Ø¯ÙˆÙ„ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ Ùˆ ÛŒÚ© Ù…Ø¬Ù…ÙˆØ¹Ù‡ Ø¹Ú©Ø³/ÙˆÛŒØ¯ÛŒÙˆ Ø±Ø§ Ø¨Ø±Ø§ÛŒ Ù‡Ù…Ù‡ Ø«Ø¨Øª Ú©Ù†ÛŒØ¯.</div>
+                                    <strong>ثبت گروهی مدیا</strong>
+                                    <div class="small text-muted">چند واریانت را از جدول انتخاب کنید و یک مجموعه عکس/ویدیو را برای همه ثبت کنید.</div>
                                 </div>
-                                <span class="badge badge-pill badge-outline-primary">Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡: <span data-bulk-count>0</span></span>
+                                <span class="badge badge-pill badge-outline-primary">انتخاب‌شده: <span data-bulk-count>0</span></span>
                             </div>
                             <div data-media-manager
                                  data-policy="variant-gallery"
@@ -897,16 +897,16 @@
                                 <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
                                     <div class="progress-bar" style="width:0%;" data-media-progress></div>
                                 </div>
-                                <div class="small text-muted mb-2" data-media-status>Ù…Ø¯ÛŒØ§Ù‡Ø§ Ø±Ø§ Ø¢Ù¾Ù„ÙˆØ¯ Ú©Ù†ÛŒØ¯ØŒ Ø³Ù¾Ø³ Ø±ÙˆÛŒ Ø¯Ú©Ù…Ù‡ Ø«Ø¨Øª Ø¨Ø±Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒÙ‡Ø§ Ø¨Ø²Ù†ÛŒØ¯.</div>
+                                <div class="small text-muted mb-2" data-media-status>مدیاها را آپلود کنید، سپس روی دکمه ثبت برای انتخاب‌ها بزنید.</div>
                                 <div class="row" data-media-items></div>
-                                <div class="alert alert-light mb-3" data-media-empty>Ù‡Ù†ÙˆØ² Ù…Ø¯ÛŒØ§ÛŒÛŒ Ø¨Ø±Ø§ÛŒ Ø«Ø¨Øª Ú¯Ø±ÙˆÙ‡ÛŒ Ø¢Ù…Ø§Ø¯Ù‡ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</div>
+                                <div class="alert alert-light mb-3" data-media-empty>هنوز مدیایی برای ثبت گروهی آماده نشده است.</div>
                             </div>
                             <div class="text-right">
                                 <button type="submit"
                                         class="btn btn-outline-primary"
                                         data-bulk-action="assign-media"
                                         data-bulk-permission="allowed">
-                                    Ø«Ø¨Øª Ù…Ø¯ÛŒØ§ Ø¨Ø±Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨â€ŒÙ‡Ø§
+                                    ثبت مدیا برای انتخاب‌ها
                                 </button>
                             </div>
                         </form>
@@ -1295,7 +1295,7 @@
                         </div>
                         @if (hasSelectedProduct && hasSelectedVariant)
                         {
-                            <p class="text-muted small">Ã˜Â§Ã›Å’Ã™â€  Ã™â€žÃ›Å’Ã˜Â³Ã˜Âª Ã™â€¦Ã˜Â´Ã˜Â®Ã˜Âµ Ã™â€¦Ã›Å’Ã¢â‚¬Å’ÃšÂ©Ã™â€ Ã˜Â¯ Ã˜Â§Ã›Å’Ã™â€  Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã˜Â² Ãšâ€ Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜ÂªÃ¢â‚¬Å’Ã™â€¡Ã˜Â§Ã›Å’ Ã™â€šÃ˜Â§Ã˜Â¨Ã™â€ž Ã™ÂÃ˜Â±Ã™Ë†Ã˜Â´ Ã˜Â¯Ã›Å’ÃšÂ¯Ã˜Â±Ã›Å’ Ã™Ë† Ã˜Â¨Ã˜Â§ Ãšâ€ Ã™â€¡ Ã˜ÂªÃ˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯Ã›Å’ Ã˜Â³Ã˜Â§Ã˜Â®Ã˜ÂªÃ™â€¡ Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜Â´Ã™Ë†Ã˜Â¯.</p>
+                            <p class="text-muted small">این لیست مشخص می‌کند این واریانت از چه واریانت‌هایی قابل تولید است و با چه تعدادی ساخته می‌شود.</p>
                             <div class="collapse mb-4" id="variant-component-editor">
                             <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-loading-form data-dirty-watch>
                                 @Html.AntiForgeryToken()
@@ -1304,9 +1304,9 @@
                                 <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
                                 <div class="form-row">
                                     <div class="col-md-8 mb-2">
-                                        <label>Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â³Ã˜Â§Ã˜Â²Ã™â€ Ã˜Â¯Ã™â€¡</label>
-                                        <select asp-for="VariantComponentForm.ComponentVariantId" class="form-control js-search-select" data-placeholder="Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª">
-                                            <option value="">Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª</option>
+                                        <label>واریانت سازنده</label>
+                                        <select asp-for="VariantComponentForm.ComponentVariantId" class="form-control js-search-select" data-placeholder="انتخاب واریانت">
+                                            <option value="">انتخاب واریانت</option>
                                             @foreach (var variant in Model.RelatedVariantLookup)
                                             {
                                                 <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
@@ -1314,7 +1314,7 @@
                                         </select>
                                     </div>
                                     <div class="col-md-4 mb-2">
-                                        <label>Ã˜ÂªÃ˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯</label>
+                                        <label>تعداد</label>
                                         <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
                                     </div>
                                 </div>
@@ -1520,19 +1520,19 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ Add-on</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Ã˜Â¨Ã˜Â³Ã˜ÂªÃ™â€ ">
+                <h5 class="modal-title">انتخاب Add-on</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <input type="search" class="form-control mb-3" id="bulk-addon-search" placeholder="Ã˜Â¬Ã˜Â³Ã˜ÂªÃ˜Â¬Ã™Ë†Ã›Å’ SKU Ã›Å’Ã˜Â§ Ã˜Â¨Ã˜Â§Ã˜Â±ÃšÂ©Ã˜Â¯" />
-                <div class="small text-muted mb-2">Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜ÂªÃ™Ë†Ã˜Â§Ã™â€ Ã›Å’Ã˜Â¯ Ãšâ€ Ã™â€ Ã˜Â¯ Add-on Ã˜Â±Ã˜Â§ Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ ÃšÂ©Ã™â€ Ã›Å’Ã˜Â¯.</div>
+                <input type="search" class="form-control mb-3" id="bulk-addon-search" placeholder="جست‌وجوی SKU یا بارکد" />
+                <div class="small text-muted mb-2">می‌توانید چند Add-on را انتخاب کنید.</div>
                 <div class="list-group" id="bulk-addon-selector-list" style="max-height:420px; overflow:auto;"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Ã˜Â¨Ã˜Â³Ã˜ÂªÃ™â€ </button>
-                <button type="button" class="btn btn-primary" id="bulk-addon-apply-selection">Ã˜Â§Ã˜Â¹Ã™â€¦Ã˜Â§Ã™â€ž Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨</button>
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">بستن</button>
+                <button type="button" class="btn btn-primary" id="bulk-addon-apply-selection">اعمال انتخاب</button>
             </div>
         </div>
     </div>
@@ -2417,15 +2417,15 @@
                                     previewHtml +
                                     '<div class="small text-muted mb-2">' + escapeHtml(item.originalFileName) + '</div>' +
                                     '<div class="mb-2">' +
-                                        '<span class="badge badge-pill badge-outline-primary">ØªØ±ØªÛŒØ¨: ' + item.displayOrder + '</span> ' +
-                                        (item.isPrimary ? '<span class="badge badge-pill badge-primary">Ø§ØµÙ„ÛŒ</span> ' : '') +
-                                        '<span class="badge badge-pill badge-light">' + (isVideoItem(item) ? 'ÙˆÛŒØ¯ÛŒÙˆ' : 'ØªØµÙˆÛŒØ±') + '</span>' +
+                                        '<span class="badge badge-pill badge-outline-primary">ترتیب: ' + item.displayOrder + '</span> ' +
+                                        (item.isPrimary ? '<span class="badge badge-pill badge-primary">اصلی</span> ' : '') +
+                                        '<span class="badge badge-pill badge-light">' + (isVideoItem(item) ? 'ویدیو' : 'تصویر') + '</span>' +
                                     '</div>' +
                                     '<div class="btn-group btn-group-sm flex-wrap">' +
-                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-up">Ø¨Ø§Ù„Ø§</button>' +
-                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-down">Ù¾Ø§ÛŒÛŒÙ†</button>' +
-                                        '<button type="button" class="btn btn-outline-primary btn-xs" data-media-action="make-primary">Ø§ØµÙ„ÛŒ</button>' +
-                                        '<button type="button" class="btn btn-outline-danger btn-xs" data-media-action="remove">Ø­Ø°Ù</button>' +
+                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-up">بالا</button>' +
+                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-down">پایین</button>' +
+                                        '<button type="button" class="btn btn-outline-primary btn-xs" data-media-action="make-primary">اصلی</button>' +
+                                        '<button type="button" class="btn btn-outline-danger btn-xs" data-media-action="remove">حذف</button>' +
                                     '</div>' +
                                 '</div></div>' +
                             '</div>';
@@ -2501,7 +2501,7 @@
 
                     for (var i = 0; i < list.length; i++) {
                         var file = list[i];
-                        setStatus('Ø¯Ø± Ø­Ø§Ù„ Ø¢Ù¾Ù„ÙˆØ¯: ' + file.name);
+                        setStatus('در حال آپلود: ' + file.name);
 
                         try {
                             var result = await uploadFile(file);
@@ -2515,9 +2515,9 @@
                                 isPrimary: state.items.length === 0
                             });
                             render();
-                            setStatus((result.originalFileName || file.name) + ' Ø¢Ù¾Ù„ÙˆØ¯ Ø´Ø¯.');
+                            setStatus((result.originalFileName || file.name) + ' آپلود شد.');
                         } catch (e) {
-                            setStatus('Ø¢Ù¾Ù„ÙˆØ¯ ÙØ§ÛŒÙ„ Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.');
+                            setStatus('آپلود فایل انجام نشد.');
                             break;
                         }
                     }

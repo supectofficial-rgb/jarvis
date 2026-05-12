@@ -3,12 +3,17 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Vari
 using Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class CategoryVariantNameFormulaPartConfig : IEntityTypeConfiguration<CategoryVariantNameFormulaPart>
 {
     public void Configure(EntityTypeBuilder<CategoryVariantNameFormulaPart> builder)
     {
         builder.ToTable("CategoryVariantNameFormulaParts");
+        builder.Property(x => x.FormulaRef)
+            .HasConversion(
+                key => key.Value,
+                value => BusinessKey.FromGuid(value));
         builder.HasIndex(x => new { x.FormulaRef, x.SortOrder }).IsUnique();
         builder.HasIndex(x => new { x.FormulaRef, x.AttributeRef }).IsUnique();
     }

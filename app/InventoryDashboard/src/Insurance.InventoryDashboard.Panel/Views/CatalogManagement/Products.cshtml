@@ -396,9 +396,9 @@
                                     <input asp-for="ProductForm.ImageThumbnailUrl" type="hidden" />
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
-                                    <div class="form-group">
+                                    <div class="form-group @(isEditMode ? string.Empty : "d-none")">
                                         <label>نام محصول</label>
-                                        <input asp-for="ProductForm.Name" class="form-control" required maxlength="160" />
+                                        <input asp-for="ProductForm.Name" class="form-control" maxlength="160" />
                                     </div>
                                     <input asp-for="ProductForm.BaseSku" type="hidden" />
                                     @if (isEditMode)
@@ -1057,78 +1057,6 @@
                     </div>
                 </div>
 
-                <div class="card ">
-                    <div class="card-body">
-                        <h5 class="card-title">جزئیات محصول</h5>
-                        @if (Model.SelectedProductDetails is null)
-                        {
-                            <div class="alert alert-light mb-0">
-                                <h6>محصولی انتخاب نشده است</h6>
-                                <p class="mb-0 text-muted">از لیست محصولات، یک ردیف را برای مشاهده جزئیات انتخاب کنید.</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <p class="mb-1"><strong>نام:</strong> @Model.SelectedProductDetails.Name</p>
-                            <p class="mb-1"><strong>شماره محصول:</strong> <span class="text-monospace">@Model.SelectedProductDetails.BaseSku</span></p>
-                            <p class="mb-1">
-                                <strong>وضعیت:</strong>
-                                <span class="badge badge-pill @(Model.SelectedProductDetails.IsActive ? "badge-primary" : "badge-secondary")">
-                                    @(Model.SelectedProductDetails.IsActive ? "فعال" : "غیرفعال")
-                                </span>
-                            </p>
-                            <p class="mb-1"><strong>مرجع مالیات:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedProductDetails.TaxCategoryRef) ? "-" : Model.SelectedProductDetails.TaxCategoryRef)</p>
-                            <h6 class="mt-3">ویژگی‌های ثبت‌شده</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead><tr><th>ویژگی</th><th>مقدار</th><th>متادیتا</th><th></th></tr></thead>
-                                    <tbody>
-                                        @foreach (var attr in Model.SelectedProductDetails.Attributes)
-                                        {
-                                            effectiveProductAttributeLookup.TryGetValue(attr.AttributeId, out var attrMeta);
-                                            var currentValue = !string.IsNullOrWhiteSpace(attr.OptionValue)
-                                                ? attr.OptionValue
-                                                : attr.Value;
-                                            var optionDisplayName = !string.IsNullOrWhiteSpace(attr.OptionValue) && attrMeta is not null
-                                                ? attrMeta.Options.FirstOrDefault(o => string.Equals(o.OptionValue, attr.OptionValue, StringComparison.OrdinalIgnoreCase))?.OptionName
-                                                : null;
-                                            var displayValue = !string.IsNullOrWhiteSpace(optionDisplayName)
-                                                ? optionDisplayName
-                                                : currentValue;
-                                            <tr>
-                                                <td>@(attr.AttributeName ?? attr.AttributeId)</td>
-                                                <td>@(string.IsNullOrWhiteSpace(displayValue) ? "-" : displayValue)</td>
-                                                <td>
-                                                    @if (attrMeta is not null)
-                                                    {
-                                                        <span class="badge badge-pill @(attrMeta.IsRequired ? "badge-danger" : "badge-light")">@(attrMeta.IsRequired ? "الزامی" : "اختیاری")</span>
-                                                        <span class="badge badge-pill @(attrMeta.IsInherited ? "badge-outline-primary" : "badge-outline-secondary")">@(attrMeta.IsInherited ? "ارث‌رسیده" : "مستقیم")</span>
-                                                    }
-                                                </td>
-                                                <td>
-                                                    <button type="button"
-                                                            class="btn btn-outline-secondary btn-xs product-attribute-edit-btn"
-                                                            data-attribute-id="@attr.AttributeId"
-                                                            data-current-value="@currentValue"
-                                                            @(Can("Catalog.ProductAttributeValue.Set", "ProductAttributeValue.Set") ? null : "disabled")>
-                                                        ویرایش
-                                                    </button>
-                                                    <form asp-action="RemoveProductAttributeValue" method="post" class="d-inline" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="productId" value="@Model.SelectedProductDetails.Id" />
-                                                        <input type="hidden" name="categoryId" value="@Model.SelectedProductDetails.CategoryId" />
-                                                        <input type="hidden" name="attributeId" value="@attr.AttributeId" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف مقدار ویژگی" data-confirm="مقدار این ویژگی از محصول حذف شود؟" @(Can("Catalog.ProductAttributeValue.Remove", "ProductAttributeValue.Remove") ? null : "disabled")>حذف</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -1164,6 +1092,7 @@
             var autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
             var createAttributeStatus = document.getElementById('product-create-attribute-status');
             var createAttributesUrl = pageElement ? (pageElement.getAttribute('data-create-attributes-url') || '') : '';
+            var productListRequestId = 0;
             var createAttributesRequestId = 0;
             var lastCreateAttributesCategoryId = '';
             var isEditMode = !!(productUpsertForm && productUpsertForm.querySelector('[name="ProductForm.ProductId"]') && (productUpsertForm.querySelector('[name="ProductForm.ProductId"]').value || '').trim());
@@ -1392,6 +1321,88 @@
                 setFieldIfMissing(searchForm, 'statusFilter', state.filters.statusFilter);
                 setFieldIfMissing(searchForm, 'sort', state.filters.sort);
                 setFieldIfMissing(searchForm, 'pageSize', state.filters.pageSize);
+            }
+
+            function setProductListLoading(isLoading) {
+                if (!productListTabPanel) {
+                    return;
+                }
+
+                productListTabPanel.classList.toggle('opacity-50', !!isLoading);
+                productListTabPanel.style.pointerEvents = isLoading ? 'none' : '';
+            }
+
+            function buildProductListUrl(pageUrl) {
+                if (pageUrl) {
+                    return pageUrl;
+                }
+
+                if (!searchForm) {
+                    return window.location.href;
+                }
+
+                var url = new URL(searchForm.getAttribute('action') || window.location.pathname, window.location.origin);
+                var formData = new FormData(searchForm);
+                var params = new URLSearchParams(formData);
+
+                params.forEach(function (value, key) {
+                    url.searchParams.set(key, value);
+                });
+
+                url.hash = 'product-tab-list';
+                return url.toString();
+            }
+
+            function refreshProductList(requestUrl) {
+                if (!productListTabPanel || !requestUrl) {
+                    return Promise.resolve();
+                }
+
+                var currentRequestId = ++productListRequestId;
+                setProductListLoading(true);
+
+                return fetch(requestUrl, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Request failed with status ' + response.status);
+                        }
+
+                        return response.text();
+                    })
+                    .then(function (html) {
+                        if (currentRequestId !== productListRequestId) {
+                            return;
+                        }
+
+                        var parser = new DOMParser();
+                        var nextDocument = parser.parseFromString(html, 'text/html');
+                        var nextPanel = nextDocument.getElementById('product-list-tab-panel');
+
+                        if (!nextPanel) {
+                            throw new Error('Product list panel not found in response.');
+                        }
+
+                        productListTabPanel.innerHTML = nextPanel.innerHTML;
+
+                        if (window.history && window.history.replaceState) {
+                            var nextUrl = new URL(requestUrl, window.location.origin);
+                            nextUrl.hash = 'product-tab-list';
+                            window.history.replaceState({}, '', nextUrl.toString());
+                        }
+                    })
+                    .catch(function () {
+                        window.location.href = requestUrl;
+                    })
+                    .finally(function () {
+                        if (currentRequestId === productListRequestId) {
+                            setProductListLoading(false);
+                        }
+                    });
             }
 
             function escapeHtml(value) {
@@ -2394,6 +2405,30 @@
                     field.addEventListener('input', function () {
                         savePageState();
                     });
+                });
+
+                searchForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    savePageState();
+                    refreshProductList(buildProductListUrl());
+                });
+            }
+
+            if (productListTabPanel) {
+                productListTabPanel.addEventListener('click', function (event) {
+                    var pageLink = event.target.closest('.page-link');
+                    if (!pageLink) {
+                        return;
+                    }
+
+                    var pageUrl = pageLink.getAttribute('href');
+                    if (!pageUrl) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    savePageState();
+                    refreshProductList(pageUrl);
                 });
             }
 

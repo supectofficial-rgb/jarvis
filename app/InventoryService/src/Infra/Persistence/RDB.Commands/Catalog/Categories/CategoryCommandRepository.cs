@@ -56,12 +56,11 @@ public class CategoryCommandRepository
             .Where(x => x.CategoryRef == categoryKey)
             .Select(x => x.BusinessKey)
             .ToListAsync();
-        var schemaVersionRefs = schemaVersionKeys.Select(x => x.Value).ToList();
 
-        if (schemaVersionRefs.Count > 0)
+        if (schemaVersionKeys.Count > 0)
         {
             await _dbContext.Set<CategoryAttributeRule>()
-                .Where(x => schemaVersionRefs.Contains(x.CategorySchemaVersionRef))
+                .Where(x => schemaVersionKeys.Contains(x.CategorySchemaVersionRef))
                 .ExecuteDeleteAsync();
 
             await _dbContext.Set<CategorySchemaVersion>()
@@ -71,7 +70,7 @@ public class CategoryCommandRepository
 
         var formulaRefs = await _dbContext.Set<CategoryVariantNameFormula>()
             .Where(x => x.CategoryRef == categoryBusinessKey)
-            .Select(x => x.BusinessKey.Value)
+            .Select(x => x.BusinessKey)
             .ToListAsync();
 
         if (formulaRefs.Count > 0)
