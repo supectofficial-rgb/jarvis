@@ -11,7 +11,7 @@ on:
       export_image_archives:
         description: export docker images as tar.gz artifacts
         required: true
-        default: false
+        default: true
         type: boolean
       build_scope:
         description: changed or all buildable microservices
