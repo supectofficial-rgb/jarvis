@@ -34,6 +34,9 @@ permissions:
   contents: read
   packages: write
 
+env:
+  EXPORT_IMAGE_ARCHIVES_ON_PUSH: 'false'
+
 concurrency:
   group: docker-build-deploy-${{ github.ref }}
   cancel-in-progress: false
@@ -63,7 +66,7 @@ jobs:
           echo "sha=${{ github.sha }}"
           echo "build_scope=${{ inputs.build_scope || 'changed' }}"
           echo "push_to_ghcr=${{ inputs.push_to_ghcr || 'false' }}"
-          echo "export_image_archives=${{ inputs.export_image_archives || 'false' }}"
+          echo "export_image_archives=${{ github.event_name == 'workflow_dispatch' && inputs.export_image_archives || env.EXPORT_IMAGE_ARCHIVES_ON_PUSH }}"
           echo "include_infra=${{ inputs.include_infra || 'false' }}"
 
       - name: Resolve changed files
@@ -80,7 +83,7 @@ jobs:
           BUILD_SCOPE: ${{ inputs.build_scope || 'changed' }}
           INCLUDE_INFRA: ${{ inputs.include_infra || 'false' }}
           PUSH_TO_GHCR: ${{ inputs.push_to_ghcr || 'false' }}
-          EXPORT_IMAGE_ARCHIVES: ${{ inputs.export_image_archives || 'false' }}
+          EXPORT_IMAGE_ARCHIVES: ${{ github.event_name == 'workflow_dispatch' && inputs.export_image_archives || env.EXPORT_IMAGE_ARCHIVES_ON_PUSH }}
           CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
           GIT_SHA: ${{ github.sha }}
@@ -347,11 +350,11 @@ jobs:
             echo "- Service: ${{ matrix.service || 'n/a' }}"
             echo "- Mode: ${{ matrix.mode }}"
             echo "- GHCR push enabled: ${{ inputs.push_to_ghcr }}"
-            echo "- Archive export enabled: ${{ inputs.export_image_archives }}"
+            echo "- Archive export enabled: ${{ github.event_name == 'workflow_dispatch' && inputs.export_image_archives || env.EXPORT_IMAGE_ARCHIVES_ON_PUSH }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save image as tar.gz
-        if: github.event_name == 'workflow_dispatch' && inputs.export_image_archives
+        if: (github.event_name == 'workflow_dispatch' && inputs.export_image_archives) || (github.event_name == 'push' && env.EXPORT_IMAGE_ARCHIVES_ON_PUSH == 'true')
         shell: bash
         run: |
           set -euo pipefail
@@ -363,7 +366,7 @@ jobs:
           ls -lh docker-image
 
       - name: Upload image artifact
-        if: github.event_name == 'workflow_dispatch' && inputs.export_image_archives
+        if: (github.event_name == 'workflow_dispatch' && inputs.export_image_archives) || (github.event_name == 'push' && env.EXPORT_IMAGE_ARCHIVES_ON_PUSH == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-${{ matrix.artifact }}
