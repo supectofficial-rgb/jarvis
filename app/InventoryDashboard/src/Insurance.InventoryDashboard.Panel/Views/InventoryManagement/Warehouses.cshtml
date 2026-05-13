@@ -2,7 +2,7 @@
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.WarehouseManagementPageViewModel
 @{
-    ViewData["Title"] = "مدیریت انبار";
+    ViewData["Title"] = UiText["inventory.warehouses.title"];
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -55,14 +55,14 @@
         <div class="row">
             <div class="col-12">
                 <div class="mb-4">
-                    <h1>مدیریت انبار</h1>
-                    <p class="text-muted">تعریف انبارها و لوکیشن‌هایی که بعداً در اسناد موجودی استفاده می‌شوند.</p>
+                    <h1>@UiText["inventory.warehouses.title"]</h1>
+                    <p class="text-muted">@UiText["inventory.warehouses.description"]</p>
                     <div>
-                        <span class="badge badge-pill badge-outline-primary mb-1">انبارها: @Model.WarehouseTotalCount</span>
-                        <span class="badge badge-pill badge-outline-primary mb-1">لوکیشن‌های فیلترشده: @Model.LocationTotalCount</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.warehouses.summary.warehouseCount"] @Model.WarehouseTotalCount</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.warehouses.summary.filteredLocationCount"] @Model.LocationTotalCount</span>
                         @if (!string.IsNullOrWhiteSpace(selectedWarehouseName))
                         {
-                            <span class="badge badge-pill badge-outline-secondary mb-1">انبار منتخب: @selectedWarehouseName</span>
+                            <span class="badge badge-pill badge-outline-secondary mb-1">@UiText["inventory.warehouses.summary.selectedWarehouse"] @selectedWarehouseName</span>
                         }
                     </div>
                 </div>
@@ -86,13 +86,13 @@
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4 d-none" role="tablist" id="warehouse-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link @(showWarehouses ? "active" : null)" data-toggle="tab" href="#warehouse-tab-form" role="tab">فرم انبار</a>
+                        <a class="nav-link @(showWarehouses ? "active" : null)" data-toggle="tab" href="#warehouse-tab-form" role="tab">@UiText["inventory.warehouses.tabs.warehouseForm"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(showLocations ? "active" : null)" data-toggle="tab" href="#warehouse-tab-location" role="tab">فرم لوکیشن</a>
+                        <a class="nav-link @(showLocations ? "active" : null)" data-toggle="tab" href="#warehouse-tab-location" role="tab">@UiText["inventory.warehouses.tabs.locationForm"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#warehouse-tab-details" role="tab">جزئیات انبار</a>
+                        <a class="nav-link" data-toggle="tab" href="#warehouse-tab-details" role="tab">@UiText["inventory.warehouses.tabs.details"]</a>
                     </li>
                 </ul>
 
@@ -100,19 +100,19 @@
                     <div class="tab-pane fade @(showWarehouses ? "show active" : null)" id="warehouse-tab-form" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs ml-0 mb-4 inventory-section-tabs" role="tablist" data-section-tabs>
                             <li class="nav-item">
-                                <a class="nav-link active" data-section-target="#warehouse-section-create">افزودن انبار</a>
+                                <a class="nav-link active" data-section-target="#warehouse-section-create">@UiText["inventory.warehouses.createWarehouse"]</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" data-section-target="#warehouse-section-search">جستجو و لیست انبارها</a>
+                                <a class="nav-link" data-section-target="#warehouse-section-search">@UiText["inventory.warehouses.searchWarehouses"]</a>
                             </li>
                         </ul>
                         <div class="card mb-4 inventory-section-pane" id="warehouse-section-create">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="card-title mb-0">@(isWarehouseEditMode ? "ویرایش انبار" : "ایجاد انبار")</h5>
+                                    <h5 class="card-title mb-0">@(isWarehouseEditMode ? UiText["inventory.warehouses.editWarehouse"] : UiText["inventory.warehouses.createWarehouseTitle"])</h5>
                                     @if (isWarehouseEditMode)
                                     {
-                                        <a asp-action="Warehouses" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                        <a asp-action="Warehouses" class="btn btn-outline-secondary btn-xs">@UiText["common.createNew"]</a>
                                     }
                                 </div>
                                 <form asp-action="SaveWarehouse" method="post" data-loading-form data-dirty-watch>
@@ -120,22 +120,22 @@
                                     <input asp-for="WarehouseForm.WarehouseId" type="hidden" />
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
                                     <div class="form-group">
-                                        <label>کد انبار</label>
-                                        <input asp-for="WarehouseForm.Code" class="form-control text-monospace" required maxlength="50" placeholder="مثال: MAIN" />
+                                        <label>@UiText["inventory.warehouses.code"]</label>
+                                        <input asp-for="WarehouseForm.Code" class="form-control text-monospace" required maxlength="50" placeholder="@UiText["inventory.warehouses.exampleMain"]" />
                                     </div>
                                     <div class="form-group">
-                                        <label>نام انبار</label>
+                                        <label>@UiText["inventory.warehouses.name"]</label>
                                         <input asp-for="WarehouseForm.Name" class="form-control" required maxlength="160" />
                                     </div>
                                     @if (isWarehouseEditMode)
                                     {
                                         <div class="custom-control custom-checkbox mt-2">
                                             <input asp-for="WarehouseForm.IsActive" class="custom-control-input" />
-                                        <label class="custom-control-label" asp-for="WarehouseForm.IsActive">انبار فعال باشد</label>
+                                        <label class="custom-control-label" asp-for="WarehouseForm.IsActive">@UiText["inventory.warehouses.activeToggle"]</label>
                                     </div>
                                     }
                                     <button class="btn btn-primary mt-3" type="submit" @(Can("Inventory.Warehouse.Create", "Inventory.Warehouse.Update", "Warehouse.Create", "Warehouse.Update") ? null : "disabled")>
-                                        @(isWarehouseEditMode ? "به‌روزرسانی انبار" : "ایجاد انبار")
+                                        @(isWarehouseEditMode ? UiText["inventory.warehouses.updateWarehouse"] : UiText["inventory.warehouses.createWarehouseTitle"])
                                     </button>
                                 </form>
                             </div>
@@ -145,19 +145,19 @@
                     <div class="tab-pane fade @(showLocations ? "show active" : null)" id="warehouse-tab-location" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs ml-0 mb-4 inventory-section-tabs" role="tablist" data-section-tabs>
                             <li class="nav-item">
-                                <a class="nav-link active" data-section-target="#location-section-create">افزودن لوکیشن</a>
+                                <a class="nav-link active" data-section-target="#location-section-create">@UiText["inventory.warehouses.createLocation"]</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" data-section-target="#location-section-search">جستجو و لیست لوکیشن‌ها</a>
+                                <a class="nav-link" data-section-target="#location-section-search">@UiText["inventory.warehouses.searchLocations"]</a>
                             </li>
                         </ul>
                         <div class="card mb-4 inventory-section-pane" id="location-section-create">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="card-title mb-0">@(isLocationEditMode ? "ویرایش لوکیشن" : "ایجاد لوکیشن")</h5>
+                                    <h5 class="card-title mb-0">@(isLocationEditMode ? UiText["inventory.warehouses.editLocation"] : UiText["inventory.warehouses.createLocationTitle"])</h5>
                                     @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
                                     {
-                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs">ایجاد لوکیشن جدید</a>
+                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs">@UiText["inventory.warehouses.createLocationNew"]</a>
                                     }
                                 </div>
                                 <form asp-action="SaveLocation" method="post" data-loading-form data-dirty-watch>
@@ -165,9 +165,9 @@
                                     <input asp-for="LocationForm.LocationId" type="hidden" />
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
                                     <div class="form-group">
-                                        <label>انبار</label>
-                                        <select asp-for="LocationForm.WarehouseId" class="form-control js-search-select" data-placeholder="انتخاب انبار" required>
-                                            <option value="">انتخاب انبار</option>
+                                        <label>@UiText["inventory.warehouses.warehouse"]</label>
+                                        <select asp-for="LocationForm.WarehouseId" class="form-control js-search-select" data-placeholder="@UiText["inventory.warehouses.selectWarehouse"]" required>
+                                            <option value="">@UiText["inventory.warehouses.selectWarehouse"]</option>
                                             @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                             {
                                                 <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
@@ -175,11 +175,11 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label>کد لوکیشن</label>
-                                        <input asp-for="LocationForm.LocationCode" class="form-control text-monospace" required maxlength="80" placeholder="مثال: A-01-03" />
+                                        <label>@UiText["inventory.warehouses.locationCode"]</label>
+                                        <input asp-for="LocationForm.LocationCode" class="form-control text-monospace" required maxlength="80" placeholder="@UiText["inventory.warehouses.exampleLocation"]" />
                                     </div>
                                     <div class="form-group">
-                                        <label>نوع لوکیشن</label>
+                                        <label>@UiText["inventory.warehouses.locationType"]</label>
                                         <select asp-for="LocationForm.LocationType" class="form-control js-search-select" data-no-search="true">
                                             <option value="Bulk">Bulk</option>
                                             <option value="Pick">Pick</option>
@@ -190,19 +190,19 @@
                                     </div>
                                     <div class="form-row">
                                         <div class="form-group col-md-3">
-                                            <label>راهرو</label>
+                                            <label>@UiText["inventory.warehouses.aisle"]</label>
                                             <input asp-for="LocationForm.Aisle" class="form-control" maxlength="40" />
                                         </div>
                                         <div class="form-group col-md-3">
-                                            <label>رک</label>
+                                            <label>@UiText["inventory.warehouses.rack"]</label>
                                             <input asp-for="LocationForm.Rack" class="form-control" maxlength="40" />
                                         </div>
                                         <div class="form-group col-md-3">
-                                            <label>طبقه</label>
+                                            <label>@UiText["inventory.warehouses.shelf"]</label>
                                             <input asp-for="LocationForm.Shelf" class="form-control" maxlength="40" />
                                         </div>
                                         <div class="form-group col-md-3">
-                                            <label>باکس</label>
+                                            <label>@UiText["inventory.warehouses.bin"]</label>
                                             <input asp-for="LocationForm.Bin" class="form-control" maxlength="40" />
                                         </div>
                                     </div>
@@ -210,11 +210,11 @@
                                     {
                                         <div class="custom-control custom-checkbox mt-2">
                                             <input asp-for="LocationForm.IsActive" class="custom-control-input" />
-                                        <label class="custom-control-label" asp-for="LocationForm.IsActive">لوکیشن فعال باشد</label>
+                                        <label class="custom-control-label" asp-for="LocationForm.IsActive">@UiText["inventory.warehouses.locationActiveToggle"]</label>
                                     </div>
                                     }
                                     <button class="btn btn-primary mt-3" type="submit" @(Can("Inventory.Location.Create", "Inventory.Location.Update", "Location.Create", "Location.Update") ? null : "disabled")>
-                                        @(isLocationEditMode ? "به‌روزرسانی لوکیشن" : "ایجاد لوکیشن")
+                                        @(isLocationEditMode ? UiText["inventory.warehouses.updateLocation"] : UiText["inventory.warehouses.createLocationTitle"])
                                     </button>
                                 </form>
                             </div>
@@ -224,25 +224,25 @@
                     <div class="tab-pane fade" id="warehouse-tab-details" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title">جزئیات انبار</h5>
+                                <h5 class="card-title">@UiText["inventory.warehouses.detailsTitle"]</h5>
                                 @if (Model.SelectedWarehouseDetails is null)
                                 {
-                                    <div class="alert alert-light mb-0">انبار منتخب برای نمایش جزئیات وجود ندارد.</div>
+                                    <div class="alert alert-light mb-0">@UiText["inventory.warehouses.noWarehouseSelected"]</div>
                                 }
                                 else
                                 {
                                     <p class="mb-1"><strong>کد:</strong> <span class="text-monospace">@Model.SelectedWarehouseDetails.Code</span></p>
                                     <p class="mb-1"><strong>نام:</strong> @Model.SelectedWarehouseDetails.Name</p>
                                     <p class="mb-3">
-                                        <strong>وضعیت:</strong>
+                                        <strong>@UiText["common.status"]:</strong>
                                         <span class="badge badge-pill @(Model.SelectedWarehouseDetails.IsActive ? "badge-primary" : "badge-secondary")">
-                                            @(Model.SelectedWarehouseDetails.IsActive ? "فعال" : "غیرفعال")
+                                            @(Model.SelectedWarehouseDetails.IsActive ? UiText["common.active"] : UiText["common.inactive"])
                                         </span>
                                     </p>
-                                    <h6 class="mb-2">لوکیشن‌های این انبار</h6>
+                                    <h6 class="mb-2">@UiText["inventory.warehouses.thisWarehouseLocations"]</h6>
                                     @if (Model.SelectedWarehouseDetails.Locations.Count == 0)
                                     {
-                                        <div class="text-muted small">لوکیشنی برای این انبار ثبت نشده است.</div>
+                                        <div class="text-muted small">@UiText["inventory.warehouses.noLocationsForWarehouse"]</div>
                                     }
                                     else
                                     {

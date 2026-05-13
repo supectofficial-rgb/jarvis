@@ -2,7 +2,7 @@
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
-    ViewData["Title"] = "اسناد موجودی";
+    ViewData["Title"] = UiText["inventory.documents.title"];
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -46,23 +46,23 @@
 
     string TypeLabel(string? type) => type switch
     {
-        "Receipt" => "رسید",
-        "Issue" => "حواله",
-        "Transfer" => "انتقال",
-        "Adjustment" => "تعدیل",
-        "Return" => "برگشت",
-        "QualityChange" => "تغییر کیفیت",
-        "Conversion" => "تبدیل",
+        "Receipt" => UiText["inventory.documents.type.receipt"],
+        "Issue" => UiText["inventory.documents.type.issue"],
+        "Transfer" => UiText["inventory.documents.type.transfer"],
+        "Adjustment" => UiText["inventory.documents.type.adjustment"],
+        "Return" => UiText["inventory.documents.type.return"],
+        "QualityChange" => UiText["inventory.documents.type.qualityChange"],
+        "Conversion" => UiText["inventory.documents.type.conversion"],
         _ => type ?? "-"
     };
 
     string StatusLabel(string? status) => status switch
     {
-        "Draft" => "پیش نویس",
-        "Approved" => "تایید شده",
-        "Rejected" => "رد شده",
-        "Cancelled" => "لغو شده",
-        "Posted" => "پست شده",
+        "Draft" => UiText["inventory.documents.status.draft"],
+        "Approved" => UiText["inventory.documents.status.approved"],
+        "Rejected" => UiText["inventory.documents.status.rejected"],
+        "Cancelled" => UiText["inventory.documents.status.cancelled"],
+        "Posted" => UiText["inventory.documents.status.posted"],
         _ => status ?? "-"
     };
 
@@ -140,8 +140,8 @@
 
     string AdjustmentDirectionLabel(string? direction) => direction switch
     {
-        "Increase" => "افزایش",
-        "Decrease" => "کاهش",
+        "Increase" => UiText["inventory.documents.adjustment.increase"],
+        "Decrease" => UiText["inventory.documents.adjustment.decrease"],
         _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
     };
 }
@@ -151,13 +151,13 @@
         <div class="row">
             <div class="col-12">
                 <div class="mb-4">
-                    <h1>اسناد موجودی</h1>
-                    <p class="text-muted">ایجاد، پیگیری و کنترل وضعیت اسناد انبار و حرکات موجودی.</p>
+                    <h1>@UiText["inventory.documents.title"]</h1>
+                    <p class="text-muted">@UiText["inventory.documents.description"]</p>
                     <div>
-                        <span class="badge badge-pill badge-outline-primary mb-1">اسناد: @Model.DocumentTotalCount</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.documents.summary.documents"] @Model.DocumentTotalCount</span>
                         @if (!string.IsNullOrWhiteSpace(Model.SelectedDocumentId))
                         {
-                            <span class="badge badge-pill badge-outline-secondary mb-1">سند منتخب: @(Model.SelectedDocumentDetails?.DocumentNo ?? Model.SelectedDocumentId)</span>
+                            <span class="badge badge-pill badge-outline-secondary mb-1">@UiText["inventory.documents.summary.selectedDocument"] @(Model.SelectedDocumentDetails?.DocumentNo ?? Model.SelectedDocumentId)</span>
                         }
                     </div>
                 </div>
@@ -182,41 +182,41 @@
                 <div class="card mb-4">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0">ایجاد سند</h5>
-                            <span class="text-muted small">ثبت بر پایه Base UOM واریانت</span>
+                            <h5 class="card-title mb-0">@UiText["inventory.documents.createTitle"]</h5>
+                            <span class="text-muted small">@UiText["inventory.documents.baseUomNotice"]</span>
                         </div>
 
                         <form asp-action="SaveDocument" method="post" data-loading-form id="document-create-form">
                             @Html.AntiForgeryToken()
                             <div class="form-row">
                                 <div class="form-group col-md-2">
-                                    <label>نوع سند</label>
+                                    <label>@UiText["inventory.documents.documentType"]</label>
                                     <select asp-for="CreateForm.DocumentType" class="form-control" id="document-type-select">
-                                        <option value="Receipt">رسید</option>
-                                        <option value="Issue">حواله</option>
-                                        <option value="Transfer">انتقال</option>
-                                        <option value="Adjustment">تعدیل</option>
-                                        <option value="Return">برگشت</option>
-                                        <option value="QualityChange">تغییر کیفیت</option>
-                                        <option value="Conversion">تبدیل</option>
+                                        <option value="Receipt">@UiText["inventory.documents.type.receipt"]</option>
+                                        <option value="Issue">@UiText["inventory.documents.type.issue"]</option>
+                                        <option value="Transfer">@UiText["inventory.documents.type.transfer"]</option>
+                                        <option value="Adjustment">@UiText["inventory.documents.type.adjustment"]</option>
+                                        <option value="Return">@UiText["inventory.documents.type.return"]</option>
+                                        <option value="QualityChange">@UiText["inventory.documents.type.qualityChange"]</option>
+                                        <option value="Conversion">@UiText["inventory.documents.type.conversion"]</option>
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2">
-                                    <label>شماره سند</label>
+                                    <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
                                 <div class="form-group col-md-2">
-                                    <label>نوع مرجع</label>
+                                    <label>@UiText["inventory.documents.referenceType"]</label>
                                     <input asp-for="CreateForm.ReferenceType" class="form-control" />
                                 </div>
                                 <div class="form-group col-md-2">
-                                    <label>شناسه مرجع</label>
+                                    <label>@UiText["inventory.documents.referenceId"]</label>
                                     <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
                                 </div>
                                 <div class="form-group col-md-2">
-                                    <label>انبار</label>
+                                    <label>@UiText["inventory.documents.warehouse"]</label>
                                     <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
-                                        <option value="">انتخاب انبار</option>
+                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
                                         @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                         {
                                             <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
@@ -224,9 +224,9 @@
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2">
-                                    <label>فروشنده</label>
+                                    <label>@UiText["inventory.documents.seller"]</label>
                                     <select asp-for="CreateForm.SellerRef" class="form-control" required>
-                                        <option value="">انتخاب فروشنده</option>
+                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
                                         @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
                                         {
                                             <option value="@seller.SellerBusinessKey">@seller.Code - @seller.Name</option>
@@ -234,11 +234,11 @@
                                     </select>
                                 </div>
                                 <div class="form-group col-md-3">
-                                    <label>زمان وقوع</label>
+                                    <label>@UiText["inventory.documents.occurredAt"]</label>
                                     <input asp-for="CreateForm.OccurredAt" type="datetime-local" class="form-control" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
                                 </div>
                                 <div class="form-group col-md-3">
-                                    <label>علت کلی</label>
+                                    <label>@UiText["inventory.documents.reason"]</label>
                                     <input asp-for="CreateForm.ReasonCode" class="form-control" />
                                 </div>
                             </div>
@@ -248,10 +248,10 @@
 
                             <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
                                 <div>
-                                    <h6 class="mb-0">ردیف ها</h6>
-                                    <div class="text-muted small">هر ردیف یک واریانت و مسیر حرکت موجودی را ثبت می کند.</div>
+                                    <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
+                                    <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
                                 </div>
-                                <button class="btn btn-outline-primary btn-xs" type="button" id="add-document-line">افزودن ردیف</button>
+                                <button class="btn btn-outline-primary btn-xs" type="button" id="add-document-line">@UiText["inventory.documents.addLine"]</button>
                             </div>
 
                             <div id="document-lines">

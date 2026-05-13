@@ -1,0 +1,10 @@
+diff --git a/app/InventoryDashboard/src/Insurance.InventoryDashboard.Panel/Views/CatalogManagement/Products.cshtml b/tmp_products_fixed.cshtml
+index d501d70..1eed1a4 100644
+--- a/app/InventoryDashboard/src/Insurance.InventoryDashboard.Panel/Views/CatalogManagement/Products.cshtml
++++ b/tmp_products_fixed.cshtml
+@@ -1,4 +1,4 @@
+-@using System
++?@using System
+ @using System.Linq
+ @using System.Text.Json
+ @model Insurance.InventoryDashboard.Panel.Models.ProductManagementPageViewModel

@@ -10,6 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../../../../../fx/src/Infra/Persistence/RDB.Queries/OysterFx.Infra.Persistence.RDB.Queries.csproj" />
+    <ProjectReference Include="../../../../../../fx/src/Infra/Auth/UserServices/OysterFx.Infra.Auth.UserServices.csproj" />
     <ProjectReference Include="../../../AppCore/Domain/Insurance.InventoryService.AppCore.Domain.csproj" />
     <ProjectReference Include="../../../AppCore/Shared/Insurance.InventoryService.AppCore.Shared.csproj" />
   </ItemGroup>

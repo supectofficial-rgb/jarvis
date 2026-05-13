@@ -1,10 +1,12 @@
 ﻿<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+@using System.Text.Json
+@using Insurance.InventoryDashboard.Panel.Services.Localization
+<html lang="@UiText.Language" dir="rtl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
     @* dashboard deployment trace marker v3 *@
-    <title>@ViewData["Title"] - داشبورد </title>
+    <title>@ViewData["Title"] - @UiText["auth.titleSuffix"]</title>
     <link rel="shortcut icon" href="@Url.Content("~/favicon.ico")" />
 
     <link rel="stylesheet" href="@Url.Content("~/font/iconsmind-s/css/iconsminds.css")" asp-append-version="true" />
@@ -18,10 +20,17 @@
     <div class="fixed-background"></div>
     @RenderBody()
 
+    <script>
+        window.appUi = {
+            language: @Html.Raw(JsonSerializer.Serialize(UiText.Language)),
+            text: @Html.Raw(UiText.ToClientDictionaryJson())
+        };
+    </script>
     <script src="@Url.Content("~/js/vendor/jquery-3.3.1.min.js")" asp-append-version="true"></script>
     <script src="@Url.Content("~/js/vendor/bootstrap.bundle.min.js")" asp-append-version="true"></script>
     <script src="@Url.Content("~/js/dore.script.js")" asp-append-version="true"></script>
     <script src="@Url.Content("~/js/scripts.js")" asp-append-version="true"></script>
+    <script src="@Url.Content("~/js/inventory-dashboard.ui.js")" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

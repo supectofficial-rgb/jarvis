@@ -23,5 +23,6 @@ public class AddAuditDataInterceptor : SaveChangesInterceptor
         var changeTracker = eventData.Context!.ChangeTracker;
         var userInfoService = eventData.Context.GetService<IUserInfoService>();
         changeTracker.SetAuditableEntityPropertyValues(userInfoService);
+        changeTracker.SetOrganizationPropertyValues(userInfoService);
     }
 }

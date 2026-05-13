@@ -24,8 +24,8 @@ public sealed class CategorySchemaVersionConfig : IEntityTypeConfiguration<Categ
 
         builder.HasMany(x => x.Rules)
             .WithOne()
-            .HasPrincipalKey(nameof(CategorySchemaVersion.BusinessKey))
-            .HasForeignKey(nameof(CategoryAttributeRule.CategorySchemaVersionRef))
+            .HasPrincipalKey(x => x.BusinessKey)
+            .HasForeignKey(x => x.CategorySchemaVersionRef)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

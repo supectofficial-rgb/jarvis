@@ -1,6 +1,7 @@
+@using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.DashboardViewModel
 @{
-    ViewData["Title"] = "مدیریت فاکتور و پیش‌فاکتور";
+    ViewData["Title"] = UiText["invoice.management.title"];
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -14,8 +15,8 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <h1>مدیریت فاکتور و پیش‌فاکتور</h1>
-                <p class="text-muted">فاکتور سند مالی است؛ فعلا این صفحه جای UI و جریان انتخاب واریانت را آماده می‌کند.</p>
+                <h1>@UiText["invoice.management.title"]</h1>
+                <p class="text-muted">@UiText["invoice.management.description"]</p>
             </div>
         </div>
 
@@ -23,10 +24,10 @@
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4 d-none" role="tablist" id="invoice-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link @(showProformas ? "active" : null)" data-toggle="tab" href="#proforma-tab" role="tab">پیش‌فاکتور</a>
+                        <a class="nav-link @(showProformas ? "active" : null)" data-toggle="tab" href="#proforma-tab" role="tab">@UiText["invoice.tabs.proforma"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(showInvoices ? "active" : null)" data-toggle="tab" href="#invoice-tab" role="tab">فاکتور</a>
+                        <a class="nav-link @(showInvoices ? "active" : null)" data-toggle="tab" href="#invoice-tab" role="tab">@UiText["invoice.tabs.invoice"]</a>
                     </li>
                 </ul>
 
@@ -34,34 +35,34 @@
                     <div class="tab-pane fade @(showProformas ? "show active" : null)" id="proforma-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">جستجوی واریانت با اتریبیوت</h5>
+                                <h5 class="card-title mb-3">@UiText["invoice.proforma.searchTitle"]</h5>
                                 <div class="form-row">
                                     <div class="form-group col-lg-3 col-md-6">
-                                        <label>نام یا SKU</label>
-                                        <input id="proforma-variant-search" class="form-control" placeholder="نام محصول، SKU یا بارکد..." />
+                                        <label>@UiText["invoice.proforma.variantSearchLabel"]</label>
+                                        <input id="proforma-variant-search" class="form-control" placeholder="@UiText["invoice.proforma.variantSearchPlaceholder"]" />
                                     </div>
                                     <div class="form-group col-lg-2 col-md-6">
-                                        <label>دسته‌بندی</label>
+                                        <label>@UiText["invoice.proforma.category"]</label>
                                         <select class="form-control">
-                                            <option>همه دسته‌بندی‌ها</option>
+                                            <option>@UiText["invoice.proforma.allCategories"]</option>
                                         </select>
                                     </div>
                                     <div class="form-group col-lg-2 col-md-6">
-                                        <label>اتریبیوت</label>
+                                        <label>@UiText["invoice.proforma.attribute"]</label>
                                         <select class="form-control">
-                                            <option>انتخاب اتریبیوت</option>
+                                            <option>@UiText["invoice.proforma.selectAttribute"]</option>
                                         </select>
                                     </div>
                                     <div class="form-group col-lg-2 col-md-6">
-                                        <label>مقدار</label>
-                                        <input class="form-control" placeholder="مثلا رنگ، سایز..." />
+                                        <label>@UiText["invoice.proforma.value"]</label>
+                                        <input class="form-control" placeholder="@UiText["invoice.proforma.valuePlaceholder"]" />
                                     </div>
                                     <div class="form-group col-lg-1 col-md-6">
-                                        <label>تعداد</label>
+                                        <label>@UiText["common.count"]</label>
                                         <input id="proforma-quantity" class="form-control" type="number" min="1" value="1" />
                                     </div>
                                     <div class="form-group col-lg-2 col-md-6 d-flex align-items-end">
-                                        <button id="proforma-add-variant" class="btn btn-primary btn-block" type="button">افزودن</button>
+                                        <button id="proforma-add-variant" class="btn btn-primary btn-block" type="button">@UiText["invoice.proforma.add"]</button>
                                     </div>
                                 </div>
 
@@ -69,23 +70,23 @@
                                     <table class="table table-sm table-striped mb-0">
                                         <thead>
                                             <tr>
-                                                <th>واریانت</th>
-                                                <th>تعداد</th>
-                                                <th>قیمت پیشنهادی</th>
-                                                <th class="text-right">عملیات</th>
+                                                <th>@UiText["invoice.proforma.variant"]</th>
+                                                <th>@UiText["common.count"]</th>
+                                                <th>@UiText["invoice.proforma.suggestedPrice"]</th>
+                                                <th class="text-right">@UiText["common.operations"]</th>
                                             </tr>
                                         </thead>
                                         <tbody id="proforma-lines">
                                             <tr data-empty-row>
-                                                <td colspan="4" class="text-center text-muted">هنوز آیتمی به پیش‌فاکتور اضافه نشده است.</td>
+                                                <td colspan="4" class="text-center text-muted">@UiText["invoice.proforma.empty"]</td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
 
                                 <div class="mt-3">
-                                    <button class="btn btn-primary" type="button" disabled>ثبت پیش‌فاکتور</button>
-                                    <button class="btn btn-outline-primary" type="button" disabled>تبدیل به فاکتور</button>
+                                    <button class="btn btn-primary" type="button" disabled>@UiText["invoice.proforma.submit"]</button>
+                                    <button class="btn btn-outline-primary" type="button" disabled>@UiText["invoice.proforma.convert"]</button>
                                 </div>
                             </div>
                         </div>
@@ -94,9 +95,9 @@
                     <div class="tab-pane fade @(showInvoices ? "show active" : null)" id="invoice-tab" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">فاکتور</h5>
+                                <h5 class="card-title mb-3">@UiText["invoice.tabs.invoice"]</h5>
                                 <div class="alert alert-light mb-0">
-                                    پیاده‌سازی کامل فاکتور به ماژول مالی، مالیات، پرداخت و احتمالا اتصال به سند خروج انبار وابسته است.
+                                    @UiText["invoice.invoice.notice"]
                                 </div>
                             </div>
                         </div>
@@ -148,11 +149,11 @@
                     '<td>' + variantText + '</td>' +
                     '<td>' + quantity + '</td>' +
                     '<td><input class="form-control form-control-sm" type="number" min="0" placeholder="0" /></td>' +
-                    '<td class="text-right"><button class="btn btn-outline-danger btn-xs" type="button">حذف</button></td>';
+                    '<td class="text-right"><button class="btn btn-outline-danger btn-xs" type="button">' + @Html.Raw(JsonSerializer.Serialize(UiText["common.delete"])) + '</button></td>';
                 row.querySelector('button').addEventListener('click', function () {
                     row.remove();
                     if (!linesBody.children.length) {
-                        linesBody.innerHTML = '<tr data-empty-row><td colspan="4" class="text-center text-muted">هنوز آیتمی به پیش‌فاکتور اضافه نشده است.</td></tr>';
+                        linesBody.innerHTML = '<tr data-empty-row><td colspan="4" class="text-center text-muted">' + @Html.Raw(JsonSerializer.Serialize(UiText["invoice.proforma.empty"])) + '</td></tr>';
                     }
                 });
                 linesBody.appendChild(row);

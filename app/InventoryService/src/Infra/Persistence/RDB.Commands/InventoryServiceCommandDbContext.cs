@@ -28,6 +28,7 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Warehouse.Locati
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Warehouse.QualityStatuses.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Warehouse.Warehouses.Configs;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.Infra.Auth.UserServices;
 using OysterFx.Infra.Persistence.RDB.Commands;
 using LocationAggregate = Insurance.InventoryService.AppCore.Domain.Warehouse.Entities.Location;
 using QualityStatusAggregate = Insurance.InventoryService.AppCore.Domain.Warehouse.Entities.QualityStatus;
@@ -36,8 +37,10 @@ using WarehouseAggregate = Insurance.InventoryService.AppCore.Domain.Warehouse.E
 
 public class InventoryServiceCommandDbContext : CommandDbContext
 {
-    public InventoryServiceCommandDbContext(DbContextOptions<InventoryServiceCommandDbContext> options)
-        : base(options)
+    public InventoryServiceCommandDbContext(
+        DbContextOptions<InventoryServiceCommandDbContext> options,
+        IUserInfoService? userInfoService = null)
+        : base(options, userInfoService)
     {
     }
 
@@ -173,5 +176,7 @@ public class InventoryServiceCommandDbContext : CommandDbContext
             .HasMany(x => x.Consumptions)
             .WithOne()
             .OnDelete(DeleteBehavior.Cascade);
+
+        AddOrganizationShadowProperties(modelBuilder);
     }
 }

@@ -1,6 +1,6 @@
 ﻿@model Insurance.InventoryDashboard.Panel.Models.DashboardViewModel
 @{
-    ViewData["Title"] = "داشبورد";
+    ViewData["Title"] = UiText["dashboard.title"];
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -12,8 +12,8 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <h1>داشبورد نقش‌محور</h1>
-                <p class="text-muted">ماژول‌ها و زیرمنوها بر اساس نقش کاربر به‌صورت داینامیک نمایش داده می‌شوند.</p>
+                <h1>@UiText["dashboard.roleBasedTitle"]</h1>
+                <p class="text-muted">@UiText["dashboard.roleBasedSubtitle"]</p>
             </div>
         </div>
 
@@ -21,15 +21,15 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="card-title mb-2">کاربر واردشده: @Model.UserName</h5>
+                        <h5 class="card-title mb-2">@UiText["dashboard.loggedInUserPrefix"] @Model.UserName</h5>
                         <p class="text-muted mb-0">
                             @if (Model.Roles.Count == 0)
                             {
-                                <span>نقشی از JWT استخراج نشد. لطفاً Role Claim را در UserService بررسی کنید.</span>
+                                <span>@UiText["dashboard.noRoleExtracted"]</span>
                             }
                             else
                             {
-                                <span>نقش‌های فعال: @string.Join("، ", Model.Roles)</span>
+                                <span>@UiText["dashboard.activeRolesPrefix"] @string.Join("، ", Model.Roles)</span>
                             }
                         </p>
                     </div>
@@ -47,11 +47,11 @@
                                 <i class="@module.Icon mr-2"></i>
                                 @module.Title
                             </h5>
-                            <p class="text-muted">@(string.IsNullOrWhiteSpace(module.Description) ? "ماژول مدیریتی." : module.Description)</p>
+                            <p class="text-muted">@(string.IsNullOrWhiteSpace(module.Description) ? UiText["dashboard.defaultModuleDescription"] : module.Description)</p>
 
                             @if (!module.IsEnabled)
                             {
-                                <span class="badge badge-warning">غیرفعال</span>
+                                <span class="badge badge-warning">@UiText["common.inactive"]</span>
                             }
                             else
                             {

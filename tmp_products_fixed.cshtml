@@ -1,10 +1,10 @@
-﻿@using System
+@using System
 @using System.Linq
 @using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.ProductManagementPageViewModel
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
-    ViewData["Title"] = UiText["catalog.products.title"];
+    ViewData["Title"] = "مدیریت محصولات";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -295,24 +295,24 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <h1>@UiText["catalog.products.title"]</h1>
-                <p class="text-muted">@UiText["catalog.products.description"]</p>
+                <h1>مدیریت محصولات</h1>
+                <p class="text-muted">مدیریت محصول، مقداردهی ویژگی‌ها و عملیات چرخه عمر.</p>
                 <div class="mb-3">
-                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.products.primaryGoal"]</span>
-                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.products.secondaryOperations"]</span>
-                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.products.totalCount"] @Model.ProductTotalCount</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">هدف اصلی: مدیریت محصول</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">عملیات فرعی: ویژگی‌ها، چرخه عمر، تغییر دسته</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">کل محصولات: @Model.ProductTotalCount</span>
                     @if (!string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
                     {
-                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.products.selectedCategoryPath"] @selectedCategoryPath</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">مسیر دسته: @selectedCategoryPath</span>
                     }
                     @if (!string.IsNullOrWhiteSpace(selectedProductName))
                     {
-                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.products.selectedProduct"] @selectedProductName</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">محصول منتخب: @selectedProductName</span>
                     }
-                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.products.requiredCompletion"] @completedRequiredProductAttributeCount / @requiredProductAttributeCount</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">تکمیل اجباری‌ها: @completedRequiredProductAttributeCount / @requiredProductAttributeCount</span>
                 </div>
                 <p class="small text-muted mb-3">
-                    @UiText["catalog.products.quickGuide"]
+                    راهنمای سریع: محصول را بسازید یا انتخاب کنید، سپس مقداردهی ویژگی‌ها را از بخش پایین فرم انجام دهید.
                 </p>
             </div>
         </div>
@@ -353,7 +353,7 @@
                 <div class="card">
                     <div class="card-body py-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong>@UiText["catalog.products.completionStatus"]</strong>
+                            <strong>وضعیت تکمیل اطلاعات محصول</strong>
                             <span class="badge badge-pill @(productCompletionPercent >= 100 ? "badge-primary" : productCompletionPercent >= 70 ? "badge-outline-primary" : "badge-danger")">
                                 @productCompletionPercent%
                             </span>
@@ -362,7 +362,7 @@
                             <div class="progress-bar" role="progressbar" style="width:@productCompletionPercent%"></div>
                         </div>
                         <small class="text-muted d-block mt-2">
-                            @UiText["catalog.products.completedRequiredFields"] @completedRequiredProductAttributeCount @UiText["catalog.products.outOf"] @requiredProductAttributeCount
+                            فیلدهای اجباری تکمیل‌شده: @completedRequiredProductAttributeCount از @requiredProductAttributeCount
                         </small>
                     </div>
                 </div>
@@ -374,7 +374,7 @@
             <div class="row">
                 <div class="col-12">
                     <div class="alert alert-danger mb-3">
-                        @UiText["catalog.products.requiredAttributesIncomplete"]
+                        ویژگی‌های اجباری محصول کامل نشده‌اند:
                         @string.Join("، ", Model.MissingRequiredProductAttributes.Select(x => x.Name))
                     </div>
                 </div>
@@ -385,16 +385,16 @@
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="product-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-toggle="tab" href="#product-tab-main" role="tab">@UiText["catalog.products.tabs.form"]</a>
+                        <a class="nav-link active" data-toggle="tab" href="#product-tab-main" role="tab">فرم محصول</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#product-tab-list" role="tab">@UiText["catalog.products.tabs.list"]</a>
+                        <a class="nav-link" data-toggle="tab" href="#product-tab-list" role="tab">لیست محصولات</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#product-tab-attributes" role="tab">@UiText["catalog.products.tabs.attributes"]</a>
+                        <a class="nav-link" data-toggle="tab" href="#product-tab-attributes" role="tab">ویژگی‌های محصول</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#product-tab-variants" role="tab">@UiText["catalog.products.tabs.variants"]</a>
+                        <a class="nav-link" data-toggle="tab" href="#product-tab-variants" role="tab">واریانت‌های محصول</a>
                     </li>
                 </ul>
                 <div class="tab-content">
@@ -402,10 +402,10 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="card-title mb-0">@(isEditMode ? UiText["catalog.products.editTitle"] : UiText["catalog.products.createTitle"])</h5>
+                                    <h5 class="card-title mb-0">@(isEditMode ? "ویرایش محصول" : "ایجاد محصول")</h5>
                                     @if (isEditMode)
                                     {
-                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-create="true" class="btn btn-outline-secondary btn-xs">@UiText["common.createNew"]</a>
+                                        <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-create="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
                                     }
                                 </div>
 
@@ -418,35 +418,35 @@
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
                                     <div class="form-group @(isEditMode ? string.Empty : "d-none")">
-                                        <label>@UiText["catalog.products.name"]</label>
+                                        <label>نام محصول</label>
                                         <input asp-for="ProductForm.Name" class="form-control" maxlength="160" />
                                     </div>
                                     <input asp-for="ProductForm.BaseSku" type="hidden" />
                                     @if (isEditMode)
                                     {
                                         <div class="form-group">
-                                            <label>@UiText["catalog.products.baseSku"]</label>
+                                            <label>شماره محصول</label>
                                             <div class="form-control-plaintext text-monospace">@Model.ProductForm.BaseSku</div>
-                                            <small class="form-text text-muted">@UiText["catalog.products.baseSkuHelp"]</small>
+                                            <small class="form-text text-muted">شماره محصول توسط سیستم تولید شده و به عنوان شناسه خانواده محصول ثابت می‌ماند.</small>
                                         </div>
                                     }
                                     else
                                     {
                                         <div class="alert alert-light border mb-3">
-                                            <strong class="d-block mb-1">@UiText["catalog.products.baseSku"]</strong>
-                                            <small class="text-muted">@UiText["catalog.products.baseSkuCreateHelp"]</small>
+                                            <strong class="d-block mb-1">شماره محصول</strong>
+                                            <small class="text-muted">بعد از ذخیره، سیستم شماره محصول را بر اساس کد دسته‌بندی تولید می‌کند.</small>
                                         </div>
                                     }
                                     <div class="form-group">
-                                        <label>@UiText["catalog.products.category"]</label>
+                                        <label>دسته‌بندی</label>
                                         <div class="product-category-tree-shell">
                                             <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
                                                 <div>
-                                                    <strong class="d-block">@UiText["catalog.products.stagedCategorySelection"]</strong>
-                                                    <small class="text-muted">@UiText["catalog.products.stagedCategorySelectionHelp"]</small>
+                                                    <strong class="d-block">انتخاب مرحله‌ای دسته‌بندی</strong>
+                                                    <small class="text-muted">از بالا به پایین روی کارت‌ها کلیک کنید تا به آخرین سطح برسید.</small>
                                                 </div>
                                                 <button class="btn btn-outline-secondary btn-xs" type="button" data-toggle="collapse" data-target="#product-category-search-fallback" aria-expanded="false" aria-controls="product-category-search-fallback">
-                                                    @UiText["catalog.products.quickCategorySearch"]
+                                                    جست‌وجوی سریع دسته
                                                 </button>
                                             </div>
                                             <div class="product-category-selected-path mb-3">
@@ -454,9 +454,9 @@
                                             </div>
                                             <div id="product-category-tree-levels"></div>
                                             <div class="collapse mt-3" id="product-category-search-fallback">
-                                                <label class="small text-muted">@UiText["catalog.products.quickCategorySearchHelp"]</label>
-                                                <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" id="ProductForm_CategoryId" data-placeholder='@UiText["catalog.products.selectProductCategory"]' required>
-                                                    <option value="">@UiText["catalog.products.selectLeafCategory"]</option>
+                                                <label class="small text-muted">اگر نام دسته را می‌دانید از این جست‌وجوی سریع استفاده کنید.</label>
+                                                <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" id="ProductForm_CategoryId" data-placeholder="انتخاب دسته‌بندی محصول" required>
+                                                    <option value="">انتخاب آخرین سطح دسته‌بندی</option>
                                                     @foreach (var category in Model.LeafCategories)
                                                     {
                                                         <option value="@category.Id" data-category-code="@category.Code">@category.Name</option>
@@ -464,12 +464,12 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <small class="form-text text-muted">@UiText["catalog.products.leafOnlyHelp"]</small>
+                                        <small class="form-text text-muted">محصول فقط روی آخرین سطح دسته‌بندی قابل ثبت است.</small>
                                     </div>
                                     <div class="form-group">
-                                        <label>@UiText["catalog.products.defaultUom"]</label>
-                                        <select asp-for="ProductForm.DefaultUomRef" class="form-control js-search-select" data-placeholder='@UiText["catalog.products.selectUnit"]' required>
-                                            <option value="">@UiText["catalog.products.selectUnit"]</option>
+                                        <label>واحد پیش‌فرض</label>
+                                        <select asp-for="ProductForm.DefaultUomRef" class="form-control js-search-select" data-placeholder="انتخاب واحد پایه" required>
+                                            <option value="">انتخاب واحد</option>
                                             @foreach (var uom in Model.UnitOfMeasures)
                                             {
                                                 <option value="@uom.Id">@uom.Code - @uom.Name</option>
@@ -477,26 +477,26 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label>@UiText["catalog.products.taxReference"]</label>
+                                        <label>مرجع مالیات</label>
                                         <input asp-for="ProductForm.TaxCategoryRef" class="form-control" />
                                     </div>
                                     <div class="custom-control custom-checkbox mt-2">
                                         <input asp-for="ProductForm.IsActive" class="custom-control-input" />
-                                        <label class="custom-control-label" asp-for="ProductForm.IsActive">@UiText["catalog.products.activeToggle"]</label>
+                                        <label class="custom-control-label" asp-for="ProductForm.IsActive">محصول فعال باشد</label>
                                     </div>
                                     <div class="form-group mt-3">
-                                        <label>@UiText["catalog.products.descriptionLabel"]</label>
+                                        <label>توضیح</label>
                                         <textarea asp-for="ProductForm.Description" class="form-control" rows="3" maxlength="500"></textarea>
                                     </div>
                                     <div class="form-group" data-media-uploader data-policy="product-image" data-base-url="@Configuration["FileService:BaseUrl"]">
-                                        <label>@UiText["product.image"]</label>
+                                        <label>ØªØµÙˆÛŒØ± Ù…Ø­ØµÙˆÙ„</label>
                                         <div class="border rounded p-3 bg-light">
                                             <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp" data-media-file />
                                             <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
                                                 <div class="progress-bar" style="width:0%;" data-media-progress></div>
                                             </div>
-                                            <div class="small text-muted mb-2" data-media-status>@UiText["media.imageHelp"]</div>
-                                            <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>@UiText["media.removeImage"]</button>
+                                            <div class="small text-muted mb-2" data-media-status>ÛŒÚ© ØªØµÙˆÛŒØ± Ø­Ø¯Ø§Ú©Ø«Ø± Ûµ Ù…Ú¯Ø§Ø¨Ø§ÛŒØª.</div>
+                                            <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>Ø­Ø°Ù ØªØµÙˆÛŒØ±</button>
                                             <div class="mt-3 d-none" data-media-preview-wrap>
                                                 <img src="@Model.ProductForm.ImageThumbnailUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
                                             </div>
@@ -507,15 +507,15 @@
                                     @if (Model.IsProductCreateMode)
                                     {
                                         <div class="alert alert-light border mt-3 mb-3">
-                                            <strong class="d-block mb-2">@UiText["catalog.products.autoVariantGeneration"]</strong>
+                                            <strong class="d-block mb-2">تولید خودکار واریانت</strong>
                                             <small class="text-muted d-block mb-0">
-                                                @UiText["catalog.products.autoVariantGenerationHelp"]
+                                                ویژگی‌های غیر واریانت‌ساز در سطح محصول ذخیره می‌شوند. ویژگی‌های واریانت‌ساز به‌صورت چندانتخابی گرفته شده و به ازای هر ترکیب، یک واریانت با نام و SKU خودکار ساخته می‌شود.
                                             </small>
                                         </div>
 
                                         <div class="d-flex align-items-center mb-2">
-                                            <strong class="mb-0">@UiText["catalog.products.attributeLoadStatus"]</strong>
-                                            <span class="badge badge-secondary ml-2" id="product-create-attribute-status">@UiText["catalog.products.notReady"]</span>
+                                            <strong class="mb-0">وضعیت لود ویژگی‌ها</strong>
+                                            <span class="badge badge-secondary ml-2" id="product-create-attribute-status">آماده نیست</span>
                                         </div>
                                         <div id="product-create-attribute-feedback"></div>
                                         <div id="product-create-dynamic-sections">
@@ -523,17 +523,17 @@
                                         @if (string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
                                         {
                                             <div class="alert alert-warning">
-                                                @UiText["catalog.products.selectCategoryForDynamicSections"]
+                                                ابتدا یک دسته‌بندی انتخاب کنید تا فرم ویژگی‌های محصول و واریانت‌ساز بارگذاری شود.
                                             </div>
                                         }
                                         else
                                         {
                                             <div class="card mb-3">
                                                 <div class="card-body">
-                                                    <h6 class="card-title mb-3">@UiText["catalog.products.nonVariantAttributes"]</h6>
+                                                    <h6 class="card-title mb-3">ویژگی‌های محصول (غیر واریانت‌ساز)</h6>
                                                     @if (autoCreateProductAttributes.Count == 0)
                                                     {
-                                                        <div class="text-muted small">@UiText["catalog.products.noProductAttributeDefined"]</div>
+                                                        <div class="text-muted small">ویژگی محصولی تعریف نشده است.</div>
                                                     }
                                                     else
                                                     {
@@ -553,8 +553,8 @@
                                                                     <select class="form-control js-search-select js-auto-product-value"
                                                                             data-option-input="true"
                                                                             name="AutoProductOption_@attr.AttributeId"
-                                                                            data-placeholder='@UiText["catalog.products.selectOption"]'>
-                                                                        <option value="">@UiText["catalog.products.selectValue"]</option>
+                                                                            data-placeholder="انتخاب گزینه">
+                                                                        <option value="">انتخاب مقدار</option>
                                                                         @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
                                                                         {
                                                                             var isSelectedOption =
@@ -580,7 +580,7 @@
                                                                                class="form-control js-auto-product-value"
                                                                                name="AutoProductValue_@attr.AttributeId"
                                                                                value="@selectedRawValue"
-                                                                               placeholder="@UiText["catalog.products.numericValue"]" />
+                                                                               placeholder="مقدار عددی" />
                                                                     }
                                                                     else if (normalizedType == "date")
                                                                     {
@@ -594,9 +594,9 @@
                                                                         var selectedBool = (selectedRawValue ?? string.Empty).Trim().ToLowerInvariant();
                                                                         <select class="form-control js-auto-product-value"
                                                                                 name="AutoProductValue_@attr.AttributeId">
-                                                                            <option value="">@UiText["catalog.products.selectAttribute"]</option>
-                                                                            <option value="true" selected="@(selectedBool is "true" or "1" or "yes" or "Ø¨Ù„Ù‡" ? "selected" : null)">@UiText["common.yes"]</option>
-                                                                            <option value="false" selected="@(selectedBool is "false" or "0" or "no" or "Ø®ÛŒØ±" ? "selected" : null)">@UiText["common.no"]</option>
+                                                                            <option value="">انتخاب ویژگی</option>
+                                                                            <option value="true" selected="@(selectedBool is "true" or "1" or "yes" or "بله" ? "selected" : null)">بله</option>
+                                                                            <option value="false" selected="@(selectedBool is "false" or "0" or "no" or "خیر" ? "selected" : null)">خیر</option>
                                                                         </select>
                                                                     }
                                                                     else
@@ -605,12 +605,12 @@
                                                                                class="form-control js-auto-product-value"
                                                                                name="AutoProductValue_@attr.AttributeId"
                                                                                value="@selectedRawValue"
-                                                                               placeholder="@UiText["catalog.products.attributeValuePlaceholder"]" />
+                                                                               placeholder="مقدار ویژگی" />
                                                                     }
                                                                 }
                                                                 <small class="form-text text-muted">
-                                                                    @(attr.IsInherited ? $"{UiText["catalog.products.inheritedFromPrefix"]}{attr.SourceCategoryName}" : UiText["catalog.products.direct"]) -
-                                                                    @(attr.IsRequired ? UiText["catalog.products.required"] : UiText["catalog.products.optional"])
+                                                                    @(attr.IsInherited ? $"ارث‌رسیده از {attr.SourceCategoryName}" : "مستقیم") -
+                                                                    @(attr.IsRequired ? "الزامی" : "اختیاری")
                                                                 </small>
                                                             </div>
                                                         }
@@ -620,10 +620,10 @@
 
                                             <div class="card mb-3">
                                                 <div class="card-body">
-                                                    <h6 class="card-title mb-3">@UiText["catalog.products.variantBuilderAttributes"]</h6>
+                                                    <h6 class="card-title mb-3">ویژگی‌های واریانت‌ساز (چندانتخابی)</h6>
                                                     @if (autoCreateVariantBuilderAttributes.Count == 0)
                                                     {
-                                                        <div class="text-muted small">@UiText["catalog.products.noVariantBuilderAttributeDefined"]</div>
+                                                        <div class="text-muted small">ویژگی واریانت‌ساز تعریف نشده است.</div>
                                                     }
                                                     else
                                                     {
@@ -641,7 +641,7 @@
                                                                         class="form-control js-search-select js-auto-variant-values"
                                                                         name="AutoVariantOptions_@attr.AttributeId"
                                                                         data-no-search="true"
-                                                                        data-placeholder='@UiText["catalog.products.selectMultipleOptions"]'>
+                                                                        data-placeholder="انتخاب چند گزینه">
                                                                     @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
                                                                     {
                                                                         var isVariantOptionSelected = activeVariantOptionIds?.Contains(option.Id) == true;
@@ -655,7 +655,7 @@
                                                                     }
                                                                 </select>
                                                                 <small class="form-text text-muted">
-                                                                    @UiText["catalog.products.attributePriorityPrefix"]@attr.DisplayOrder - @(attr.IsRequired ? UiText["catalog.products.required"] : UiText["catalog.products.optional"])
+                                                                    اولویت ویژگی: @attr.DisplayOrder - @(attr.IsRequired ? "الزامی" : "اختیاری")
                                                                 </small>
                                                             </div>
                                                         }
@@ -665,16 +665,16 @@
 
                                             <div class="card mb-3">
                                                 <div class="card-body">
-                                                    <h6 class="card-title mb-2">@UiText["catalog.products.generatedVariantPreview"]</h6>
+                                                    <h6 class="card-title mb-2">پیش‌نمایش واریانت‌های قابل تولید</h6>
                                                     <div id="auto-variant-preview-empty" class="text-muted small">
-                                                        @UiText["catalog.products.generatedVariantPreviewHelp"]
+                                                        گزینه‌های واریانت‌ساز را انتخاب کنید تا پیش‌نمایش نام و SKU ساخته شود.
                                                     </div>
                                                     <div id="auto-variant-preview-container" class="table-responsive d-none">
                                                         <table class="table table-sm table-striped mb-0">
                                                             <thead>
                                                                 <tr>
                                                                     <th>#</th>
-                                                                    <th>@UiText["catalog.products.variantName"]</th>
+                                                                    <th>نام واریانت</th>
                                                                     <th>SKU</th>
                                                                 </tr>
                                                             </thead>
@@ -690,7 +690,7 @@
 
                                     <div class="mt-3">
                                         <button class="btn btn-primary" type="submit" @(Can("Catalog.Product.Create", "Catalog.Product.Update", "Product.Create", "Product.Update") ? null : "disabled")>
-                                            @(isEditMode ? UiText["catalog.products.updateButton"] : UiText["catalog.products.createButton"])
+                                            @(isEditMode ? "به‌روزرسانی محصول" : "ایجاد محصول")
                                         </button>
                                     </div>
                                 </form>
@@ -700,32 +700,32 @@
                     <div class="tab-pane fade" id="product-tab-list" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">@UiText["catalog.products.searchAndFilter"]</h5>
+                                <h5 class="card-title mb-3">جستجو و فیلتر محصولات</h5>
                                 <form method="get" asp-action="Products" class="row" id="product-search-form" data-state-form>
                                     <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                     <div class="col-lg-10 col-md-9 mb-2">
-                                        <label class="text-muted small">@UiText["catalog.products.searchLabel"]</label>
-                                        <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label='@UiText["common.search"]' placeholder='@UiText["catalog.products.searchPlaceholder"]' />
+                                        <label class="text-muted small">عبارت جستجو</label>
+                                        <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام یا شماره محصول..." />
                                     </div>
                                     <div class="col-lg-2 col-md-3 mb-2 d-flex align-items-end">
-                                        <button type="submit" class="btn btn-primary btn-block">@UiText["common.apply"]</button>
+                                        <button type="submit" class="btn btn-primary btn-block">اعمال</button>
                                     </div>
                                 </form>
-                                <small class="text-muted d-block mt-2">@UiText["catalog.products.searchHelp"]</small>
+                                <small class="text-muted d-block mt-2">در این تب می‌توانید محصول را بر اساس نام یا شماره پیدا کنید و بعد برای ویرایش، حذف یا مشاهده واریانت‌ها اقدام کنید.</small>
                             </div>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="product-tab-attributes" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title">@UiText["catalog.products.effectiveCategoryAttributes"]</h5>
+                                <h5 class="card-title">ویژگی‌های موثر دسته‌بندی</h5>
                                 @foreach (var group in Model.CategoryAttributeGroups)
                                 {
                                     <div class="mb-3 pb-2 border-bottom">
                                         <div class="d-flex align-items-center mb-2">
                                             <strong class="mr-2">@group.CategoryName</strong>
                                             <span class="badge badge-pill @(group.IsCurrentCategory ? "badge-outline-secondary" : "badge-outline-primary")">
-                                                @(group.IsCurrentCategory ? UiText["catalog.products.direct"] : UiText["catalog.products.inherited"])
+                                                @(group.IsCurrentCategory ? "مستقیم" : "ارث‌رسیده")
                                             </span>
                                         </div>
                                         <ul class="list-unstyled mb-0 small">
@@ -733,7 +733,7 @@
                                             {
                                                 <li class="mb-1">
                                                     <strong>@attr.Name</strong>
-                                                    <span class="text-muted">(@attr.DataType / @attr.Scope) - @(attr.IsRequired ? UiText["catalog.products.required"] : UiText["catalog.products.optional"])</span>
+                                                    <span class="text-muted">(@attr.DataType / @attr.Scope) - @(attr.IsRequired ? "الزامی" : "اختیاری")</span>
                                                 </li>
                                             }
                                         </ul>
@@ -746,15 +746,15 @@
                         {
                             <div class="card">
                                 <div class="card-body">
-                                    <h5 class="card-title">@UiText["catalog.products.setProductAttribute"]</h5>
+                                    <h5 class="card-title">ثبت مقدار ویژگی برای محصول</h5>
                                     <form asp-action="SetProductAttributeValue" method="post" id="product-attribute-form" data-loading-form data-dirty-watch>
                                         @Html.AntiForgeryToken()
                                         <input asp-for="ProductAttributeForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                                         <input asp-for="ProductAttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
                                         <div class="form-group">
-                                            <label>@UiText["catalog.products.attribute"]</label>
-                                            <select asp-for="ProductAttributeForm.AttributeId" class="form-control js-search-select" id="product-attribute-select" data-placeholder='@UiText["catalog.products.selectAttribute"]' required>
-                                                <option value="">@UiText["catalog.products.selectAttribute"]</option>
+                                            <label>ویژگی</label>
+                                            <select asp-for="ProductAttributeForm.AttributeId" class="form-control js-search-select" id="product-attribute-select" data-placeholder="انتخاب ویژگی" required>
+                                                <option value="">انتخاب ویژگی</option>
                                                 @foreach (var attr in Model.EffectiveCategoryAttributes)
                                                 {
                                                     var optionsJson = JsonSerializer.Serialize(attr.Options.Select(o => new { name = o.OptionName, value = o.OptionValue }));
@@ -763,27 +763,27 @@
                                                             data-required="@(attr.IsRequired ? "true" : "false")"
                                                             data-options='@optionsJson'>
                                                         @attr.Name (@attr.DataType / @attr.Scope)
-                                                        @(attr.IsRequired ? $" - {UiText["catalog.products.required"]}" : $" - {UiText["catalog.products.optional"]}")
-                                                        @(attr.IsInherited ? $" - {UiText["catalog.products.inheritedFromPrefix"]}{attr.SourceCategoryName}" : $" - {UiText["catalog.products.direct"]}")
+                                                        @(attr.IsRequired ? " - الزامی" : " - اختیاری")
+                                                        @(attr.IsInherited ? $" - ارث‌رسیده از {attr.SourceCategoryName}" : " - مستقیم")
                                                     </option>
                                                 }
                                             </select>
                                         </div>
-                                        <div class="form-group" id="product-value-text-group"><label>@UiText["catalog.products.value"]</label><input type="text" class="form-control" id="product-value-text" /></div>
-                                        <div class="form-group d-none" id="product-value-number-group"><label>@UiText["catalog.products.numericValue"]</label><input type="number" step="any" class="form-control" id="product-value-number" /></div>
-                                        <div class="form-group d-none" id="product-value-date-group"><label>@UiText["catalog.products.date"]</label><input type="date" class="form-control" id="product-value-date" /></div>
+                                        <div class="form-group" id="product-value-text-group"><label>مقدار</label><input type="text" class="form-control" id="product-value-text" /></div>
+                                        <div class="form-group d-none" id="product-value-number-group"><label>مقدار عددی</label><input type="number" step="any" class="form-control" id="product-value-number" /></div>
+                                        <div class="form-group d-none" id="product-value-date-group"><label>تاریخ</label><input type="date" class="form-control" id="product-value-date" /></div>
                                         <div class="form-group d-none" id="product-value-boolean-group">
-                                            <label class="d-block">@UiText["catalog.products.booleanValue"]</label>
+                                            <label class="d-block">مقدار بولی</label>
                                             <div class="custom-control custom-switch mb-2">
                                                 <input type="checkbox" class="custom-control-input" id="product-value-boolean">
-                                                <label class="custom-control-label" for="product-value-boolean">@UiText["catalog.products.booleanValueToggle"]</label>
+                                                <label class="custom-control-label" for="product-value-boolean">بله / خیر</label>
                                             </div>
-                                            <button type="button" class="btn btn-outline-secondary btn-xs" id="product-value-boolean-clear">@UiText["catalog.products.clearValue"]</button>
+                                            <button type="button" class="btn btn-outline-secondary btn-xs" id="product-value-boolean-clear">پاک کردن مقدار</button>
                                         </div>
-                                        <div class="form-group d-none" id="product-value-option-group"><label>@UiText["catalog.products.option"]</label><select class="form-control js-search-select" id="product-value-option" data-no-search="true"></select></div>
+                                        <div class="form-group d-none" id="product-value-option-group"><label>گزینه</label><select class="form-control js-search-select" id="product-value-option" data-no-search="true"></select></div>
                                         <input asp-for="ProductAttributeForm.Value" type="hidden" id="product-value-hidden" />
                                         <div class="mt-3">
-                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.ProductAttributeValue.Set", "ProductAttributeValue.Set") ? null : "disabled")>@UiText["catalog.products.submitValue"]</button>
+                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.ProductAttributeValue.Set", "ProductAttributeValue.Set") ? null : "disabled")>ثبت مقدار</button>
                                         </div>
                                     </form>
                                 </div>
@@ -794,8 +794,8 @@
                             <div class="card">
                                 <div class="card-body">
                                     <div class="alert alert-light mb-0">
-                                        <h6>@UiText["catalog.products.noProductSelected"]</h6>
-                                        <p class="mb-0 text-muted">@UiText["catalog.products.noProductSelectedAttributeHelp"]</p>
+                                        <h6>محصولی انتخاب نشده است</h6>
+                                        <p class="mb-0 text-muted">برای ثبت مقدار ویژگی، ابتدا یک محصول را از لیست انتخاب کنید.</p>
                                     </div>
                                 </div>
                             </div>
@@ -806,20 +806,20 @@
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
-                                        <h5 class="card-title mb-1">@UiText["catalog.products.thisProductVariants"]</h5>
+                                        <h5 class="card-title mb-1">واریانت‌های این محصول</h5>
                                         <p class="text-muted small mb-0">
-                                            @UiText["catalog.products.variantsHelp"]
+                                            واریانت‌ها از ترکیب ویژگی‌های واریانت‌ساز همین محصول ساخته می‌شوند و برای عملیات جزئی‌تر از صفحه واریانت قابل مدیریت هستند.
                                         </p>
                                     </div>
                                     @if (hasSelectedProduct)
                                     {
                                         <div class="text-right">
-                                            <span class="badge badge-pill badge-outline-primary mb-2">@Model.ProductVariantTotalCount @UiText["catalog.products.variantCountSuffix"]</span>
+                                            <span class="badge badge-pill badge-outline-primary mb-2">@Model.ProductVariantTotalCount واریانت</span>
                                             <div>
                                                 <a class="btn btn-outline-primary btn-sm"
                                                    asp-action="Variants"
                                                    asp-route-productId="@Model.SelectedProductId">
-                                                    @UiText["catalog.products.manageAllVariants"]
+                                                    مدیریت کامل واریانت‌ها
                                                 </a>
                                             </div>
                                         </div>
@@ -829,15 +829,15 @@
                                 @if (!hasSelectedProduct)
                                 {
                                     <div class="alert alert-light mb-0">
-                                        <h6>@UiText["catalog.products.noProductSelected"]</h6>
-                                        <p class="mb-0 text-muted">@UiText["catalog.products.noProductSelectedVariantHelp"]</p>
+                                        <h6>محصولی انتخاب نشده است</h6>
+                                        <p class="mb-0 text-muted">ابتدا یک محصول را از لیست انتخاب کنید تا واریانت‌های همان محصول اینجا نمایش داده شود.</p>
                                     </div>
                                 }
                                 else if (Model.ProductVariants.Count == 0)
                                 {
                                     <div class="alert alert-light mb-0">
-                                        <h6>@UiText["catalog.products.noVariantsForProduct"]</h6>
-                                        <p class="mb-0 text-muted">@UiText["catalog.products.noVariantsForProductHelp"]</p>
+                                        <h6>واریانتی برای این محصول ثبت نشده است</h6>
+                                        <p class="mb-0 text-muted">اگر محصول را با ویژگی‌های واریانت‌ساز چندانتخابی بسازید، سیستم واریانت‌ها را خودکار تولید می‌کند.</p>
                                     </div>
                                 }
                                 else
@@ -847,11 +847,11 @@
                                             <thead>
                                                 <tr>
                                                     <th>SKU</th>
-                                                    <th>@UiText["catalog.products.barcode"]</th>
-                                                    <th>@UiText["catalog.products.baseUnit"]</th>
-                                                    <th>@UiText["catalog.products.tracking"]</th>
-                                                    <th>@UiText["common.status"]</th>
-                                                    <th class="text-right">@UiText["common.operations"]</th>
+                                                    <th>بارکد</th>
+                                                    <th>واحد پایه</th>
+                                                    <th>رهگیری</th>
+                                                    <th>وضعیت</th>
+                                                    <th class="text-right">عملیات</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -864,11 +864,11 @@
                                                         <td>@(string.IsNullOrWhiteSpace(variant.TrackingPolicy) ? "-" : variant.TrackingPolicy)</td>
                                                         <td>
                                                             <span class="badge badge-pill @(variant.IsActive ? "badge-primary" : "badge-secondary")">
-                                                                @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
+                                                                @(variant.IsActive ? "فعال" : "غیرفعال")
                                                             </span>
                                                             @if (variant.InventoryMovementLocked)
                                                             {
-                                                                <span class="badge badge-pill badge-outline-warning">@UiText["catalog.products.hasMovement"]</span>
+                                                                <span class="badge badge-pill badge-outline-warning">دارای گردش</span>
                                                             }
                                                         </td>
                                                         <td class="text-right">
@@ -876,7 +876,7 @@
                                                                asp-action="Variants"
                                                                asp-route-productId="@variant.ProductId"
                                                                asp-route-variantId="@variant.Id">
-                                                                @UiText["catalog.products.detailsButton"]
+                                                                جزئیات
                                                             </a>
                                                         </td>
                                                     </tr>
@@ -895,8 +895,8 @@
                 <div class="card mb-4">
                     <div class="card-body" id="product-list-scope">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0">@UiText["catalog.products.listTitle"]</h5>
-                            <span class="text-muted small">@Model.ProductTotalCount @UiText["catalog.products.recordCountSuffix"]</span>
+                            <h5 class="card-title mb-0">لیست محصولات</h5>
+                            <span class="text-muted small">@Model.ProductTotalCount رکورد</span>
                         </div>
                         <form asp-action="ApplyProductBulkAction"
                               method="post"
@@ -915,38 +915,38 @@
                             <input type="hidden" name="page" value="@Model.ProductPage" />
                             <input type="hidden" name="pageSize" value="@Model.ProductPageSize" />
                             <div class="small text-muted mr-2 mb-2">
-                                @UiText["catalog.products.selectedCount"] <span data-bulk-count>0</span>
+                                تعداد انتخاب‌شده: <span data-bulk-count>0</span>
                             </div>
                             <div class="btn-group btn-group-sm mb-2">
                                 <button type="submit"
                                         class="btn btn-outline-success btn-xs"
                                         data-bulk-action="activate"
                                         data-bulk-permission="@(Can("Catalog.Product.Activate", "Product.Activate") ? "allowed" : "denied")"
-                                        data-confirm-title="@UiText["catalog.products.bulkActivateTitle"]"
-                                        data-confirm="@UiText["catalog.products.bulkActivateConfirm"]"
+                                        data-confirm-title="فعال‌سازی گروهی محصول"
+                                        data-confirm="محصولات انتخاب‌شده فعال شوند؟"
                                         disabled
                                         @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>
-                                    @UiText["catalog.products.bulkActivateButton"]
+                                    فعال‌سازی گروهی
                                 </button>
                                 <button type="submit"
                                         class="btn btn-outline-warning btn-xs"
                                         data-bulk-action="deactivate"
                                         data-bulk-permission="@(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? "allowed" : "denied")"
-                                        data-confirm-title="@UiText["catalog.products.bulkDeactivateTitle"]"
-                                        data-confirm="@UiText["catalog.products.bulkDeactivateConfirm"]"
+                                        data-confirm-title="غیرفعال‌سازی گروهی محصول"
+                                        data-confirm="محصولات انتخاب‌شده غیرفعال شوند؟"
                                         disabled
                                         @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>
-                                    @UiText["catalog.products.bulkDeactivateButton"]
+                                    غیرفعال‌سازی گروهی
                                 </button>
                                 <button type="submit"
                                         class="btn btn-outline-danger btn-xs"
                                         data-bulk-action="delete"
                                         data-bulk-permission="@(Can("Catalog.Product.Delete", "Product.Delete") ? "allowed" : "denied")"
-                                        data-confirm-title="@UiText["catalog.products.bulkDeleteTitle"]"
-                                        data-confirm="@UiText["catalog.products.bulkDeleteConfirm"]"
+                                        data-confirm-title="حذف گروهی محصول"
+                                        data-confirm="محصولات انتخاب‌شده حذف شوند؟ این عملیات غیرقابل بازگشت است."
                                         disabled
                                         @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
-                                    @UiText["catalog.products.bulkDeleteButton"]
+                                    حذف گروهی
                                 </button>
                             </div>
                         </form>
@@ -954,11 +954,11 @@
                             <table class="table table-sm table-striped">
                                 <thead>
                                     <tr>
-                                        <th><input type="checkbox" data-bulk-toggle aria-label='@UiText["catalog.products.selectAll"]' /></th>
-                                        <th>@UiText["common.name"]</th>
-                                        <th>@UiText["catalog.products.baseSku"]</th>
-                                        <th>@UiText["common.status"]</th>
-                                        <th>@UiText["catalog.products.category"]</th>
+                                        <th><input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" /></th>
+                                        <th>نام</th>
+                                        <th>شماره محصول</th>
+                                        <th>وضعیت</th>
+                                        <th>دسته‌بندی</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -968,8 +968,8 @@
                                         <tr>
                                             <td colspan="6">
                                                 <div class="alert alert-light my-2">
-                                                    <h6>@UiText["catalog.products.noProductsFound"]</h6>
-                                                    <p class="mb-0 text-muted">@UiText["catalog.products.changeSearchOrFilter"]</p>
+                                                    <h6>محصولی پیدا نشد</h6>
+                                                    <p class="mb-0 text-muted">جستجو یا فیلتر را تغییر دهید.</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -979,12 +979,12 @@
                                         @foreach (var product in Model.Products)
                                         {
                                             <tr>
-                                                <td><input type="checkbox" data-bulk-row value="@product.Id" aria-label='@string.Format(UiText["catalog.products.rowDetailsFormat"], product.Name)' /></td>
+                                                <td><input type="checkbox" data-bulk-row value="@product.Id" aria-label="جزئیات @product.Name" /></td>
                                                 <td>@product.Name</td>
                                                 <td><span class="text-monospace">@product.BaseSku</span></td>
                                                 <td>
                                                     <span class="badge badge-pill @(product.IsActive ? "badge-primary" : "badge-secondary")">
-                                                        @(product.IsActive ? UiText["common.active"] : UiText["common.inactive"])
+                                                        @(product.IsActive ? "فعال" : "غیرفعال")
                                                     </span>
                                                 </td>
                                                 <td>@(product.CategoryName ?? product.CategoryId)</td>
@@ -1000,7 +1000,7 @@
                                                            asp-route-sort="@Model.ProductSort"
                                                            asp-route-page="@Model.ProductPage"
                                                            asp-route-pageSize="@Model.ProductPageSize"
-                                                           asp-fragment="product-tab-main">@UiText["common.edit"]</a>
+                                                           asp-fragment="product-tab-main">ویرایش</a>
                                                         <a class="btn btn-outline-info btn-xs"
                                                            asp-action="Products"
                                                            asp-route-categoryId="@product.CategoryId"
@@ -1010,27 +1010,27 @@
                                                            asp-route-statusFilter="@Model.ProductStatusFilter"
                                                            asp-route-sort="@Model.ProductSort"
                                                            asp-route-page="@Model.ProductPage"
-                                                           asp-route-pageSize="@Model.ProductPageSize">@UiText["catalog.products.variantsButton"]</a>
+                                                           asp-route-pageSize="@Model.ProductPageSize">واریانت‌ها</a>
                                                         <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                            <span class="sr-only">@UiText["common.operations"]</span>
+                                                            <span class="sr-only">عملیات</span>
                                                         </button>
                                                         <div class="dropdown-menu dropdown-menu-right">
                                                             <a class="dropdown-item"
                                                                asp-action="Variants"
                                                                asp-route-productId="@product.Id">
-                                                                @UiText["catalog.products.variantsButton"]
+                                                                واریانت‌ها
                                                             </a>
                                                             <form asp-action="ActivateProduct" method="post" class="px-3 py-1" data-loading-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="productId" value="@product.Id" />
                                                                 <input type="hidden" name="categoryId" value="@product.CategoryId" />
-                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>@UiText["catalog.products.activateButton"]</button>
+                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>فعال‌سازی</button>
                                                             </form>
                                                             <form asp-action="DeactivateProduct" method="post" class="px-3 py-1" data-loading-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="productId" value="@product.Id" />
                                                                 <input type="hidden" name="categoryId" value="@product.CategoryId" />
-                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>@UiText["catalog.products.deactivateButton"]</button>
+                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>غیرفعال‌سازی</button>
                                                             </form>
                                                             <form asp-action="DeleteProduct" method="post" class="px-3 py-1" data-loading-form>
                                                                 @Html.AntiForgeryToken()
@@ -1038,10 +1038,10 @@
                                                                 <input type="hidden" name="categoryId" value="@product.CategoryId" />
                                                                 <button type="submit"
                                                                         class="btn btn-link text-danger p-0"
-                                                                        data-confirm-title="@UiText["catalog.products.deleteTitle"]"
-                                                                        data-confirm="@UiText["catalog.products.deleteConfirm"]"
+                                                                        data-confirm-title="حذف محصول"
+                                                                        data-confirm="این محصول حذف شود؟ این عملیات قابل بازگشت نیست."
                                                                         @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
-                                                                    @UiText["common.delete"]
+                                                                    حذف
                                                                 </button>
                                                             </form>
                                                         </div>
@@ -1516,7 +1516,7 @@
                     return;
                 }
 
-                categoryPathBadge.textContent = @JsonSerializer.Serialize(UiText["catalog.products.selectedPathBadge"]) + pathText;
+                categoryPathBadge.textContent = 'مسیر انتخاب: ' + pathText;
                 categoryPathBadge.classList.remove('d-none');
             }
 
@@ -1569,7 +1569,7 @@
 
                 categoryTreeLevels.innerHTML = levels.map(function (level) {
                     return '<div class="product-category-level" data-level="' + level.level + '">'
-                        + '<div class="product-category-level-title>' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepPrefix"]) + ' ' + level.level + ' ' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepSuffix"]) + '</div>'
+                        + '<div class="product-category-level-title">مرحله ' + level.level + ' انتخاب دسته</div>'
                         + '<div class="product-category-grid">'
                         + level.items.map(function (item) {
                             var isActive = level.activeId && level.activeId.toLowerCase() === item.id.toLowerCase();
@@ -1580,7 +1580,7 @@
                             return '<button type="button" class="product-category-card' + (isActive ? ' active' : '') + (!imageUrl ? ' product-category-card-no-media' : '') + '" data-category-card data-category-id="' + escapeHtml(item.id) + '">'
                                 + mediaHtml
                                 + '<span class="product-category-card-name">' + escapeHtml(item.name) + '</span>'
-                                + '<span class="product-category-card-code">' + escapeHtml(item.code || @JsonSerializer.Serialize(UiText["catalog.products.noCode"])) + '</span>'
+                                + '<span class="product-category-card-code">' + escapeHtml(item.code || 'بدون کد') + '</span>'
                                 + '</button>';
                         }).join('')
                         + '</div>'
@@ -1608,7 +1608,7 @@
                             renderCreateAttributeSections(null);
                             bindAutoCreateInputEvents(createDynamicSections || document);
                             renderAutoVariantPreview();
-                            setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.finalCategoryNotSelected"])), 'warning');
+                            setCreateAttributeStatus('دسته نهایی هنوز انتخاب نشده', 'warning');
                         }
                     });
                 });
@@ -1672,19 +1672,19 @@
                     ? 'badge-success'
                     : (kind === 'warning' ? 'badge-warning' : (kind === 'danger' ? 'badge-danger' : 'badge-secondary'));
                 createAttributeStatus.className = 'badge ' + badgeClass + ' ml-2';
-                createAttributeStatus.textContent = message || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.unknownStatus"]));
+                createAttributeStatus.textContent = message || 'نامشخص';
             }
 
             function buildCreateAttributeOriginText(attribute, includeDisplayOrder) {
                 var parts = [];
                 if (includeDisplayOrder) {
-                    parts.push(@JsonSerializer.Serialize(UiText["catalog.products.attributePriorityPrefix"]) + (attribute.displayOrder || 0));
+                    parts.push('اولویت ویژگی: ' + (attribute.displayOrder || 0));
                 }
 
                 parts.push(attribute.isInherited
-                    ? (@JsonSerializer.Serialize(UiText["catalog.products.inheritedFromPrefix"]) + (attribute.sourceCategoryName || ''))
-                    : @JsonSerializer.Serialize(UiText["catalog.products.direct"]);
-                parts.push(attribute.isRequired ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.required"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.optional"])));
+                    ? ('ارث‌رسیده از ' + (attribute.sourceCategoryName || ''))
+                    : 'مستقیم');
+                parts.push(attribute.isRequired ? 'الزامی' : 'اختیاری');
                 return parts.join(' - ');
             }
 
@@ -1697,7 +1697,7 @@
                 var variantAttributes = Array.isArray(data && data.variantAttributes) ? data.variantAttributes : [];
 
                 if (!data || !data.categoryId) {
-                    createDynamicSections.innerHTML = '<div class="alert alert-warning">@UiText["catalog.products.selectCategoryForDynamicSections"]</div>';
+                    createDynamicSections.innerHTML = '<div class="alert alert-warning">ابتدا یک دسته‌بندی انتخاب کنید تا فرم ویژگی‌های محصول و واریانت‌ساز بارگذاری شود.</div>';
                     autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
                     autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
                     autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
@@ -1705,7 +1705,7 @@
                 }
 
                 var productSection = productAttributes.length === 0
-                    ? '<div class="text-muted small>' + @JsonSerializer.Serialize(UiText["catalog.products.noProductAttributeDefined"]) + '</div>'
+                    ? '<div class="text-muted small">ویژگی محصولی تعریف نشده است.</div>'
                     : productAttributes.map(function (attribute) {
                         var label = escapeHtml(attribute.name || '') + ' (' + escapeHtml(attribute.dataType || '') + ')' + (attribute.isRequired ? ' *' : '');
                         var inputHtml = '';
@@ -1713,25 +1713,25 @@
                         var dataType = ((attribute.dataType || '') + '').trim().toLowerCase();
 
                         if (options.length > 0) {
-                            inputHtml = '<select class="form-control js-search-select js-auto-product-value" data-option-input="true" name="AutoProductOption_' + escapeHtml(attribute.attributeId || '') + '" data-placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.selectOption"]) + '">'
-                                + '<option value="">' + @JsonSerializer.Serialize(UiText["catalog.products.selectValue"]) + '</option>'
+                            inputHtml = '<select class="form-control js-search-select js-auto-product-value" data-option-input="true" name="AutoProductOption_' + escapeHtml(attribute.attributeId || '') + '" data-placeholder="انتخاب گزینه">'
+                                + '<option value="">انتخاب مقدار</option>'
                                 + options.map(function (option) {
                                     return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '">'
                                         + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
                                 }).join('')
                                 + '</select>';
                         } else if (dataType === 'number') {
-                            inputHtml = '<input type="number" step="any" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.numericValue"]) + '" />';
+                            inputHtml = '<input type="number" step="any" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="مقدار عددی" />';
                         } else if (dataType === 'date') {
                             inputHtml = '<input type="date" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" />';
                         } else if (dataType === 'boolean') {
                             inputHtml = '<select class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '">'
-                                + '<option value="">' + @JsonSerializer.Serialize(UiText["catalog.products.selectAttribute"]) + '</option>'
-                                + '<option value="true">' + @JsonSerializer.Serialize(UiText["common.yes"]) + '</option>'
-                                + '<option value="false">' + @JsonSerializer.Serialize(UiText["common.no"]) + '</option>'
+                                + '<option value="">انتخاب ویژگی</option>'
+                                + '<option value="true">بله</option>'
+                                + '<option value="false">خیر</option>'
                                 + '</select>';
                         } else {
-                            inputHtml = '<input type="text" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.attributeValuePlaceholder"]) + '" />';
+                            inputHtml = '<input type="text" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="مقدار ویژگی" />';
                         }
 
                         return '<div class="form-group js-auto-product-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
@@ -1742,12 +1742,12 @@
                     }).join('');
 
                 var variantSection = variantAttributes.length === 0
-                    ? '<div class="text-muted small">' + @JsonSerializer.Serialize(UiText["catalog.products.noVariantBuilderAttributeDefined"]) + '</div>'
+                    ? '<div class="text-muted small">ویژگی واریانت‌ساز تعریف نشده است.</div>'
                     : variantAttributes.map(function (attribute) {
                         var options = Array.isArray(attribute.options) ? attribute.options : [];
                         return '<div class="form-group js-auto-variant-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
                             + '<label>' + escapeHtml(attribute.name || '') + (attribute.isRequired ? ' *' : '') + '</label>'
-                            + '<select multiple class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"]) + '">'
+                            + '<select multiple class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="انتخاب چند گزینه">'
                             + options.map(function (option) {
                                 return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '" data-option-display-order="' + escapeHtml(option.displayOrder || 0) + '">'
                                     + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
@@ -1759,18 +1759,18 @@
 
                 createDynamicSections.innerHTML = ''
                     + '<div class="card mb-3"><div class="card-body">'
-                    + '<h6 class="card-title mb-3">@UiText["catalog.products.nonVariantAttributes"]</h6>'
+                    + '<h6 class="card-title mb-3">ویژگی‌های محصول (غیر واریانت‌ساز)</h6>'
                     + productSection
                     + '</div></div>'
                     + '<div class="card mb-3"><div class="card-body">'
-                    + '<h6 class="card-title mb-3>' + @JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributes"]) + '</h6>'
+                    + '<h6 class="card-title mb-3">ویژگی‌های واریانت‌ساز (چندانتخابی)</h6>'
                     + variantSection
                     + '</div></div>'
                     + '<div class="card mb-3"><div class="card-body">'
-                    + '<h6 class="card-title mb-2>' + @JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreview"]) + '</h6>'
-                    + '<div id="auto-variant-preview-empty" class="text-muted small">' + @JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreviewHelp"]) + '</div>'
+                    + '<h6 class="card-title mb-2">پیش‌نمایش واریانت‌های قابل تولید</h6>'
+                    + '<div id="auto-variant-preview-empty" class="text-muted small">گزینه‌های واریانت‌ساز را انتخاب کنید تا پیش‌نمایش نام و SKU ساخته شود.</div>'
                     + '<div id="auto-variant-preview-container" class="table-responsive d-none">'
-                    + '<table class="table table-sm table-striped mb-0"><thead><tr><th>#</th><th>' + @JsonSerializer.Serialize(UiText["catalog.products.variantName"]) + '</th><th>SKU</th></tr></thead><tbody id="auto-variant-preview-body"></tbody></table>'
+                    + '<table class="table table-sm table-striped mb-0"><thead><tr><th>#</th><th>نام واریانت</th><th>SKU</th></tr></thead><tbody id="auto-variant-preview-body"></tbody></table>'
                     + '</div></div></div>';
 
                 autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
@@ -1798,7 +1798,7 @@
 
                 var normalizedCategoryId = (categoryId || '').trim();
                 if (normalizedCategoryId && lastCreateAttributesCategoryId.toLowerCase() === normalizedCategoryId.toLowerCase()) {
-                    setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.duplicateCategory"])), 'secondary');
+                    setCreateAttributeStatus('دسته تکراری', 'secondary');
                     return;
                 }
 
@@ -1808,7 +1808,7 @@
                     }
 
                     lastCreateAttributesCategoryId = '';
-                    setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.noCategorySelected"])), 'warning');
+                    setCreateAttributeStatus('دسته انتخاب نشده', 'warning');
                     setCreateAttributeFeedback('', 'warning');
                     renderCreateAttributeSections(null);
                     bindAutoCreateInputEvents(createDynamicSections);
@@ -1823,7 +1823,7 @@
                     }
 
                     lastCreateAttributesCategoryId = '';
-                    setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["product.attributes.loadAfterLeaf"])), 'warning');
+                    setCreateAttributeStatus('Ø§ØªØ±ÛŒØ¨ÛŒÙˆØªâ€ŒÙ‡Ø§ ÙÙ‚Ø· Ø¨Ø¹Ø¯ Ø§Ø² Ø§Ù†ØªØ®Ø§Ø¨ Ø¢Ø®Ø±ÛŒÙ† Ø²ÛŒØ±Ø¯Ø³ØªÙ‡ Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯', 'warning');
                     setCreateAttributeFeedback('', 'warning');
                     renderCreateAttributeSections(null);
                     bindAutoCreateInputEvents(createDynamicSections);
@@ -1836,9 +1836,9 @@
                 var currentDraft = captureFormDraft(productUpsertForm);
                 lastCreateAttributesCategoryId = normalizedCategoryId;
 
-                setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.sendingRequest"])), 'warning');
+                setCreateAttributeStatus('در حال ارسال درخواست', 'warning');
                 setCreateAttributeFeedback('', 'warning');
-                createDynamicSections.innerHTML = '<div class="alert alert-light border>' + @JsonSerializer.Serialize(UiText["catalog.products.loadingCategoryAttributes"]) + '</div>';
+                createDynamicSections.innerHTML = '<div class="alert alert-light border">در حال بارگذاری ویژگی‌های دسته‌بندی...</div>';
 
                 var url = new URL(createAttributesUrl || window.location.href, window.location.origin);
                 url.searchParams.set('categoryId', categoryId);
@@ -1856,12 +1856,12 @@
 
                         if (!data || data.isSuccess === false) {
                             createDynamicSections.innerHTML = '';
-                            setCreateAttributeFeedback((data && data.errorMessage) || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loadCategoryAttributesFailed"])), 'danger');
+                            setCreateAttributeFeedback((data && data.errorMessage) || 'بارگذاری ویژگی‌های دسته‌بندی با خطا مواجه شد.', 'danger');
                             renderCreateAttributeSections(null);
                             return;
                         }
 
-                        setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loaded"])), 'success');
+                        setCreateAttributeStatus('لود شد', 'success');
                         renderCreateAttributeSections(data);
                         applyFormDraft(productUpsertForm, currentDraft);
                         bindAutoCreateInputEvents(createDynamicSections);
@@ -1881,9 +1881,9 @@
                             return;
                         }
 
-                        setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loadError"])), 'danger');
+                        setCreateAttributeStatus('خطا در لود', 'danger');
                         createDynamicSections.innerHTML = '';
-                        setCreateAttributeFeedback(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loadCategoryAttributesFailed"])), 'danger');
+                        setCreateAttributeFeedback('بارگذاری ویژگی‌های دسته‌بندی با خطا مواجه شد.', 'danger');
                         renderCreateAttributeSections(null);
                     });
             }
@@ -1976,7 +1976,7 @@
                     }
 
                     if (isRequired && !optionId && !value) {
-                        validationErrors.push(@JsonSerializer.Serialize(UiText["catalog.products.required"]) + " " + attributeName + " " + @JsonSerializer.Serialize(UiText["catalog.products.requiredAttributeShouldHaveValue"]));
+                        validationErrors.push('ویژگی الزامی "' + attributeName + '" باید مقدار داشته باشد.');
                         return;
                     }
 
@@ -2004,14 +2004,14 @@
 
                     if (dataType !== 'option' && dataType !== 'enum' && dataType !== 'select') {
                         if (isRequired) {
-                            validationErrors.push(@JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributeShouldBeOptionPrefix"]) + attributeName + @JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributeShouldBeOptionSuffix"]));
+                            validationErrors.push('ویژگی واریانت‌ساز "' + attributeName + '" باید از نوع گزینه‌ای (Option) باشد.');
                         }
                         return;
                     }
 
                     var selectedOptions = Array.from(select.selectedOptions || []);
                     if (isRequired && selectedOptions.length === 0) {
-                        validationErrors.push(@JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionPrefix"]) + attributeName + @JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionSuffix"]));
+                        validationErrors.push('برای ویژگی الزامی "' + attributeName + '" حداقل یک گزینه انتخاب کنید.');
                         return;
                     }
 
@@ -2101,7 +2101,7 @@
                     usedSkus[candidateSku.toUpperCase()] = true;
 
                     var suffixName = ordered.map(function (item) { return item.optionName; }).join(' / ');
-                    var generatedName = suffixName ? ((productName || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.defaultProductName"]))) + " - " + suffixName) : (productName || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.defaultProductName"])));
+                    var generatedName = suffixName ? ((productName || 'محصول') + ' - ' + suffixName) : (productName || 'محصول');
 
                     return {
                         index: index + 1,
@@ -2161,7 +2161,7 @@
             restoreFormDrafts();
             syncCategoryTreeFromValue(productCategoryField ? productCategoryField.value : '');
             setCreateAttributeStatus(
-                isEditMode ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.editMode"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.scriptActivated"])),
+                isEditMode ? 'حالت ویرایش' : 'اسکریپت فعال شد',
                 isEditMode ? 'secondary' : 'success'
             );
             tabs.forEach(function (tab) {
@@ -2182,11 +2182,11 @@
                     var selectedCategoryId = (productCategoryField.value || '').trim();
                     syncCategoryTreeFromValue(selectedCategoryId);
                     if (!selectedCategoryId) {
-                        setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.finalCategoryNotSelected"])), 'warning');
+                        setCreateAttributeStatus('دسته نهایی انتخاب نشده', 'warning');
                         return;
                     }
 
-                    setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.categoryChangeSaved"])), 'warning');
+                    setCreateAttributeStatus('تغییر دسته ثبت شد', 'warning');
                     loadCreateAttributesForCategory(selectedCategoryId);
                 };
 
@@ -2211,7 +2211,7 @@
                     var selectedCategoryId = productCategoryField ? (productCategoryField.value || '').trim() : '';
                     if (selectedCategoryId && currentCategoryId && selectedCategoryId.toLowerCase() !== currentCategoryId.toLowerCase()) {
                         event.preventDefault();
-                        window.alert(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.reloadForNewCategoryAttributes"])));
+                        window.alert('برای بارگذاری ویژگی‌های دسته‌بندی جدید، ابتدا تغییر دسته‌بندی را ثبت کنید تا صفحه بازخوانی شود.');
                         return;
                     }
 
@@ -2266,7 +2266,7 @@
 
                 function isTrueLike(rawValue) {
                     var normalized = (rawValue || '').toString().trim().toLowerCase();
-                    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'Ø¨Ù„Ù‡';
+                    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'بله';
                 }
 
                 function clearEditors() {
@@ -2299,7 +2299,7 @@
                     var options = parseOptions(selectedOption);
                     if (options.length > 0) {
                         optionGroup.classList.remove('d-none');
-                        optionSelect.innerHTML = '<option value="">' + @JsonSerializer.Serialize(UiText["catalog.products.selectOption"]) + '</option>';
+                        optionSelect.innerHTML = '<option value="">انتخاب گزینه</option>';
                         options.forEach(function (item) {
                             var optionElement = document.createElement('option');
                             optionElement.value = item.value;
@@ -2384,7 +2384,7 @@
                     var isRequired = selectedOption.getAttribute('data-required') === 'true';
                     if (isRequired && (!hiddenValue.value || !hiddenValue.value.trim())) {
                         event.preventDefault();
-                        window.alert(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.requiredAttributeEmpty"])));
+                        window.alert('این ویژگی الزامی است و مقدار آن نباید خالی باشد.');
                     }
                 });
 
@@ -2528,13 +2528,13 @@
             if (label) label.textContent = '\u062a\u0635\u0648\u06cc\u0631 \u0645\u062d\u0635\u0648\u0644';
             if (status) status.textContent = '\u06cc\u06a9 \u062a\u0635\u0648\u06cc\u0631 \u062d\u062f\u0627\u06a9\u062b\u0631 \u06f5 \u0645\u06af\u0627\u0628\u0627\u06cc\u062a.';
             if (removeButton) removeButton.textContent = '\u062d\u0630\u0641 \u062a\u0635\u0648\u06cc\u0631';
-            if (label) label.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["product.image"]));
-            if (status) status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageHelp"]));
-            if (removeButton) removeButton.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.removeImage"]));
+            if (label) label.textContent = 'تصویر محصول';
+            if (status) status.textContent = 'یک تصویر حداکثر ۵ مگابایت.';
+            if (removeButton) removeButton.textContent = 'حذف تصویر';
 
-            if (label) label.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["product.image"]));
-            if (status) status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageHelp"]));
-            if (removeButton) removeButton.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.removeImage"]));
+            if (label) label.textContent = 'تصویر محصول';
+            if (status) status.textContent = 'یک تصویر حداکثر ۵ مگابایت.';
+            if (removeButton) removeButton.textContent = 'حذف تصویر';
 
             function getUploadErrorMessage(xhr, fallbackMessage) {
                 try {
@@ -2573,22 +2573,22 @@
                 });
                 xhr.addEventListener('loadend', function () {
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        if (!status.textContent || status.textContent.indexOf('�') >= 0 || status.textContent.indexOf('�') >= 0 || status.textContent.indexOf('�') >= 0) {
-                            status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
+                        if (!status.textContent || status.textContent.indexOf('Ã') >= 0 || status.textContent.indexOf('Ø') >= 0 || status.textContent.indexOf('Û') >= 0) {
+                            status.textContent = 'تصویر ذخیره شد.';
                         }
                     } else if (xhr.status > 0) {
-                        status.textContent = getUploadErrorMessage(xhr, @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"])));
+                        status.textContent = getUploadErrorMessage(xhr, 'آپلود تصویر با خطا مواجه شد.');
                     } else {
-                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
+                        status.textContent = 'ارتباط با سرویس فایل برقرار نشد.';
                     }
                 });
 
                 xhr.onload = function () {
                     progressWrap.classList.add('d-none');
                     progressBar.style.width = '0%';
-                    status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
+                    status.textContent = 'ارتباط با سرویس فایل برقرار نشد.';
                     if (xhr.status < 200 || xhr.status >= 300) {
-                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"]));
+                        status.textContent = 'آپلود تصویر با خطا مواجه شد.';
                         try {
                             var errorPayload = JSON.parse(xhr.responseText || '{}');
                             if (errorPayload && errorPayload.message) {
@@ -2602,28 +2602,28 @@
                     fileKeyField.value = result.fileKey || '';
                     imageUrlField.value = result.url || '';
                     thumbField.value = result.thumbnailUrl || '';
-                    status.textContent = result.originalFileName || @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
-                    status.textContent = result.originalFileName || @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
+                    status.textContent = result.originalFileName || 'تصویر ذخیره شد.';
+                    status.textContent = result.originalFileName || 'ØªØµÙˆÛŒØ± Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯.';
                     syncPreview();
                 };
                 xhr.onerror = function () {
                     progressWrap.classList.add('d-none');
                     progressBar.style.width = '0%';
-                    status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
+                    status.textContent = 'Ø§Ø±ØªØ¨Ø§Ø· Ø¨Ø§ Ø³Ø±ÙˆÛŒØ³ ÙØ§ÛŒÙ„ Ø¨Ø±Ù‚Ø±Ø§Ø± Ù†Ø´Ø¯.';
                 };
                 xhr.send(formData);
             });
 
             removeButton.addEventListener('click', function () {
                 setTimeout(function () {
-                    status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
+                    status.textContent = 'تصویر حذف شد.';
                 }, 0);
                 fileInput.value = '';
                 fileKeyField.value = '';
                 imageUrlField.value = '';
                 thumbField.value = '';
-                status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
-                status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
+                status.textContent = 'تصویر حذف شد.';
+                status.textContent = 'ØªØµÙˆÛŒØ± Ø­Ø°Ù Ø´Ø¯.';
                 syncPreview();
             });
 

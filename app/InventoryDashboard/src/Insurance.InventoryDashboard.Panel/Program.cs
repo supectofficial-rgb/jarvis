@@ -1,4 +1,6 @@
+using Insurance.InventoryDashboard.Panel.Options;
 using Insurance.InventoryDashboard.Panel.Services;
+using Insurance.InventoryDashboard.Panel.Services.Localization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +12,7 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<UiLocalizationOptions>(builder.Configuration.GetSection(UiLocalizationOptions.SectionName));
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -24,6 +27,7 @@ builder.Services.AddScoped<IAuthApiService, AuthApiService>();
 builder.Services.AddScoped<IUserManagementApiService, UserManagementApiService>();
 builder.Services.AddScoped<ICatalogApiService, CatalogApiService>();
 builder.Services.AddScoped<IDashboardConfigService, DashboardConfigService>();
+builder.Services.AddSingleton<IUiTextService, UiTextService>();
 
 var app = builder.Build();
 

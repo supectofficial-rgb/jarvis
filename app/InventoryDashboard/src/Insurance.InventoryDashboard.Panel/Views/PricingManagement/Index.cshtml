@@ -1,6 +1,6 @@
 @model Insurance.InventoryDashboard.Panel.Models.PricingPageViewModel
 @{
-    ViewData["Title"] = "مدیریت قیمت";
+    ViewData["Title"] = UiText["pricing.management.title"];
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -21,7 +21,7 @@
         .GroupBy(x => x.PriceChannelBusinessKey)
         .ToDictionary(x => x.Key, x => $"{x.First().Name} ({x.First().Code})");
     var ownerSellerTitle = Model.OwnerSeller is null
-        ? "ثبت نشده"
+        ? UiText["pricing.ownerSeller.notSet"]
         : $"{Model.OwnerSeller.Name} ({Model.OwnerSeller.Code})";
 }
 
@@ -29,8 +29,8 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <h1>مدیریت قیمت</h1>
-                <p class="text-muted">قیمت‌گذاری ثابت برای واریانت‌های انتخاب‌شده فقط روی Seller Owner انجام می‌شود.</p>
+                <h1>@UiText["pricing.management.title"]</h1>
+                <p class="text-muted">@UiText["pricing.management.description"]</p>
             </div>
         </div>
 
@@ -47,13 +47,13 @@
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="pricing-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-item-id="variant_prices" data-toggle="tab" href="#variant-prices-tab" role="tab">قیمت‌گذاری واریانت</a>
+                        <a class="nav-link active" data-item-id="variant_prices" data-toggle="tab" href="#variant-prices-tab" role="tab">@UiText["pricing.tabs.variantPricing"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-item-id="price_types" data-toggle="tab" href="#price-types-tab" role="tab">نوع قیمت</a>
+                        <a class="nav-link" data-item-id="price_types" data-toggle="tab" href="#price-types-tab" role="tab">@UiText["pricing.tabs.priceType"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-item-id="price_channels" data-toggle="tab" href="#price-channels-tab" role="tab">کانال قیمت</a>
+                        <a class="nav-link" data-item-id="price_channels" data-toggle="tab" href="#price-channels-tab" role="tab">@UiText["pricing.tabs.priceChannel"]</a>
                     </li>
                 </ul>
 
@@ -68,22 +68,22 @@
                                     </div>
                                     @if (Model.OwnerSeller is not null)
                                     {
-                                        <span class="badge badge-success">فعال</span>
+                                        <span class="badge badge-success">@UiText["common.active"]</span>
                                     }
                                     else
                                     {
-                                        <span class="badge badge-danger">الزامی</span>
+                                        <span class="badge badge-danger">@UiText["pricing.ownerSeller.required"]</span>
                                     }
                                 </div>
 
                                 <form method="get" asp-action="VariantPrices" class="mb-4">
                                     <div class="form-row align-items-end">
                                         <div class="form-group col-lg-4 col-md-6">
-                                            <label>جستجوی واریانت</label>
-                                            <input name="variantSearchTerm" value="@Model.VariantSearchTerm" class="form-control" placeholder="SKU یا بارکد" />
+                                            <label>@UiText["pricing.variantSearch.label"]</label>
+                                            <input name="variantSearchTerm" value="@Model.VariantSearchTerm" class="form-control" placeholder="@UiText["pricing.variantSearch.placeholder"]" />
                                         </div>
                                         <div class="form-group col-lg-2 col-md-3">
-                                            <button class="btn btn-outline-primary btn-block" type="submit">جستجو</button>
+                                            <button class="btn btn-outline-primary btn-block" type="submit">@UiText["common.search"]</button>
                                         </div>
                                     </div>
                                 </form>
@@ -95,8 +95,8 @@
                                         <div class="row">
                                             <div class="col-xl-7">
                                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">واریانت‌های قابل انتخاب</h6>
-                                                    <button class="btn btn-link btn-sm p-0" type="button" id="toggle-all-variants">انتخاب / لغو همه</button>
+                                                    <h6 class="mb-0">@UiText["pricing.selectableVariants"]</h6>
+                                                    <button class="btn btn-link btn-sm p-0" type="button" id="toggle-all-variants">@UiText["pricing.toggleAllVariants"]</button>
                                                 </div>
                                                 <div class="table-responsive mb-3">
                                                     <table class="table table-sm table-striped">
@@ -104,16 +104,16 @@
                                                             <tr>
                                                                 <th style="width: 48px;"></th>
                                                                 <th>SKU</th>
-                                                                <th>بارکد</th>
-                                                                <th>واحد</th>
-                                                                <th>شناسه محصول</th>
+                                                                <th>@UiText["pricing.barcode"]</th>
+                                                                <th>@UiText["pricing.unit"]</th>
+                                                                <th>@UiText["pricing.productId"]</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             @if (variantItems.Count == 0)
                                                             {
                                                                 <tr>
-                                                                    <td colspan="5" class="text-center text-muted">واریانتی پیدا نشد.</td>
+                                                                    <td colspan="5" class="text-center text-muted">@UiText["pricing.noVariantFound"]</td>
                                                                 </tr>
                                                             }
                                                             else
@@ -140,24 +140,24 @@
                                             </div>
 
                                             <div class="col-xl-5">
-                                                <h6 class="mb-3">قیمت ثابت برای ترکیب نوع قیمت و کانال</h6>
+                                                <h6 class="mb-3">@UiText["pricing.fixedPricing.title"]</h6>
                                                 <div class="form-row">
                                                     <div class="form-group col-md-4">
-                                                        <label>مبلغ برای همه</label>
+                                                        <label>@UiText["pricing.applyToAllAmount"]</label>
                                                         <input name="ApplyToAllAmount" class="form-control" type="number" min="0" step="0.01" value="@(Model.BulkPricingForm.ApplyToAllAmount?.ToString() ?? string.Empty)" />
                                                     </div>
                                                     <div class="form-group col-md-4">
-                                                        <label>ارز</label>
+                                                        <label>@UiText["pricing.currency"]</label>
                                                         <input name="Currency" class="form-control" maxlength="8" value="@Model.BulkPricingForm.Currency" />
                                                     </div>
                                                     <div class="form-group col-md-4">
-                                                        <label>حداقل تعداد</label>
+                                                        <label>@UiText["pricing.minQty"]</label>
                                                         <input name="MinQty" class="form-control" type="number" min="1" step="0.01" value="@Model.BulkPricingForm.MinQty" />
                                                     </div>
                                                 </div>
                                                 <div class="form-row">
                                                     <div class="form-group col-md-4">
-                                                        <label>اولویت</label>
+                                                        <label>@UiText["pricing.priority"]</label>
                                                         <input name="Priority" class="form-control" type="number" value="@Model.BulkPricingForm.Priority" />
                                                     </div>
                                                 </div>
@@ -166,9 +166,9 @@
                                                     <table class="table table-sm table-bordered">
                                                         <thead>
                                                             <tr>
-                                                                <th>نوع قیمت</th>
-                                                                <th>کانال</th>
-                                                                <th>مبلغ</th>
+                                                                <th>@UiText["pricing.tabs.priceType"]</th>
+                                                                <th>@UiText["pricing.tabs.priceChannel"]</th>
+                                                                <th>@UiText["pricing.amount"]</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -193,7 +193,7 @@
                                                     </table>
                                                 </div>
 
-                                                <button class="btn btn-primary mt-3" type="submit">اعمال قیمت روی واریانت‌های انتخاب‌شده</button>
+                                                <button class="btn btn-primary mt-3" type="submit">@UiText["pricing.applyBulk"]</button>
                                             </div>
                                         </div>
                                     </form>
@@ -203,24 +203,24 @@
 
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">قیمت‌های ثبت‌شده برای Seller Owner</h5>
+                                <h5 class="card-title mb-3">@UiText["pricing.registeredPrices.title"]</h5>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped mb-0">
                                         <thead>
                                             <tr>
-                                                <th>واریانت</th>
-                                                <th>نوع قیمت</th>
-                                                <th>کانال</th>
-                                                <th>قیمت</th>
-                                                <th>فعال</th>
-                                                <th class="text-right">عملیات</th>
+                                                <th>@UiText["pricing.variant"]</th>
+                                                <th>@UiText["pricing.tabs.priceType"]</th>
+                                                <th>@UiText["pricing.tabs.priceChannel"]</th>
+                                                <th>@UiText["pricing.amount"]</th>
+                                                <th>@UiText["common.active"]</th>
+                                                <th class="text-right">@UiText["common.operations"]</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @if (variantPriceItems.Count == 0)
                                             {
                                                 <tr>
-                                                    <td colspan="6" class="text-center text-muted">هنوز قیمتی برای Seller Owner ثبت نشده است.</td>
+                                                    <td colspan="6" class="text-center text-muted">@UiText["pricing.registeredPrices.empty"]</td>
                                                 </tr>
                                             }
                                             @foreach (var price in variantPriceItems)
@@ -247,7 +247,7 @@
                                                     <td class="text-right">
                                                         <form id="@priceFormId" asp-action="UpdateVariantPrice" asp-route-id="@price.SellerVariantPriceBusinessKey" method="post" data-loading-form class="d-inline">
                                                             @Html.AntiForgeryToken()
-                                                            <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
+                                                            <button class="btn btn-outline-primary btn-xs" type="submit">@UiText["common.save"]</button>
                                                         </form>
                                                     </td>
                                                 </tr>
@@ -262,20 +262,20 @@
                     <div class="tab-pane fade" id="price-types-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">نوع قیمت</h5>
+                                <h5 class="card-title mb-3">@UiText["pricing.tabs.priceType"]</h5>
                                 <form asp-action="CreatePriceType" method="post" data-loading-form>
                                     @Html.AntiForgeryToken()
                                     <div class="form-row">
                                         <div class="form-group col-md-4">
-                                            <label>کد</label>
+                                            <label>@UiText["common.code"]</label>
                                             <input class="form-control" name="Code" placeholder="Retail / Wholesale" />
                                         </div>
                                         <div class="form-group col-md-5">
-                                            <label>عنوان</label>
-                                            <input class="form-control" name="Name" placeholder="فروش عادی" required />
+                                            <label>@UiText["common.title"]</label>
+                                            <input class="form-control" name="Name" placeholder="@UiText["pricing.priceType.namePlaceholder"]" required />
                                         </div>
                                         <div class="form-group col-md-3 d-flex align-items-end">
-                                            <button class="btn btn-primary btn-block" type="submit">ثبت نوع قیمت</button>
+                                            <button class="btn btn-primary btn-block" type="submit">@UiText["pricing.priceType.create"]</button>
                                         </div>
                                     </div>
                                 </form>
@@ -284,10 +284,10 @@
                                     <table class="table table-sm table-striped mb-0">
                                         <thead>
                                             <tr>
-                                                <th>کد</th>
-                                                <th>عنوان</th>
-                                                <th>فعال</th>
-                                                <th class="text-right">عملیات</th>
+                                                <th>@UiText["common.code"]</th>
+                                                <th>@UiText["common.title"]</th>
+                                                <th>@UiText["common.active"]</th>
+                                                <th class="text-right">@UiText["common.operations"]</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -304,7 +304,7 @@
                                                     <td class="text-right">
                                                         <form id="@priceTypeFormId" asp-action="UpdatePriceType" asp-route-id="@priceType.PriceTypeBusinessKey" method="post" data-loading-form class="d-inline">
                                                             @Html.AntiForgeryToken()
-                                                            <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
+                                                            <button class="btn btn-outline-primary btn-xs" type="submit">@UiText["common.save"]</button>
                                                         </form>
                                                     </td>
                                                 </tr>
@@ -319,20 +319,20 @@
                     <div class="tab-pane fade" id="price-channels-tab" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title mb-3">کانال قیمت</h5>
+                                <h5 class="card-title mb-3">@UiText["pricing.tabs.priceChannel"]</h5>
                                 <form asp-action="CreatePriceChannel" method="post" data-loading-form>
                                     @Html.AntiForgeryToken()
                                     <div class="form-row">
                                         <div class="form-group col-md-4">
-                                            <label>کد</label>
+                                            <label>@UiText["common.code"]</label>
                                             <input class="form-control" name="Code" placeholder="Web / Store / Partner" />
                                         </div>
                                         <div class="form-group col-md-5">
-                                            <label>عنوان</label>
-                                            <input class="form-control" name="Name" placeholder="سایت" required />
+                                            <label>@UiText["common.title"]</label>
+                                            <input class="form-control" name="Name" placeholder="@UiText["pricing.priceChannel.namePlaceholder"]" required />
                                         </div>
                                         <div class="form-group col-md-3 d-flex align-items-end">
-                                            <button class="btn btn-primary btn-block" type="submit">ثبت کانال قیمت</button>
+                                            <button class="btn btn-primary btn-block" type="submit">@UiText["pricing.priceChannel.create"]</button>
                                         </div>
                                     </div>
                                 </form>
@@ -341,10 +341,10 @@
                                     <table class="table table-sm table-striped mb-0">
                                         <thead>
                                             <tr>
-                                                <th>کد</th>
-                                                <th>عنوان</th>
-                                                <th>فعال</th>
-                                                <th class="text-right">عملیات</th>
+                                                <th>@UiText["common.code"]</th>
+                                                <th>@UiText["common.title"]</th>
+                                                <th>@UiText["common.active"]</th>
+                                                <th class="text-right">@UiText["common.operations"]</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -361,7 +361,7 @@
                                                     <td class="text-right">
                                                         <form id="@channelFormId" asp-action="UpdatePriceChannel" asp-route-id="@channel.PriceChannelBusinessKey" method="post" data-loading-form class="d-inline">
                                                             @Html.AntiForgeryToken()
-                                                            <button class="btn btn-outline-primary btn-xs" type="submit">ذخیره</button>
+                                                            <button class="btn btn-outline-primary btn-xs" type="submit">@UiText["common.save"]</button>
                                                         </form>
                                                     </td>
                                                 </tr>

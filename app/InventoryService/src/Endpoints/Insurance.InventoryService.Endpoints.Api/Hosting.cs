@@ -62,6 +62,7 @@ public static class Hosting
         Activity.ForceDefaultIdFormat = true;
         app.UseAllElasticApm(app.Configuration);
         app.UseHttpsRedirection();
+        // inventory api deployment trace marker
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseTokenProcessing();

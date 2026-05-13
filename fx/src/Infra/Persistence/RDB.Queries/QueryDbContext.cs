@@ -1,10 +1,23 @@
 ﻿namespace OysterFx.Infra.Persistence.RDB.Queries;
 
 using Microsoft.EntityFrameworkCore;
+using OysterFx.Infra.Auth.UserServices;
+using OysterFx.Infra.Persistence.RDB.Queries.Extensions;
 
 public abstract class QueryDbContext : DbContext
 {
-    public QueryDbContext(DbContextOptions options) : base(options) { }
+    private readonly IUserInfoService? _userInfoService;
+
+    public QueryDbContext(DbContextOptions options, IUserInfoService? userInfoService = null) : base(options)
+    {
+        _userInfoService = userInfoService;
+    }
+
+    public string? CurrentOrganizationBusinessKey => _userInfoService.GetActiveOrganizationBusinessKey();
+
+    protected void AddOrganizationShadowProperties(ModelBuilder builder)
+        => builder.AddOrganizationShadowProperties(() => CurrentOrganizationBusinessKey);
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);

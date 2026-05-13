@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using OysterFx.AppCore.Domain.ValueObjects;
+using OysterFx.Infra.Auth.UserServices;
 using OysterFx.Infra.Persistence.EventSourcing.Abstractions;
 using OysterFx.Infra.Persistence.RDB.Commands.Configs;
 using OysterFx.Infra.Persistence.RDB.Commands.Extensions;
@@ -14,11 +15,19 @@ using System.Globalization;
 public abstract class CommandDbContext : DbContext
 {
     protected IDbContextTransaction _transaction;
+    private readonly IUserInfoService? _userInfoService;
     public DbSet<OutboxEvent> OutboxEvents { get; set; }
+    public string? CurrentOrganizationBusinessKey => _userInfoService.GetActiveOrganizationBusinessKey();
 
-    public CommandDbContext(DbContextOptions options) : base(options) { }
+    public CommandDbContext(DbContextOptions options, IUserInfoService? userInfoService = null) : base(options)
+    {
+        _userInfoService = userInfoService;
+    }
 
     protected CommandDbContext() { }
+
+    protected void AddOrganizationShadowProperties(ModelBuilder builder)
+        => builder.AddOrganizationShadowProperties(() => CurrentOrganizationBusinessKey);
 
     public T? GetShadowPropertyValue<T>(object entity, string propertyName) where T : IConvertible
     {

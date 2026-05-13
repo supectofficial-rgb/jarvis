@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\AppCore\Shared\OysterFx.AppCore.Shared.csproj" />
+    <ProjectReference Include="..\..\Auth\UserServices\OysterFx.Infra.Auth.UserServices.csproj" />
   </ItemGroup>
   
 </Project>

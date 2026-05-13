@@ -10,6 +10,10 @@ public sealed class CategoryAttributeRuleConfig : IEntityTypeConfiguration<Categ
     public void Configure(EntityTypeBuilder<CategoryAttributeRule> builder)
     {
         builder.ToTable("CategoryAttributeRules");
+        builder.Property(x => x.BusinessKey)
+            .HasConversion(
+                key => key.Value,
+                value => BusinessKey.FromGuid(value));
         builder.Property(x => x.CategorySchemaVersionRef)
             .HasConversion(
                 key => key.Value,

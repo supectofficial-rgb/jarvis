@@ -1,17 +1,19 @@
 ﻿@using System
+@using System.Text.Json
 @using Insurance.InventoryDashboard.Panel.Models
+@using Insurance.InventoryDashboard.Panel.Services.Localization
 @{
-    var userDisplayName = ViewBag.UserDisplayName as string ?? "کاربر";
+    var userDisplayName = ViewBag.UserDisplayName as string ?? UiText["common.user"];
     var menuModules = ViewBag.MenuModules as IReadOnlyList<DashboardMenuModule> ?? Array.Empty<DashboardMenuModule>();
     var activeModuleId = ViewBag.ActiveModuleId as string;
     var activeItemId = ViewBag.ActiveItemId as string;
 }
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="@UiText.Language" dir="rtl">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <title>@ViewData["Title"] - داشبورد انبار</title>
+    <title>@ViewData["Title"] - @UiText["app.title"]</title>
     <link rel="shortcut icon" href="@Url.Content("~/favicon.ico")" />
 
     <link rel="stylesheet" href="@Url.Content("~/font/iconsmind-s/css/iconsminds.css")" asp-append-version="true" />
@@ -52,7 +54,7 @@
             <a class="btn btn-sm btn-outline-primary mr-3 d-none d-md-inline-block"
                asp-controller="Dashboard"
                asp-action="Index">
-                پنل مدیریت
+                @UiText["layout.managementPanel"]
             </a>
         </div>
 
@@ -66,7 +68,7 @@
                 <button class="btn btn-empty p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <span class="name">@userDisplayName</span>
                     <span>
-                        <img alt="پروفایل" src="@Url.Content("~/img/profiles/l-1.jpg")" />
+                        <img alt="@UiText["layout.profileAlt"]" src="@Url.Content("~/img/profiles/l-1.jpg")" />
                     </span>
                 </button>
                 <div class="dropdown-menu dropdown-menu-right mt-3">
@@ -74,7 +76,7 @@
                     <div class="dropdown-divider"></div>
                     <form asp-controller="Auth" asp-action="Logout" method="post" class="px-3 py-2">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-danger btn-sm btn-block">خروج</button>
+                        <button type="submit" class="btn btn-danger btn-sm btn-block">@UiText["layout.logout"]</button>
                     </form>
                 </div>
             </div>
@@ -95,7 +97,7 @@
                         <li class="@(!module.IsEnabled ? "disabled-menu" : isActive ? "active" : null)">
                             <a href="#@module.ModuleId">
                                 <i class="@module.Icon"></i>
-                                <span>@module.Title @(module.IsEnabled ? string.Empty : "(غیرفعال)")</span>
+                                <span>@module.Title @(module.IsEnabled ? string.Empty : UiText["layout.inactiveSuffix"])</span>
                             </a>
                         </li>
                     }
@@ -163,17 +165,17 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="globalConfirmModalLabel">تایید عملیات</h5>
+                    <h5 class="modal-title" id="globalConfirmModalLabel">@UiText["layout.confirmOperation"]</h5>
                     <button type="button" class="close p-0" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-0" id="globalConfirmModalMessage">آیا از انجام این عملیات مطمئن هستید؟</p>
+                    <p class="mb-0" id="globalConfirmModalMessage">@UiText["layout.confirmMessage"]</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">انصراف</button>
-                    <button type="button" class="btn btn-danger" id="globalConfirmModalAccept">تایید</button>
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">@UiText["common.cancel"]</button>
+                    <button type="button" class="btn btn-danger" id="globalConfirmModalAccept">@UiText["common.confirm"]</button>
                 </div>
             </div>
         </div>
@@ -187,6 +189,12 @@
     <script src="@Url.Content("~/js/dore.script.js")" asp-append-version="true"></script>
     <script src="@Url.Content("~/js/scripts.js")" asp-append-version="true"></script>
     <script src="@Url.Content("~/js/inventory-dashboard.ui.js")" asp-append-version="true"></script>
+    <script>
+        window.appUi = {
+            language: @Html.Raw(JsonSerializer.Serialize(UiText.Language)),
+            text: @Html.Raw(UiText.ToClientDictionaryJson())
+        };
+    </script>
     <script>
         (function () {
             function showOnlySubMenu(moduleId) {
@@ -266,7 +274,7 @@
                     pending = { form: form, submitter: submitter };
                     titleElement.textContent = confirmTitle && confirmTitle.trim()
                         ? confirmTitle
-                        : 'تایید عملیات';
+                        : @Html.Raw(JsonSerializer.Serialize(UiText["layout.confirmOperation"]));
                     messageElement.textContent = confirmText;
 
                     if (useBootstrap5) {

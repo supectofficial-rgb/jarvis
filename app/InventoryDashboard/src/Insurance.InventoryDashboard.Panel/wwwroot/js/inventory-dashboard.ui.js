@@ -1,6 +1,15 @@
 (function () {
     "use strict";
 
+    var TRANSLATABLE_ATTRIBUTES = [
+        "placeholder",
+        "title",
+        "aria-label",
+        "data-confirm",
+        "data-confirm-title",
+        "data-placeholder"
+    ];
+
     function onReady(fn) {
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", fn);
@@ -8,6 +17,171 @@
         }
 
         fn();
+    }
+
+    function getDictionary() {
+        return window.appUi && window.appUi.text ? window.appUi.text : {};
+    }
+
+    function getSortedKeys(dictionary) {
+        return Object.keys(dictionary)
+            .filter(function (key) {
+                return typeof key === "string" &&
+                    key.trim() &&
+                    typeof dictionary[key] === "string" &&
+                    dictionary[key] !== key;
+            })
+            .sort(function (left, right) { return right.length - left.length; });
+    }
+
+    function translateText(text, dictionary, keys) {
+        if (typeof text !== "string" || !text) {
+            return text;
+        }
+
+        var trimmed = text.trim();
+        var exact = dictionary[trimmed];
+        if (exact && exact !== trimmed) {
+            var start = text.indexOf(trimmed);
+            if (start >= 0) {
+                return text.substring(0, start) + exact + text.substring(start + trimmed.length);
+            }
+        }
+
+        var translated = text;
+        keys.forEach(function (key) {
+            if (translated.indexOf(key) !== -1) {
+                translated = translated.split(key).join(dictionary[key]);
+            }
+        });
+
+        return translated;
+    }
+
+    function translateAttributes(element, dictionary, keys) {
+        if (!(element instanceof Element)) {
+            return;
+        }
+
+        TRANSLATABLE_ATTRIBUTES.forEach(function (attributeName) {
+            if (!element.hasAttribute(attributeName)) {
+                return;
+            }
+
+            var value = element.getAttribute(attributeName);
+            var translated = translateText(value, dictionary, keys);
+            if (translated !== value) {
+                element.setAttribute(attributeName, translated);
+            }
+        });
+
+        if (element instanceof HTMLInputElement) {
+            var type = (element.getAttribute("type") || "").toLowerCase();
+            if ((type === "button" || type === "submit" || type === "reset") && element.value) {
+                var translatedValue = translateText(element.value, dictionary, keys);
+                if (translatedValue !== element.value) {
+                    element.value = translatedValue;
+                }
+            }
+        }
+    }
+
+    function translateNode(root, dictionary, keys) {
+        if (!root || !dictionary || !keys.length) {
+            return;
+        }
+
+        if (root.nodeType === Node.TEXT_NODE) {
+            var parentTag = root.parentElement ? root.parentElement.tagName : "";
+            if (parentTag === "SCRIPT" || parentTag === "STYLE" || parentTag === "NOSCRIPT") {
+                return;
+            }
+
+            var translatedText = translateText(root.textContent, dictionary, keys);
+            if (translatedText !== root.textContent) {
+                root.textContent = translatedText;
+            }
+            return;
+        }
+
+        if (!(root instanceof Element)) {
+            return;
+        }
+
+        translateAttributes(root, dictionary, keys);
+
+        Array.prototype.forEach.call(root.childNodes, function (child) {
+            translateNode(child, dictionary, keys);
+        });
+    }
+
+    function initLocalizationBridge() {
+        var dictionary = getDictionary();
+        var keys = getSortedKeys(dictionary);
+        if (!keys.length || !document.body) {
+            return;
+        }
+
+        window.appUi = window.appUi || {};
+        window.appUi.translateText = function (value) {
+            return translateText(value, dictionary, keys);
+        };
+        window.appUi.translateNode = function (root) {
+            translateNode(root, dictionary, keys);
+        };
+
+        document.title = translateText(document.title, dictionary, keys);
+        translateNode(document.body, dictionary, keys);
+
+        var observerBusy = false;
+        var observer = new MutationObserver(function (mutations) {
+            if (observerBusy) {
+                return;
+            }
+
+            observerBusy = true;
+            try {
+                mutations.forEach(function (mutation) {
+                    if (mutation.type === "characterData") {
+                        translateNode(mutation.target, dictionary, keys);
+                        return;
+                    }
+
+                    if (mutation.type === "attributes" && mutation.target) {
+                        translateAttributes(mutation.target, dictionary, keys);
+                        return;
+                    }
+
+                    Array.prototype.forEach.call(mutation.addedNodes || [], function (node) {
+                        translateNode(node, dictionary, keys);
+                    });
+                });
+            } finally {
+                observerBusy = false;
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: TRANSLATABLE_ATTRIBUTES
+        });
+
+        if (typeof window.alert === "function") {
+            var originalAlert = window.alert.bind(window);
+            window.alert = function (message) {
+                return originalAlert(translateText(String(message), dictionary, keys));
+            };
+        }
+
+        if (typeof window.confirm === "function") {
+            var originalConfirm = window.confirm.bind(window);
+            window.confirm = function (message) {
+                return originalConfirm(translateText(String(message), dictionary, keys));
+            };
+        }
     }
 
     function initSearchableSelects() {
@@ -100,13 +274,13 @@
             form.addEventListener("submit", function (event) {
                 if (selectedIds().length === 0) {
                     event.preventDefault();
-                    window.alert("حداقل یک ردیف را برای عملیات گروهی انتخاب کنید.");
+                    window.alert((window.appUi && window.appUi.text && window.appUi.text["bulk.selectAtLeastOne"]) || "حداقل یک ردیف را برای عملیات گروهی انتخاب کنید.");
                     return;
                 }
 
                 if (actionField && !actionField.value) {
                     event.preventDefault();
-                    window.alert("نوع عملیات گروهی مشخص نشده است.");
+                    window.alert((window.appUi && window.appUi.text && window.appUi.text["bulk.actionNotSpecified"]) || "نوع عملیات گروهی مشخص نشده است.");
                 }
             });
 
@@ -115,6 +289,7 @@
     }
 
     onReady(function () {
+        initLocalizationBridge();
         initSearchableSelects();
         initBulkActions();
     });

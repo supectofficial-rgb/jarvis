@@ -1,10 +1,10 @@
-@using System
+﻿@using System
 @using System.Linq
 @using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
-    ViewData["Title"] = "مدیریت دسته‌بندی";
+    ViewData["Title"] = UiText["catalog.categories.title"];
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -104,6 +104,21 @@
     #category-section-tabs a[href="#category-section-details"],
     #category-section-details,
     #move-category-card,
+    [data-media-uploader][data-policy="category-image"] > label,
+    [data-media-uploader][data-policy="category-image"] [data-media-status] {
+        font-size: 0;
+    }
+    [data-media-uploader][data-policy="category-image"] [data-media-status]::after {
+        content: @Html.Raw(JsonSerializer.Serialize(UiText["media.imageHelp"]));
+        font-size: 0.875rem;
+    }
+    [data-media-uploader][data-policy="category-image"] [data-media-remove] {
+        font-size: 0;
+    }
+    [data-media-uploader][data-policy="category-image"] [data-media-remove]::after {
+        content: @Html.Raw(JsonSerializer.Serialize(UiText["media.removeImage"]));
+        font-size: 0.75rem;
+    }
     #category-list-scope [data-bulk-form],
     #category-list-scope table th:first-child,
     #category-list-scope table td:first-child,
@@ -119,20 +134,20 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
-                <h1>مدیریت دسته‌بندی‌ها</h1>
-                <p class="text-muted">مدیریت دسته‌بندی، ویژگی، گزینه و قوانین ویژگی دسته‌بندی.</p>
+                <h1>@UiText["catalog.categories.title"]</h1>
+                <p class="text-muted">@UiText["catalog.categories.description"]</p>
                 <div class="mb-3">
-                    <span class="badge badge-pill badge-outline-primary mb-1">هدف اصلی: مدیریت ساختار درختی دسته‌بندی</span>
-                    <span class="badge badge-pill badge-outline-primary mb-1">عملیات فرعی: ویژگی، گزینه و قانون</span>
-                    <span class="badge badge-pill badge-outline-primary mb-1">کل دسته‌ها: @Model.FlatCategories.Count</span>
-                    <span class="badge badge-pill badge-outline-primary mb-1">نتیجه فیلتر: @Model.FilteredFlatCategories.Count</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.primaryGoal"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.secondaryOperations"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.totalCount"] @Model.FlatCategories.Count</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.filteredCount"] @Model.FilteredFlatCategories.Count</span>
                     @if (!string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
                     {
-                        <span class="badge badge-pill badge-outline-primary mb-1">مسیر انتخاب‌شده: @selectedCategoryPath</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.selectedPath"] @selectedCategoryPath</span>
                     }
                 </div>
                 <p class="small text-muted mb-3">
-                    راهنمای سریع: ابتدا دسته را از جدول انتخاب کنید، سپس عملیات ویژگی/قانون را از تب‌های کناری انجام دهید.
+                    @UiText["catalog.categories.quickGuide"]
                 </p>
             </div>
         </div>
@@ -162,18 +177,18 @@
         <div class="row">
             <div class="col-12">
                 <ul class="nav nav-tabs separator-tabs mb-4 d-none" role="tablist" id="category-tabs">
-                    <li class="nav-item"><a class="nav-link @(showCategories ? "active" : null)" data-toggle="tab" href="#category-tab" role="tab">دسته‌بندی</a></li>
-                    <li class="nav-item"><a class="nav-link @(showAttributes ? "active" : null)" data-toggle="tab" href="#attribute-tab" role="tab">ویژگی و گزینه</a></li>
-                    <li class="nav-item"><a class="nav-link @(showRules ? "active" : null)" data-toggle="tab" href="#rule-tab" role="tab">قوانین ویژگی</a></li>
-                    <li class="nav-item"><a class="nav-link @(showFormulas ? "active" : null)" data-toggle="tab" href="#formula-tab" role="tab">فرمول واریانت</a></li>
+                    <li class="nav-item"><a class="nav-link @(showCategories ? "active" : null)" data-toggle="tab" href="#category-tab" role="tab">@UiText["catalog.categories.tabs.categories"]</a></li>
+                    <li class="nav-item"><a class="nav-link @(showAttributes ? "active" : null)" data-toggle="tab" href="#attribute-tab" role="tab">@UiText["catalog.categories.tabs.attributesAndOptions"]</a></li>
+                    <li class="nav-item"><a class="nav-link @(showRules ? "active" : null)" data-toggle="tab" href="#rule-tab" role="tab">@UiText["catalog.categories.tabs.rules"]</a></li>
+                    <li class="nav-item"><a class="nav-link @(showFormulas ? "active" : null)" data-toggle="tab" href="#formula-tab" role="tab">@UiText["catalog.categories.tabs.formulas"]</a></li>
                 </ul>
 
                 <div class="tab-content">
                     <div class="tab-pane @(showCategories ? "show active" : null)" id="category-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-section-tabs">
-                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#category-section-edit" role="tab">ایجاد / ویرایش</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#category-section-list" role="tab">لیست دسته‌بندی‌ها</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#category-section-details" role="tab">جزئیات</a></li>
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#category-section-edit" role="tab">@UiText["catalog.categories.sections.edit"]</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#category-section-list" role="tab">@UiText["catalog.categories.sections.list"]</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#category-section-details" role="tab">@UiText["common.details"]</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane show active" id="category-section-edit" role="tabpanel">
@@ -182,10 +197,10 @@
                                 <div class="card mb-4">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <h5 class="card-title mb-0">@(isEditMode ? "ویرایش دسته‌بندی" : "ایجاد دسته‌بندی")</h5>
+                                            <h5 class="card-title mb-0">@(isEditMode ? UiText["catalog.categories.editTitle"] : UiText["catalog.categories.createTitle"])</h5>
                                             @if (isEditMode)
                                             {
-                                                <a asp-action="Categories" asp-route-createNew="true" asp-route-clearCatalogMessage="true" class="btn btn-outline-secondary btn-xs">ایجاد جدید</a>
+                                                <a asp-action="Categories" asp-route-createNew="true" asp-route-clearCatalogMessage="true" class="btn btn-outline-secondary btn-xs">@UiText["common.createNew"]</a>
                                             }
                                         </div>
 
@@ -198,24 +213,24 @@
                                             <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
                                             <div class="form-group">
-                                                <label>کد دسته‌بندی</label>
+                                                <label>@UiText["catalog.categories.code"]</label>
                                                 <input asp-for="CategoryForm.Code" class="form-control" required maxlength="64" />
                                             </div>
 
                                             <div class="form-group">
-                                                <label>نام دسته‌بندی</label>
+                                                <label>@UiText["catalog.categories.name"]</label>
                                                 <input asp-for="CategoryForm.Name" class="form-control" required />
                                             </div>
 
                                             <div class="form-group">
-                                                <label>ترتیب نمایش</label>
+                                                <label>@UiText["catalog.categories.displayOrder"]</label>
                                                 <input asp-for="CategoryForm.DisplayOrder" class="form-control" type="number" min="0" />
                                             </div>
 
                                             <div class="form-group">
-                                                <label>دسته والد</label>
-                                                <select asp-for="CategoryForm.ParentCategoryId" class="form-control js-search-select" data-placeholder="جستجوی دسته والد">
-                                                    <option value="">بدون والد</option>
+                                                <label>@UiText["catalog.categories.parentCategory"]</label>
+                                                <select asp-for="CategoryForm.ParentCategoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.searchParent"]'>
+                                                    <option value="">@UiText["catalog.categories.noParent"]</option>
                                                     @foreach (var category in Model.FlatCategories.Where(x => x.Id != Model.CategoryForm.CategoryId))
                                                     {
                                                         <option value="@category.Id">@category.Name</option>
@@ -224,14 +239,15 @@
                                             </div>
 
                                             <div class="form-group" data-media-uploader data-policy="category-image" data-base-url="@Configuration["FileService:BaseUrl"]">
-                                                <label>ØªØµÙˆÛŒØ± Ø¯Ø³ØªÙ‡â€ŒØ¨Ù†Ø¯ÛŒ</label>
+                                                <div class="font-weight-bold mb-2">@UiText["category.image"]</div>
+                                                <label>@UiText["category.image"]</label>
                                                 <div class="border rounded p-3 bg-light">
                                                     <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp" data-media-file />
                                                     <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
                                                         <div class="progress-bar" style="width:0%;" data-media-progress></div>
                                                     </div>
-                                                    <div class="small text-muted mb-2" data-media-status>ÛŒÚ© ØªØµÙˆÛŒØ± Ø­Ø¯Ø§Ú©Ø«Ø± Ûµ Ù…Ú¯Ø§Ø¨Ø§ÛŒØª.</div>
-                                                    <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>Ø­Ø°Ù ØªØµÙˆÛŒØ±</button>
+                                                    <div class="small text-muted mb-2" data-media-status>@UiText["media.imageHelp"]</div>
+                                                    <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>@UiText["media.removeImage"]</button>
                                                     <div class="mt-3 d-none" data-media-preview-wrap>
                                                         <img src="@Model.CategoryForm.ImageThumbnailUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
                                                     </div>
@@ -240,7 +256,7 @@
 
                                             <div class="mt-3">
                                                 <button class="btn btn-primary" type="submit" @((isEditMode ? Can("Inventory.Category.Update", "Catalog.Category.Update", "Category.Update") : Can("Inventory.Category.Create", "Catalog.Category.Create", "Category.Create")) ? null : "disabled")>
-                                                    @(isEditMode ? "به‌روزرسانی دسته‌بندی" : "ایجاد دسته‌بندی")
+                                                    @(isEditMode ? UiText["catalog.categories.updateButton"] : UiText["catalog.categories.createTitle"])
                                                 </button>
                                             </div>
                                         </form>
@@ -251,14 +267,14 @@
                                 {
                                     <div class="card" id="move-category-card">
                                         <div class="card-body">
-                                            <h5 class="card-title">انتقال دسته‌بندی</h5>
+                                            <h5 class="card-title">@UiText["catalog.categories.moveTitle"]</h5>
                                             <form asp-action="MoveCategory" method="post" id="move-category-form" data-loading-form data-dirty-watch>
                                                 @Html.AntiForgeryToken()
                                                 <input asp-for="MoveCategoryForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
                                                 <div class="form-group">
-                                                    <label>والد جدید</label>
-                                                    <select asp-for="MoveCategoryForm.ParentCategoryId" class="form-control js-search-select" data-placeholder="انتخاب والد جدید">
-                                                        <option value="">بدون والد</option>
+                                                    <label>@UiText["catalog.categories.newParent"]</label>
+                                                    <select asp-for="MoveCategoryForm.ParentCategoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.selectNewParent"]'>
+                                                        <option value="">@UiText["catalog.categories.noParent"]</option>
                                                         @foreach (var category in Model.FlatCategories.Where(x => x.Id != Model.SelectedCategoryId))
                                                         {
                                                             <option value="@category.Id">@category.Name</option>
@@ -266,7 +282,7 @@
                                                     </select>
                                                 </div>
                                                 <div class="mt-3">
-                                                    <button type="submit" class="btn btn-outline-primary" @(Can("Catalog.Category.Move", "Category.Move") ? null : "disabled")>انتقال</button>
+                                                    <button type="submit" class="btn btn-outline-primary" @(Can("Catalog.Category.Move", "Category.Move") ? null : "disabled")>@UiText["catalog.categories.moveButton"]</button>
                                                 </div>
                                             </form>
                                         </div>
@@ -281,38 +297,38 @@
                             <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body" id="category-list-scope">
-                                        <h5 class="card-title mb-3">لیست دسته‌بندی‌ها</h5>
+                                        <h5 class="card-title mb-3">@UiText["catalog.categories.sections.list"]</h5>
 
                                         <form method="get" asp-action="Categories" class="row mb-3" id="category-search-form" data-state-form>
                                             <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                             <div class="col-md-6 mb-2">
-                                                <label class="text-muted small">جستجو</label>
-                                                <input name="searchTerm" value="@Model.CategorySearchTerm" class="form-control" data-filter-label="جستجو" placeholder="نام یا کد دسته‌بندی..." />
+                                                <label class="text-muted small">@UiText["common.search"]</label>
+                                                <input name="searchTerm" value="@Model.CategorySearchTerm" class="form-control" data-filter-label='@UiText["common.search"]' placeholder='@UiText["catalog.categories.searchPlaceholder"]' />
                                             </div>
                                             <div class="col-md-2 mb-2">
-                                                <label class="text-muted small">وضعیت</label>
-                                                <select name="statusFilter" class="form-control" data-filter-label="وضعیت">
-                                                    <option value="">همه</option>
-                                                    <option value="active" selected="@(string.Equals(Model.CategoryStatusFilter, "active", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">فعال</option>
-                                                    <option value="inactive" selected="@(string.Equals(Model.CategoryStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">غیرفعال</option>
+                                                <label class="text-muted small">@UiText["common.status"]</label>
+                                                <select name="statusFilter" class="form-control" data-filter-label='@UiText["catalog.categories.filters.status"]'>
+                                                    <option value="">@UiText["catalog.categories.all"]</option>
+                                                    <option value="active" selected="@(string.Equals(Model.CategoryStatusFilter, "active", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["common.active"]</option>
+                                                    <option value="inactive" selected="@(string.Equals(Model.CategoryStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["common.inactive"]</option>
                                                 </select>
                                             </div>
                                             <div class="col-md-2 mb-2">
-                                                <label class="text-muted small">مرتب‌سازی</label>
-                                                <select name="sort" class="form-control" data-filter-label="مرتب‌سازی">
-                                                    <option value="">نام (صعودی)</option>
-                                                    <option value="name_desc" selected="@(string.Equals(Model.CategorySort, "name_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">نام (نزولی)</option>
-                                                    <option value="code_asc" selected="@(string.Equals(Model.CategorySort, "code_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">کد (صعودی)</option>
-                                                    <option value="code_desc" selected="@(string.Equals(Model.CategorySort, "code_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">کد (نزولی)</option>
-                                                    <option value="displayorder_asc" selected="@(string.Equals(Model.CategorySort, "displayorder_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">ترتیب نمایش (صعودی)</option>
-                                                    <option value="displayorder_desc" selected="@(string.Equals(Model.CategorySort, "displayorder_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">ترتیب نمایش (نزولی)</option>
-                                                    <option value="status_asc" selected="@(string.Equals(Model.CategorySort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (فعال اول)</option>
-                                                    <option value="status_desc" selected="@(string.Equals(Model.CategorySort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">وضعیت (غیرفعال اول)</option>
+                                                <label class="text-muted small">@UiText["catalog.categories.sort"]</label>
+                                                <select name="sort" class="form-control" data-filter-label='@UiText["catalog.categories.filters.sort"]'>
+                                                    <option value="">@UiText["catalog.categories.sortOptions.nameAsc"]</option>
+                                                    <option value="name_desc" selected="@(string.Equals(Model.CategorySort, "name_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.categories.sortOptions.nameDesc"]</option>
+                                                    <option value="code_asc" selected="@(string.Equals(Model.CategorySort, "code_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.categories.sortOptions.codeAsc"]</option>
+                                                    <option value="code_desc" selected="@(string.Equals(Model.CategorySort, "code_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.categories.sortOptions.codeDesc"]</option>
+                                                    <option value="displayorder_asc" selected="@(string.Equals(Model.CategorySort, "displayorder_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.categories.sortOptions.displayOrderAsc"]</option>
+                                                    <option value="displayorder_desc" selected="@(string.Equals(Model.CategorySort, "displayorder_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.categories.sortOptions.displayOrderDesc"]</option>
+                                                    <option value="status_asc" selected="@(string.Equals(Model.CategorySort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.categories.sortOptions.statusActiveFirst"]</option>
+                                                    <option value="status_desc" selected="@(string.Equals(Model.CategorySort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.categories.sortOptions.statusInactiveFirst"]</option>
                                                 </select>
                                             </div>
                                             <div class="col-md-1 mb-2">
-                                                <label class="text-muted small">تعداد</label>
-                                                <select name="pageSize" class="form-control" data-filter-label="تعداد">
+                                                <label class="text-muted small">@UiText["common.count"]</label>
+                                                <select name="pageSize" class="form-control" data-filter-label='@UiText["catalog.categories.filters.pageSize"]'>
                                                     @foreach (var size in Model.CategoryPageSizeOptions)
                                                     {
                                                         <option value="@size" selected="@(size == Model.CategoryPageSize ? "selected" : null)">@size</option>
@@ -320,16 +336,16 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-1 mb-2 d-flex align-items-end">
-                                                <button type="submit" class="btn btn-primary btn-block">اعمال</button>
+                                                <button type="submit" class="btn btn-primary btn-block">@UiText["common.apply"]</button>
                                             </div>
                                         </form>
 
                                         <div class="d-flex align-items-center justify-content-between flex-wrap mb-2">
                                             <div class="btn-group btn-group-sm mb-2">
-                                                <button type="button" class="btn btn-outline-secondary" data-tree-expand-all>بازکردن همه</button>
-                                                <button type="button" class="btn btn-outline-secondary" data-tree-collapse-all>بستن همه</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-tree-expand-all>@UiText["catalog.categories.expandAll"]</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-tree-collapse-all>@UiText["catalog.categories.collapseAll"]</button>
                                             </div>
-                                            <span class="small text-muted mb-2">برای عملیات گروهی، چند ردیف را انتخاب کنید.</span>
+                                            <span class="small text-muted mb-2">@UiText["catalog.categories.bulkHelp"]</span>
                                         </div>
 
                                         <form asp-action="ApplyCategoryBulkAction"
@@ -348,38 +364,38 @@
                                             <input type="hidden" name="page" value="@Model.CategoryPage" />
                                             <input type="hidden" name="pageSize" value="@Model.CategoryPageSize" />
                                             <div class="small text-muted mr-2 mb-2">
-                                                تعداد انتخاب‌شده: <span data-bulk-count>0</span>
+                                                @UiText["catalog.categories.selectedCount"] <span data-bulk-count>0</span>
                                             </div>
                                             <div class="btn-group btn-group-sm mb-2">
                                                 <button type="submit"
                                                         class="btn btn-outline-success btn-xs"
                                                         data-bulk-action="activate"
                                                         data-bulk-permission="@(Can("Catalog.Category.Activate", "Category.Activate") ? "allowed" : "denied")"
-                                                        data-confirm-title="فعال‌سازی گروهی دسته‌بندی"
-                                                        data-confirm="دسته‌بندی‌های انتخاب‌شده فعال شوند؟"
+                                                        data-confirm-title="@UiText["catalog.categories.bulkActivateTitle"]"
+                                                        data-confirm="@UiText["catalog.categories.bulkActivateConfirm"]"
                                                         disabled
                                                         @(Can("Catalog.Category.Activate", "Category.Activate") ? null : "disabled")>
-                                                    فعال‌سازی گروهی
+                                                    @UiText["catalog.categories.bulkActivateButton"]
                                                 </button>
                                                 <button type="submit"
                                                         class="btn btn-outline-warning btn-xs"
                                                         data-bulk-action="deactivate"
                                                         data-bulk-permission="@(Can("Catalog.Category.Deactivate", "Category.Deactivate") ? "allowed" : "denied")"
-                                                        data-confirm-title="غیرفعال‌سازی گروهی دسته‌بندی"
-                                                        data-confirm="دسته‌بندی‌های انتخاب‌شده غیرفعال شوند؟"
+                                                        data-confirm-title="@UiText["catalog.categories.bulkDeactivateTitle"]"
+                                                        data-confirm="@UiText["catalog.categories.bulkDeactivateConfirm"]"
                                                         disabled
                                                         @(Can("Catalog.Category.Deactivate", "Category.Deactivate") ? null : "disabled")>
-                                                    غیرفعال‌سازی گروهی
+                                                    @UiText["catalog.categories.bulkDeactivateButton"]
                                                 </button>
                                                 <button type="submit"
                                                         class="btn btn-outline-danger btn-xs"
                                                         data-bulk-action="delete"
                                                         data-bulk-permission="@(Can("Catalog.Category.Delete", "Category.Delete") ? "allowed" : "denied")"
-                                                        data-confirm-title="حذف گروهی دسته‌بندی"
-                                                        data-confirm="دسته‌بندی‌های انتخاب‌شده حذف شوند؟ این عملیات غیرقابل بازگشت است."
+                                                        data-confirm-title="@UiText["catalog.categories.bulkDeleteTitle"]"
+                                                        data-confirm="@UiText["catalog.categories.bulkDeleteConfirm"]"
                                                         disabled
                                                         @(Can("Catalog.Category.Delete", "Category.Delete") ? null : "disabled")>
-                                                    حذف گروهی
+                                                    @UiText["catalog.categories.bulkDeleteButton"]
                                                 </button>
                                             </div>
                                         </form>
@@ -389,12 +405,12 @@
                                                 <thead>
                                                     <tr>
                                                         <th>
-                                                            <input type="checkbox" data-bulk-toggle aria-label="انتخاب همه" />
+                                                            <input type="checkbox" data-bulk-toggle aria-label='@UiText["catalog.categories.selectAll"]' />
                                                         </th>
-                                                        <th>کد</th>
-                                                        <th>نام</th>
-                                                        <th>وضعیت</th>
-                                                        <th>مسیر</th>
+                                                        <th>@UiText["common.code"]</th>
+                                                        <th>@UiText["common.name"]</th>
+                                                        <th>@UiText["common.status"]</th>
+                                                        <th>@UiText["catalog.categories.path"]</th>
                                                         <th></th>
                                                     </tr>
                                                 </thead>
@@ -404,8 +420,8 @@
                                                         <tr>
                                                             <td colspan="6">
                                                                 <div class="alert alert-light my-2">
-                                                                    <h6>رکوردی یافت نشد</h6>
-                                                                    <p class="mb-0 text-muted">فیلتر را تغییر دهید یا دسته‌بندی جدید بسازید.</p>
+                                                                    <h6>@UiText["catalog.categories.noRecordFound"]</h6>
+                                                                    <p class="mb-0 text-muted">@UiText["catalog.categories.noRecordFoundHelp"]</p>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -416,7 +432,7 @@
                                                         {
                                                             var parentName = Model.FlatCategories.FirstOrDefault(x => x.Id == category.ParentCategoryId)?.Name;
                                                             var depth = GetDepth(category);
-                                                            var levelLabel = $"سطح {depth + 1}";
+                                                            var levelLabel = string.Format(UiText["catalog.categories.levelLabelFormat"], depth + 1);
                                                             var hasChildren = HasChildren(category.Id);
                                                             var childCount = Model.FlatCategories.Count(x => string.Equals(x.ParentCategoryId, category.Id, StringComparison.OrdinalIgnoreCase));
                                                             <tr class="@(string.Equals(category.Id, Model.SelectedCategoryId, StringComparison.OrdinalIgnoreCase) ? "table-primary" : null)"
@@ -425,7 +441,7 @@
                                                                 data-parent-id="@(category.ParentCategoryId ?? string.Empty)"
                                                                 data-has-children="@(hasChildren ? "true" : "false")">
                                                                 <td>
-                                                                    <input type="checkbox" data-bulk-row value="@category.Id" aria-label="انتخاب @category.Name" />
+                                                                    <input type="checkbox" data-bulk-row value="@category.Id" aria-label='@string.Format(UiText["catalog.categories.selectItemFormat"], category.Name)' />
                                                                 </td>
                                                                 <td><span class="text-monospace">@category.Code</span></td>
                                                                 <td>
@@ -448,13 +464,13 @@
                                                                         <span class="badge badge-pill badge-light ml-1">@levelLabel</span>
                                                                         @if (childCount > 0)
                                                                         {
-                                                                            <span class="badge badge-pill badge-outline-primary ml-1">@childCount زیرمجموعه</span>
+                                                                            <span class="badge badge-pill badge-outline-primary ml-1">@childCount @UiText["catalog.categories.childCountSuffix"]</span>
                                                                         }
                                                                     </span>
                                                                 </td>
                                                                 <td>
                                                                     <span class="badge badge-pill @(category.IsActive ? "badge-primary" : "badge-secondary")">
-                                                                        @(category.IsActive ? "فعال" : "غیرفعال")
+                                                                        @(category.IsActive ? UiText["common.active"] : UiText["common.inactive"])
                                                                     </span>
                                                                 </td>
                                                                 <td><span class="small text-muted">@GetCategoryPathById(category.Id)</span></td>
@@ -468,13 +484,13 @@
                                                                        asp-route-createNew="false"
                                                                        asp-route-clearCatalogMessage="true"
                                                                        asp-route-page="@Model.CategoryPage"
-                                                                       asp-route-pageSize="@Model.CategoryPageSize">ادیت</a>
+                                                                       asp-route-pageSize="@Model.CategoryPageSize">@UiText["common.edit"]</a>
                                                                     @if (category.IsActive)
                                                                     {
                                                                         <form asp-action="DeactivateCategory" method="post" class="d-inline" data-loading-form>
                                                                             @Html.AntiForgeryToken()
                                                                             <input type="hidden" name="categoryId" value="@category.Id" />
-                                                                            <button type="submit" class="btn btn-outline-warning btn-xs" @(Can("Catalog.Category.Deactivate", "Category.Deactivate") ? null : "disabled")>غیرفعال</button>
+                                                                            <button type="submit" class="btn btn-outline-warning btn-xs" @(Can("Catalog.Category.Deactivate", "Category.Deactivate") ? null : "disabled")>@UiText["common.inactive"]</button>
                                                                         </form>
                                                                     }
                                                                     else
@@ -482,13 +498,13 @@
                                                                         <form asp-action="ActivateCategory" method="post" class="d-inline" data-loading-form>
                                                                             @Html.AntiForgeryToken()
                                                                             <input type="hidden" name="categoryId" value="@category.Id" />
-                                                                            <button type="submit" class="btn btn-outline-success btn-xs" @(Can("Catalog.Category.Activate", "Category.Activate") ? null : "disabled")>فعال</button>
+                                                                            <button type="submit" class="btn btn-outline-success btn-xs" @(Can("Catalog.Category.Activate", "Category.Activate") ? null : "disabled")>@UiText["common.active"]</button>
                                                                         </form>
                                                                     }
                                                                     <form asp-action="DeleteCategory" method="post" class="d-inline" data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="categoryId" value="@category.Id" />
-                                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف دسته‌بندی" data-confirm="این دسته‌بندی حذف شود؟ این عملیات قابل بازگشت نیست." @(Can("Catalog.Category.Delete", "Category.Delete") ? null : "disabled")>حذف</button>
+                                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="@UiText["catalog.categories.deleteTitle"]" data-confirm="@UiText["catalog.categories.deleteConfirm"]" @(Can("Catalog.Category.Delete", "Category.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
                                                                     </form>
                                                                 </td>
                                                             </tr>
@@ -527,24 +543,24 @@
                             <div class="col-12 mb-4">
                                 <div class="card">
                                     <div class="card-body">
-                                        <h6 class="card-title mb-2">نمای پنل جزئیات دسته‌بندی</h6>
+                                        <h6 class="card-title mb-2">@UiText["catalog.categories.detailsPanel"]</h6>
                                         @if (selectedCategory is null)
                                         {
                                             <div class="alert alert-light mb-0">
-                                                <h6>دسته‌ای انتخاب نشده است</h6>
-                                                <p class="mb-0 text-muted">از جدول دسته‌بندی‌ها یک دسته را انتخاب کنید.</p>
+                                                <h6>@UiText["catalog.categories.noCategorySelected"]</h6>
+                                                <p class="mb-0 text-muted">@UiText["catalog.categories.selectCategoryFromList"]</p>
                                             </div>
                                         }
                                         else
                                         {
-                                            <p class="mb-1"><strong>نام:</strong> @selectedCategory.Name</p>
-                                            <p class="mb-1"><strong>کد:</strong> <span class="text-monospace">@selectedCategory.Code</span></p>
-                                            <p class="mb-1"><strong>مسیر:</strong> @selectedCategoryPath</p>
-                                            <p class="mb-1"><strong>زیرمجموعه مستقیم:</strong> @selectedCategoryChildrenCount</p>
+                                            <p class="mb-1"><strong>@UiText["common.name"]:</strong> @selectedCategory.Name</p>
+                                            <p class="mb-1"><strong>@UiText["common.code"]:</strong> <span class="text-monospace">@selectedCategory.Code</span></p>
+                                            <p class="mb-1"><strong>@UiText["catalog.categories.pathLabel"]</strong> @selectedCategoryPath</p>
+                                            <p class="mb-1"><strong>@UiText["catalog.categories.directChildren"]</strong> @selectedCategoryChildrenCount</p>
                                             <p class="mb-0">
-                                                <strong>وضعیت:</strong>
+                                                <strong>@UiText["common.status"]:</strong>
                                                 <span class="badge badge-pill @(selectedCategory.IsActive ? "badge-primary" : "badge-secondary")">
-                                                    @(selectedCategory.IsActive ? "فعال" : "غیرفعال")
+                                                    @(selectedCategory.IsActive ? UiText["common.active"] : UiText["common.inactive"])
                                                 </span>
                                             </p>
                                         }
@@ -558,8 +574,8 @@
 
                     <div class="tab-pane @(showAttributes ? "show active" : null)" id="attribute-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
-                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">افزودن اتریبیوت</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">جستجوی اتریبیوت</a></li>
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">@UiText["catalog.categories.attributeTabs.add"]</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">@UiText["catalog.categories.attributeTabs.search"]</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane show active" id="attribute-section-form" role="tabpanel">
@@ -567,25 +583,25 @@
                             <div class="col-12 mb-4">
                                 <div class="card mb-4">
                                     <div class="card-body">
-                                        <h5 class="card-title">افزودن اتریبیوت</h5>
+                                        <h5 class="card-title">@UiText["catalog.categories.attributes.createTitle"]</h5>
                                         <form asp-action="CreateCategoryAttribute" method="post" id="create-category-attribute-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <input asp-for="AttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
                                             <input asp-for="AttributeForm.Scope" type="hidden" value="Both" />
-                                            <div class="form-group"><label>کد</label><input asp-for="AttributeForm.Code" class="form-control" required /></div>
-                                            <div class="form-group"><label>نام</label><input asp-for="AttributeForm.Name" class="form-control" required /></div>
+                                            <div class="form-group"><label>@UiText["common.code"]</label><input asp-for="AttributeForm.Code" class="form-control" required /></div>
+                                            <div class="form-group"><label>@UiText["common.name"]</label><input asp-for="AttributeForm.Name" class="form-control" required /></div>
                                             <div class="form-group">
-                                                <label>نوع داده</label>
+                                                <label>@UiText["catalog.categories.attributes.dataType"]</label>
                                                 <select asp-for="AttributeForm.DataType" class="form-control" required>
-                                                    <option value="Option">انتخابی</option>
-                                                    <option value="Text">متن</option>
-                                                    <option value="Number">عدد</option>
-                                                    <option value="Boolean">بله/خیر</option>
-                                                    <option value="Date">تاریخ</option>
+                                                    <option value="Option">@UiText["catalog.categories.attributes.dataType.option"]</option>
+                                                    <option value="Text">@UiText["catalog.categories.attributes.dataType.text"]</option>
+                                                    <option value="Number">@UiText["catalog.categories.attributes.dataType.number"]</option>
+                                                    <option value="Boolean">@UiText["catalog.categories.attributes.dataType.boolean"]</option>
+                                                    <option value="Date">@UiText["catalog.categories.attributes.dataType.date"]</option>
                                                 </select>
                                             </div>
-                                            <div class="form-group"><label>اولویت</label><input asp-for="AttributeForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
-                                            <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.AttributeDefinition.Create", "AttributeDefinition.Create") ? null : "disabled")>ثبت</button>
+                                            <div class="form-group"><label>@UiText["catalog.categories.displayOrder"]</label><input asp-for="AttributeForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                            <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.AttributeDefinition.Create", "AttributeDefinition.Create") ? null : "disabled")>@UiText["common.save"]</button>
                                         </form>
                                     </div>
                                 </div>
@@ -599,47 +615,47 @@
                             <div class="col-12 mb-4">
                                 <div class="card mb-4" id="attribute-edit-panel" style="display:none;">
                                     <div class="card-body">
-                                        <h5 class="card-title">ویرایش اتریبیوت</h5>
+                                        <h5 class="card-title">@UiText["catalog.categories.attributes.editTitle"]</h5>
                                         <form asp-action="UpdateAttributeDefinition" method="post" id="attribute-update-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <input asp-for="AttributeUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
                                             <input asp-for="AttributeUpdateForm.AttributeId" type="hidden" id="attribute-update-id" />
                                             <input asp-for="AttributeUpdateForm.Scope" type="hidden" id="AttributeUpdateForm_Scope" value="Both" />
                                             <input asp-for="AttributeUpdateForm.IsActive" type="hidden" id="AttributeUpdateForm_IsActive" />
-                                            <div class="form-group"><label>اتریبیوت انتخاب‌شده</label><input id="attribute-update-selected" type="text" class="form-control" readonly /></div>
-                                            <div class="form-group"><label>کد</label><input asp-for="AttributeUpdateForm.Code" id="AttributeUpdateForm_Code" class="form-control" required /></div>
-                                            <div class="form-group"><label>نام</label><input asp-for="AttributeUpdateForm.Name" id="AttributeUpdateForm_Name" class="form-control" required /></div>
+                                            <div class="form-group"><label>@UiText["catalog.categories.attributes.selected"]</label><input id="attribute-update-selected" type="text" class="form-control" readonly /></div>
+                                            <div class="form-group"><label>@UiText["common.code"]</label><input asp-for="AttributeUpdateForm.Code" id="AttributeUpdateForm_Code" class="form-control" required /></div>
+                                            <div class="form-group"><label>@UiText["common.name"]</label><input asp-for="AttributeUpdateForm.Name" id="AttributeUpdateForm_Name" class="form-control" required /></div>
                                             <div class="form-group">
-                                                <label>نوع داده</label>
+                                                <label>@UiText["catalog.categories.attributes.dataType"]</label>
                                                 <select asp-for="AttributeUpdateForm.DataType" id="AttributeUpdateForm_DataType" class="form-control" required>
-                                                    <option value="Option">انتخابی</option>
-                                                    <option value="Text">متن</option>
-                                                    <option value="Number">عدد</option>
-                                                    <option value="Boolean">بله/خیر</option>
-                                                    <option value="Date">تاریخ</option>
+                                                    <option value="Option">@UiText["catalog.categories.attributes.dataType.option"]</option>
+                                                    <option value="Text">@UiText["catalog.categories.attributes.dataType.text"]</option>
+                                                    <option value="Number">@UiText["catalog.categories.attributes.dataType.number"]</option>
+                                                    <option value="Boolean">@UiText["catalog.categories.attributes.dataType.boolean"]</option>
+                                                    <option value="Date">@UiText["catalog.categories.attributes.dataType.date"]</option>
                                                 </select>
                                             </div>
-                                            <div class="form-group"><label>اولویت</label><input asp-for="AttributeUpdateForm.DisplayOrder" id="AttributeUpdateForm_DisplayOrder" type="number" min="0" class="form-control" /></div>
-                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>ثبت ویرایش</button>
+                                            <div class="form-group"><label>@UiText["catalog.categories.displayOrder"]</label><input asp-for="AttributeUpdateForm.DisplayOrder" id="AttributeUpdateForm_DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                            <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.update"]</button>
                                         </form>
                                     </div>
                                 </div>
 
                                 <div class="card">
                                     <div class="card-body">
-                                        <h5 class="card-title">لیست اتریبیوت‌ها</h5>
+                                        <h5 class="card-title">@UiText["catalog.categories.attributes.listTitle"]</h5>
                                         <div class="form-group">
-                                            <label>جستجو</label>
-                                            <input type="search" class="form-control" id="attribute-list-search" placeholder="نام یا کد اتریبیوت" />
+                                            <label>@UiText["common.search"]</label>
+                                            <input type="search" class="form-control" id="attribute-list-search" placeholder='@UiText["catalog.categories.attributes.searchPlaceholder"]' />
                                         </div>
                                         <div class="table-responsive">
                                             <table class="table table-sm table-hover">
                                                 <thead>
                                                     <tr>
-                                                        <th>نام</th>
-                                                        <th>کد</th>
-                                                        <th>اولویت</th>
-                                                        <th>وضعیت</th>
+                                                        <th>@UiText["common.name"]</th>
+                                                        <th>@UiText["common.code"]</th>
+                                                        <th>@UiText["catalog.categories.displayOrder"]</th>
+                                                        <th>@UiText["common.status"]</th>
                                                         <th></th>
                                                     </tr>
                                                 </thead>
@@ -649,7 +665,7 @@
                                                     }
                                                     @if (attributeRows.Count == 0)
                                                     {
-                                                        <tr><td colspan="5"><div class="alert alert-light my-2">اتریبیوتی برای نمایش وجود ندارد.</div></td></tr>
+                                                        <tr><td colspan="5"><div class="alert alert-light my-2">@UiText["catalog.categories.attributes.none"]</div></td></tr>
                                                     }
                                                     @foreach (var attr in attributeRows.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
                                                     {
@@ -660,11 +676,11 @@
                                                             <td>@attr.Name</td>
                                                             <td><span class="text-monospace">@attr.Code</span></td>
                                                             <td>@attr.DisplayOrder</td>
-                                                            <td>@(attr.IsActive ? "فعال" : "غیرفعال")</td>
+                                                            <td>@(attr.IsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
                                                             <td class="text-nowrap">
                                                                 @if (isOptionAttribute)
                                                                 {
-                                                                    <button type="button" class="btn btn-outline-primary btn-xs attribute-options-btn" data-attribute-id="@attr.Id">لیست آپشن‌ها</button>
+                                                                    <button type="button" class="btn btn-outline-primary btn-xs attribute-options-btn" data-attribute-id="@attr.Id">@UiText["catalog.categories.attributes.optionsList"]</button>
                                                                 }
                                                                 <button type="button"
                                                                         class="btn btn-outline-secondary btn-xs attribute-edit-btn"
@@ -676,13 +692,13 @@
                                                                         data-attribute-display-order="@attr.DisplayOrder"
                                                                         data-attribute-isactive="@(attr.IsActive ? "true" : "false")"
                                                                         @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>
-                                                                    ادیت
+                                                                    @UiText["common.edit"]
                                                                 </button>
                                                                 <form asp-action="DeleteAttributeDefinition" method="post" class="d-inline" data-loading-form>
                                                                     @Html.AntiForgeryToken()
                                                                     <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                     <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                    <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف اتریبیوت" data-confirm="این اتریبیوت حذف شود؟" @(Can("Catalog.AttributeDefinition.Delete", "AttributeDefinition.Delete") ? null : "disabled")>حذف</button>
+                                                                    <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.attributes.deleteTitle"]' data-confirm='@UiText["catalog.categories.attributes.deleteConfirm"]' @(Can("Catalog.AttributeDefinition.Delete", "AttributeDefinition.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
                                                                 </form>
                                                             </td>
                                                         </tr>
@@ -691,17 +707,17 @@
                                                             <tr class="attribute-options-row" data-options-for="@attr.Id" style="display:none;">
                                                                 <td colspan="5">
                                                                     <div class="border rounded p-3 bg-light">
-                                                                    <h6 class="mb-3">آپشن‌های @attr.Name</h6>
+                                                                    <h6 class="mb-3">@string.Format(UiText["catalog.categories.attributeOptions.titleFormat"], attr.Name)</h6>
                                                                     <div class="attribute-options-message small mb-2" data-options-message></div>
                                                                     <form asp-action="AddAttributeOption" method="post" class="mb-3 option-add-form" data-option-add-form data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="OptionForm.CategoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="OptionForm.AttributeId" value="@attr.Id" />
                                                                         <div class="form-row">
-                                                                            <div class="form-group col-md-4"><label>کد آپشن</label><input name="OptionForm.OptionValue" class="form-control text-monospace" required /></div>
-                                                                            <div class="form-group col-md-4"><label>نام آپشن</label><input name="OptionForm.OptionName" class="form-control" required /></div>
-                                                                            <div class="form-group col-md-2"><label>اولویت</label><input name="OptionForm.DisplayOrder" type="number" min="0" class="form-control" value="0" /></div>
-                                                                            <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Create", "AttributeOption.Create") ? null : "disabled")>افزودن</button></div>
+                                                                            <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.code"]</label><input name="OptionForm.OptionValue" class="form-control text-monospace" required /></div>
+                                                                            <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.name"]</label><input name="OptionForm.OptionName" class="form-control" required /></div>
+                                                                            <div class="form-group col-md-2"><label>@UiText["catalog.categories.displayOrder"]</label><input name="OptionForm.DisplayOrder" type="number" min="0" class="form-control" value="0" /></div>
+                                                                            <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Create", "AttributeOption.Create") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.add"]</button></div>
                                                                         </div>
                                                                     </form>
                                                                     <form asp-action="UpdateAttributeOption" method="post" class="option-inline-edit-form mb-3" data-option-update-form data-loading-form style="display:none;">
@@ -710,19 +726,19 @@
                                                                         <input type="hidden" name="OptionUpdateForm.AttributeId" value="@attr.Id" />
                                                                         <input type="hidden" name="OptionUpdateForm.OptionId" data-option-update-id />
                                                                         <div class="form-row">
-                                                                            <div class="form-group col-md-4"><label>کد آپشن</label><input name="OptionUpdateForm.OptionValue" class="form-control text-monospace" data-option-update-value required /></div>
-                                                                            <div class="form-group col-md-4"><label>نام آپشن</label><input name="OptionUpdateForm.OptionName" class="form-control" data-option-update-name required /></div>
-                                                                            <div class="form-group col-md-2"><label>اولویت</label><input name="OptionUpdateForm.DisplayOrder" type="number" min="0" class="form-control" data-option-update-order /></div>
-                                                                            <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-outline-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>ثبت ادیت</button></div>
+                                                                            <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.code"]</label><input name="OptionUpdateForm.OptionValue" class="form-control text-monospace" data-option-update-value required /></div>
+                                                                            <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.name"]</label><input name="OptionUpdateForm.OptionName" class="form-control" data-option-update-name required /></div>
+                                                                            <div class="form-group col-md-2"><label>@UiText["catalog.categories.displayOrder"]</label><input name="OptionUpdateForm.DisplayOrder" type="number" min="0" class="form-control" data-option-update-order /></div>
+                                                                            <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-outline-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.update"]</button></div>
                                                                         </div>
                                                                     </form>
                                                                     <div class="table-responsive">
                                                                         <table class="table table-sm table-striped mb-0">
-                                                                            <thead><tr><th>کد</th><th>نام</th><th>اولویت</th><th>وضعیت</th><th></th></tr></thead>
+                                                                            <thead><tr><th>@UiText["common.code"]</th><th>@UiText["common.name"]</th><th>@UiText["catalog.categories.displayOrder"]</th><th>@UiText["common.status"]</th><th></th></tr></thead>
                                                                             <tbody data-options-tbody data-attribute-id="@attr.Id">
                                                                                 @if (attr.Options.Count == 0)
                                                                                 {
-                                                                                    <tr><td colspan="5">آپشنی ثبت نشده است.</td></tr>
+                                                                                    <tr><td colspan="5">@UiText["catalog.categories.attributeOptions.none"]</td></tr>
                                                                                 }
                                                                                 @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
                                                                                 {
@@ -730,15 +746,15 @@
                                                                                         <td><span class="text-monospace">@option.OptionValue</span></td>
                                                                                         <td>@option.OptionName</td>
                                                                                         <td>@option.DisplayOrder</td>
-                                                                                        <td>@(option.IsActive ? "فعال" : "غیرفعال")</td>
+                                                                                        <td>@(option.IsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
                                                                                         <td class="text-nowrap">
-                                                                                            <button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="@option.Id" data-option-name="@option.OptionName" data-option-value="@option.OptionValue" data-display-order="@option.DisplayOrder" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>ادیت</button>
+                                                                                            <button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="@option.Id" data-option-name="@option.OptionName" data-option-value="@option.OptionValue" data-display-order="@option.DisplayOrder" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>@UiText["common.edit"]</button>
                                                                                             <form asp-action="DeleteAttributeOption" method="post" class="d-inline option-delete-form" data-option-delete-form data-loading-form>
                                                                                                 @Html.AntiForgeryToken()
                                                                                                 <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                                                 <input type="hidden" name="attributeId" value="@attr.Id" />
                                                                                                 <input type="hidden" name="optionId" value="@option.Id" />
-                                                                                                <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف آپشن" data-confirm="این آپشن حذف شود؟" @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>حذف</button>
+                                                                                                <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.attributeOptions.deleteTitle"]' data-confirm='@UiText["catalog.categories.attributeOptions.deleteConfirm"]' @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
                                                                                             </form>
                                                                                         </td>
                                                                                     </tr>
@@ -764,8 +780,8 @@
 
                     <div class="tab-pane @(showFormulas ? "show active" : null)" id="formula-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="formula-section-tabs">
-                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#formula-section-edit" role="tab">ایجاد / ویرایش</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#formula-section-list" role="tab">لیست فرمول‌ها</a></li>
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#formula-section-edit" role="tab">@UiText["catalog.categories.sections.edit"]</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#formula-section-list" role="tab">@UiText["catalog.categories.formulaList"]</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane show active" id="formula-section-edit" role="tabpanel">
@@ -774,8 +790,8 @@
                                         <div class="card">
                                             <div class="card-body">
                                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <h5 class="card-title mb-0" id="formula-form-title">ایجاد فرمول واریانت</h5>
-                                                    <button type="button" class="btn btn-outline-secondary btn-xs" id="formula-edit-cancel">فرم جدید</button>
+                                                    <h5 class="card-title mb-0" id="formula-form-title">@UiText["catalog.categories.variantFormulaCreate"]</h5>
+                                                    <button type="button" class="btn btn-outline-secondary btn-xs" id="formula-edit-cancel">@UiText["catalog.categories.formulas.newForm"]</button>
                                                 </div>
                                                 <form asp-action="CreateVariantNameFormula" method="post" id="variant-name-formula-form" data-loading-form data-dirty-watch>
                                                     @Html.AntiForgeryToken()
@@ -785,53 +801,53 @@
                                                     <input asp-for="VariantNameFormulaForm.PartsJson" type="hidden" id="VariantNameFormulaForm_PartsJson" value="[]" />
 
                                                     <div class="form-group">
-                                                        <label>نام فرمول</label>
+                                                        <label>@UiText["catalog.categories.formulas.name"]</label>
                                                         <input asp-for="VariantNameFormulaForm.Name" class="form-control" id="VariantNameFormulaForm_Name" required maxlength="120" />
                                                     </div>
 
                                                     <div class="form-row">
                                                         <div class="form-group col-md-6">
-                                                            <label>جداکننده</label>
+                                                            <label>@UiText["catalog.categories.formulas.separator"]</label>
                                                             <input asp-for="VariantNameFormulaForm.Separator" class="form-control" id="VariantNameFormulaForm_Separator" maxlength="32" />
                                                         </div>
                                                         <div class="form-group col-md-3">
-                                                            <label>ترتیب</label>
+                                                            <label>@UiText["catalog.categories.displayOrder"]</label>
                                                             <input asp-for="VariantNameFormulaForm.DisplayOrder" class="form-control" id="VariantNameFormulaForm_DisplayOrder" type="number" min="0" />
                                                         </div>
                                                         <div class="form-group col-md-3 d-flex align-items-end">
                                                             <div class="custom-control custom-checkbox">
                                                                 <input asp-for="VariantNameFormulaForm.IsActive" class="custom-control-input" id="VariantNameFormulaForm_IsActive" />
-                                                                <label class="custom-control-label" asp-for="VariantNameFormulaForm.IsActive">فعال</label>
+                                                                <label class="custom-control-label" asp-for="VariantNameFormulaForm.IsActive">@UiText["catalog.categories.rules.isActive"]</label>
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div class="form-group">
-                                                        <label>ویژگی‌های فرمول</label>
+                                                        <label>@UiText["catalog.categories.formulas.attributes"]</label>
                                                         <div class="input-group mb-2">
-                                                            <select id="formula-attribute-picker" class="form-control js-search-select" data-placeholder="انتخاب ویژگی">
-                                                                <option value="">انتخاب ویژگی</option>
+                                                            <select id="formula-attribute-picker" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectAttribute"]'>
+                                                                <option value="">@UiText["catalog.categories.formulas.selectAttribute"]</option>
                                                                 @foreach (var attr in formulaAttributeSource)
                                                                 {
-                                                                    <option value="@attr.Id">@attr.Name (@attr.Code / @attr.Scope @((attr.IsInherited ? " / ارثی" : string.Empty)))</option>
+                                                                    <option value="@attr.Id">@attr.Name (@attr.Code / @attr.Scope @((attr.IsInherited ? UiText["catalog.categories.formulas.inheritedSuffix"] : string.Empty)))</option>
                                                                 }
                                                             </select>
                                                             <div class="input-group-append">
-                                                                <button type="button" class="btn btn-outline-primary" id="formula-add-part-btn" @(formulaAttributeSource.Count == 0 ? "disabled" : null)>افزودن</button>
+                                                                <button type="button" class="btn btn-outline-primary" id="formula-add-part-btn" @(formulaAttributeSource.Count == 0 ? "disabled" : null)>@UiText["catalog.categories.attributeOptions.add"]</button>
                                                             </div>
                                                         </div>
                                                         @if (formulaAttributeSource.Count == 0)
                                                         {
-                                                            <small class="form-text text-warning">برای این دسته‌بندی هنوز ویژگی‌ای در دسترس نیست.</small>
+                                                            <small class="form-text text-warning">@UiText["catalog.categories.formulas.noAttributes"]</small>
                                                         }
-                                                        <div id="formula-parts-empty" class="alert alert-light small mb-2">هنوز هیچ ویژگی‌ای به فرمول اضافه نشده است.</div>
+                                                        <div id="formula-parts-empty" class="alert alert-light small mb-2">@UiText["catalog.categories.formulas.emptyParts"]</div>
                                                         <div id="formula-parts-list" class="list-group"></div>
-                                                        <small class="form-text text-muted mt-2">ترتیب ردیف‌ها، ترتیب ساخت نام واریانت را تعیین می‌کند.</small>
+                                                        <small class="form-text text-muted mt-2">@UiText["catalog.categories.formulas.partsHelp"]</small>
                                                     </div>
 
                                                     <div class="mt-3 d-flex flex-wrap">
-                                                        <button class="btn btn-primary mr-2 mb-2" type="submit" id="formula-submit-btn" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>ثبت فرمول</button>
-                                                        <button class="btn btn-outline-secondary mb-2" type="button" id="formula-reset-btn">پاک‌سازی</button>
+                                                        <button class="btn btn-primary mr-2 mb-2" type="submit" id="formula-submit-btn" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["catalog.categories.formulas.save"]</button>
+                                                        <button class="btn btn-outline-secondary mb-2" type="button" id="formula-reset-btn">@UiText["catalog.categories.formulas.reset"]</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -847,9 +863,9 @@
                                             <div class="card-body" id="formula-list-scope">
                                                 <form asp-action="VariantNameFormulas" method="get" class="row align-items-end mb-3" id="formula-category-list-form">
                                                     <div class="col-lg-8 col-md-8 mb-2">
-                                                        <label class="text-muted small">دسته‌بندی</label>
+                                                        <label class="text-muted small">@UiText["catalog.categories.rules.category"]</label>
                                                         <select name="categoryId" class="form-control" required>
-                                                            <option value="">انتخاب دسته‌بندی</option>
+                                                            <option value="">@UiText["catalog.categories.formulas.selectCategory"]</option>
                                                             @foreach (var category in Model.FlatCategories)
                                                             {
                                                                 <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
@@ -857,21 +873,21 @@
                                                         </select>
                                                     </div>
                                                     <div class="col-lg-4 col-md-4 mb-2">
-                                                        <button type="submit" class="btn btn-primary btn-block">بازیابی لیست فرمول‌ها</button>
+                                                        <button type="submit" class="btn btn-primary btn-block">@UiText["catalog.categories.formulas.loadList"]</button>
                                                     </div>
                                                 </form>
                                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <h5 class="card-title mb-0">لیست فرمول‌های واریانت</h5>
+                                                    <h5 class="card-title mb-0">@UiText["catalog.categories.variantFormulaList"]</h5>
                                                     <span class="badge badge-pill badge-outline-primary">@localFormulas.Count</span>
                                                 </div>
                                                 <div class="table-responsive">
                                                     <table class="table table-sm table-striped">
                                                         <thead>
                                                             <tr>
-                                                                <th>نام</th>
-                                                                <th>پیش‌نمایش</th>
-                                                                <th>ترتیب</th>
-                                                                <th>وضعیت</th>
+                                                                <th>@UiText["common.name"]</th>
+                                                                <th>@UiText["catalog.categories.formulas.preview"]</th>
+                                                                <th>@UiText["catalog.categories.displayOrder"]</th>
+                                                                <th>@UiText["common.status"]</th>
                                                                 <th></th>
                                                             </tr>
                                                         </thead>
@@ -880,7 +896,7 @@
                                                             {
                                                                 <tr>
                                                                     <td colspan="5">
-                                                                        <div class="alert alert-light my-2">هنوز فرمولی برای این دسته‌بندی ثبت نشده است.</div>
+                                                                        <div class="alert alert-light my-2">@UiText["catalog.categories.formulas.none"]</div>
                                                                     </td>
                                                                 </tr>
                                                             }
@@ -890,13 +906,13 @@
                                                                 <tr>
                                                                     <td>
                                                                         <div class="font-weight-bold">@formula.Name</div>
-                                                                        <div class="small text-muted">@formulaParts.Count ویژگی</div>
+                                                                        <div class="small text-muted">@formulaParts.Count @UiText["catalog.categories.formulas.attributeCountSuffix"]</div>
                                                                     </td>
                                                                     <td class="text-monospace">@(!string.IsNullOrWhiteSpace(formula.Preview) ? formula.Preview : "-")</td>
                                                                     <td>@formula.DisplayOrder</td>
                                                                     <td>
                                                                         <span class="badge badge-pill @(formula.IsActive ? "badge-success" : "badge-secondary")">
-                                                                            @(formula.IsActive ? "فعال" : "غیرفعال")
+                                                                            @(formula.IsActive ? UiText["common.active"] : UiText["common.inactive"])
                                                                         </span>
                                                                     </td>
                                                                     <td class="text-nowrap">
@@ -904,19 +920,19 @@
                                                                                 class="btn btn-outline-secondary btn-xs formula-edit-btn"
                                                                                 data-formula-id="@formula.FormulaId"
                                                                                 @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
-                                                                            ویرایش
+                                                                            @UiText["common.edit"]
                                                                         </button>
                                                                         <button type="button"
                                                                                 class="btn btn-outline-primary btn-xs formula-parts-manage-btn"
                                                                                 data-formula-id="@formula.FormulaId"
                                                                                 @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
-                                                                            مدیریت اجزا
+                                                                            @UiText["catalog.categories.formulas.manageParts"]
                                                                         </button>
                                                                         <form asp-action="DeleteVariantNameFormula" method="post" class="d-inline" data-loading-form>
                                                                             @Html.AntiForgeryToken()
                                                                             <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                             <input type="hidden" name="formulaId" value="@formula.FormulaId" />
-                                                                            <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="حذف فرمول" data-confirm="این فرمول واریانت حذف شود؟" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>حذف</button>
+                                                                            <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.formulas.deleteTitle"]' data-confirm='@UiText["catalog.categories.formulas.deleteConfirm"]' @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.delete"]</button>
                                                                         </form>
                                                                     </td>
                                                                 </tr>
@@ -926,17 +942,17 @@
                                                                             <table class="table table-sm mb-0">
                                                                                 <thead>
                                                                                     <tr>
-                                                                                        <th>ردیف</th>
-                                                                                        <th>ویژگی</th>
-                                                                                        <th>کد</th>
-                                                                                        <th class="text-right">عملیات</th>
+                                                                                        <th>@UiText["catalog.categories.formulas.partRow"]</th>
+                                                                                        <th>@UiText["catalog.categories.rules.attribute"]</th>
+                                                                                        <th>@UiText["common.code"]</th>
+                                                                                        <th class="text-right">@UiText["common.operations"]</th>
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody>
                                                                                     @if (formulaParts.Count == 0)
                                                                                     {
                                                                                         <tr>
-                                                                                            <td colspan="4" class="text-muted small">آیتمی برای این فرمول ثبت نشده است.</td>
+                                                                                            <td colspan="4" class="text-muted small">@UiText["catalog.categories.formulas.noItems"]</td>
                                                                                         </tr>
                                                                                     }
                                                                                     @for (var partIndex = 0; partIndex < formulaParts.Count; partIndex++)
@@ -952,14 +968,14 @@
                                                                                                         data-formula-id="@formula.FormulaId"
                                                                                                         data-formula-part-index="@partIndex"
                                                                                                         @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
-                                                                                                    ویرایش
+                                                                                                    @UiText["common.edit"]
                                                                                                 </button>
                                                                                                 <button type="button"
                                                                                                         class="btn btn-outline-danger btn-xs formula-part-remove-btn"
                                                                                                         data-formula-id="@formula.FormulaId"
                                                                                                         data-formula-part-index="@partIndex"
                                                                                                         @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
-                                                                                                    حذف
+                                                                                                    @UiText["common.delete"]
                                                                                                 </button>
                                                                                             </td>
                                                                                         </tr>
@@ -986,15 +1002,15 @@
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
                                     <div>
-                                        <h5 class="card-title mb-1">انتخاب دسته‌بندی برای قوانین</h5>
-                                        <p class="text-muted mb-0 small">ابتدا آخرین سطح دسته‌بندی را انتخاب کنید تا فرم و لیست قوانین برای همان دسته بازخوانی شود.</p>
+                                        <h5 class="card-title mb-1">@UiText["catalog.categories.rulesCategorySelection"]</h5>
+                                        <p class="text-muted mb-0 small">@UiText["catalog.categories.rules.intro"]</p>
                                     </div>
                                 </div>
                                 <form asp-action="CategoryAttributes" method="get" class="row align-items-end" id="rule-category-filter-form">
                                     <div class="col-lg-8 col-md-8 mb-2">
-                                        <label class="text-muted small">دسته‌بندی</label>
-                                        <select name="categoryId" class="form-control js-search-select" data-placeholder="انتخاب آخرین سطح دسته‌بندی">
-                                            <option value="">انتخاب آخرین سطح دسته‌بندی</option>
+                                        <label class="text-muted small">@UiText["catalog.categories.rules.category"]</label>
+                                        <select name="categoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.rules.selectLeafCategory"]'>
+                                            <option value="">@UiText["catalog.categories.rules.selectLeafCategory"]</option>
                                             @foreach (var category in Model.LeafCategories)
                                             {
                                                 <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
@@ -1002,14 +1018,14 @@
                                         </select>
                                     </div>
                                     <div class="col-lg-4 col-md-4 mb-2">
-                                        <button type="submit" class="btn btn-primary btn-block">نمایش فرم و لیست قوانین</button>
+                                        <button type="submit" class="btn btn-primary btn-block">@UiText["catalog.categories.rules.showFormAndList"]</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="rule-section-tabs">
-                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#rule-section-edit" role="tab">فرم اختصاص</a></li>
-                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-section-list" role="tab">لیست قوانین</a></li>
+                            <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#rule-section-edit" role="tab">@UiText["catalog.categories.ruleTabs.assignmentForm"]</a></li>
+                            <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-section-list" role="tab">@UiText["catalog.categories.ruleTabs.list"]</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane show active" id="rule-section-edit" role="tabpanel">
@@ -1017,24 +1033,24 @@
                             <div class="col-12 mb-4">
                                 <div class="card mb-4">
                                     <div class="card-body">
-                                        <h5 class="card-title">اختصاص ویژگی به دسته‌بندی</h5>
+                                        <h5 class="card-title">@UiText["catalog.categories.rules.assignmentTitle"]</h5>
                                         <form asp-action="AssignAttributeToCategory" method="post" id="assign-attribute-to-category-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <div asp-validation-summary="All" class="text-danger small mb-2"></div>
                                             <div class="form-group">
-                                                <label>دسته‌بندی</label>
-                                                <select asp-for="AssignForm.CategoryId" class="form-control js-search-select" data-placeholder="انتخاب آخرین سطح دسته‌بندی">
-                                                    <option value="">انتخاب آخرین سطح دسته‌بندی</option>
+                                                <label>@UiText["catalog.categories.rules.category"]</label>
+                                                <select asp-for="AssignForm.CategoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.rules.selectLeafCategory"]'>
+                                                    <option value="">@UiText["catalog.categories.rules.selectLeafCategory"]</option>
                                                     @foreach (var category in Model.LeafCategories)
                                                     {
                                                         <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
                                                     }
                                                 </select>
-                                                <small class="form-text text-muted">فقط آخرین سطح دسته‌بندی برای اختصاص اتریبیوت قابل انتخاب است.</small>
+                                                <small class="form-text text-muted">@UiText["catalog.categories.rules.onlyLeafHelp"]</small>
                                             </div>
                                             <div class="form-group">
-                                                <label>ویژگی</label>
-                                                <select asp-for="AssignForm.AttributeId" class="form-control js-search-select" data-placeholder="جستجو در بانک ویژگی‌ها">
+                                                <label>@UiText["catalog.categories.rules.attribute"]</label>
+                                                <select asp-for="AssignForm.AttributeId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.rules.searchAttributeBank"]'>
                                                     @foreach (var attr in Model.AllAttributes.OrderBy(x => x.Name))
                                                     {
                                                         <option value="@attr.Id">@attr.Name (@attr.Code / @attr.DataType / @attr.Scope)</option>
@@ -1042,48 +1058,48 @@
                                                 </select>
                                                 @if (Model.AllAttributes.Count == 0)
                                                 {
-                                                    <small class="form-text text-warning">ابتدا یک ویژگی بسازید تا در بانک ویژگی‌ها قابل انتخاب شود.</small>
+                                                    <small class="form-text text-warning">@UiText["catalog.categories.rules.noAttributes"]</small>
                                                 }
                                             </div>
                                             <div class="form-group">
-                                                <label>ترتیب نمایش</label>
+                                                <label>@UiText["catalog.categories.rules.displayOrder"]</label>
                                                 <input asp-for="AssignForm.DisplayOrder" type="number" min="0" class="form-control" />
                                             </div>
                                             <div class="custom-control custom-checkbox">
                                                 <input asp-for="AssignForm.IsRequired" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AssignForm.IsRequired">الزامی</label>
+                                                <label class="custom-control-label" asp-for="AssignForm.IsRequired">@UiText["catalog.categories.rules.isRequired"]</label>
                                             </div>
                                             <div class="custom-control custom-checkbox mt-2">
                                                 <input asp-for="AssignForm.IsVariant" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AssignForm.IsVariant">سطح واریانت</label>
+                                                <label class="custom-control-label" asp-for="AssignForm.IsVariant">@UiText["catalog.categories.rules.isVariant"]</label>
                                             </div>
                                             <div class="custom-control custom-checkbox mt-2">
                                                 <input asp-for="AssignForm.IsVariantCodeCovered" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AssignForm.IsVariantCodeCovered">پوشش کد واریانت</label>
+                                                <label class="custom-control-label" asp-for="AssignForm.IsVariantCodeCovered">@UiText["catalog.categories.rules.isVariantCodeCovered"]</label>
                                             </div>
                                             <div class="custom-control custom-checkbox mt-2">
                                                 <input asp-for="AssignForm.IsOverridden" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AssignForm.IsOverridden">بازنویسی‌شده</label>
+                                                <label class="custom-control-label" asp-for="AssignForm.IsOverridden">@UiText["catalog.categories.rules.isOverridden"]</label>
                                             </div>
                                             <div class="custom-control custom-checkbox mt-2 mb-3">
                                                 <input asp-for="AssignForm.IsActive" class="custom-control-input" />
-                                                <label class="custom-control-label" asp-for="AssignForm.IsActive">فعال</label>
+                                                <label class="custom-control-label" asp-for="AssignForm.IsActive">@UiText["catalog.categories.rules.isActive"]</label>
                                             </div>
-                                            <button class="btn btn-success" type="submit" @(Can("Inventory.CategoryAttributeRule.Assign", "Catalog.Category.Rule.Assign", "CategoryAttributeRule.Assign", "CategoryAttributeRule.Create") ? null : "disabled")>ثبت انتساب</button>
+                                            <button class="btn btn-success" type="submit" @(Can("Inventory.CategoryAttributeRule.Assign", "Catalog.Category.Rule.Assign", "CategoryAttributeRule.Assign", "CategoryAttributeRule.Create") ? null : "disabled")>@UiText["catalog.categories.rules.assign"]</button>
                                         </form>
                                     </div>
                                 </div>
 
                                 <div class="card" id="rule-inline-edit-card" style="display:none;">
                                     <div class="card-body">
-                                        <h5 class="card-title">ویرایش قانون</h5>
-                                        <p class="text-muted small mb-3">با زدن دکمه ویرایش از لیست قوانین، اطلاعات قانون اینجا برمی‌گردد و می‌توانید آن را اصلاح کنید.</p>
+                                        <h5 class="card-title">@UiText["catalog.categories.rules.editTitle"]</h5>
+                                        <p class="text-muted small mb-3">@UiText["catalog.categories.rules.editHelp"]</p>
                                         <form asp-action="UpdateCategoryAttributeRule" method="post" id="update-category-attribute-rule-form" data-loading-form data-dirty-watch>
                                             @Html.AntiForgeryToken()
                                             <input asp-for="RuleForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
                                             <div class="form-group">
-                                                <label>ویژگی</label>
-                                                <select asp-for="RuleForm.AttributeId" class="form-control js-search-select" data-placeholder="انتخاب ویژگی قانون">
+                                                <label>@UiText["catalog.categories.rules.attribute"]</label>
+                                                <select asp-for="RuleForm.AttributeId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.rules.selectRuleAttribute"]'>
                                                     @foreach (var rule in localRules)
                                                     {
                                                         <option value="@rule.AttributeId"
@@ -1098,19 +1114,19 @@
                                                     }
                                                 </select>
                                             </div>
-                                            <div class="form-group"><label>ترتیب نمایش</label><input asp-for="RuleForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
-                                            <div class="custom-control custom-checkbox"><input asp-for="RuleForm.IsRequired" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsRequired">الزامی</label></div>
-                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariant" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariant">سطح واریانت</label></div>
-                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariantCodeCovered" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariantCodeCovered">پوشش کد واریانت</label></div>
-                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsOverridden" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsOverridden">بازنویسی‌شده</label></div>
-                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsActive" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsActive">فعال</label></div>
+                                            <div class="form-group"><label>@UiText["catalog.categories.rules.displayOrder"]</label><input asp-for="RuleForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                            <div class="custom-control custom-checkbox"><input asp-for="RuleForm.IsRequired" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsRequired">@UiText["catalog.categories.rules.isRequired"]</label></div>
+                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariant" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariant">@UiText["catalog.categories.rules.isVariant"]</label></div>
+                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariantCodeCovered" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariantCodeCovered">@UiText["catalog.categories.rules.isVariantCodeCovered"]</label></div>
+                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsOverridden" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsOverridden">@UiText["catalog.categories.rules.isOverridden"]</label></div>
+                                            <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsActive" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsActive">@UiText["catalog.categories.rules.isActive"]</label></div>
                                             @if (localRules.Count == 0)
                                             {
-                                                <small class="form-text text-warning">قانون مستقیمی برای ویرایش وجود ندارد.</small>
+                                                <small class="form-text text-warning">@UiText["catalog.categories.rules.noDirectRule"]</small>
                                             }
                                             <div class="mt-3">
-                                                <button class="btn btn-outline-primary" type="submit" @((Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") && localRules.Count > 0) ? null : "disabled")>به‌روزرسانی قانون</button>
-                                                <button class="btn btn-outline-secondary" type="button" id="rule-inline-edit-cancel">انصراف از ویرایش</button>
+                                                <button class="btn btn-outline-primary" type="submit" @((Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") && localRules.Count > 0) ? null : "disabled")>@UiText["catalog.categories.rules.update"]</button>
+                                                <button class="btn btn-outline-secondary" type="button" id="rule-inline-edit-cancel">@UiText["catalog.categories.rules.cancelEdit"]</button>
                                             </div>
                                         </form>
                                     </div>
@@ -1126,9 +1142,9 @@
                                     <div class="card-body" id="rule-list-scope">
                                         <form asp-action="CategoryAttributes" method="get" class="row align-items-end mb-3" id="rule-category-list-form">
                                             <div class="col-lg-8 col-md-8 mb-2">
-                                                <label class="text-muted small">دسته‌بندی</label>
+                                                <label class="text-muted small">@UiText["catalog.categories.rules.category"]</label>
                                                 <select name="categoryId" class="form-control" required>
-                                                    <option value="">انتخاب آخرین سطح دسته‌بندی</option>
+                                                    <option value="">@UiText["catalog.categories.rules.selectLeafCategory"]</option>
                                                     @foreach (var category in Model.LeafCategories)
                                                     {
                                                         <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
@@ -1136,22 +1152,22 @@
                                                 </select>
                                             </div>
                                             <div class="col-lg-4 col-md-4 mb-2">
-                                                <button type="submit" class="btn btn-primary btn-block">بازیابی لیست قوانین</button>
+                                                <button type="submit" class="btn btn-primary btn-block">@UiText["catalog.categories.rules.loadList"]</button>
                                             </div>
                                         </form>
-                                        <h5 class="card-title">قوانین دسته‌بندی</h5>
+                                        <h5 class="card-title">@UiText["catalog.categories.rules.listTitle"]</h5>
                                         <div class="table-responsive">
                                             <table class="table table-sm table-striped">
                                                 <thead>
                                                     <tr>
-                                                        <th>ویژگی</th>
-                                                        <th>الزامی</th>
-                                                        <th>سطح واریانت</th>
-                                                        <th>پوشش کد</th>
-                                                        <th>ترتیب</th>
-                                                        <th>بازنویسی‌شده</th>
-                                                        <th>فعال</th>
-                                                        <th>منبع</th>
+                                                        <th>@UiText["catalog.categories.rules.attribute"]</th>
+                                                        <th>@UiText["catalog.categories.rules.isRequired"]</th>
+                                                        <th>@UiText["catalog.categories.rules.isVariant"]</th>
+                                                        <th>@UiText["catalog.categories.rules.codeCoverage"]</th>
+                                                        <th>@UiText["catalog.categories.rules.displayOrder"]</th>
+                                                        <th>@UiText["catalog.categories.rules.isOverridden"]</th>
+                                                        <th>@UiText["catalog.categories.rules.isActive"]</th>
+                                                        <th>@UiText["catalog.categories.rules.source"]</th>
                                                         <th></th>
                                                     </tr>
                                                 </thead>
@@ -1160,13 +1176,13 @@
                                                     {
                                                         <tr>
                                                             <td>@rule.AttributeName <span class="text-muted small">(@rule.DataType)</span></td>
-                                                            <td>@(rule.RuleIsRequired ? "بله" : "خیر")</td>
-                                                            <td>@(rule.RuleIsVariant ? "بله" : "خیر")</td>
-                                                            <td>@(rule.RuleIsVariantCodeCovered ? "بله" : "خیر")</td>
+                                                            <td>@(rule.RuleIsRequired ? UiText["common.yes"] : UiText["common.no"])</td>
+                                                            <td>@(rule.RuleIsVariant ? UiText["common.yes"] : UiText["common.no"])</td>
+                                                            <td>@(rule.RuleIsVariantCodeCovered ? UiText["common.yes"] : UiText["common.no"])</td>
                                                             <td>@rule.RuleDisplayOrder</td>
-                                                            <td>@(rule.RuleIsOverridden ? "بله" : "خیر")</td>
-                                                            <td>@(rule.RuleIsActive ? "فعال" : "غیرفعال")</td>
-                                                            <td>@(rule.IsInherited ? $"ارث‌رسیده از {rule.SourceCategoryName}" : "مستقیم")</td>
+                                                            <td>@(rule.RuleIsOverridden ? UiText["common.yes"] : UiText["common.no"])</td>
+                                                            <td>@(rule.RuleIsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
+                                                            <td>@(rule.IsInherited ? string.Format(UiText["catalog.categories.rules.sourceInheritedFormat"], rule.SourceCategoryName) : UiText["catalog.categories.rules.sourceDirect"])</td>
                                                             <td class="text-nowrap">
                                                                 @if (!rule.IsInherited)
                                                                 {
@@ -1182,25 +1198,25 @@
                                                                             data-rule-overridden="@(rule.RuleIsOverridden ? "true" : "false")"
                                                                             data-rule-active="@(rule.RuleIsActive ? "true" : "false")"
                                                                             @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") ? null : "disabled")>
-                                                                        ویرایش
+                                                                        @UiText["common.edit"]
                                                                     </button>
                                                                     <form asp-action="ActivateCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="attributeId" value="@rule.AttributeId" />
-                                                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Activate", "CategoryAttributeRule.Activate") ? null : "disabled")>فعال</button>
+                                                                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Activate", "CategoryAttributeRule.Activate") ? null : "disabled")>@UiText["catalog.categories.rules.activate"]</button>
                                                                     </form>
                                                                     <form asp-action="DeactivateCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="attributeId" value="@rule.AttributeId" />
-                                                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Deactivate", "CategoryAttributeRule.Deactivate") ? null : "disabled")>غیرفعال</button>
+                                                                        <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Deactivate", "CategoryAttributeRule.Deactivate") ? null : "disabled")>@UiText["catalog.categories.rules.deactivate"]</button>
                                                                     </form>
                                                                     <form asp-action="RemoveCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
                                                                         @Html.AntiForgeryToken()
                                                                         <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
                                                                         <input type="hidden" name="attributeId" value="@rule.AttributeId" />
-                                                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف قانون" data-confirm="این قانون دسته‌بندی حذف شود؟" @(Can("Inventory.CategoryAttributeRule.Remove", "Catalog.Category.Rule.Remove", "CategoryAttributeRule.Remove", "CategoryAttributeRule.Delete") ? null : "disabled")>حذف</button>
+                                                                        <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title='@UiText["catalog.categories.rules.deleteTitle"]' data-confirm='@UiText["catalog.categories.rules.deleteConfirm"]' @(Can("Inventory.CategoryAttributeRule.Remove", "Catalog.Category.Rule.Remove", "CategoryAttributeRule.Remove", "CategoryAttributeRule.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
                                                                     </form>
                                                                 }
                                                             </td>
@@ -1242,6 +1258,27 @@
             var canUpdateOptions = @Can("Catalog.AttributeOption.Update", "AttributeOption.Update").ToString().ToLowerInvariant();
             var canDeleteOptions = @Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete").ToString().ToLowerInvariant();
             var canManageFormulas = @Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage").ToString().ToLowerInvariant();
+            var categoryTexts = {
+                optionNone: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.none"])),
+                optionActive: @Html.Raw(JsonSerializer.Serialize(UiText["common.active"])),
+                optionInactive: @Html.Raw(JsonSerializer.Serialize(UiText["common.inactive"])),
+                optionEdit: @Html.Raw(JsonSerializer.Serialize(UiText["common.edit"])),
+                optionDelete: @Html.Raw(JsonSerializer.Serialize(UiText["common.delete"])),
+                optionResponseUnreadable: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverResponseUnreadable"])),
+                optionLoading: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.loading"])),
+                optionLoadFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.loadFailed"])),
+                optionServerUnavailable: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverUnavailable"])),
+                optionSubmitting: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitting"])),
+                optionSubmitFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitFailed"])),
+                optionSubmitSucceeded: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitSucceeded"])),
+                optionDeleteConfirm: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteConfirm"])),
+                optionDeleting: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleting"])),
+                optionDeleteFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteFailed"])),
+                optionDeleteSucceeded: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteSucceeded"])),
+                formulaSave: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.save"])),
+                formulaUpdate: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.update"])),
+                formulaInheritedSuffix: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.inheritedSuffix"]))
+            };
             var formulaRegistry = @Html.Raw(JsonSerializer.Serialize(localFormulas.Select(formula => new {
                 formulaId = formula.FormulaId,
                 name = formula.Name,
@@ -1586,6 +1623,13 @@
                 var values = {};
                 form.querySelectorAll('input, textarea, select').forEach(function (field) {
                     if (!field.name || field.name === '__RequestVerificationToken') {
+                        try {
+                            var errorPayload = JSON.parse(xhr.responseText || '{}');
+                            if (errorPayload && errorPayload.message) {
+                                status.textContent = errorPayload.message;
+                            }
+                        } catch (e) {
+                        }
                         return;
                     }
 
@@ -1955,7 +1999,7 @@
 
             function optionRowsHtml(options) {
                 if (!options || !options.length) {
-                    return '<tr><td colspan="5">آپشنی ثبت نشده است.</td></tr>';
+                    return '<tr><td colspan="5">' + categoryTexts.optionNone + '</td></tr>';
                 }
 
                 return options
@@ -1974,10 +2018,10 @@
                             + '<td><span class="text-monospace">' + value + '</span></td>'
                             + '<td>' + name + '</td>'
                             + '<td>' + order + '</td>'
-                            + '<td>' + (isActive ? 'فعال' : 'غیرفعال') + '</td>'
+                            + '<td>' + (isActive ? categoryTexts.optionActive : categoryTexts.optionInactive) + '</td>'
                             + '<td class="text-nowrap">'
-                            + '<button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="' + id + '" data-option-name="' + name + '" data-option-value="' + value + '" data-display-order="' + order + '"' + (canUpdateOptions ? '' : ' disabled') + '>ادیت</button> '
-                            + '<button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="' + id + '"' + (canDeleteOptions ? '' : ' disabled') + '>حذف</button>'
+                            + '<button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="' + id + '" data-option-name="' + name + '" data-option-value="' + value + '" data-display-order="' + order + '"' + (canUpdateOptions ? '' : ' disabled') + '>' + categoryTexts.optionEdit + '</button> '
+                            + '<button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="' + id + '"' + (canDeleteOptions ? '' : ' disabled') + '>' + categoryTexts.optionDelete + '</button>'
                             + '</td>'
                             + '</tr>';
                     })
@@ -1995,7 +2039,7 @@
 
             function getJson(response) {
                 return response.json().catch(function () {
-                    return { isSuccess: false, errorMessage: 'پاسخ سرور قابل خواندن نیست.' };
+                    return { isSuccess: false, errorMessage: categoryTexts.optionResponseUnreadable };
                 });
             }
 
@@ -2004,14 +2048,14 @@
                     return Promise.resolve();
                 }
 
-                setOptionsMessage(row, 'در حال بارگذاری...', false);
+                setOptionsMessage(row, categoryTexts.optionLoading, false);
                 return fetch(optionEndpoints.list + '?attributeId=' + encodeURIComponent(attributeId), {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 })
                     .then(getJson)
                     .then(function (payload) {
                         if (!payload.isSuccess) {
-                            setOptionsMessage(row, payload.errorMessage || 'بارگذاری لیست آپشن‌ها انجام نشد.', true);
+                            setOptionsMessage(row, payload.errorMessage || categoryTexts.optionLoadFailed, true);
                             return;
                         }
 
@@ -2019,14 +2063,14 @@
                         setOptionsMessage(row, '', false);
                     })
                     .catch(function () {
-                        setOptionsMessage(row, 'ارتباط با سرور برقرار نشد.', true);
+                        setOptionsMessage(row, categoryTexts.optionServerUnavailable, true);
                     });
             }
 
             function submitOptionForm(form, url, row, successCallback) {
                 var submitButtons = form.querySelectorAll('button[type="submit"]');
                 submitButtons.forEach(function (button) { button.setAttribute('disabled', 'disabled'); });
-                setOptionsMessage(row, 'در حال ثبت...', false);
+                setOptionsMessage(row, categoryTexts.optionSubmitting, false);
 
                 return fetch(url, {
                     method: 'POST',
@@ -2036,18 +2080,18 @@
                     .then(getJson)
                     .then(function (payload) {
                         if (!payload.isSuccess) {
-                            setOptionsMessage(row, payload.errorMessage || 'عملیات انجام نشد.', true);
+                            setOptionsMessage(row, payload.errorMessage || categoryTexts.optionSubmitFailed, true);
                             return;
                         }
 
                         renderOptions(row, payload.items || []);
-                        setOptionsMessage(row, payload.message || 'عملیات انجام شد.', false);
+                        setOptionsMessage(row, payload.message || categoryTexts.optionSubmitSucceeded, false);
                         if (typeof successCallback === 'function') {
                             successCallback();
                         }
                     })
                     .catch(function () {
-                        setOptionsMessage(row, 'ارتباط با سرور برقرار نشد.', true);
+                        setOptionsMessage(row, categoryTexts.optionServerUnavailable, true);
                     })
                     .finally(function () {
                         submitButtons.forEach(function (button) { button.removeAttribute('disabled'); });
@@ -2085,7 +2129,7 @@
                     if (!attributeId || !optionId || !tokenField) {
                         return;
                     }
-                    if (!window.confirm('این آپشن حذف شود؟')) {
+                    if (!window.confirm(categoryTexts.optionDeleteConfirm)) {
                         return;
                     }
 
@@ -2093,7 +2137,7 @@
                     data.append('__RequestVerificationToken', tokenField.value);
                     data.append('attributeId', attributeId);
                     data.append('optionId', optionId);
-                    setOptionsMessage(optionsRow, 'در حال حذف...', false);
+                    setOptionsMessage(optionsRow, categoryTexts.optionDeleting, false);
                     fetch(optionEndpoints.delete, {
                         method: 'POST',
                         body: data,
@@ -2102,14 +2146,14 @@
                         .then(getJson)
                         .then(function (payload) {
                             if (!payload.isSuccess) {
-                                setOptionsMessage(optionsRow, payload.errorMessage || 'حذف آپشن انجام نشد.', true);
+                                setOptionsMessage(optionsRow, payload.errorMessage || categoryTexts.optionDeleteFailed, true);
                                 return;
                             }
                             renderOptions(optionsRow, payload.items || []);
-                            setOptionsMessage(optionsRow, payload.message || 'آپشن حذف شد.', false);
+                            setOptionsMessage(optionsRow, payload.message || categoryTexts.optionDeleteSucceeded, false);
                         })
                         .catch(function () {
-                            setOptionsMessage(optionsRow, 'ارتباط با سرور برقرار نشد.', true);
+                            setOptionsMessage(optionsRow, categoryTexts.optionServerUnavailable, true);
                         });
                 }
             });
@@ -2141,7 +2185,7 @@
                     var row = form.closest('.attribute-options-row');
                     var attributeId = row ? row.getAttribute('data-options-for') || '' : '';
                     var optionIdField = form.querySelector('input[name="optionId"]');
-                    if (!attributeId || !optionIdField || !window.confirm('این آپشن حذف شود؟')) {
+                    if (!attributeId || !optionIdField || !window.confirm(categoryTexts.optionDeleteConfirm)) {
                         return;
                     }
 
@@ -2156,14 +2200,14 @@
                         .then(getJson)
                         .then(function (payload) {
                             if (!payload.isSuccess) {
-                                setOptionsMessage(row, payload.errorMessage || 'حذف آپشن انجام نشد.', true);
+                                setOptionsMessage(row, payload.errorMessage || categoryTexts.optionDeleteFailed, true);
                                 return;
                             }
                             renderOptions(row, payload.items || []);
-                            setOptionsMessage(row, payload.message || 'آپشن حذف شد.', false);
+                            setOptionsMessage(row, payload.message || categoryTexts.optionDeleteSucceeded, false);
                         })
                         .catch(function () {
-                            setOptionsMessage(row, 'ارتباط با سرور برقرار نشد.', true);
+                            setOptionsMessage(row, categoryTexts.optionServerUnavailable, true);
                         });
                 });
             });
@@ -2276,11 +2320,11 @@
                 }
 
                 if (formulaFormTitle) {
-                    formulaFormTitle.textContent = isEditMode ? 'ویرایش فرمول واریانت' : 'ایجاد فرمول واریانت';
+                    formulaFormTitle.textContent = isEditMode ? @JsonSerializer.Serialize(UiText["catalog.categories.variantFormulaEdit"]) : @JsonSerializer.Serialize(UiText["catalog.categories.variantFormulaCreate"]);
                 }
 
                 if (formulaSubmitBtn) {
-                    formulaSubmitBtn.textContent = isEditMode ? 'ثبت تغییرات' : 'ثبت فرمول';
+                    formulaSubmitBtn.textContent = isEditMode ? categoryTexts.formulaUpdate : categoryTexts.formulaSave;
                 }
             }
 
@@ -2306,12 +2350,12 @@
                         + '<div class="d-flex justify-content-between align-items-center flex-wrap">'
                         + '<div class="pr-2 mb-2 mb-md-0">'
                         + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : attributeId) + '</div>'
-                        + '<div class="small text-muted">' + escapeHtml(attribute ? attribute.attributeCode : '') + (attribute && attribute.isInherited ? ' / ارثی' : '') + '</div>'
+                        + '<div class="small text-muted">' + escapeHtml(attribute ? attribute.attributeCode : '') + (attribute && attribute.isInherited ? categoryTexts.formulaInheritedSuffix : '') + '</div>'
                         + '</div>'
                         + '<div class="btn-group btn-group-sm" role="group">'
                         + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="up" data-formula-index="' + index + '"' + (index === 0 ? ' disabled' : '') + '>↑</button>'
                         + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="down" data-formula-index="' + index + '"' + (index === formulaState.parts.length - 1 ? ' disabled' : '') + '>↓</button>'
-                        + '<button type="button" class="btn btn-outline-danger formula-part-action" data-formula-action="remove" data-formula-index="' + index + '">×</button>'
+                        + '<button type="button" class="btn btn-outline-danger formula-part-action" data-formula-action="remove" data-formula-index="' + index + '">�</button>'
                         + '</div>'
                         + '</div>';
                     formulaPartsList.appendChild(item);
@@ -2711,6 +2755,7 @@
             var root = document.querySelector('[data-media-uploader][data-policy="category-image"]');
             if (!root) return;
             var baseUrl = (root.getAttribute('data-base-url') || '').replace(/\/$/, '');
+            var label = root.querySelector('label');
             var fileInput = root.querySelector('[data-media-file]');
             var progressWrap = root.querySelector('[data-media-progress-wrap]');
             var progressBar = root.querySelector('[data-media-progress]');
@@ -2723,14 +2768,31 @@
             var fileKeyField = form.querySelector('[name="CategoryForm.ImageFileKey"]');
             var imageUrlField = form.querySelector('[name="CategoryForm.ImageUrl"]');
             var thumbField = form.querySelector('[name="CategoryForm.ImageThumbnailUrl"]');
+            if (label) label.textContent = '\u062a\u0635\u0648\u06cc\u0631 \u062f\u0633\u062a\u0647\u200c\u0628\u0646\u062f\u06cc';
+            if (label) label.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["category.image"]));
+            if (status) status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageHelp"]));
+            if (removeButton) removeButton.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.removeImage"]));
+
+            function getUploadErrorMessage(xhr, fallbackMessage) {
+                try {
+                    var errorPayload = JSON.parse(xhr.responseText || '{}');
+                    if (errorPayload && errorPayload.message) {
+                        return errorPayload.message;
+                    }
+                } catch (e) {
+                }
+
+                return fallbackMessage;
+            }
 
             function syncPreview() {
-                if (!thumbField.value) {
+                var previewUrl = (thumbField.value || imageUrlField.value || '').trim();
+                if (!previewUrl) {
                     previewWrap.classList.add('d-none');
                     removeButton.classList.add('d-none');
                     return;
                 }
-                preview.src = thumbField.value.indexOf('http') === 0 ? thumbField.value : baseUrl + thumbField.value;
+                preview.src = previewUrl.indexOf('http') === 0 ? previewUrl : baseUrl + previewUrl;
                 previewWrap.classList.remove('d-none');
                 removeButton.classList.remove('d-none');
             }
@@ -2746,24 +2808,47 @@
                     if (!event.lengthComputable) return;
                     progressBar.style.width = Math.round((event.loaded / event.total) * 100) + '%';
                 });
+                xhr.addEventListener('loadend', function () {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        if (!status.textContent || status.textContent.indexOf('�') >= 0) {
+                            status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
+                        }
+                    } else if (xhr.status > 0) {
+                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"]));
+                    } else {
+                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
+                    }
+                });
+                xhr.addEventListener('loadend', function () {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        if (!status.textContent || status.textContent.indexOf('�') >= 0 || status.textContent.indexOf('�') >= 0 || status.textContent.indexOf('�') >= 0) {
+                            status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
+                        }
+                    } else if (xhr.status > 0) {
+                        status.textContent = getUploadErrorMessage(xhr, @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"])));
+                    } else {
+                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
+                    }
+                });
+
                 xhr.onload = function () {
                     progressWrap.classList.add('d-none');
                     progressBar.style.width = '0%';
                     if (xhr.status < 200 || xhr.status >= 300) {
-                        status.textContent = 'Ø¢Ù¾Ù„ÙˆØ¯ ØªØµÙˆÛŒØ± Ø¨Ø§ Ø®Ø·Ø§ Ù…ÙˆØ§Ø¬Ù‡ Ø´Ø¯.';
+                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"]));
                         return;
                     }
                     var result = JSON.parse(xhr.responseText);
                     fileKeyField.value = result.fileKey || '';
                     imageUrlField.value = result.url || '';
                     thumbField.value = result.thumbnailUrl || '';
-                    status.textContent = result.originalFileName || 'ØªØµÙˆÛŒØ± Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯.';
+                    status.textContent = result.originalFileName || @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
                     syncPreview();
                 };
                 xhr.onerror = function () {
                     progressWrap.classList.add('d-none');
                     progressBar.style.width = '0%';
-                    status.textContent = 'Ø§Ø±ØªØ¨Ø§Ø· Ø¨Ø§ Ø³Ø±ÙˆÛŒØ³ ÙØ§ÛŒÙ„ Ø¨Ø±Ù‚Ø±Ø§Ø± Ù†Ø´Ø¯.';
+                    status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
                 };
                 xhr.send(formData);
             });
@@ -2773,8 +2858,9 @@
                 fileKeyField.value = '';
                 imageUrlField.value = '';
                 thumbField.value = '';
-                status.textContent = 'ØªØµÙˆÛŒØ± Ø­Ø°Ù Ø´Ø¯.';
+                status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
                 syncPreview();
+                status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
             });
 
             syncPreview();

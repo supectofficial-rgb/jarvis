@@ -43,12 +43,15 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Quality
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Warehouses.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Warehouses.Entities;
 using Microsoft.EntityFrameworkCore;
+using OysterFx.Infra.Auth.UserServices;
 using OysterFx.Infra.Persistence.RDB.Queries;
 
 public class InventoryServiceQueryDbContext : QueryDbContext
 {
-    public InventoryServiceQueryDbContext(DbContextOptions options)
-        : base(options)
+    public InventoryServiceQueryDbContext(
+        DbContextOptions options,
+        IUserInfoService? userInfoService = null)
+        : base(options, userInfoService)
     {
     }
 
@@ -129,5 +132,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
         modelBuilder.ApplyConfiguration(new WarehouseReadModelConfig());
         modelBuilder.ApplyConfiguration(new LocationReadModelConfig());
         modelBuilder.ApplyConfiguration(new QualityStatusReadModelConfig());
+
+        AddOrganizationShadowProperties(modelBuilder);
     }
 }
