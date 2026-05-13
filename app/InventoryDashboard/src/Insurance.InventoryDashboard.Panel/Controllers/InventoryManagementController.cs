@@ -99,6 +99,7 @@ public sealed partial class InventoryManagementController : Controller
             modules,
             "inventory_management",
             string.Equals(activeItem, "locations", StringComparison.OrdinalIgnoreCase) ? "locations" : "warehouses");
+        var isLocationsPage = string.Equals(menu.Item?.ItemId, "locations", StringComparison.OrdinalIgnoreCase);
 
         warehousePageSize = NormalizePageSize(warehousePageSize);
         locationPageSize = NormalizePageSize(locationPageSize);
@@ -120,24 +121,36 @@ public sealed partial class InventoryManagementController : Controller
 
         var selectedWarehouseId = ResolveSelectedWarehouseId(warehouseId, warehouses, warehouseLookup);
 
-        var locationsResult = await _apiService.SearchLocationsAsync(
-            token,
-            selectedWarehouseId,
-            locationCode,
-            locationType,
-            locationAisle,
-            locationRack,
-            locationShelf,
-            locationBin,
-            locationStatusValue,
-            Math.Max(locationPage, 1),
-            locationPageSize);
+        var locationsResult = isLocationsPage
+            ? await _apiService.SearchLocationsAsync(
+                token,
+                selectedWarehouseId,
+                locationCode,
+                locationType,
+                locationAisle,
+                locationRack,
+                locationShelf,
+                locationBin,
+                locationStatusValue,
+                Math.Max(locationPage, 1),
+                locationPageSize)
+            : new ApiResponse<LocationSearchResultModel>
+            {
+                IsSuccess = true,
+                Data = new LocationSearchResultModel
+                {
+                    Items = new List<LocationListItemModel>(),
+                    Page = Math.Max(locationPage, 1),
+                    PageSize = locationPageSize,
+                    TotalCount = 0
+                }
+            };
         var locations = locationsResult.Data?.Items ?? new List<LocationListItemModel>();
 
         var selectedLocationId = ResolveSelectedLocationId(locationId, locations);
         var selectedLocation = locations.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, selectedLocationId, StringComparison.OrdinalIgnoreCase));
 
-        var selectedWarehouseDetailsResult = !string.IsNullOrWhiteSpace(selectedWarehouseId)
+        var selectedWarehouseDetailsResult = !string.IsNullOrWhiteSpace(selectedWarehouseId) && !isLocationsPage
             ? await _apiService.GetWarehouseWithLocationsAsync(selectedWarehouseId, token, includeInactiveLocations: true)
             : new ApiResponse<WarehouseWithLocationsModel> { IsSuccess = true };
 

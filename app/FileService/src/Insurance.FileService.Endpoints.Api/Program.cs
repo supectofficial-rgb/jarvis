@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Elastic.Apm.NetCoreAll;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.FileProviders;
 using SixLabors.ImageSharp;
@@ -10,6 +11,7 @@ using SixLabors.ImageSharp.Processing;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddAllElasticApm();
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 50 * 1024 * 1024;
@@ -19,10 +21,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FileServiceDashboard", policy =>
     {
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>()
+            ?? Array.Empty<string>();
+
         policy
             .SetIsOriginAllowed(origin =>
                 origin.Contains("localhost", StringComparison.OrdinalIgnoreCase)
-                || origin.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+                || origin.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                || allowedOrigins.Any(allowedOrigin => string.Equals(origin, allowedOrigin, StringComparison.OrdinalIgnoreCase)))
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -37,6 +45,7 @@ Directory.CreateDirectory(storageRoot);
 
 app.UseCors("FileServiceDashboard");
 app.UseHttpsRedirection();
+app.UseAllElasticApm(app.Configuration);
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(storageRoot),

@@ -75,6 +75,25 @@
         return string.Join(" / ", parts);
     }
 
+    string? ResolveMediaUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        var trimmed = url.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out _))
+        {
+            return trimmed;
+        }
+
+        var baseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        return string.IsNullOrWhiteSpace(baseUrl)
+            ? trimmed
+            : $"{baseUrl}/{trimmed.TrimStart('/')}";
+    }
+
     var hasRestrictedActions = !Can("Catalog.Category.Create", "Catalog.Category.Update", "Category.Create", "Category.Update")
         || !Can("Catalog.Category.Move", "Category.Move")
         || !Can("Catalog.Category.Activate", "Category.Activate")
@@ -104,26 +123,30 @@
     #category-section-tabs a[href="#category-section-details"],
     #category-section-details,
     #move-category-card,
-    [data-media-uploader][data-policy="category-image"] > label,
-    [data-media-uploader][data-policy="category-image"] [data-media-status] {
-        font-size: 0;
-    }
-    [data-media-uploader][data-policy="category-image"] [data-media-status]::after {
-        content: @Html.Raw(JsonSerializer.Serialize(UiText["media.imageHelp"]));
-        font-size: 0.875rem;
-    }
-    [data-media-uploader][data-policy="category-image"] [data-media-remove] {
-        font-size: 0;
-    }
-    [data-media-uploader][data-policy="category-image"] [data-media-remove]::after {
-        content: @Html.Raw(JsonSerializer.Serialize(UiText["media.removeImage"]));
-        font-size: 0.75rem;
-    }
     #category-list-scope [data-bulk-form],
     #category-list-scope table th:first-child,
     #category-list-scope table td:first-child,
     #rule-tab > .card.mb-4:first-of-type {
         display: none;
+    }
+    .category-list-image {
+        width: 48px;
+        height: 48px;
+        border-radius: .75rem;
+        overflow: hidden;
+        background: #f2f4f7;
+        border: 1px solid #e2e6ea;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9aa3ad;
+        font-size: 1.25rem;
+    }
+    .category-list-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
     }
 </style>
 
@@ -184,6 +207,8 @@
                 </ul>
 
                 <div class="tab-content">
+                    @if (showCategories)
+                    {
                     <div class="tab-pane @(showCategories ? "show active" : null)" id="category-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-section-tabs">
                             <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#category-section-edit" role="tab">@UiText["catalog.categories.sections.edit"]</a></li>
@@ -407,6 +432,7 @@
                                                         <th>
                                                             <input type="checkbox" data-bulk-toggle aria-label='@UiText["catalog.categories.selectAll"]' />
                                                         </th>
+                                                        <th>@UiText["category.image"]</th>
                                                         <th>@UiText["common.code"]</th>
                                                         <th>@UiText["common.name"]</th>
                                                         <th>@UiText["common.status"]</th>
@@ -418,7 +444,7 @@
                                                     @if (Model.FilteredFlatCategories.Count == 0)
                                                     {
                                                         <tr>
-                                                            <td colspan="6">
+                                                            <td colspan="7">
                                                                 <div class="alert alert-light my-2">
                                                                     <h6>@UiText["catalog.categories.noRecordFound"]</h6>
                                                                     <p class="mb-0 text-muted">@UiText["catalog.categories.noRecordFoundHelp"]</p>
@@ -435,6 +461,7 @@
                                                             var levelLabel = string.Format(UiText["catalog.categories.levelLabelFormat"], depth + 1);
                                                             var hasChildren = HasChildren(category.Id);
                                                             var childCount = Model.FlatCategories.Count(x => string.Equals(x.ParentCategoryId, category.Id, StringComparison.OrdinalIgnoreCase));
+                                                            var categoryImageUrl = ResolveMediaUrl(category.ImageThumbnailUrl ?? category.ImageUrl);
                                                             <tr class="@(string.Equals(category.Id, Model.SelectedCategoryId, StringComparison.OrdinalIgnoreCase) ? "table-primary" : null)"
                                                                 data-category-row
                                                                 data-category-id="@category.Id"
@@ -442,6 +469,18 @@
                                                                 data-has-children="@(hasChildren ? "true" : "false")">
                                                                 <td>
                                                                     <input type="checkbox" data-bulk-row value="@category.Id" aria-label='@string.Format(UiText["catalog.categories.selectItemFormat"], category.Name)' />
+                                                                </td>
+                                                                <td>
+                                                                    <span class="category-list-image">
+                                                                        @if (!string.IsNullOrWhiteSpace(categoryImageUrl))
+                                                                        {
+                                                                            <img src="@categoryImageUrl" alt="@category.Name" loading="lazy" />
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span>+</span>
+                                                                        }
+                                                                    </span>
                                                                 </td>
                                                                 <td><span class="text-monospace">@category.Code</span></td>
                                                                 <td>
@@ -571,7 +610,10 @@
                             </div>
                         </div>
                     </div>
+                    }
 
+                    @if (showAttributes)
+                    {
                     <div class="tab-pane @(showAttributes ? "show active" : null)" id="attribute-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
                             <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">@UiText["catalog.categories.attributeTabs.add"]</a></li>
@@ -777,7 +819,10 @@
                             </div>
                         </div>
                     </div>
+                    }
 
+                    @if (showFormulas)
+                    {
                     <div class="tab-pane @(showFormulas ? "show active" : null)" id="formula-tab" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="formula-section-tabs">
                             <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#formula-section-edit" role="tab">@UiText["catalog.categories.sections.edit"]</a></li>
@@ -996,7 +1041,10 @@
                             </div>
                         </div>
                     </div>
+                    }
 
+                    @if (showRules)
+                    {
                     <div class="tab-pane @(showRules ? "show active" : null)" id="rule-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
@@ -1232,6 +1280,7 @@
                             </div>
                         </div>
                     </div>
+                    }
                 </div>
             </div>
         </div>

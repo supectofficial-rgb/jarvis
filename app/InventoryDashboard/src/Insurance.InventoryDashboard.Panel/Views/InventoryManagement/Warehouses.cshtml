@@ -97,6 +97,8 @@
                 </ul>
 
                 <div class="tab-content">
+                    @if (showWarehouses)
+                    {
                     <div class="tab-pane fade @(showWarehouses ? "show active" : null)" id="warehouse-tab-form" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs ml-0 mb-4 inventory-section-tabs" role="tablist" data-section-tabs>
                             <li class="nav-item">
@@ -141,7 +143,10 @@
                             </div>
                         </div>
                     </div>
+                    }
 
+                    @if (showLocations)
+                    {
                     <div class="tab-pane fade @(showLocations ? "show active" : null)" id="warehouse-tab-location" role="tabpanel">
                         <ul class="nav nav-tabs separator-tabs ml-0 mb-4 inventory-section-tabs" role="tablist" data-section-tabs>
                             <li class="nav-item">
@@ -220,7 +225,10 @@
                             </div>
                         </div>
                     </div>
+                    }
 
+                    @if (showWarehouses)
+                    {
                     <div class="tab-pane fade" id="warehouse-tab-details" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
@@ -278,9 +286,12 @@
                             </div>
                         </div>
                     </div>
+                    }
                 </div>
             </div>
 
+            @if (showWarehouses)
+            {
             <div class="col-12 mb-4 inventory-section-pane d-none @(showWarehouses ? null : "d-none")" id="warehouse-section-search">
                 <div class="card mb-4">
                     <div class="card-body">
@@ -402,7 +413,10 @@
                     </div>
                 </div>
             </div>
+            }
 
+            @if (showLocations)
+            {
             <div class="col-12 mb-4 inventory-section-pane d-none @(showLocations ? null : "d-none")" id="location-section-search">
                 <div class="card mb-4">
                     <div class="card-body">
@@ -556,6 +570,7 @@
                     </div>
                 </div>
             </div>
+            }
         </div>
     </div>
 </main>

@@ -1,3 +1,4 @@
+using Elastic.Apm.NetCoreAll;
 using Insurance.InventoryDashboard.Panel.Options;
 using Insurance.InventoryDashboard.Panel.Services;
 using Insurance.InventoryDashboard.Panel.Services.Localization;
@@ -11,6 +12,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
+builder.Services.AddAllElasticApm();
 builder.Services.AddControllersWithViews();
 builder.Services.Configure<UiLocalizationOptions>(builder.Configuration.GetSection(UiLocalizationOptions.SectionName));
 
@@ -41,6 +43,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
+app.UseAllElasticApm(builder.Configuration);
 app.UseAuthorization();
 
 app.MapStaticAssets();

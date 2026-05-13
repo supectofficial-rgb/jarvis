@@ -4,9 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using OysterFx.Infra.Persistence.EventSourcing.Abstractions;
 using System.Reflection;
-using System.Text.Json;
 using DomainEventBus = OysterFx.AppCore.Shared.Events.IEventBus;
 
 public sealed class DomainOutboxDispatcherBackgroundService : BackgroundService
@@ -18,11 +18,6 @@ public sealed class DomainOutboxDispatcherBackgroundService : BackgroundService
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<DomainOutboxDispatcherBackgroundService> _logger;
     private readonly DomainOutboxDispatcherOptions _options;
-
-    private readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     public DomainOutboxDispatcherBackgroundService(
         IServiceScopeFactory serviceScopeFactory,
@@ -88,7 +83,7 @@ public sealed class DomainOutboxDispatcherBackgroundService : BackgroundService
                     object? payload;
                     try
                     {
-                        payload = JsonSerializer.Deserialize(outboxEvent.EventPayload, eventType, _jsonOptions);
+                        payload = JsonConvert.DeserializeObject(outboxEvent.EventPayload, eventType);
                     }
                     catch (Exception ex)
                     {

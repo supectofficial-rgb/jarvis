@@ -32,6 +32,8 @@
                 </ul>
 
                 <div class="tab-content">
+                    @if (showProformas)
+                    {
                     <div class="tab-pane fade @(showProformas ? "show active" : null)" id="proforma-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
@@ -91,7 +93,10 @@
                             </div>
                         </div>
                     </div>
+                    }
 
+                    @if (showInvoices)
+                    {
                     <div class="tab-pane fade @(showInvoices ? "show active" : null)" id="invoice-tab" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
@@ -102,6 +107,7 @@
                             </div>
                         </div>
                     </div>
+                    }
                 </div>
             </div>
         </div>
@@ -130,6 +136,10 @@
             var quantityInput = document.getElementById('proforma-quantity');
             var addButton = document.getElementById('proforma-add-variant');
             var linesBody = document.getElementById('proforma-lines');
+
+            if (!searchInput || !quantityInput || !addButton || !linesBody) {
+                return;
+            }
 
             addButton.addEventListener('click', function () {
                 var variantText = (searchInput.value || '').trim();

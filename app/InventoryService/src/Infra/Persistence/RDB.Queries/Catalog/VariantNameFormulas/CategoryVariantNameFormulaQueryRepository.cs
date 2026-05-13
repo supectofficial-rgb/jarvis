@@ -17,54 +17,72 @@ public class CategoryVariantNameFormulaQueryRepository
 
     public async Task<CategoryVariantNameFormulaItem?> GetByBusinessKeyAsync(Guid formulaBusinessKey)
     {
-        var items = await BuildQuery(includeInactive: true)
-            .Where(x => x.Formula.BusinessKey == formulaBusinessKey)
+        var formulas = await BuildFormulaQuery(includeInactive: true)
+            .Where(x => x.BusinessKey == formulaBusinessKey)
             .ToListAsync();
 
-        return Map(items).FirstOrDefault();
+        return (await MapAsync(formulas)).FirstOrDefault();
     }
 
     public async Task<List<CategoryVariantNameFormulaItem>> GetByCategoryIdAsync(Guid categoryRef, bool includeInactive = true)
     {
-        var items = await BuildQuery(includeInactive)
-            .Where(x => x.Formula.CategoryRef == categoryRef)
+        var formulas = await BuildFormulaQuery(includeInactive)
+            .Where(x => x.CategoryRef == categoryRef)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name)
             .ToListAsync();
 
-        return Map(items);
+        return await MapAsync(formulas);
     }
 
-    private IQueryable<FormulaPartProjection> BuildQuery(bool includeInactive)
+    private IQueryable<CategoryVariantNameFormulaReadModel> BuildFormulaQuery(bool includeInactive)
     {
         var formulas = _dbContext.Set<CategoryVariantNameFormulaReadModel>().AsQueryable();
         if (!includeInactive)
             formulas = formulas.Where(x => x.IsActive);
 
-        return from formula in formulas
-            join part in _dbContext.Set<CategoryVariantNameFormulaPartReadModel>()
-                on formula.BusinessKey equals part.FormulaRef
-            join attribute in _dbContext.Set<AttributeDefinitionReadModel>()
-                on part.AttributeRef equals attribute.BusinessKey
-            select new FormulaPartProjection(formula, part, attribute);
+        return formulas;
     }
 
-    private static List<CategoryVariantNameFormulaItem> Map(List<FormulaPartProjection> rows)
+    private async Task<List<CategoryVariantNameFormulaItem>> MapAsync(List<CategoryVariantNameFormulaReadModel> formulas)
     {
-        return rows
-            .GroupBy(x => x.Formula.BusinessKey)
-            .Select(group =>
+        if (formulas.Count == 0)
+            return new List<CategoryVariantNameFormulaItem>();
+
+        var formulaRefs = formulas.Select(x => x.BusinessKey).ToList();
+        var parts = await (
+            from part in _dbContext.Set<CategoryVariantNameFormulaPartReadModel>()
+            where formulaRefs.Contains(part.FormulaRef)
+            join attribute in _dbContext.Set<AttributeDefinitionReadModel>()
+                on part.AttributeRef equals attribute.BusinessKey into attributes
+            from attribute in attributes.DefaultIfEmpty()
+            select new FormulaPartProjection(part, attribute))
+            .ToListAsync();
+
+        var partsByFormula = parts
+            .GroupBy(x => x.Part.FormulaRef)
+            .ToDictionary(x => x.Key, x => x.OrderBy(part => part.Part.SortOrder).ToList());
+
+        return formulas
+            .Select(formula =>
             {
-                var formula = group.First().Formula;
-                var parts = group
-                    .OrderBy(x => x.Part.SortOrder)
-                    .Select(x => new CategoryVariantNameFormulaPartItem
+                partsByFormula.TryGetValue(formula.BusinessKey, out var formulaParts);
+
+                var partItems = (formulaParts ?? new List<FormulaPartProjection>())
+                    .Select(x =>
                     {
-                        PartBusinessKey = x.Part.BusinessKey,
-                        AttributeRef = x.Part.AttributeRef,
-                        AttributeCode = x.Attribute.Code,
-                        AttributeName = x.Attribute.Name,
-                        DataType = x.Attribute.DataType.ToString(),
-                        Scope = x.Attribute.Scope.ToString(),
-                        SortOrder = x.Part.SortOrder
+                        var attributeName = x.Attribute?.Name ?? string.Empty;
+
+                        return new CategoryVariantNameFormulaPartItem
+                        {
+                            PartBusinessKey = x.Part.BusinessKey,
+                            AttributeRef = x.Part.AttributeRef,
+                            AttributeCode = x.Attribute?.Code ?? string.Empty,
+                            AttributeName = attributeName,
+                            DataType = x.Attribute?.DataType.ToString() ?? string.Empty,
+                            Scope = x.Attribute?.Scope.ToString() ?? string.Empty,
+                            SortOrder = x.Part.SortOrder
+                        };
                     })
                     .ToList();
 
@@ -76,8 +94,8 @@ public class CategoryVariantNameFormulaQueryRepository
                     Separator = formula.Separator,
                     DisplayOrder = formula.DisplayOrder,
                     IsActive = formula.IsActive,
-                    Preview = string.Join(formula.Separator, parts.Select(x => x.AttributeName)),
-                    Parts = parts
+                    Preview = string.Join(formula.Separator, partItems.Select(x => x.AttributeName).Where(x => !string.IsNullOrWhiteSpace(x))),
+                    Parts = partItems
                 };
             })
             .OrderBy(x => x.DisplayOrder)
@@ -86,7 +104,6 @@ public class CategoryVariantNameFormulaQueryRepository
     }
 
     private sealed record FormulaPartProjection(
-        CategoryVariantNameFormulaReadModel Formula,
         CategoryVariantNameFormulaPartReadModel Part,
-        AttributeDefinitionReadModel Attribute);
+        AttributeDefinitionReadModel? Attribute);
 }

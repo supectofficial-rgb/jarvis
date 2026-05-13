@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.27.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Update="dashboard-widgets.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -300,19 +300,30 @@ public sealed class PricingManagementController : Controller
         model.ActiveItem = model.ActiveModule?.Items.FirstOrDefault(x => string.Equals(x.ItemId, activeItem, StringComparison.OrdinalIgnoreCase))
             ?? model.ActiveModule?.Items.FirstOrDefault(x => string.Equals(x.ItemId, "variant_prices", StringComparison.OrdinalIgnoreCase));
 
-        var priceTypesTask = _apiService.SearchPriceTypesAsync(token, pageSize: 100);
+        var selectedItem = model.ActiveItem?.ItemId ?? "variant_prices";
+        if (string.Equals(selectedItem, "price_types", StringComparison.OrdinalIgnoreCase))
+        {
+            var priceTypesResult = await _apiService.SearchPriceTypesAsync(token, pageSize: 100);
+            Apply(model, priceTypesResult, x => model.PriceTypes = x);
+            return model;
+        }
+
+        if (string.Equals(selectedItem, "price_channels", StringComparison.OrdinalIgnoreCase))
+        {
+            var priceChannelsResult = await _apiService.SearchPriceChannelsAsync(token, pageSize: 100);
+            Apply(model, priceChannelsResult, x => model.PriceChannels = x);
+            return model;
+        }
+
         var priceTypeLookupTask = _apiService.GetPriceTypeLookupAsync(token);
-        var priceChannelsTask = _apiService.SearchPriceChannelsAsync(token, pageSize: 100);
         var priceChannelLookupTask = _apiService.GetPriceChannelLookupAsync(token);
         var sellersTask = _apiService.GetSellerLookupAsync(token);
         var ownerSellerTask = _apiService.SearchSellersAsync(token, isSystemOwner: true, isActive: true, pageSize: 10);
         var variantsTask = _apiService.SearchProductVariantsAsync(token, searchTerm: variantSearchTerm, isActive: true, pageSize: VariantSearchPageSize);
 
-        await Task.WhenAll(priceTypesTask, priceTypeLookupTask, priceChannelsTask, priceChannelLookupTask, sellersTask, ownerSellerTask, variantsTask);
+        await Task.WhenAll(priceTypeLookupTask, priceChannelLookupTask, sellersTask, ownerSellerTask, variantsTask);
 
-        Apply(model, priceTypesTask.Result, x => model.PriceTypes = x);
         Apply(model, priceTypeLookupTask.Result, x => model.PriceTypeLookup = x.Items ?? new List<PriceTypeLookupModel>());
-        Apply(model, priceChannelsTask.Result, x => model.PriceChannels = x);
         Apply(model, priceChannelLookupTask.Result, x => model.PriceChannelLookup = x.Items ?? new List<PriceChannelLookupModel>());
         Apply(model, sellersTask.Result, x => model.Sellers = (x ?? new List<SellerLookupItemModel>())
             .Select(seller => new SellerLookupModel

@@ -88,18 +88,25 @@ public abstract partial class CatalogManagementController : Controller
         var selectedCategory = flatCategories.FirstOrDefault(c =>
             string.Equals(c.Id, selectedCategoryId, StringComparison.OrdinalIgnoreCase));
         var categoryFormSource = isCategoryCreateMode ? null : selectedCategory;
+        var isAttributesPage = string.Equals(activeItemId, "attributes", StringComparison.OrdinalIgnoreCase);
+        var isRulesPage = string.Equals(activeItemId, "category_attribute_rules", StringComparison.OrdinalIgnoreCase);
+        var isFormulasPage = string.Equals(activeItemId, "variant_name_formulas", StringComparison.OrdinalIgnoreCase);
+        var shouldLoadCategoryAttributes = (isAttributesPage || isRulesPage || isFormulasPage) && !string.IsNullOrWhiteSpace(selectedCategoryId);
+        var shouldLoadAllAttributes = isAttributesPage || isRulesPage;
 
-        var attributesResult = !string.IsNullOrWhiteSpace(selectedCategoryId)
-            ? await _apiService.GetCategoryAttributesAsync(selectedCategoryId, token, includeInherited: true, includeInactive: true)
+        var attributesResult = shouldLoadCategoryAttributes
+            ? await _apiService.GetCategoryAttributesAsync(selectedCategoryId!, token, includeInherited: true, includeInactive: true)
             : new ApiResponse<List<AttributeDefinitionModel>> { IsSuccess = true, Data = new List<AttributeDefinitionModel>() };
 
-        var allAttributesResult = await _apiService.GetActiveAttributeDefinitionsAsync(token);
+        var allAttributesResult = shouldLoadAllAttributes
+            ? await _apiService.GetActiveAttributeDefinitionsAsync(token)
+            : new ApiResponse<List<AttributeDefinitionModel>> { IsSuccess = true, Data = new List<AttributeDefinitionModel>() };
 
-        var rulesResult = !string.IsNullOrWhiteSpace(selectedCategoryId)
+        var rulesResult = isRulesPage && !string.IsNullOrWhiteSpace(selectedCategoryId)
             ? await _apiService.GetCategoryAttributeRulesAsync(selectedCategoryId, token, includeInherited: true, includeInactive: true)
             : new ApiResponse<List<CategoryAttributeRuleModel>> { IsSuccess = true, Data = new List<CategoryAttributeRuleModel>() };
 
-        var variantNameFormulasResult = !string.IsNullOrWhiteSpace(selectedCategoryId)
+        var variantNameFormulasResult = isFormulasPage && !string.IsNullOrWhiteSpace(selectedCategoryId)
             ? await _apiService.GetCategoryVariantNameFormulasAsync(selectedCategoryId, token, includeInactive: true)
             : new ApiResponse<List<CategoryVariantNameFormulaModel>> { IsSuccess = true, Data = new List<CategoryVariantNameFormulaModel>() };
 
@@ -554,7 +561,6 @@ public abstract partial class CatalogManagementController : Controller
         var allProducts = productsResult.Data ?? new List<ProductSummaryModel>();
         var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
         var unitOfMeasures = uomLookupResult.Data ?? new List<UnitOfMeasureLookupModel>();
-        var uomById = unitOfMeasures.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
 
         foreach (var product in allProducts)
         {
@@ -577,30 +583,8 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetProductDetailsWithAttributesAsync(selectedProductId, token)
             : new ApiResponse<ProductDetailsModel> { IsSuccess = true };
 
-        var productVariantsResult = !string.IsNullOrWhiteSpace(selectedProductId)
-            ? await _apiService.GetProductVariantsByProductIdAsync(selectedProductId, token, includeInactive: true)
-            : new ApiResponse<List<ProductVariantSummaryModel>> { IsSuccess = true, Data = new List<ProductVariantSummaryModel>() };
-        var productVariants = productVariantsResult.Data ?? new List<ProductVariantSummaryModel>();
-        foreach (var variant in productVariants)
-        {
-            if (uomById.TryGetValue(variant.BaseUomRef, out var uom))
-            {
-                variant.BaseUom = $"{uom.Code} - {uom.Name}";
-            }
-        }
-
+        var productVariants = new List<ProductVariantSummaryModel>();
         var productVariantDetails = new List<ProductVariantDetailsModel>();
-        if (!string.IsNullOrWhiteSpace(selectedProductId))
-        {
-            foreach (var variant in productVariants)
-            {
-                var variantDetails = await _apiService.GetProductVariantFullDetailsAsync(variant.Id, token);
-                if (variantDetails.IsSuccess && variantDetails.Data is not null)
-                {
-                    productVariantDetails.Add(variantDetails.Data);
-                }
-            }
-        }
 
         var selectedCategoryId = isCreateMode
             ? categoryId
@@ -667,7 +651,6 @@ public abstract partial class CatalogManagementController : Controller
                 productsResult.ErrorMessage,
                 uomLookupResult.ErrorMessage,
                 productDetailsResult.ErrorMessage,
-                productVariantsResult.ErrorMessage,
                 attributesError),
 
             ProductForm = new ProductUpsertForm

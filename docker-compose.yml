@@ -188,6 +188,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Redis: redis-stack:6379,password=${REDIS_PASSWORD:-123}
       ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServerUrls: http://apm-server:8200
       ElasticApm__ServiceName: cache-api
       ElasticApm__Environment: production
       ElasticApm__Enabled: "true"
@@ -216,6 +217,7 @@ services:
       Jwt__Issuer: ${JWT_ISSUER:-YourApp}
       Jwt__Audience: ${JWT_AUDIENCE:-YourAppClients}
       ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServerUrls: http://apm-server:8200
       ElasticApm__ServiceName: user-api
       ElasticApm__Environment: production
       ElasticApm__Enabled: "true"
@@ -290,6 +292,7 @@ services:
       RabbitMqBroker__Exchange: insurance.events
       RabbitMqBroker__RetryLimit: "4"
       ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServerUrls: http://apm-server:8200
       ElasticApm__ServiceName: graph-service
       ElasticApm__Environment: production
       ElasticApm__Enabled: "true"
@@ -317,6 +320,7 @@ services:
       Consul__Address: http://consul:8500
       Consul__Key: yarp-api-gateway/appsettings.json
       ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServerUrls: http://apm-server:8200
       ElasticApm__ServiceName: api-gateway
       ElasticApm__Environment: production
       ElasticApm__Enabled: "true"
@@ -345,8 +349,16 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ApiGateway__BaseUrl: http://api-gateway:8080
+      FileService__BaseUrl: ${FILE_SERVICE_PUBLIC_BASE_URL:-http://194.5.188.40:5230}
+      ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServerUrls: http://apm-server:8200
+      ElasticApm__ServiceName: inventory-dashboard
+      ElasticApm__Environment: production
+      ElasticApm__Enabled: "true"
     depends_on:
       api-gateway:
+        condition: service_started
+      apm-server:
         condition: service_started
     ports:
       - "8090:8080"
@@ -362,9 +374,18 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       FileStorage__RootPath: /data/media
+      Cors__AllowedOrigins__0: ${DASHBOARD_PUBLIC_ORIGIN:-http://194.5.188.40:8090}
       MediaProcessing__Video__EnableTranscoding: "true"
       MediaProcessing__Video__FfmpegPath: ffmpeg
       MediaProcessing__Video__FfprobePath: ffprobe
+      ElasticApm__ServerUrl: http://apm-server:8200
+      ElasticApm__ServerUrls: http://apm-server:8200
+      ElasticApm__ServiceName: file-service
+      ElasticApm__Environment: production
+      ElasticApm__Enabled: "true"
+    depends_on:
+      apm-server:
+        condition: service_started
     ports:
       - "5230:8080"
     volumes:

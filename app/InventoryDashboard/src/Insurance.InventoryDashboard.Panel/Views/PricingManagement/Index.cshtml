@@ -23,6 +23,10 @@
     var ownerSellerTitle = Model.OwnerSeller is null
         ? UiText["pricing.ownerSeller.notSet"]
         : $"{Model.OwnerSeller.Name} ({Model.OwnerSeller.Code})";
+    var activeSurface = Model.ActiveItem?.ItemId ?? "variant_prices";
+    var showVariantPrices = string.Equals(activeSurface, "variant_prices", StringComparison.OrdinalIgnoreCase);
+    var showPriceTypes = string.Equals(activeSurface, "price_types", StringComparison.OrdinalIgnoreCase);
+    var showPriceChannels = string.Equals(activeSurface, "price_channels", StringComparison.OrdinalIgnoreCase);
 }
 
 <main id="pricing-management-page" class="catalog-page">
@@ -45,19 +49,21 @@
 
         <div class="row">
             <div class="col-12 mb-4">
-                <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="pricing-management-tabs">
+                <ul class="nav nav-tabs separator-tabs ml-0 mb-4 d-none" role="tablist" id="pricing-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-item-id="variant_prices" data-toggle="tab" href="#variant-prices-tab" role="tab">@UiText["pricing.tabs.variantPricing"]</a>
+                        <a class="nav-link @(showVariantPrices ? "active" : null)" data-item-id="variant_prices" data-toggle="tab" href="#variant-prices-tab" role="tab">@UiText["pricing.tabs.variantPricing"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-item-id="price_types" data-toggle="tab" href="#price-types-tab" role="tab">@UiText["pricing.tabs.priceType"]</a>
+                        <a class="nav-link @(showPriceTypes ? "active" : null)" data-item-id="price_types" data-toggle="tab" href="#price-types-tab" role="tab">@UiText["pricing.tabs.priceType"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-item-id="price_channels" data-toggle="tab" href="#price-channels-tab" role="tab">@UiText["pricing.tabs.priceChannel"]</a>
+                        <a class="nav-link @(showPriceChannels ? "active" : null)" data-item-id="price_channels" data-toggle="tab" href="#price-channels-tab" role="tab">@UiText["pricing.tabs.priceChannel"]</a>
                     </li>
                 </ul>
 
                 <div class="tab-content">
+                    @if (showVariantPrices)
+                    {
                     <div class="tab-pane fade show active" id="variant-prices-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
@@ -258,8 +264,11 @@
                             </div>
                         </div>
                     </div>
+                    }
 
-                    <div class="tab-pane fade" id="price-types-tab" role="tabpanel">
+                    @if (showPriceTypes)
+                    {
+                    <div class="tab-pane fade show active" id="price-types-tab" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
                                 <h5 class="card-title mb-3">@UiText["pricing.tabs.priceType"]</h5>
@@ -315,8 +324,11 @@
                             </div>
                         </div>
                     </div>
+                    }
 
-                    <div class="tab-pane fade" id="price-channels-tab" role="tabpanel">
+                    @if (showPriceChannels)
+                    {
+                    <div class="tab-pane fade show active" id="price-channels-tab" role="tabpanel">
                         <div class="card">
                             <div class="card-body">
                                 <h5 class="card-title mb-3">@UiText["pricing.tabs.priceChannel"]</h5>
@@ -372,6 +384,7 @@
                             </div>
                         </div>
                     </div>
+                    }
                 </div>
             </div>
         </div>
