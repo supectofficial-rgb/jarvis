@@ -16,6 +16,7 @@ public interface ITokenService
         IEnumerable<MembershipDto> memberships,
         BusinessKey? activeMembershipKey,
         BusinessKey? activeOrganizationKey,
+        string? activeTenantId,
         IEnumerable<BusinessKey> activeRoleBusinessKeys,
         IEnumerable<string>? activeRoleNames = null);
 

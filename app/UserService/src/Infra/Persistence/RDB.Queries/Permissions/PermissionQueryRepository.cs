@@ -21,7 +21,13 @@ public class PermissionQueryRepository : QueryRepository<InsuranceUserServiceQue
                            select new GetAllPermissionsQueryResult()
                            {
                                BusinessKey = p.BusinessKey,
-                               Code = p.Code
+                               Code = p.Code,
+                               Title = p.Title,
+                               Module = p.Module,
+                               Type = p.Type,
+                               Scope = p.Scope,
+                               Description = p.Description,
+                               IsActive = p.IsActive
                            })?.AsEnumerable();
         return queryResult!;
     }

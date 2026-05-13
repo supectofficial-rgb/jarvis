@@ -14,6 +14,7 @@ public class LoginByCredentialCommandResult
 
     public Guid? ActiveMembershipBusinessKey { get; set; }
     public Guid? ActiveOrganizationBusinessKey { get; set; }
+    public string? ActiveTenantId { get; set; }
     public List<Guid> ActiveRoleBusinessKeys { get; set; } = new();
 }
 
@@ -22,4 +23,5 @@ public class MembershipDto
     public required BusinessKey BusinessKey { get; set; }
     public required BusinessKey RoleBusinessKey { get; set; }
     public required BusinessKey OrganizationBusinessKey { get; set; }
+    public required string TenantId { get; set; }
 }

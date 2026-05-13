@@ -14,9 +14,10 @@ public abstract class QueryDbContext : DbContext
     }
 
     public string? CurrentOrganizationBusinessKey => _userInfoService.GetActiveOrganizationBusinessKey();
+    public string? CurrentTenantId => _userInfoService.GetActiveTenantId();
 
     protected void AddOrganizationShadowProperties(ModelBuilder builder)
-        => builder.AddOrganizationShadowProperties(() => CurrentOrganizationBusinessKey);
+        => builder.AddOrganizationShadowProperties(() => CurrentOrganizationBusinessKey, () => CurrentTenantId);
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

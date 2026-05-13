@@ -8,6 +8,9 @@ public class CreateOrganizationPermissionCommandValidator : AbstractValidator<Cr
     public CreateOrganizationPermissionCommandValidator()
     {
         RuleFor(x => x.Code).NotEmpty().MaximumLength(150);
+        RuleFor(x => x.Title).MaximumLength(200);
+        RuleFor(x => x.Module).MaximumLength(100);
+        RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.Description).MaximumLength(500);
     }
 }

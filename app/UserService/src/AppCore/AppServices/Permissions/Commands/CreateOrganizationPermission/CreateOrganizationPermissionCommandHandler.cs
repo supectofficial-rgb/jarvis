@@ -19,7 +19,12 @@ public class CreateOrganizationPermissionCommandHandler : CommandHandler<CreateO
 
     public override async Task<CommandResult<Guid>> Handle(CreateOrganizationPermissionCommand command)
     {
-        var permission = Permission.ForOrganization(command.Code!, command.Description);
+        var permission = Permission.ForOrganization(
+            command.Code!,
+            command.Description,
+            command.Title,
+            command.Module,
+            command.Type);
 
         await _permissionRepository.InsertAsync(permission);
         await _permissionRepository.CommitAsync();

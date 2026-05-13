@@ -3,6 +3,7 @@ using System;
 using Insurance.UserService.Infra.Persistence.RDB.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Insurance.UserService.Infra.Persistence.RDB.Commands.Migrations
 {
     [DbContext(typeof(InsuranceUserServiceDbContext))]
-    partial class InsuranceUserServiceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260513054416_AddTenants")]
+    partial class AddTenants
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -385,8 +388,7 @@ namespace Insurance.UserService.Infra.Persistence.RDB.Commands.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                        .HasColumnType("text");
 
                     b.Property<string>("CreatedByOrganizationBusinessKey")
                         .HasMaxLength(50)
@@ -404,8 +406,7 @@ namespace Insurance.UserService.Infra.Persistence.RDB.Commands.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -425,34 +426,12 @@ namespace Insurance.UserService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<DateTime?>("ModifiedDateTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Module")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<byte>("Scope")
                         .HasColumnType("smallint");
 
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<byte>("Type")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)7);
-
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("Module");
-
-                    b.HasIndex("Type");
-
-                    b.ToTable("Permissions", (string)null);
+                    b.ToTable("Permissions");
                 });
 
             modelBuilder.Entity("Insurance.UserService.AppCore.Domain.Roles.Entities.AppRole", b =>

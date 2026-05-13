@@ -18,7 +18,12 @@ public class CreateSystemPermissionCommandHandler : CommandHandler<CreateSystemP
     public override async Task<CommandResult<Guid>> Handle(
         CreateSystemPermissionCommand command)
     {
-        var permission = Permission.ForSystem(command.Code!, command.Description);
+        var permission = Permission.ForSystem(
+            command.Code!,
+            command.Description,
+            command.Title,
+            command.Module,
+            command.Type);
 
         await _permissionRepository.InsertAsync(permission);
         await _permissionRepository.CommitAsync();

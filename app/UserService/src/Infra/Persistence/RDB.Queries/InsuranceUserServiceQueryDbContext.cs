@@ -22,5 +22,14 @@ public class InsuranceUserServiceQueryDbContext : QueryDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Permission>(entity =>
+        {
+            entity.ToTable("Permissions");
+            entity.Property(e => e.Code).HasMaxLength(150);
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Module).HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
     }
 }

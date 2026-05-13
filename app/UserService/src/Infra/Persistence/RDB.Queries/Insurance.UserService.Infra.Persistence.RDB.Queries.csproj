@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\..\fx\src\Infra\Auth\UserServices\OysterFx.Infra.Auth.UserServices.csproj" />
     <ProjectReference Include="..\..\..\..\..\..\fx\src\Infra\Persistence\RDB.Queries\OysterFx.Infra.Persistence.RDB.Queries.csproj" />
     <ProjectReference Include="..\..\..\AppCore\Shared\Insurance.UserService.AppCore.Shared.csproj" />
   </ItemGroup>

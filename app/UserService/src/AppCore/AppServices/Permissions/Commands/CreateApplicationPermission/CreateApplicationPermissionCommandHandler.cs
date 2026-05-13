@@ -17,7 +17,12 @@ public class CreateApplicationPermissionCommandHandler : CommandHandler<CreateAp
 
     public override async Task<CommandResult<Guid>> Handle(CreateApplicationPermissionCommand command)
     {
-        var permission = Permission.ForApplication(command.Code!, command.Description);
+        var permission = Permission.ForApplication(
+            command.Code!,
+            command.Description,
+            command.Title,
+            command.Module,
+            command.Type);
 
         await _permissionRepository.InsertAsync(permission);
         await _permissionRepository.CommitAsync();

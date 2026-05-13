@@ -45,7 +45,8 @@ public class LoginCompletionService : ILoginCompletionService
             .Select(m => new
             {
                 m.BusinessKey,
-                m.OrganizationBusinessKey
+                m.OrganizationBusinessKey,
+                TenantId = m.TenantId.Value
             })
             .ToListAsync();
 
@@ -77,6 +78,7 @@ public class LoginCompletionService : ILoginCompletionService
                 {
                     BusinessKey = pair.MembershipBusinessKey,
                     OrganizationBusinessKey = membership.OrganizationBusinessKey,
+                    TenantId = membership.TenantId,
                     RoleBusinessKey = pair.RoleBusinessKey
                 })
             .ToList();
@@ -149,6 +151,7 @@ public class LoginCompletionService : ILoginCompletionService
             membershipDtos,
             activeMembership?.BusinessKey,
             activeMembership?.OrganizationBusinessKey,
+            activeMembership?.TenantId,
             activeRoleKeys,
             activeRoleNames);
 
@@ -169,6 +172,7 @@ public class LoginCompletionService : ILoginCompletionService
             Roles = activeRoleNames,
             ActiveMembershipBusinessKey = activeMembership?.BusinessKey.Value,
             ActiveOrganizationBusinessKey = activeMembership?.OrganizationBusinessKey.Value,
+            ActiveTenantId = activeMembership?.TenantId,
             ActiveRoleBusinessKeys = activeRoleKeys.Select(role => role.Value).ToList()
         };
 

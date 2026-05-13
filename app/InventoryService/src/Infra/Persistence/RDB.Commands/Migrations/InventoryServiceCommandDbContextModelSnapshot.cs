@@ -68,12 +68,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Scope")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("AttributeDefinitions", (string)null);
                 });
@@ -123,6 +129,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Value")
                         .IsRequired()
                         .HasColumnType("text");
@@ -132,6 +142,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("AttributeDefinitionId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("AttributeRef", "Name")
                         .IsUnique();
@@ -200,12 +212,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("ParentCategoryRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Categories", (string)null);
                 });
@@ -263,11 +281,17 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategorySchemaVersionRef");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("CategorySchemaVersionRef", "AttributeRef")
                         .IsUnique();
@@ -316,12 +340,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("VersionNo")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("CategoryRef", "IsCurrent");
 
@@ -379,9 +409,15 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("CategoryRef", "Name")
                         .IsUnique();
@@ -427,9 +463,15 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("FormulaRef", "AttributeRef")
                         .IsUnique();
@@ -504,6 +546,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("TaxCategoryRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BaseSku")
@@ -514,6 +560,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("CategorySchemaVersionRef");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Products", (string)null);
                 });
@@ -559,6 +607,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("ProductRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Value")
                         .HasColumnType("text");
 
@@ -567,6 +619,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("ProductRef", "AttributeRef")
                         .IsUnique();
@@ -618,6 +672,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("ProductRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("TrackingPolicy")
                         .HasColumnType("integer");
 
@@ -631,6 +689,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantSku")
                         .IsUnique();
@@ -681,12 +741,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Precision")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("UnitOfMeasures", (string)null);
                 });
@@ -726,6 +792,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<long?>("ProductVariantId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -734,6 +804,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ProductVariantId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantRef", "AddOnVariantRef")
                         .IsUnique();
@@ -779,6 +851,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<long?>("ProductVariantId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Value")
                         .HasColumnType("text");
 
@@ -790,6 +866,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ProductVariantId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantRef", "AttributeRef")
                         .IsUnique();
@@ -838,6 +916,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -849,6 +931,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ProductVariantId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantRef", "ComponentVariantRef", "WarehouseRef", "LocationRef")
                         .IsUnique();
@@ -914,6 +998,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<long?>("ProductVariantId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("ThumbnailUrl")
                         .IsRequired()
                         .HasMaxLength(1024)
@@ -927,6 +1015,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ProductVariantId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantRef", "FileKey")
                         .IsUnique();
@@ -978,6 +1068,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("RoundingMode")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("ToUomRef")
                         .HasColumnType("uuid");
 
@@ -989,6 +1083,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ProductVariantId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantRef", "FromUomRef", "ToUomRef")
                         .IsUnique();
@@ -1055,6 +1151,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1064,6 +1164,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Fulfillments", (string)null);
                 });
@@ -1148,6 +1250,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("UomRef")
                         .HasColumnType("uuid");
 
@@ -1159,6 +1265,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("FulfillmentId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("FulfillmentLines", (string)null);
                 });
@@ -1205,11 +1313,17 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("SerialRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FulfillmentLineId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("FulfillmentLineSerials", (string)null);
                 });
@@ -1258,6 +1372,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<string>("ReasonCode")
                         .HasColumnType("text");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("ToStatus")
                         .HasColumnType("integer");
 
@@ -1266,6 +1384,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("FulfillmentId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("FulfillmentTransitions", (string)null);
                 });
@@ -1351,6 +1471,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("WarehouseRef")
                         .HasColumnType("uuid");
 
@@ -1360,6 +1484,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventoryDocuments", (string)null);
                 });
@@ -1426,6 +1552,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("SourceLocationRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid?>("ToQualityStatusRef")
                         .HasColumnType("uuid");
 
@@ -1440,6 +1570,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("InventoryDocumentId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventoryDocumentLines", (string)null);
                 });
@@ -1486,11 +1618,17 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("SerialRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("InventoryDocumentLineId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventoryDocumentLineSerials", (string)null);
                 });
@@ -1554,6 +1692,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("TransactionNo")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1567,6 +1709,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("TransactionNo")
                         .IsUnique();
@@ -1642,6 +1786,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("StockDetailRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -1650,6 +1798,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("InventoryTransactionId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventoryTransactionLines", (string)null);
                 });
@@ -1714,6 +1864,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<DateTime?>("StartAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
@@ -1721,6 +1875,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("PriceRef");
 
                     b.HasIndex("SellerVariantPriceId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Offers", (string)null);
                 });
@@ -1765,12 +1921,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("PriceChannels", (string)null);
                 });
@@ -1815,12 +1977,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("PriceTypes", (string)null);
                 });
@@ -1885,6 +2053,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("SellerRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -1893,6 +2065,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("SellerRef");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantRef");
 
@@ -1982,6 +2156,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -1991,6 +2169,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventoryReservations", (string)null);
                 });
@@ -2057,6 +2237,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("StockDetailRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -2068,6 +2252,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("InventoryReservationId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ReservationAllocations", (string)null);
                 });
@@ -2116,6 +2302,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("ReservationRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("ToStatus")
                         .HasColumnType("integer");
 
@@ -2124,6 +2314,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("InventoryReservationId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ReservationTransitions", (string)null);
                 });
@@ -2190,6 +2382,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("UomRef")
                         .HasColumnType("uuid");
 
@@ -2201,6 +2397,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ReturnRequestId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ReturnLines", (string)null);
                 });
@@ -2247,11 +2445,17 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("SerialRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ReturnLineId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ReturnLineSerials", (string)null);
                 });
@@ -2324,12 +2528,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("WarehouseRef")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ReturnRequests", (string)null);
                 });
@@ -2378,6 +2588,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("ReturnRequestRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int>("ToStatus")
                         .HasColumnType("integer");
 
@@ -2386,6 +2600,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("OrganizationBusinessKey");
 
                     b.HasIndex("ReturnRequestId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ReturnRequestTransitions", (string)null);
                 });
@@ -2433,12 +2649,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Sellers", (string)null);
                 });
@@ -2499,6 +2721,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("SourceBalanceRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -2507,6 +2733,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("InventorySourceBalanceId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventorySourceAllocations", (string)null);
                 });
@@ -2600,6 +2828,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -2609,6 +2841,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventorySourceBalances", (string)null);
                 });
@@ -2696,6 +2930,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("SourceTransactionRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -2707,6 +2945,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasIndex("InventorySourceBalanceId");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("InventorySourceConsumptions", (string)null);
                 });
@@ -2773,6 +3013,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid?>("StockDetailRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -2785,6 +3029,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("SerialNo", "VariantRef")
                         .IsUnique();
@@ -2848,6 +3094,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("SellerRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
@@ -2857,6 +3107,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("VariantRef", "SellerRef", "WarehouseRef", "LocationRef", "QualityStatusRef", "LotBatchNo")
                         .IsUnique();
@@ -2915,6 +3167,10 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<string>("Shelf")
                         .HasColumnType("text");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("WarehouseRef")
                         .HasColumnType("uuid");
 
@@ -2924,6 +3180,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Locations", (string)null);
                 });
@@ -2968,12 +3226,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("QualityStatuses", (string)null);
                 });
@@ -3018,12 +3282,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("OrganizationBusinessKey");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Warehouses", (string)null);
                 });

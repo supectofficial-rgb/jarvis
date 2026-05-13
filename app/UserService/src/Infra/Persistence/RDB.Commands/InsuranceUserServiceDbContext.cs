@@ -7,7 +7,9 @@ using Insurance.UserService.AppCore.Domain.Memberships.Entities;
 using Insurance.UserService.AppCore.Domain.Organizations.Entities;
 using Insurance.UserService.AppCore.Domain.OtpCodes.Entities;
 using Insurance.UserService.AppCore.Domain.Permissions.Entities;
+using Insurance.UserService.AppCore.Domain.Permissions.Enums;
 using Insurance.UserService.AppCore.Domain.Roles.Entities;
+using Insurance.UserService.AppCore.Domain.Tenants.Entities;
 using Insurance.UserService.AppCore.Domain.Users.Entities;
 using Insurance.UserService.Infra.Persistence.RDB.Commands.Extensions;
 using Insurance.UserService.Infra.Persistence.RDB.Commands.ValueConversions;
@@ -28,6 +30,7 @@ public class InsuranceUserServiceDbContext : IdentityDbContext<Account, AppRole,
 
     public DbSet<User> Users { get; set; }
     public DbSet<Organization> Organizations { get; set; }
+    public DbSet<Tenant> Tenants { get; set; }
     public DbSet<Permission> Permissions { get; set; }
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<Membership> Memberships { get; set; }
@@ -124,6 +127,25 @@ public class InsuranceUserServiceDbContext : IdentityDbContext<Account, AppRole,
             entity.Property(e => e.TenantId).HasConversion(new TenantIdConversion());
         });
 
+        builder.Entity<Tenant>(entity =>
+        {
+            entity.ToTable("Tenants");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.BusinessKey)
+                  .HasConversion(v => v.Value, v => BusinessKey.FromGuid(v))
+                  .IsRequired();
+            entity.Property(e => e.TenantId)
+                  .HasConversion(new TenantIdConversion())
+                  .IsRequired();
+            entity.Property(e => e.OrganizationBusinessKey)
+                  .HasConversion(v => v.Value, v => BusinessKey.FromGuid(v))
+                  .IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.HasIndex(e => e.TenantId).IsUnique();
+            entity.HasIndex(e => e.OrganizationBusinessKey);
+        });
+
         builder.Entity<RefreshToken>(entity =>
         {
             entity.HasKey(e => e.Token);
@@ -163,6 +185,19 @@ public class InsuranceUserServiceDbContext : IdentityDbContext<Account, AppRole,
                   .HasConversion(v => v.Value, v => BusinessKey.FromGuid(v))
                   .IsRequired();
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
+        });
+
+        builder.Entity<Permission>(entity =>
+        {
+            entity.ToTable("Permissions");
+            entity.Property(e => e.Code).HasMaxLength(150).IsRequired();
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Module).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Type).HasDefaultValue(PermissionType.Feature);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => e.Module);
+            entity.HasIndex(e => e.Type);
         });
 
         builder.Entity<Membership>(entity =>

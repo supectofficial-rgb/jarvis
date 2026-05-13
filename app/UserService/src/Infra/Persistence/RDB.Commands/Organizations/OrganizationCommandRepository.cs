@@ -1,6 +1,7 @@
 ﻿namespace Insurance.UserService.Infra.Persistence.RDB.Commands.Organizations;
 
 using Insurance.UserService.AppCore.Domain.Organizations.Entities;
+using Insurance.UserService.AppCore.Domain.Tenants.Entities;
 using Insurance.UserService.AppCore.Shared.Organizations.Commands;
 using Microsoft.EntityFrameworkCore;
 using OysterFx.AppCore.Domain.ValueObjects;
@@ -27,5 +28,6 @@ public class OrganizationCommandRepository(InsuranceUserServiceDbContext dbConte
     public async Task InsertAsync(Organization entity)
     {
         await _dbContext.Set<Organization>().AddAsync(entity);
+        await _dbContext.Set<Tenant>().AddAsync(Tenant.Create(entity.TenantId, entity.BusinessKey, entity.Name));
     }
 }

@@ -18,6 +18,7 @@ public abstract class CommandDbContext : DbContext
     private readonly IUserInfoService? _userInfoService;
     public DbSet<OutboxEvent> OutboxEvents { get; set; }
     public string? CurrentOrganizationBusinessKey => _userInfoService.GetActiveOrganizationBusinessKey();
+    public string? CurrentTenantId => _userInfoService.GetActiveTenantId();
 
     public CommandDbContext(DbContextOptions options, IUserInfoService? userInfoService = null) : base(options)
     {
@@ -27,7 +28,7 @@ public abstract class CommandDbContext : DbContext
     protected CommandDbContext() { }
 
     protected void AddOrganizationShadowProperties(ModelBuilder builder)
-        => builder.AddOrganizationShadowProperties(() => CurrentOrganizationBusinessKey);
+        => builder.AddOrganizationShadowProperties(() => CurrentOrganizationBusinessKey, () => CurrentTenantId);
 
     public T? GetShadowPropertyValue<T>(object entity, string propertyName) where T : IConvertible
     {

@@ -37,6 +37,7 @@ public class JwtTokenService : ITokenService
         IEnumerable<MembershipDto> memberships,
         BusinessKey? activeMembershipKey,
         BusinessKey? activeOrganizationKey,
+        string? activeTenantId,
         IEnumerable<BusinessKey> activeRoleBusinessKeys,
         IEnumerable<string>? activeRoleNames = null)
     {
@@ -60,6 +61,12 @@ public class JwtTokenService : ITokenService
         {
             claims.Add(new Claim("currentOrganizationKey", activeOrganizationKey.Value.ToString()));
             claims.Add(new Claim("activeOrganizationBusinessKey", activeOrganizationKey.Value.ToString()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(activeTenantId))
+        {
+            claims.Add(new Claim("currentTenantId", activeTenantId));
+            claims.Add(new Claim("activeTenantId", activeTenantId));
         }
 
         var normalizedActiveRoleKeys = activeRoleBusinessKeys?
@@ -95,12 +102,14 @@ public class JwtTokenService : ITokenService
                 .GroupBy(m => new
                 {
                     MembershipBusinessKey = m.BusinessKey.Value,
-                    OrganizationBusinessKey = m.OrganizationBusinessKey.Value
+                    OrganizationBusinessKey = m.OrganizationBusinessKey.Value,
+                    m.TenantId
                 })
                 .Select(g => new
                 {
                     g.Key.MembershipBusinessKey,
                     g.Key.OrganizationBusinessKey,
+                    g.Key.TenantId,
                     RoleBusinessKeys = g
                         .Select(x => x.RoleBusinessKey.Value)
                         .Distinct()
