@@ -2476,23 +2476,14 @@
                 xhr.onload = function () {
                     progressWrap.classList.add('d-none');
                     progressBar.style.width = '0%';
-                    status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
                     if (xhr.status < 200 || xhr.status >= 300) {
-                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"]));
-                        try {
-                            var errorPayload = JSON.parse(xhr.responseText || '{}');
-                            if (errorPayload && errorPayload.message) {
-                                status.textContent = errorPayload.message;
-                            }
-                        } catch (e) {
-                        }
+                        status.textContent = getUploadErrorMessage(xhr, @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"])));
                         return;
                     }
                     var result = JSON.parse(xhr.responseText);
                     fileKeyField.value = result.fileKey || '';
                     imageUrlField.value = result.url || '';
                     thumbField.value = result.thumbnailUrl || '';
-                    status.textContent = result.originalFileName || @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
                     status.textContent = result.originalFileName || @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
                     syncPreview();
                 };
@@ -2512,7 +2503,6 @@
                 fileKeyField.value = '';
                 imageUrlField.value = '';
                 thumbField.value = '';
-                status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
                 status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
                 syncPreview();
             });

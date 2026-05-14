@@ -375,6 +375,8 @@ services:
       ASPNETCORE_URLS: http://+:8080
       FileStorage__RootPath: /data/media
       Cors__AllowedOrigins__0: ${DASHBOARD_PUBLIC_ORIGIN:-http://194.5.188.40:8090}
+      Cors__AllowedOrigins__1: ${DASHBOARD_GATEWAY_ORIGIN:-http://194.5.188.40:8080}
+      Cors__AllowedOrigins__2: ${DASHBOARD_ROOT_ORIGIN:-http://194.5.188.40}
       MediaProcessing__Video__EnableTranscoding: "true"
       MediaProcessing__Video__FfmpegPath: ffmpeg
       MediaProcessing__Video__FfprobePath: ffprobe

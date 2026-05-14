@@ -2859,17 +2859,6 @@
                 });
                 xhr.addEventListener('loadend', function () {
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        if (!status.textContent || status.textContent.indexOf('�') >= 0) {
-                            status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
-                        }
-                    } else if (xhr.status > 0) {
-                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"]));
-                    } else {
-                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.fileServiceUnavailable"]));
-                    }
-                });
-                xhr.addEventListener('loadend', function () {
-                    if (xhr.status >= 200 && xhr.status < 300) {
                         if (!status.textContent || status.textContent.indexOf('�') >= 0 || status.textContent.indexOf('�') >= 0 || status.textContent.indexOf('�') >= 0) {
                             status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageSaved"]));
                         }
@@ -2884,7 +2873,7 @@
                     progressWrap.classList.add('d-none');
                     progressBar.style.width = '0%';
                     if (xhr.status < 200 || xhr.status >= 300) {
-                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"]));
+                        status.textContent = getUploadErrorMessage(xhr, @Html.Raw(JsonSerializer.Serialize(UiText["media.uploadImageFailed"])));
                         return;
                     }
                     var result = JSON.parse(xhr.responseText);
