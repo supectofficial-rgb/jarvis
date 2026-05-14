@@ -15,7 +15,8 @@
     "user-service-route": "ABC",
     "inventory-service-route": "ABC",
     "cache-service-route": "ABC",
-    "graph-service-route": "ABC"
+    "graph-service-route": "ABC",
+    "file-service-route": "ABC"
   },
   "AllowedHosts": "*",
   "Consul": {
@@ -71,6 +72,16 @@
           "ApiKey": "graph-service-api-key"
         },
         "Order": 4
+      },
+      "file-service-route": {
+        "ClusterId": "file-service-cluster",
+        "Match": {
+          "Path": "/api/FileService/{**catch-all}"
+        },
+        "Metadata": {
+          "ApiKey": "file-service-api-key"
+        },
+        "Order": 5
       }
     },
     "Clusters": {
@@ -99,6 +110,13 @@
         "Destinations": {
           "graph-service-destination": {
             "Address": "http://graph-service:8080/"
+          }
+        }
+      },
+      "file-service-cluster": {
+        "Destinations": {
+          "file-service-destination": {
+            "Address": "http://file-service:8080/"
           }
         }
       }

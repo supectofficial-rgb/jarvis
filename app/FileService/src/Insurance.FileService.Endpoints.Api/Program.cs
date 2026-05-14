@@ -43,6 +43,29 @@ var storageRoot = ResolveStorageRoot(app.Configuration, app.Environment);
 var videoProcessing = VideoProcessingOptions.FromConfiguration(app.Configuration);
 Directory.CreateDirectory(storageRoot);
 
+app.Use(async (context, next) =>
+{
+    var stopwatch = Stopwatch.StartNew();
+    var origin = context.Request.Headers.Origin.ToString();
+
+    try
+    {
+        await next();
+    }
+    finally
+    {
+        stopwatch.Stop();
+        app.Logger.LogInformation(
+            "FileService request {Method} {Path}{QueryString} Origin={Origin} Status={StatusCode} ElapsedMs={ElapsedMs}",
+            context.Request.Method,
+            context.Request.Path,
+            context.Request.QueryString,
+            string.IsNullOrWhiteSpace(origin) ? "-" : origin,
+            context.Response.StatusCode,
+            stopwatch.ElapsedMilliseconds);
+    }
+});
+
 app.UseCors("FileServiceDashboard");
 app.UseHttpsRedirection();
 app.UseAllElasticApm(app.Configuration);

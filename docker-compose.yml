@@ -132,6 +132,7 @@ services:
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"
+      xpack.apm_data.enabled: "true"
       ES_JAVA_OPTS: ${ELASTIC_JAVA_OPTS:--Xms512m -Xmx512m}
     ports:
       - "9200:9200"
@@ -170,6 +171,8 @@ services:
       - apm-server.secret_token=
       - -E
       - apm-server.auth.anonymous.enabled=true
+      - -E
+      - apm-server.data_streams.wait_for_integration=false
     ports:
       - "8200:8200"
     depends_on:
@@ -324,6 +327,9 @@ services:
       ElasticApm__ServiceName: api-gateway
       ElasticApm__Environment: production
       ElasticApm__Enabled: "true"
+      Cors__AllowedOrigins__0: ${DASHBOARD_PUBLIC_ORIGIN:-http://194.5.188.40:8090}
+      Cors__AllowedOrigins__1: ${DASHBOARD_LOCAL_ORIGIN:-http://localhost:8090}
+      Cors__AllowedOrigins__2: ${DASHBOARD_ROOT_ORIGIN:-http://194.5.188.40}
     depends_on:
       consul-config-loader:
         condition: service_completed_successfully
@@ -334,6 +340,8 @@ services:
       cache-api:
         condition: service_started
       graph-service:
+        condition: service_started
+      file-service:
         condition: service_started
     ports:
       - "8080:8080"
@@ -349,7 +357,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ApiGateway__BaseUrl: http://api-gateway:8080
-      FileService__BaseUrl: ${FILE_SERVICE_PUBLIC_BASE_URL:-http://194.5.188.40:5230}
+      FileService__BaseUrl: ${FILE_SERVICE_PUBLIC_BASE_URL:-http://194.5.188.40:8080}
       ElasticApm__ServerUrl: http://apm-server:8200
       ElasticApm__ServerUrls: http://apm-server:8200
       ElasticApm__ServiceName: inventory-dashboard

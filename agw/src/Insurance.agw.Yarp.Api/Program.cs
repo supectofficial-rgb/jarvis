@@ -81,6 +81,25 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddAllElasticApm();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("GatewayCors", policy =>
+    {
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>()
+            ?? Array.Empty<string>();
+
+        policy
+            .SetIsOriginAllowed(origin =>
+                origin.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+                || origin.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                || allowedOrigins.Any(allowedOrigin => string.Equals(origin, allowedOrigin, StringComparison.OrdinalIgnoreCase)))
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -159,6 +178,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAllElasticApm(builder.Configuration);
 
+app.UseCors("GatewayCors");
 app.UseAuthentication();
 app.UseAuthorization();
 
