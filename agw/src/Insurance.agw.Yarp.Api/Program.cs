@@ -156,6 +156,7 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+app.Logger.LogInformation("API Gateway startup marker: file-service route enabled via YARP.");
 
 app.MapGet("/test-apm", async (context) =>
 {

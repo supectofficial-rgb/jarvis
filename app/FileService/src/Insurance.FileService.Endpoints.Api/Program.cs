@@ -43,6 +43,8 @@ var storageRoot = ResolveStorageRoot(app.Configuration, app.Environment);
 var videoProcessing = VideoProcessingOptions.FromConfiguration(app.Configuration);
 Directory.CreateDirectory(storageRoot);
 
+app.Logger.LogInformation("FileService startup marker: upload diagnostics middleware enabled.");
+
 app.Use(async (context, next) =>
 {
     var stopwatch = Stopwatch.StartNew();

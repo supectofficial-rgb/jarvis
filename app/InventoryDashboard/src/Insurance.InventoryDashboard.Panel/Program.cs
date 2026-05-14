@@ -33,6 +33,8 @@ builder.Services.AddSingleton<IUiTextService, UiTextService>();
 
 var app = builder.Build();
 
+app.Logger.LogInformation("Inventory Dashboard startup marker: file uploads are routed through API Gateway.");
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
