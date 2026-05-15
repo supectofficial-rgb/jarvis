@@ -117,6 +117,7 @@
     var localRules = Model.CategoryAttributeRules.Where(x => !x.IsInherited).ToList();
     var localFormulas = Model.CategoryVariantNameFormulas.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
     var formulaAttributeSource = Model.CategoryAttributes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+    var categoryFormPreviewUrl = ResolveMediaUrl(Model.CategoryForm.ImageThumbnailUrl ?? Model.CategoryForm.ImageUrl);
 }
 
 <style>
@@ -273,8 +274,8 @@
                                                     </div>
                                                     <div class="small text-muted mb-2" data-media-status>@UiText["media.imageHelp"]</div>
                                                     <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>@UiText["media.removeImage"]</button>
-                                                    <div class="mt-3 d-none" data-media-preview-wrap>
-                                                        <img src="@Model.CategoryForm.ImageThumbnailUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
+                                                    <div class="mt-3 @(string.IsNullOrWhiteSpace(categoryFormPreviewUrl) ? "d-none" : null)" data-media-preview-wrap>
+                                                        <img src="@categoryFormPreviewUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
                                                     </div>
                                                 </div>
                                             </div>
@@ -1452,7 +1453,7 @@
                         }
                     })
                     .catch(function () {
-                        window.location.href = requestUrl;
+                        showScopedListError(ruleListScope, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.rules.loadList"])));
                     })
                     .finally(function () {
                         if (currentRequestId === ruleListRequestId) {
@@ -1517,7 +1518,7 @@
                         }
                     })
                     .catch(function () {
-                        form.submit();
+                        showScopedListError(ruleListScope, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.rules.loadList"])));
                     })
                     .finally(function () {
                         if (currentRequestId === ruleListRequestId) {
@@ -1585,6 +1586,7 @@
                             throw new Error('Formula list scope not found in response.');
                         }
 
+                        updateFormulaRegistries(nextDocument);
                         formulaListScope.innerHTML = nextFormulaListScope.innerHTML;
                         formulaCategoryListForm = document.getElementById('formula-category-list-form');
 
@@ -1594,7 +1596,7 @@
                         }
                     })
                     .catch(function () {
-                        window.location.href = requestUrl;
+                        showScopedListError(formulaListScope, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.loadList"])));
                     })
                     .finally(function () {
                         if (currentRequestId === formulaListRequestId) {
@@ -1651,6 +1653,7 @@
                             throw new Error('Formula list scope not found in response.');
                         }
 
+                        updateFormulaRegistries(nextDocument);
                         formulaListScope.innerHTML = nextFormulaListScope.innerHTML;
                         formulaCategoryListForm = document.getElementById('formula-category-list-form');
 
@@ -1659,13 +1662,73 @@
                         }
                     })
                     .catch(function () {
-                        form.submit();
+                        showScopedListError(formulaListScope, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.loadList"])));
                     })
                     .finally(function () {
                         if (currentRequestId === formulaListRequestId) {
                             setFormulaListLoading(false);
                         }
                     });
+            }
+
+            function showScopedListError(scope, title) {
+                if (!scope) {
+                    return;
+                }
+
+                var existing = scope.querySelector('[data-scoped-list-error]');
+                if (existing) {
+                    existing.remove();
+                }
+
+                var error = document.createElement('div');
+                error.className = 'alert alert-danger mb-3';
+                error.setAttribute('data-scoped-list-error', 'true');
+                error.textContent = title + ' - ' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverUnavailable"]));
+                scope.insertBefore(error, scope.firstChild);
+            }
+
+            function extractJsonAssignment(documentNode, variableName, nextVariableName) {
+                var marker = 'var ' + variableName + ' = ';
+                var nextMarker = nextVariableName ? ';' + '\n' + '            var ' + nextVariableName : ';';
+                var scripts = Array.prototype.slice.call(documentNode.querySelectorAll('script'));
+
+                for (var i = 0; i < scripts.length; i++) {
+                    var text = scripts[i].textContent || '';
+                    var start = text.indexOf(marker);
+                    if (start < 0) {
+                        continue;
+                    }
+
+                    start += marker.length;
+                    var end = nextVariableName ? text.indexOf(nextMarker, start) : text.indexOf(';', start);
+                    if (end < 0 && nextVariableName) {
+                        end = text.indexOf(';' + '\r\n' + '            var ' + nextVariableName, start);
+                    }
+                    if (end < 0) {
+                        continue;
+                    }
+
+                    try {
+                        return JSON.parse(text.substring(start, end).trim());
+                    } catch (e) {
+                        return null;
+                    }
+                }
+
+                return null;
+            }
+
+            function updateFormulaRegistries(documentNode) {
+                var nextFormulaRegistry = extractJsonAssignment(documentNode, 'formulaRegistry', 'formulaAttributeRegistry');
+                if (Array.isArray(nextFormulaRegistry)) {
+                    formulaRegistry = nextFormulaRegistry;
+                }
+
+                var nextFormulaAttributeRegistry = extractJsonAssignment(documentNode, 'formulaAttributeRegistry', 'dirtyForms');
+                if (Array.isArray(nextFormulaAttributeRegistry)) {
+                    formulaAttributeRegistry = nextFormulaAttributeRegistry;
+                }
             }
 
             function captureFormDraft(form) {
@@ -1898,6 +1961,31 @@
                     submitFormulaListForm(form);
                 });
             }
+
+            document.addEventListener('submit', function (event) {
+                var form = event.target instanceof HTMLFormElement
+                    ? event.target
+                    : event.target.closest && event.target.closest('form');
+
+                if (!form) {
+                    return;
+                }
+
+                if (form.closest('#rule-list-scope')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    localStorage.setItem(ruleSectionTabKey, '#rule-section-list');
+                    submitRuleListForm(form);
+                    return;
+                }
+
+                if (form.closest('#formula-list-scope')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    localStorage.setItem(formulaSectionTabKey, '#formula-section-list');
+                    submitFormulaListForm(form);
+                }
+            }, true);
 
             var collapsed = readJson(treeStateKey, []);
             var collapsedSet = new Set(Array.isArray(collapsed) ? collapsed : []);
@@ -2363,6 +2451,24 @@
                 formulaPartsJsonField.value = JSON.stringify(formulaState.parts);
             }
 
+            function getSelectedFormulaAttributeId() {
+                if (!formulaAttributePicker) {
+                    return '';
+                }
+
+                if (window.jQuery) {
+                    var selectedValue = window.jQuery(formulaAttributePicker).val();
+                    if (Array.isArray(selectedValue)) {
+                        return selectedValue.length > 0 ? (selectedValue[0] || '') : '';
+                    }
+                    if (selectedValue) {
+                        return selectedValue;
+                    }
+                }
+
+                return formulaAttributePicker.value || '';
+            }
+
             function setFormulaMode(isEditMode) {
                 if (formulaForm) {
                     formulaForm.action = isEditMode ? formulaUpdateUrl : formulaCreateUrl;
@@ -2508,17 +2614,27 @@
 
             if (formulaAddPartBtn) {
                 formulaAddPartBtn.addEventListener('click', function () {
-                    var selectedAttributeId = formulaAttributePicker ? (formulaAttributePicker.value || '') : '';
+                    var selectedAttributeId = getSelectedFormulaAttributeId();
                     addFormulaPart(selectedAttributeId);
                 });
             }
 
             if (formulaAttributePicker) {
                 formulaAttributePicker.addEventListener('change', function () {
-                    if (formulaAttributePicker.value) {
-                        addFormulaPart(formulaAttributePicker.value);
+                    var selectedAttributeId = getSelectedFormulaAttributeId();
+                    if (selectedAttributeId) {
+                        addFormulaPart(selectedAttributeId);
                     }
                 });
+
+                if (window.jQuery) {
+                    window.jQuery(formulaAttributePicker).on('select2:select', function () {
+                        var selectedAttributeId = getSelectedFormulaAttributeId();
+                        if (selectedAttributeId) {
+                            addFormulaPart(selectedAttributeId);
+                        }
+                    });
+                }
             }
 
             document.addEventListener('click', function (event) {
@@ -2599,6 +2715,40 @@
                 });
             });
 
+            document.addEventListener('click', function (event) {
+                var formulaButton = event.target.closest('.formula-edit-btn, .formula-parts-manage-btn, .formula-part-manage-btn, .formula-part-remove-btn');
+                if (!formulaButton) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                var formula = getFormulaById(formulaButton.getAttribute('data-formula-id') || '');
+                if (!formula) {
+                    return;
+                }
+
+                localStorage.setItem(formulaSectionTabKey, '#formula-section-edit');
+                loadFormulaIntoForm(formula);
+
+                var partIndex = parseInt(formulaButton.getAttribute('data-formula-part-index') || '-1', 10);
+                if (formulaButton.classList.contains('formula-part-remove-btn') && !isNaN(partIndex) && partIndex >= 0) {
+                    removeFormulaPart(partIndex);
+                    if (formulaForm && formulaForm.scrollIntoView) {
+                        formulaForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    return;
+                }
+
+                if (formulaButton.classList.contains('formula-part-manage-btn') && !isNaN(partIndex) && partIndex >= 0 && formulaPartsList) {
+                    var targetItem = formulaPartsList.querySelector('[data-formula-index="' + partIndex + '"]');
+                    if (targetItem && targetItem.scrollIntoView) {
+                        targetItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }, true);
+
             function resetFormulaEditor() {
                 resetFormulaForm();
                 if (formulaForm) {
@@ -2615,8 +2765,23 @@
             }
 
             if (formulaForm) {
-                formulaForm.addEventListener('submit', function () {
+                formulaForm.addEventListener('submit', function (event) {
+                    var selectedAttributeId = getSelectedFormulaAttributeId();
+                    if (selectedAttributeId) {
+                        addFormulaPart(selectedAttributeId);
+                    }
+
                     syncFormulaPartsJson();
+                    if (formulaState.parts.length === 0) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        if (formulaPartsEmpty) {
+                            formulaPartsEmpty.style.display = '';
+                            formulaPartsEmpty.classList.remove('alert-light');
+                            formulaPartsEmpty.classList.add('alert-warning');
+                            formulaPartsEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
                 });
             }
 
@@ -2718,6 +2883,17 @@
                 });
             });
 
+            document.addEventListener('click', function (event) {
+                var button = event.target.closest('.rule-inline-edit-btn');
+                if (!button) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                openRuleInlineEdit(button);
+            }, true);
+
             if (ruleInlineEditCancel) {
                 ruleInlineEditCancel.addEventListener('click', closeRuleInlineEdit);
             }
@@ -2801,6 +2977,288 @@
     </script>
     <script>
         (function () {
+            var optionEndpoints = {
+                list: '@Url.Action("GetAttributeOptions", "CategoryManagement")',
+                add: '@Url.Action("AddAttributeOptionAjax", "CategoryManagement")',
+                update: '@Url.Action("UpdateAttributeOptionAjax", "CategoryManagement")',
+                delete: '@Url.Action("DeleteAttributeOptionAjax", "CategoryManagement")'
+            };
+            var optionTexts = {
+                none: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.none"])),
+                active: @Html.Raw(JsonSerializer.Serialize(UiText["common.active"])),
+                inactive: @Html.Raw(JsonSerializer.Serialize(UiText["common.inactive"])),
+                edit: @Html.Raw(JsonSerializer.Serialize(UiText["common.edit"])),
+                delete: @Html.Raw(JsonSerializer.Serialize(UiText["common.delete"])),
+                loading: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.loading"])),
+                loadFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.loadFailed"])),
+                unavailable: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverUnavailable"])),
+                unreadable: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverResponseUnreadable"])),
+                submitting: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitting"])),
+                submitFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitFailed"])),
+                submitSucceeded: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitSucceeded"])),
+                deleteConfirm: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteConfirm"])),
+                deleting: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleting"])),
+                deleteFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteFailed"])),
+                deleteSucceeded: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteSucceeded"]))
+            };
+
+            function showBootstrapTab(selector) {
+                var link = document.querySelector(selector);
+                if (!link) return;
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tab) {
+                    window.jQuery(link).tab('show');
+                    return;
+                }
+
+                var target = document.querySelector(link.getAttribute('href') || '');
+                var container = link.closest('.nav');
+                if (container) {
+                    container.querySelectorAll('.nav-link').forEach(function (item) { item.classList.remove('active'); });
+                }
+                link.classList.add('active');
+                if (target && target.parentElement) {
+                    target.parentElement.querySelectorAll(':scope > .tab-pane').forEach(function (pane) {
+                        pane.classList.remove('show', 'active');
+                    });
+                    target.classList.add('show', 'active');
+                }
+            }
+
+            function escapeHtml(value) {
+                return String(value || '').replace(/[&<>"']/g, function (char) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+                });
+            }
+
+            function escapeSelector(value) {
+                if (window.CSS && typeof window.CSS.escape === 'function') {
+                    return window.CSS.escape(value || '');
+                }
+
+                return String(value || '').replace(/["\\]/g, '\\$&');
+            }
+
+            function getJson(response) {
+                return response.json().catch(function () {
+                    return { isSuccess: false, errorMessage: optionTexts.unreadable };
+                });
+            }
+
+            function setOptionsMessage(row, message, isError) {
+                var box = row ? row.querySelector('[data-options-message]') : null;
+                if (!box) return;
+                box.className = 'attribute-options-message small mb-2 ' + (isError ? 'text-danger' : 'text-success');
+                box.textContent = message || '';
+            }
+
+            function renderOptions(row, options) {
+                var tbody = row ? row.querySelector('[data-options-tbody]') : null;
+                if (!tbody) return;
+                if (!options || !options.length) {
+                    tbody.innerHTML = '<tr><td colspan="5">' + optionTexts.none + '</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = options.slice().sort(function (a, b) {
+                    return (a.displayOrder || a.DisplayOrder || 0) - (b.displayOrder || b.DisplayOrder || 0)
+                        || String(a.optionName || a.OptionName || '').localeCompare(String(b.optionName || b.OptionName || ''));
+                }).map(function (option) {
+                    var id = escapeHtml(option.id || option.Id);
+                    var name = escapeHtml(option.optionName || option.OptionName);
+                    var value = escapeHtml(option.optionValue || option.OptionValue);
+                    var order = option.displayOrder || option.DisplayOrder || 0;
+                    var isActive = option.isActive !== undefined ? option.isActive : option.IsActive;
+                    return '<tr>'
+                        + '<td><span class="text-monospace">' + value + '</span></td>'
+                        + '<td>' + name + '</td>'
+                        + '<td>' + order + '</td>'
+                        + '<td>' + (isActive ? optionTexts.active : optionTexts.inactive) + '</td>'
+                        + '<td class="text-nowrap">'
+                        + '<button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="' + id + '" data-option-name="' + name + '" data-option-value="' + value + '" data-display-order="' + order + '">' + optionTexts.edit + '</button> '
+                        + '<button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="' + id + '">' + optionTexts.delete + '</button>'
+                        + '</td>'
+                        + '</tr>';
+                }).join('');
+            }
+
+            function loadOptions(row, attributeId) {
+                setOptionsMessage(row, optionTexts.loading, false);
+                return fetch(optionEndpoints.list + '?attributeId=' + encodeURIComponent(attributeId), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(getJson)
+                    .then(function (payload) {
+                        if (!payload.isSuccess) {
+                            setOptionsMessage(row, payload.errorMessage || optionTexts.loadFailed, true);
+                            return;
+                        }
+                        renderOptions(row, payload.items || []);
+                        setOptionsMessage(row, '', false);
+                    })
+                    .catch(function () {
+                        setOptionsMessage(row, optionTexts.unavailable, true);
+                    });
+            }
+
+            function submitOptionForm(form, url) {
+                var row = form.closest('.attribute-options-row');
+                var buttons = form.querySelectorAll('button[type="submit"]');
+                buttons.forEach(function (button) { button.disabled = true; });
+                setOptionsMessage(row, optionTexts.submitting, false);
+                return fetch(url, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(getJson)
+                    .then(function (payload) {
+                        if (!payload.isSuccess) {
+                            setOptionsMessage(row, payload.errorMessage || optionTexts.submitFailed, true);
+                            return;
+                        }
+                        renderOptions(row, payload.items || []);
+                        setOptionsMessage(row, payload.message || optionTexts.submitSucceeded, false);
+                        form.reset();
+                        if (form.matches('[data-option-update-form]')) {
+                            form.style.display = 'none';
+                        }
+                    })
+                    .catch(function () {
+                        setOptionsMessage(row, optionTexts.unavailable, true);
+                    })
+                    .finally(function () {
+                        buttons.forEach(function (button) { button.disabled = false; });
+                    });
+            }
+
+            document.addEventListener('click', function (event) {
+                var attributeEditButton = event.target.closest('.attribute-edit-btn');
+                if (attributeEditButton) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+
+                    var pairs = {
+                        'attribute-update-id': 'data-attribute-id',
+                        'attribute-update-selected': 'data-attribute-name',
+                        'AttributeUpdateForm_Code': 'data-attribute-code',
+                        'AttributeUpdateForm_Name': 'data-attribute-name',
+                        'AttributeUpdateForm_DataType': 'data-attribute-datatype',
+                        'AttributeUpdateForm_Scope': 'data-attribute-scope',
+                        'AttributeUpdateForm_DisplayOrder': 'data-attribute-display-order'
+                    };
+                    Object.keys(pairs).forEach(function (id) {
+                        var field = document.getElementById(id);
+                        if (field) field.value = attributeEditButton.getAttribute(pairs[id]) || '';
+                    });
+                    var isActiveField = document.getElementById('AttributeUpdateForm_IsActive');
+                    if (isActiveField) {
+                        isActiveField.value = (attributeEditButton.getAttribute('data-attribute-isactive') || '').toLowerCase() === 'true' ? 'true' : 'false';
+                    }
+
+                    showBootstrapTab('#category-tabs .nav-link[href="#attribute-tab"]');
+                    showBootstrapTab('#attribute-section-tabs .nav-link[href="#attribute-section-bank"]');
+                    var editPanel = document.getElementById('attribute-edit-panel');
+                    if (editPanel) editPanel.style.display = '';
+                    var form = document.getElementById('attribute-update-form');
+                    if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+
+                var optionsButton = event.target.closest('.attribute-options-btn');
+                if (optionsButton) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    var attributeId = optionsButton.getAttribute('data-attribute-id') || '';
+                    var row = document.querySelector('.attribute-options-row[data-options-for="' + escapeSelector(attributeId) + '"]');
+                    if (!row) return;
+                    var isVisible = row.style.display !== 'none';
+                    document.querySelectorAll('.attribute-options-row').forEach(function (optionsRow) {
+                        optionsRow.style.display = 'none';
+                    });
+                    row.style.display = isVisible ? 'none' : '';
+                    if (!isVisible) {
+                        loadOptions(row, attributeId).then(function () {
+                            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        });
+                    }
+                    return;
+                }
+
+                var optionEditButton = event.target.closest('.option-edit-btn');
+                if (optionEditButton) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    var optionRow = optionEditButton.closest('.attribute-options-row');
+                    var updateForm = optionRow ? optionRow.querySelector('[data-option-update-form]') : null;
+                    if (!updateForm) return;
+                    var fields = {
+                        '[data-option-update-id]': 'data-option-id',
+                        '[data-option-update-name]': 'data-option-name',
+                        '[data-option-update-value]': 'data-option-value',
+                        '[data-option-update-order]': 'data-display-order'
+                    };
+                    Object.keys(fields).forEach(function (selector) {
+                        var field = updateForm.querySelector(selector);
+                        if (field) field.value = optionEditButton.getAttribute(fields[selector]) || '';
+                    });
+                    updateForm.style.display = '';
+                    updateForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+
+                var optionDeleteButton = event.target.closest('.ajax-option-delete-btn');
+                if (optionDeleteButton) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    var deleteRow = optionDeleteButton.closest('.attribute-options-row');
+                    var deleteToken = deleteRow ? deleteRow.querySelector('input[name="__RequestVerificationToken"]') : null;
+                    var deleteAttributeId = deleteRow ? deleteRow.getAttribute('data-options-for') || '' : '';
+                    var deleteOptionId = optionDeleteButton.getAttribute('data-option-id') || '';
+                    if (!deleteRow || !deleteToken || !deleteAttributeId || !deleteOptionId || !window.confirm(optionTexts.deleteConfirm)) return;
+                    var data = new FormData();
+                    data.append('__RequestVerificationToken', deleteToken.value);
+                    data.append('attributeId', deleteAttributeId);
+                    data.append('optionId', deleteOptionId);
+                    setOptionsMessage(deleteRow, optionTexts.deleting, false);
+                    fetch(optionEndpoints.delete, {
+                        method: 'POST',
+                        body: data,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(getJson)
+                        .then(function (payload) {
+                            if (!payload.isSuccess) {
+                                setOptionsMessage(deleteRow, payload.errorMessage || optionTexts.deleteFailed, true);
+                                return;
+                            }
+                            renderOptions(deleteRow, payload.items || []);
+                            setOptionsMessage(deleteRow, payload.message || optionTexts.deleteSucceeded, false);
+                        })
+                        .catch(function () {
+                            setOptionsMessage(deleteRow, optionTexts.unavailable, true);
+                        });
+                }
+            }, true);
+
+            document.addEventListener('submit', function (event) {
+                var form = event.target;
+                if (!(form instanceof HTMLFormElement)) return;
+                if (form.matches('[data-option-add-form]')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    submitOptionForm(form, optionEndpoints.add);
+                    return;
+                }
+                if (form.matches('[data-option-update-form]')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    submitOptionForm(form, optionEndpoints.update);
+                }
+            }, true);
+        })();
+    </script>
+    <script>
+        (function () {
             var root = document.querySelector('[data-media-uploader][data-policy="category-image"]');
             if (!root) return;
             var baseUrl = (root.getAttribute('data-base-url') || '').replace(/\/$/, '');
@@ -2841,9 +3299,17 @@
                     removeButton.classList.add('d-none');
                     return;
                 }
-                preview.src = previewUrl.indexOf('http') === 0 ? previewUrl : baseUrl + previewUrl;
+                preview.src = toMediaUrl(previewUrl);
                 previewWrap.classList.remove('d-none');
                 removeButton.classList.remove('d-none');
+            }
+
+            function toMediaUrl(value) {
+                if (!value || value.indexOf('http') === 0) {
+                    return value;
+                }
+
+                return baseUrl + (value.charAt(0) === '/' ? value : '/' + value);
             }
 
             fileInput.addEventListener('change', function () {
@@ -2898,7 +3364,6 @@
                 thumbField.value = '';
                 status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
                 syncPreview();
-                status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
             });
 
             syncPreview();

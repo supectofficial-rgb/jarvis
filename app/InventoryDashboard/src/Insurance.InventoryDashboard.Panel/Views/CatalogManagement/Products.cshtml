@@ -133,6 +133,25 @@
         return attribute.IsVariantLevel;
     }
 
+    string? ResolveMediaUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        var trimmed = url.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out _))
+        {
+            return trimmed;
+        }
+
+        var baseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        return string.IsNullOrWhiteSpace(baseUrl)
+            ? trimmed
+            : $"{baseUrl}/{trimmed.TrimStart('/')}";
+    }
+
     var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
         .Where(IsProductScopeAttribute)
         .OrderBy(x => x.DisplayOrder)
@@ -152,10 +171,11 @@
             parentId = x.ParentCategoryId,
             name = x.Name,
             code = x.Code,
-            imageUrl = x.ImageUrl,
-            imageThumbnailUrl = x.ImageThumbnailUrl
+            imageUrl = ResolveMediaUrl(x.ImageUrl),
+            imageThumbnailUrl = ResolveMediaUrl(x.ImageThumbnailUrl)
         })
         .ToList();
+    var productFormPreviewUrl = ResolveMediaUrl(Model.ProductForm.ImageThumbnailUrl ?? Model.ProductForm.ImageUrl);
 }
 
 <style>
@@ -169,6 +189,10 @@
     #product-list-scope .dropdown-toggle,
     #product-list-scope .dropdown-menu {
         display: none !important;
+    }
+
+    #product-list-tab-panel {
+        display: none;
     }
 
     .product-category-tree-shell {
@@ -474,8 +498,8 @@
                                             </div>
                                             <div class="small text-muted mb-2" data-media-status>@UiText["media.imageHelp"]</div>
                                             <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>@UiText["media.removeImage"]</button>
-                                            <div class="mt-3 d-none" data-media-preview-wrap>
-                                                <img src="@Model.ProductForm.ImageThumbnailUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
+                                            <div class="mt-3 @(string.IsNullOrWhiteSpace(productFormPreviewUrl) ? "d-none" : null)" data-media-preview-wrap>
+                                                <img src="@productFormPreviewUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
                                             </div>
                                         </div>
                                     </div>
@@ -980,6 +1004,7 @@
             var searchForm = document.getElementById('product-search-form');
             var tabs = document.querySelectorAll('#product-management-tabs .nav-link');
             var productListTabPanel = document.getElementById('product-list-tab-panel');
+            var productListTabPane = document.getElementById('product-tab-list');
             var tabKey = 'catalog-products-active-tab-v1';
             var stateKey = 'catalog-products-state-v2';
             var draftStateKey = 'catalog-products-form-drafts-v1';
@@ -1345,13 +1370,20 @@
                         imageUrl: node.imageUrl || '',
                         imageThumbnailUrl: node.imageThumbnailUrl || ''
                     };
+                });
 
-                    var key = normalizedParentId || '__root__';
+                Object.keys(categoryNodeLookup).forEach(function (normalizedId) {
+                    var node = categoryNodeLookup[normalizedId];
+                    var normalizedParentId = node.parentId || '';
+                    var key = normalizedParentId && categoryNodeLookup[normalizedParentId]
+                        ? normalizedParentId
+                        : '__root__';
+
                     if (!categoryChildrenLookup[key]) {
                         categoryChildrenLookup[key] = [];
                     }
 
-                    categoryChildrenLookup[key].push(categoryNodeLookup[normalizedId]);
+                    categoryChildrenLookup[key].push(node);
                 });
 
                 Object.keys(categoryChildrenLookup).forEach(function (key) {
@@ -1419,12 +1451,26 @@
                 productCategoryField.value = normalizedCategoryId;
 
                 if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                    window.jQuery(productCategoryField).trigger('change.select2');
+                    window.jQuery(productCategoryField).val(normalizedCategoryId).trigger('change.select2');
                 }
 
                 if (!options || options.silent !== true) {
                     productCategoryField.dispatchEvent(new Event('change', { bubbles: true }));
                 }
+            }
+
+            function selectProductCategory(categoryId, options) {
+                var normalizedCategoryId = (categoryId || '').trim();
+                setProductCategoryValue(normalizedCategoryId, { silent: true });
+                syncCategoryTreeFromValue(normalizedCategoryId);
+
+                if (options && options.loadAttributes === false) {
+                    return;
+                }
+
+                loadCreateAttributesForCategory(normalizedCategoryId, {
+                    force: options && options.force === true
+                });
             }
 
             function renderCategoryLevelCards(pathIds) {
@@ -1459,7 +1505,7 @@
 
                 categoryTreeLevels.innerHTML = levels.map(function (level) {
                     return '<div class="product-category-level" data-level="' + level.level + '">'
-                        + '<div class="product-category-level-title>' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepPrefix"]) + ' ' + level.level + ' ' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepSuffix"]) + '</div>'
+                        + '<div class="product-category-level-title">' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepPrefix"]) + ' ' + level.level + ' ' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepSuffix"]) + '</div>'
                         + '<div class="product-category-grid">'
                         + level.items.map(function (item) {
                             var isActive = level.activeId && level.activeId.toLowerCase() === item.id.toLowerCase();
@@ -1488,17 +1534,9 @@
                         renderCategoryTree(nextPath);
 
                         if (isLeafCategory(selectedId)) {
-                            setProductCategoryValue(selectedId);
+                            selectProductCategory(selectedId, { force: true });
                         } else {
-                            setProductCategoryValue('', { silent: true });
-                            if (pageElement) {
-                                pageElement.setAttribute('data-selected-category-id', '');
-                            }
-                            setCreateAttributeFeedback('', 'warning');
-                            renderCreateAttributeSections(null);
-                            bindAutoCreateInputEvents(createDynamicSections || document);
-                            renderAutoVariantPreview();
-                            setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.finalCategoryNotSelected"])), 'warning');
+                            selectProductCategory('', { force: true });
                         }
                     });
                 });
@@ -1681,13 +1719,14 @@
                 });
             }
 
-            function loadCreateAttributesForCategory(categoryId) {
+            function loadCreateAttributesForCategory(categoryId, options) {
                 if (!productUpsertForm || !createDynamicSections) {
                     return;
                 }
 
                 var normalizedCategoryId = (categoryId || '').trim();
-                if (normalizedCategoryId && lastCreateAttributesCategoryId.toLowerCase() === normalizedCategoryId.toLowerCase()) {
+                var forceLoad = options && options.force === true;
+                if (!forceLoad && normalizedCategoryId && lastCreateAttributesCategoryId.toLowerCase() === normalizedCategoryId.toLowerCase()) {
                     setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.duplicateCategory"])), 'secondary');
                     return;
                 }
@@ -2049,6 +2088,10 @@
             clearSubmittedDraftAfterSuccess();
             restorePageState();
             restoreFormDrafts();
+            if (productListTabPane && productListTabPanel && productListTabPanel.parentElement !== productListTabPane) {
+                productListTabPanel.classList.remove('col-12');
+                productListTabPane.appendChild(productListTabPanel);
+            }
             syncCategoryTreeFromValue(productCategoryField ? productCategoryField.value : '');
             setCreateAttributeStatus(
                 isEditMode ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.editMode"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.scriptActivated"])),
@@ -2070,14 +2113,7 @@
             if (productCategoryField && productUpsertForm) {
                 var handleCategoryChange = function () {
                     var selectedCategoryId = (productCategoryField.value || '').trim();
-                    syncCategoryTreeFromValue(selectedCategoryId);
-                    if (!selectedCategoryId) {
-                        setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.finalCategoryNotSelected"])), 'warning');
-                        return;
-                    }
-
-                    setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.categoryChangeSaved"])), 'warning');
-                    loadCreateAttributesForCategory(selectedCategoryId);
+                    selectProductCategory(selectedCategoryId, { force: true });
                 };
 
                 productCategoryField.addEventListener('change', handleCategoryChange);
@@ -2415,13 +2451,6 @@
             var fileKeyField = form.querySelector('[name="ProductForm.ImageFileKey"]');
             var imageUrlField = form.querySelector('[name="ProductForm.ImageUrl"]');
             var thumbField = form.querySelector('[name="ProductForm.ImageThumbnailUrl"]');
-            if (label) label.textContent = '\u062a\u0635\u0648\u06cc\u0631 \u0645\u062d\u0635\u0648\u0644';
-            if (status) status.textContent = '\u06cc\u06a9 \u062a\u0635\u0648\u06cc\u0631 \u062d\u062f\u0627\u06a9\u062b\u0631 \u06f5 \u0645\u06af\u0627\u0628\u0627\u06cc\u062a.';
-            if (removeButton) removeButton.textContent = '\u062d\u0630\u0641 \u062a\u0635\u0648\u06cc\u0631';
-            if (label) label.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["product.image"]));
-            if (status) status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageHelp"]));
-            if (removeButton) removeButton.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.removeImage"]));
-
             if (label) label.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["product.image"]));
             if (status) status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageHelp"]));
             if (removeButton) removeButton.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.removeImage"]));
@@ -2445,9 +2474,17 @@
                     removeButton.classList.add('d-none');
                     return;
                 }
-                preview.src = previewUrl.indexOf('http') === 0 ? previewUrl : baseUrl + previewUrl;
+                preview.src = toMediaUrl(previewUrl);
                 previewWrap.classList.remove('d-none');
                 removeButton.classList.remove('d-none');
+            }
+
+            function toMediaUrl(value) {
+                if (!value || value.indexOf('http') === 0) {
+                    return value;
+                }
+
+                return baseUrl + (value.charAt(0) === '/' ? value : '/' + value);
             }
 
             fileInput.addEventListener('change', function () {
@@ -2496,9 +2533,6 @@
             });
 
             removeButton.addEventListener('click', function () {
-                setTimeout(function () {
-                    status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["media.imageRemoved"]));
-                }, 0);
                 fileInput.value = '';
                 fileKeyField.value = '';
                 imageUrlField.value = '';

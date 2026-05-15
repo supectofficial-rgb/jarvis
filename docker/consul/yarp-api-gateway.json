@@ -82,6 +82,16 @@
           "ApiKey": "file-service-api-key"
         },
         "Order": 5
+      },
+      "file-service-media-route": {
+        "ClusterId": "file-service-cluster",
+        "Match": {
+          "Path": "/media/{**catch-all}"
+        },
+        "Metadata": {
+          "ApiKey": "file-service-api-key"
+        },
+        "Order": 6
       }
     },
     "Clusters": {
