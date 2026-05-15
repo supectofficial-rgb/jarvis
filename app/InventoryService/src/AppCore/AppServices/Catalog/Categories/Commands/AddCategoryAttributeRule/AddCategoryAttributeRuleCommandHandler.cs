@@ -38,7 +38,7 @@ public class AddCategoryAttributeRuleCommandHandler : CommandHandler<AddCategory
             if (category is null)
                 return Fail("Category was not found.");
 
-            var validationError = await ValidateAttributeAsync(command.AttributeRef, command.IsVariant, command.IsVariantCodeCovered);
+            var validationError = await ValidateAttributeAsync(command.AttributeRef, command.IsVariant);
             if (validationError is not null)
                 return Fail(validationError);
 
@@ -83,7 +83,7 @@ public class AddCategoryAttributeRuleCommandHandler : CommandHandler<AddCategory
         return string.Join(" | ", messages.Distinct());
     }
 
-    private async Task<string?> ValidateAttributeAsync(Guid attributeRef, bool isVariant, bool isVariantCodeCovered)
+    private async Task<string?> ValidateAttributeAsync(Guid attributeRef, bool isVariant)
     {
         var definition = await _attributeRepository.GetByBusinessKeyAsync(attributeRef);
         if (definition is null)
@@ -97,9 +97,6 @@ public class AddCategoryAttributeRuleCommandHandler : CommandHandler<AddCategory
 
         if (!isVariant && definition.Scope == AttributeScope.Variant)
             return "Variant-scope attribute cannot be used as product rule.";
-
-        if (isVariantCodeCovered && !isVariant)
-            return "Variant code coverage requires a variant rule.";
 
         return null;
     }

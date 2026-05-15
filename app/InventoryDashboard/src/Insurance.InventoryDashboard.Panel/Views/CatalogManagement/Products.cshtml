@@ -146,7 +146,20 @@
             return trimmed;
         }
 
-        var baseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        var configuredBaseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        var requestHost = Context?.Request?.Host.Host;
+        var requestScheme = Context?.Request?.Scheme ?? "http";
+        var configuredBaseIsLocalOnly =
+            Uri.TryCreate(configuredBaseUrl, UriKind.Absolute, out var configuredUri) &&
+            (string.Equals(configuredUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(configuredUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrWhiteSpace(requestHost) &&
+            !string.Equals(requestHost, "localhost", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(requestHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
+        var baseUrl = !string.IsNullOrWhiteSpace(configuredBaseUrl) && !configuredBaseIsLocalOnly
+            ? configuredBaseUrl
+            : (!string.IsNullOrWhiteSpace(requestHost) ? $"{requestScheme}://{requestHost}:8080" : null);
+
         return string.IsNullOrWhiteSpace(baseUrl)
             ? trimmed
             : $"{baseUrl}/{trimmed.TrimStart('/')}";
@@ -1438,7 +1451,7 @@
                     return;
                 }
 
-                categoryPathBadge.textContent = @JsonSerializer.Serialize(UiText["catalog.products.selectedPathBadge"]) + pathText;
+                categoryPathBadge.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectedPathBadge"])) + pathText;
                 categoryPathBadge.classList.remove('d-none');
             }
 
@@ -1505,7 +1518,7 @@
 
                 categoryTreeLevels.innerHTML = levels.map(function (level) {
                     return '<div class="product-category-level" data-level="' + level.level + '">'
-                        + '<div class="product-category-level-title">' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepPrefix"]) + ' ' + level.level + ' ' + @JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepSuffix"]) + '</div>'
+                        + '<div class="product-category-level-title">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepPrefix"])) + ' ' + level.level + ' ' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.categorySelectionStepSuffix"])) + '</div>'
                         + '<div class="product-category-grid">'
                         + level.items.map(function (item) {
                             var isActive = level.activeId && level.activeId.toLowerCase() === item.id.toLowerCase();
@@ -1516,7 +1529,7 @@
                             return '<button type="button" class="product-category-card' + (isActive ? ' active' : '') + (!imageUrl ? ' product-category-card-no-media' : '') + '" data-category-card data-category-id="' + escapeHtml(item.id) + '">'
                                 + mediaHtml
                                 + '<span class="product-category-card-name">' + escapeHtml(item.name) + '</span>'
-                                + '<span class="product-category-card-code">' + escapeHtml(item.code || @JsonSerializer.Serialize(UiText["catalog.products.noCode"])) + '</span>'
+                                + '<span class="product-category-card-code">' + escapeHtml(item.code || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.noCode"]))) + '</span>'
                                 + '</button>';
                         }).join('')
                         + '</div>'
@@ -1536,7 +1549,8 @@
                         if (isLeafCategory(selectedId)) {
                             selectProductCategory(selectedId, { force: true });
                         } else {
-                            selectProductCategory('', { force: true });
+                            setProductCategoryValue('', { silent: true });
+                            lastCreateAttributesCategoryId = '';
                         }
                     });
                 });
@@ -1606,12 +1620,12 @@
             function buildCreateAttributeOriginText(attribute, includeDisplayOrder) {
                 var parts = [];
                 if (includeDisplayOrder) {
-                    parts.push(@JsonSerializer.Serialize(UiText["catalog.products.attributePriorityPrefix"]) + (attribute.displayOrder || 0));
+                    parts.push(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.attributePriorityPrefix"])) + (attribute.displayOrder || 0));
                 }
 
                 parts.push(attribute.isInherited
-                    ? (@JsonSerializer.Serialize(UiText["catalog.products.inheritedFromPrefix"]) + (attribute.sourceCategoryName || ''))
-                    : @JsonSerializer.Serialize(UiText["catalog.products.direct"]);
+                    ? (@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.inheritedFromPrefix"])) + (attribute.sourceCategoryName || ''))
+                    : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.direct"]));
                 parts.push(attribute.isRequired ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.required"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.optional"])));
                 return parts.join(' - ');
             }
@@ -1633,7 +1647,7 @@
                 }
 
                 var productSection = productAttributes.length === 0
-                    ? '<div class="text-muted small>' + @JsonSerializer.Serialize(UiText["catalog.products.noProductAttributeDefined"]) + '</div>'
+                    ? '<div class="text-muted small">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.noProductAttributeDefined"])) + '</div>'
                     : productAttributes.map(function (attribute) {
                         var label = escapeHtml(attribute.name || '') + ' (' + escapeHtml(attribute.dataType || '') + ')' + (attribute.isRequired ? ' *' : '');
                         var inputHtml = '';
@@ -1641,25 +1655,25 @@
                         var dataType = ((attribute.dataType || '') + '').trim().toLowerCase();
 
                         if (options.length > 0) {
-                            inputHtml = '<select class="form-control js-search-select js-auto-product-value" data-option-input="true" name="AutoProductOption_' + escapeHtml(attribute.attributeId || '') + '" data-placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.selectOption"]) + '">'
-                                + '<option value="">' + @JsonSerializer.Serialize(UiText["catalog.products.selectValue"]) + '</option>'
+                            inputHtml = '<select class="form-control js-search-select js-auto-product-value" data-option-input="true" name="AutoProductOption_' + escapeHtml(attribute.attributeId || '') + '" data-placeholder="' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectOption"])) + '">'
+                                + '<option value="">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectValue"])) + '</option>'
                                 + options.map(function (option) {
                                     return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '">'
                                         + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
                                 }).join('')
                                 + '</select>';
                         } else if (dataType === 'number') {
-                            inputHtml = '<input type="number" step="any" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.numericValue"]) + '" />';
+                            inputHtml = '<input type="number" step="any" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.numericValue"])) + '" />';
                         } else if (dataType === 'date') {
                             inputHtml = '<input type="date" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" />';
                         } else if (dataType === 'boolean') {
                             inputHtml = '<select class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '">'
-                                + '<option value="">' + @JsonSerializer.Serialize(UiText["catalog.products.selectAttribute"]) + '</option>'
-                                + '<option value="true">' + @JsonSerializer.Serialize(UiText["common.yes"]) + '</option>'
-                                + '<option value="false">' + @JsonSerializer.Serialize(UiText["common.no"]) + '</option>'
+                                + '<option value="">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectAttribute"])) + '</option>'
+                                + '<option value="true">' + @Html.Raw(JsonSerializer.Serialize(UiText["common.yes"])) + '</option>'
+                                + '<option value="false">' + @Html.Raw(JsonSerializer.Serialize(UiText["common.no"])) + '</option>'
                                 + '</select>';
                         } else {
-                            inputHtml = '<input type="text" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.attributeValuePlaceholder"]) + '" />';
+                            inputHtml = '<input type="text" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.attributeValuePlaceholder"])) + '" />';
                         }
 
                         return '<div class="form-group js-auto-product-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
@@ -1670,12 +1684,12 @@
                     }).join('');
 
                 var variantSection = variantAttributes.length === 0
-                    ? '<div class="text-muted small">' + @JsonSerializer.Serialize(UiText["catalog.products.noVariantBuilderAttributeDefined"]) + '</div>'
+                    ? '<div class="text-muted small">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.noVariantBuilderAttributeDefined"])) + '</div>'
                     : variantAttributes.map(function (attribute) {
                         var options = Array.isArray(attribute.options) ? attribute.options : [];
                         return '<div class="form-group js-auto-variant-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
                             + '<label>' + escapeHtml(attribute.name || '') + (attribute.isRequired ? ' *' : '') + '</label>'
-                            + '<select multiple class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="' + @JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"]) + '">'
+                            + '<select multiple class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"])) + '">'
                             + options.map(function (option) {
                                 return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '" data-option-display-order="' + escapeHtml(option.displayOrder || 0) + '">'
                                     + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
@@ -1691,14 +1705,14 @@
                     + productSection
                     + '</div></div>'
                     + '<div class="card mb-3"><div class="card-body">'
-                    + '<h6 class="card-title mb-3>' + @JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributes"]) + '</h6>'
+                    + '<h6 class="card-title mb-3">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributes"])) + '</h6>'
                     + variantSection
                     + '</div></div>'
                     + '<div class="card mb-3"><div class="card-body">'
-                    + '<h6 class="card-title mb-2>' + @JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreview"]) + '</h6>'
-                    + '<div id="auto-variant-preview-empty" class="text-muted small">' + @JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreviewHelp"]) + '</div>'
+                    + '<h6 class="card-title mb-2">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreview"])) + '</h6>'
+                    + '<div id="auto-variant-preview-empty" class="text-muted small">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreviewHelp"])) + '</div>'
                     + '<div id="auto-variant-preview-container" class="table-responsive d-none">'
-                    + '<table class="table table-sm table-striped mb-0"><thead><tr><th>#</th><th>' + @JsonSerializer.Serialize(UiText["catalog.products.variantName"]) + '</th><th>SKU</th></tr></thead><tbody id="auto-variant-preview-body"></tbody></table>'
+                    + '<table class="table table-sm table-striped mb-0"><thead><tr><th>#</th><th>' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.variantName"])) + '</th><th>SKU</th></tr></thead><tbody id="auto-variant-preview-body"></tbody></table>'
                     + '</div></div></div>';
 
                 autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
@@ -1731,7 +1745,7 @@
                     return;
                 }
 
-                if (!categoryId) {
+                if (!normalizedCategoryId) {
                     if (pageElement) {
                         pageElement.setAttribute('data-selected-category-id', '');
                     }
@@ -1767,10 +1781,10 @@
 
                 setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.sendingRequest"])), 'warning');
                 setCreateAttributeFeedback('', 'warning');
-                createDynamicSections.innerHTML = '<div class="alert alert-light border>' + @JsonSerializer.Serialize(UiText["catalog.products.loadingCategoryAttributes"]) + '</div>';
+                createDynamicSections.innerHTML = '<div class="alert alert-light border">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loadingCategoryAttributes"])) + '</div>';
 
                 var url = new URL(createAttributesUrl || window.location.href, window.location.origin);
-                url.searchParams.set('categoryId', categoryId);
+                url.searchParams.set('categoryId', normalizedCategoryId);
 
                 fetch(url.toString(), {
                     method: 'GET',
@@ -1905,7 +1919,7 @@
                     }
 
                     if (isRequired && !optionId && !value) {
-                        validationErrors.push(@JsonSerializer.Serialize(UiText["catalog.products.required"]) + " " + attributeName + " " + @JsonSerializer.Serialize(UiText["catalog.products.requiredAttributeShouldHaveValue"]));
+                        validationErrors.push(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.required"])) + " " + attributeName + " " + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.requiredAttributeShouldHaveValue"])));
                         return;
                     }
 
@@ -1933,14 +1947,14 @@
 
                     if (dataType !== 'option' && dataType !== 'enum' && dataType !== 'select') {
                         if (isRequired) {
-                            validationErrors.push(@JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributeShouldBeOptionPrefix"]) + attributeName + @JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributeShouldBeOptionSuffix"]));
+                            validationErrors.push(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributeShouldBeOptionPrefix"])) + attributeName + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.variantBuilderAttributeShouldBeOptionSuffix"])));
                         }
                         return;
                     }
 
                     var selectedOptions = Array.from(select.selectedOptions || []);
                     if (isRequired && selectedOptions.length === 0) {
-                        validationErrors.push(@JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionPrefix"]) + attributeName + @JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionSuffix"]));
+                        validationErrors.push(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionPrefix"])) + attributeName + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionSuffix"])));
                         return;
                     }
 
@@ -2111,17 +2125,16 @@
             showTabByHref(initialTab);
 
             if (productCategoryField && productUpsertForm) {
-                var handleCategoryChange = function () {
+                var handleCategoryChange = function (event) {
                     var selectedCategoryId = (productCategoryField.value || '').trim();
+                    if (event && event.params && event.params.data && event.params.data.id) {
+                        selectedCategoryId = (event.params.data.id || '').trim();
+                    }
+
                     selectProductCategory(selectedCategoryId, { force: true });
                 };
 
                 productCategoryField.addEventListener('change', handleCategoryChange);
-                if (window.jQuery) {
-                    window.jQuery(productCategoryField)
-                        .on('select2:select', handleCategoryChange)
-                        .on('select2:clear', handleCategoryChange);
-                }
             }
 
             if (productUpsertForm) {
@@ -2225,7 +2238,7 @@
                     var options = parseOptions(selectedOption);
                     if (options.length > 0) {
                         optionGroup.classList.remove('d-none');
-                        optionSelect.innerHTML = '<option value="">' + @JsonSerializer.Serialize(UiText["catalog.products.selectOption"]) + '</option>';
+                        optionSelect.innerHTML = '<option value="">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectOption"])) + '</option>';
                         options.forEach(function (item) {
                             var optionElement = document.createElement('option');
                             optionElement.value = item.value;

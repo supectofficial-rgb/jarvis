@@ -1325,7 +1325,12 @@ public abstract partial class CatalogManagementController
 
     private static string NormalizeFormulaSeparator(string? separator)
     {
-        return string.IsNullOrWhiteSpace(separator) ? " " : separator.Trim();
+        if (string.Equals(separator, "__none", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        return string.IsNullOrEmpty(separator) ? " " : separator;
     }
 
     private static IReadOnlyList<string> ParseSelectedIds(string? selectedIds)

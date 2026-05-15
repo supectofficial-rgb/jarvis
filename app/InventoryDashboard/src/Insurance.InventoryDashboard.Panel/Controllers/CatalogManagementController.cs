@@ -80,17 +80,22 @@ public abstract partial class CatalogManagementController : Controller
         var filteredFlatCategories = ApplyCategoryFilters(flatCategories, searchTerm, statusFilter, sort);
         var pagedCategories = Paginate(filteredFlatCategories, page, pageSize, out var normalizedPage, out var normalizedPageSize, out var totalCount, out var totalPages);
 
-        var selectedCategoryId = !string.IsNullOrWhiteSpace(categoryId) &&
-                                 flatCategories.Any(x => string.Equals(x.Id, categoryId, StringComparison.OrdinalIgnoreCase))
-            ? categoryId
-            : filteredFlatCategories.FirstOrDefault()?.Id ?? flatCategories.FirstOrDefault()?.Id;
-        var isCategoryCreateMode = createNew && string.Equals(activeItemId, "categories", StringComparison.OrdinalIgnoreCase);
-        var selectedCategory = flatCategories.FirstOrDefault(c =>
-            string.Equals(c.Id, selectedCategoryId, StringComparison.OrdinalIgnoreCase));
-        var categoryFormSource = isCategoryCreateMode ? null : selectedCategory;
+        var isCategoriesPage = string.Equals(activeItemId, "categories", StringComparison.OrdinalIgnoreCase);
         var isAttributesPage = string.Equals(activeItemId, "attributes", StringComparison.OrdinalIgnoreCase);
         var isRulesPage = string.Equals(activeItemId, "category_attribute_rules", StringComparison.OrdinalIgnoreCase);
         var isFormulasPage = string.Equals(activeItemId, "variant_name_formulas", StringComparison.OrdinalIgnoreCase);
+        var hasExplicitCategorySelection = !string.IsNullOrWhiteSpace(categoryId) &&
+                                           flatCategories.Any(x => string.Equals(x.Id, categoryId, StringComparison.OrdinalIgnoreCase));
+        var fallbackCategoryId = (isRulesPage || isFormulasPage)
+            ? leafCategories.FirstOrDefault()?.Id ?? filteredFlatCategories.FirstOrDefault()?.Id ?? flatCategories.FirstOrDefault()?.Id
+            : filteredFlatCategories.FirstOrDefault()?.Id ?? flatCategories.FirstOrDefault()?.Id;
+        var selectedCategoryId = hasExplicitCategorySelection
+            ? categoryId
+            : (isCategoriesPage ? null : fallbackCategoryId);
+        var isCategoryCreateMode = isCategoriesPage && (createNew || !hasExplicitCategorySelection);
+        var selectedCategory = flatCategories.FirstOrDefault(c =>
+            string.Equals(c.Id, selectedCategoryId, StringComparison.OrdinalIgnoreCase));
+        var categoryFormSource = isCategoryCreateMode ? null : selectedCategory;
         var shouldLoadCategoryAttributes = (isAttributesPage || isRulesPage || isFormulasPage) && !string.IsNullOrWhiteSpace(selectedCategoryId);
         var shouldLoadAllAttributes = isAttributesPage || isRulesPage;
 
@@ -475,12 +480,6 @@ public abstract partial class CatalogManagementController : Controller
         if (!form.IsVariant && string.Equals(normalizedScope, "Variant", StringComparison.OrdinalIgnoreCase))
         {
             TempData["CatalogError"] = "اتریبیوت سطح واریانت را نمی‌توان به‌صورت rule محصول ثبت کرد.";
-            return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
-        }
-
-        if (form.IsVariantCodeCovered && !form.IsVariant)
-        {
-            TempData["CatalogError"] = "پوشش کد واریانت فقط برای rule واریانت قابل استفاده است.";
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
@@ -931,17 +930,23 @@ public abstract partial class CatalogManagementController : Controller
             }
 
             shouldReconcileVariants = string.IsNullOrWhiteSpace(form.ProductId) || effectiveVariantAttributes.Count > 0;
+            var productCodeSegments = BuildProductCodeSegments(productCreateAttributes, effectiveProductAttributes);
             generatedVariantPlans = BuildGeneratedVariantPlans(
                 form.Name.Trim(),
                 form.BaseSku.Trim(),
-                variantDimensions);
+                variantDimensions,
+                productCodeSegments);
 
             if (generatedVariantPlans.Count == 0)
             {
+                var baseSkuSegments = new[] { NormalizeSkuSegment(form.BaseSku.Trim()) }
+                    .Concat(productCodeSegments.Select(NormalizeSkuSegment))
+                    .Where(x => !string.IsNullOrWhiteSpace(x));
+
                 generatedVariantPlans.Add(new GeneratedVariantPlan
                 {
                     GeneratedName = form.Name.Trim(),
-                    GeneratedSku = NormalizeSkuSegment(form.BaseSku.Trim()),
+                    GeneratedSku = string.Join("-", baseSkuSegments),
                     AttributeValues = new List<CatalogAttributeValueInputModel>()
                 });
             }
@@ -2106,6 +2111,7 @@ public abstract partial class CatalogManagementController : Controller
                 AttributeId = attribute.AttributeId,
                 AttributeName = attribute.Name,
                 AttributeDisplayOrder = attribute.DisplayOrder,
+                IsVariantCodeCovered = attribute.IsVariantCodeCovered,
                 Options = selectedOptions
                     .OrderBy(x => x.OptionDisplayOrder)
                     .ThenBy(x => x.OptionName)
@@ -2116,10 +2122,40 @@ public abstract partial class CatalogManagementController : Controller
         return null;
     }
 
+    private static List<string> BuildProductCodeSegments(
+        IReadOnlyList<CatalogAttributeValueInputModel> productValues,
+        IReadOnlyList<EffectiveAttributeViewModel> effectiveProductAttributes)
+    {
+        var valuesByAttributeId = productValues
+            .Where(x => !string.IsNullOrWhiteSpace(x.AttributeId))
+            .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.Last(), StringComparer.OrdinalIgnoreCase);
+
+        return effectiveProductAttributes
+            .Where(x => x.IsVariantCodeCovered)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name)
+            .Select(attribute =>
+            {
+                if (!valuesByAttributeId.TryGetValue(attribute.AttributeId, out var value))
+                {
+                    return null;
+                }
+
+                return !string.IsNullOrWhiteSpace(value.Value)
+                    ? value.Value
+                    : attribute.Options.FirstOrDefault(o => string.Equals(o.Id, value.OptionId, StringComparison.OrdinalIgnoreCase))?.OptionValue;
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .ToList();
+    }
+
     private static List<GeneratedVariantPlan> BuildGeneratedVariantPlans(
         string productName,
         string baseSku,
-        IReadOnlyList<VariantDimensionSelection> dimensions)
+        IReadOnlyList<VariantDimensionSelection> dimensions,
+        IReadOnlyList<string> productCodeSegments)
     {
         var plans = new List<GeneratedVariantPlan>();
         if (dimensions.Count == 0)
@@ -2139,10 +2175,15 @@ public abstract partial class CatalogManagementController : Controller
                 .ThenBy(x => x.OptionName)
                 .ToList();
 
-            var skuSuffix = string.Join("-", orderedSelection
+            var skuSegments = productCodeSegments
+                .Concat(orderedSelection
                 .Where(x => x.IsVariantCodeCovered)
                 .Select(x => NormalizeSkuSegment(x.OptionValue))
-                .Where(x => !string.IsNullOrWhiteSpace(x)));
+                .Where(x => !string.IsNullOrWhiteSpace(x)))
+                .Select(NormalizeSkuSegment)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+            var skuSuffix = string.Join("-", skuSegments);
 
             var generatedSku = string.IsNullOrWhiteSpace(skuSuffix)
                 ? NormalizeSkuSegment(baseSku)

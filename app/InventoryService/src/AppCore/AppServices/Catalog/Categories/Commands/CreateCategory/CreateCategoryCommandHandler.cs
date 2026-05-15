@@ -136,8 +136,6 @@ public class CreateCategoryCommandHandler
             if (!rule.IsVariant && scope == AttributeScope.Variant)
                 return $"Attribute '{definition.Code}' cannot be used as product rule because its scope is Variant.";
 
-            if (rule.IsVariantCodeCovered && !rule.IsVariant)
-                return $"Attribute '{definition.Code}' must be a variant rule to participate in variant code generation.";
         }
 
         return null;

@@ -88,7 +88,20 @@
             return trimmed;
         }
 
-        var baseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        var configuredBaseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        var requestHost = Context?.Request?.Host.Host;
+        var requestScheme = Context?.Request?.Scheme ?? "http";
+        var configuredBaseIsLocalOnly =
+            Uri.TryCreate(configuredBaseUrl, UriKind.Absolute, out var configuredUri) &&
+            (string.Equals(configuredUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(configuredUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrWhiteSpace(requestHost) &&
+            !string.Equals(requestHost, "localhost", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(requestHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
+        var baseUrl = !string.IsNullOrWhiteSpace(configuredBaseUrl) && !configuredBaseIsLocalOnly
+            ? configuredBaseUrl
+            : (!string.IsNullOrWhiteSpace(requestHost) ? $"{requestScheme}://{requestHost}:8080" : null);
+
         return string.IsNullOrWhiteSpace(baseUrl)
             ? trimmed
             : $"{baseUrl}/{trimmed.TrimStart('/')}";
@@ -854,7 +867,11 @@
                                                     <div class="form-row">
                                                         <div class="form-group col-md-6">
                                                             <label>@UiText["catalog.categories.formulas.separator"]</label>
-                                                            <input asp-for="VariantNameFormulaForm.Separator" class="form-control" id="VariantNameFormulaForm_Separator" maxlength="32" />
+                                                            <select asp-for="VariantNameFormulaForm.Separator" class="form-control" id="VariantNameFormulaForm_Separator">
+                                                                <option value="-">@UiText["catalog.categories.formulas.separator.dash"]</option>
+                                                                <option value=" ">@UiText["catalog.categories.formulas.separator.space"]</option>
+                                                                <option value="__none">@UiText["catalog.categories.formulas.separator.none"]</option>
+                                                            </select>
                                                         </div>
                                                         <div class="form-group col-md-3">
                                                             <label>@UiText["catalog.categories.displayOrder"]</label>
@@ -912,7 +929,7 @@
                                                         <label class="text-muted small">@UiText["catalog.categories.rules.category"]</label>
                                                         <select name="categoryId" class="form-control" required>
                                                             <option value="">@UiText["catalog.categories.formulas.selectCategory"]</option>
-                                                            @foreach (var category in Model.FlatCategories)
+                                                            @foreach (var category in Model.LeafCategories)
                                                             {
                                                                 <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
                                                             }
@@ -1289,6 +1306,110 @@
 </main>
 
 @section Scripts {
+    <script>
+        (function () {
+            function refreshScopedList(form, scopeId) {
+                var scope = document.getElementById(scopeId);
+                if (!scope || !(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                var method = (form.getAttribute('method') || 'GET').toUpperCase();
+                var requestUrl = new URL(form.getAttribute('action') || window.location.pathname, window.location.origin);
+                var formData = new FormData(form);
+                var requestInit = {
+                    method: method,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                };
+
+                if (method === 'GET') {
+                    var params = new URLSearchParams(formData);
+                    params.forEach(function (value, key) {
+                        requestUrl.searchParams.set(key, value);
+                    });
+                } else {
+                    requestInit.body = formData;
+                }
+
+                scope.classList.add('opacity-50');
+                scope.style.pointerEvents = 'none';
+
+                fetch(requestUrl.toString(), requestInit)
+                    .then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Request failed with status ' + response.status);
+                        }
+
+                        return response.text().then(function (html) {
+                            return { html: html, url: response.url || requestUrl.toString() };
+                        });
+                    })
+                    .then(function (result) {
+                        var parser = new DOMParser();
+                        var nextDocument = parser.parseFromString(result.html, 'text/html');
+                        var nextScope = nextDocument.getElementById(scopeId);
+                        var currentScope = document.getElementById(scopeId);
+
+                        if (!nextScope || !currentScope) {
+                            throw new Error('Scoped list was not found in response.');
+                        }
+
+                        currentScope.innerHTML = nextScope.innerHTML;
+
+                        if (window.history && window.history.replaceState) {
+                            window.history.replaceState({}, '', result.url);
+                        }
+                    })
+                    .catch(function () {
+                        var currentScope = document.getElementById(scopeId);
+                        if (!currentScope) {
+                            return;
+                        }
+
+                        var error = document.createElement('div');
+                        error.className = 'alert alert-danger mb-3';
+                        error.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverUnavailable"]));
+                        currentScope.prepend(error);
+                    })
+                    .finally(function () {
+                        var currentScope = document.getElementById(scopeId);
+                        if (!currentScope) {
+                            return;
+                        }
+
+                        currentScope.classList.remove('opacity-50');
+                        currentScope.style.pointerEvents = '';
+                    });
+            }
+
+            document.addEventListener('submit', function (event) {
+                var form = event.target instanceof HTMLFormElement
+                    ? event.target
+                    : event.target.closest && event.target.closest('form');
+
+                if (!form) {
+                    return;
+                }
+
+                if (form.id === 'rule-category-list-form' || form.closest('#rule-list-scope')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    localStorage.setItem('catalog-categories-rule-section-tab', '#rule-section-list');
+                    refreshScopedList(form, 'rule-list-scope');
+                    return;
+                }
+
+                if (form.id === 'formula-category-list-form' || form.closest('#formula-list-scope')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    localStorage.setItem('catalog-categories-formula-section-tab', '#formula-section-list');
+                    refreshScopedList(form, 'formula-list-scope');
+                }
+            }, true);
+        })();
+    </script>
     <script>
         (function () {
             var tabKey = 'catalog-categories-active-tab';
@@ -2483,6 +2604,10 @@
                 }
             }
 
+            function toFormulaSeparatorSelectValue(separator) {
+                return separator === '' ? '__none' : (separator || ' ');
+            }
+
             function renderFormulaParts() {
                 if (!formulaPartsList || !formulaPartsEmpty) {
                     return;
@@ -2545,7 +2670,7 @@
 
                 if (formulaIdField) formulaIdField.value = formula.formulaId || '';
                 if (formulaNameField) formulaNameField.value = formula.name || '';
-                if (formulaSeparatorField) formulaSeparatorField.value = formula.separator || ' ';
+                if (formulaSeparatorField) formulaSeparatorField.value = toFormulaSeparatorSelectValue(formula.separator);
                 if (formulaDisplayOrderField) formulaDisplayOrderField.value = formula.displayOrder != null ? formula.displayOrder : '0';
                 if (formulaIsActiveField) formulaIsActiveField.checked = !!formula.isActive;
                 formulaState.parts = (formula.parts || []).map(function (part) { return part.attributeId; }).filter(function (partId) { return !!partId; });
