@@ -1,31 +1,6 @@
 name: Build & Export Docker Images for Offline Deployment
 
 on:
-  workflow_dispatch:
-    inputs:
-      push_to_ghcr:
-        description: push built application images to GHCR
-        required: true
-        default: true
-        type: boolean
-      upload_image_artifacts:
-        description: upload built docker images as downloadable artifacts
-        required: true
-        default: true
-        type: boolean
-      build_scope:
-        description: changed or all buildable microservices
-        required: true
-        default: changed
-        type: choice
-        options:
-          - changed
-          - all
-      include_infra:
-        description: also export infrastructure images
-        required: true
-        default: false
-        type: boolean
   push:
     branches:
       - main
@@ -35,7 +10,7 @@ permissions:
   packages: write
 
 env:
-  UPLOAD_IMAGE_ARTIFACTS_ON_PUSH: 'false'
+  UPLOAD_IMAGE_ARTIFACTS_ON_PUSH: 'true'
 
 concurrency:
   group: docker-build-deploy-${{ github.ref }}
@@ -48,8 +23,6 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       has_images: ${{ steps.set-matrix.outputs.has_images }}
-      deploy_services_csv: ${{ steps.set-matrix.outputs.deploy_services_csv }}
-      has_deploy_services: ${{ steps.set-matrix.outputs.has_deploy_services }}
 
     steps:
       - name: Checkout code
@@ -64,10 +37,8 @@ jobs:
           echo "event_name=${{ github.event_name }}"
           echo "ref=${{ github.ref }}"
           echo "sha=${{ github.sha }}"
-          echo "build_scope=${{ inputs.build_scope || 'changed' }}"
-          echo "push_to_ghcr=${{ inputs.push_to_ghcr || 'false' }}"
-          echo "upload_image_artifacts=${{ github.event_name == 'workflow_dispatch' && inputs.upload_image_artifacts || env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH }}"
-          echo "include_infra=${{ inputs.include_infra || 'false' }}"
+          echo "build_scope=changed"
+          echo "upload_image_artifacts=${{ env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH }}"
 
       - name: Resolve changed files
         id: changed-files
@@ -79,13 +50,7 @@ jobs:
         id: set-matrix
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          BUILD_SCOPE: ${{ inputs.build_scope || 'changed' }}
-          INCLUDE_INFRA: ${{ inputs.include_infra || 'false' }}
-          PUSH_TO_GHCR: ${{ inputs.push_to_ghcr || 'false' }}
-          EXPORT_IMAGE_ARCHIVES: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_image_artifacts || env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH }}
           CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
           GIT_SHA: ${{ github.sha }}
           GIT_REF_NAME: ${{ github.ref_name }}
         run: |
@@ -98,8 +63,7 @@ jobs:
             local artifact="$1"
             local image="$2"
             local service="$3"
-            local mode="$4"
-            matrix_items+=("{\"artifact\":\"${artifact}\",\"image\":\"${image}\",\"service\":\"${service}\",\"mode\":\"${mode}\"}")
+            matrix_items+=("{\"artifact\":\"${artifact}\",\"image\":\"${image}\",\"service\":\"${service}\",\"mode\":\"build\"}")
           }
 
           has_match() {
@@ -116,157 +80,99 @@ jobs:
           matrix_items=()
           shared_docker_changed=false
 
-          if has_match "docker-compose.yml" || has_match ".dockerignore" || has_match ".github/workflows/build-offline-docker-images.yml" || has_match ".github/workflows/new.yml" || has_match ".github/workflows/*docker*.yml"; then
+          if has_match "docker-compose.yml" || has_match ".dockerignore"; then
             shared_docker_changed=true
           fi
 
-          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$BUILD_SCOPE" == "all" ]]; then
-            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
-            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
-            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
-            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
-            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
-            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
-            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
-          elif [[ "$shared_docker_changed" == "true" ]]; then
-            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
-            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
-            add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
-            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
-            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
-            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
-            add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+          if [[ "$shared_docker_changed" == "true" ]]; then
+            add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway"
+            add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api"
+            add_item "insurance-file-service" "insurance/file-service:latest" "file-service"
+            add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service"
+            add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api"
+            add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard"
+            add_item "insurance-user-api" "insurance/user-api:latest" "user-api"
           else
             if has_match "agw/*" || has_match "docker/api-gateway.Dockerfile" || has_match "docker/consul/*"; then
-              add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway" "build"
+              add_item "insurance-api-gateway" "insurance/api-gateway:latest" "api-gateway"
             fi
 
             if has_match "app/CacheService/*" || has_match "docker/cache-api.Dockerfile" || has_match "fx/*"; then
-              add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api" "build"
+              add_item "insurance-cache-api" "insurance/cache-api:latest" "cache-api"
             fi
 
             if has_match "app/FileService/*" || has_match "docker/file-service.Dockerfile"; then
-              add_item "insurance-file-service" "insurance/file-service:latest" "file-service" "build"
+              add_item "insurance-file-service" "insurance/file-service:latest" "file-service"
             fi
 
             if has_match "app/GraphService/*" || has_match "docker/graph-service.Dockerfile" || has_match "fx/*"; then
-              add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service" "build"
+              add_item "insurance-graph-service" "insurance/graph-service:latest" "graph-service"
             fi
 
             if has_match "app/InventoryService/*" || has_match "docker/inventory-api.Dockerfile" || has_match "fx/*"; then
-              add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api" "build"
+              add_item "insurance-inventory-api" "insurance/inventory-api:latest" "inventory-api"
             fi
 
             if has_match "app/InventoryDashboard/*" || has_match "docker/inventory-dashboard.Dockerfile"; then
-              add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard" "build"
+              add_item "insurance-inventory-dashboard" "insurance/inventory-dashboard:latest" "inventory-dashboard"
             fi
 
             if has_match "app/UserService/*" || has_match "docker/user-api.Dockerfile" || has_match "fx/*" || has_match "app/PanelPayamakService/*"; then
-              add_item "insurance-user-api" "insurance/user-api:latest" "user-api" "build"
+              add_item "insurance-user-api" "insurance/user-api:latest" "user-api"
             fi
-          fi
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$INCLUDE_INFRA" == "true" ]]; then
-            add_item "postgres" "postgres:16" "" "pull"
-            add_item "pgadmin" "dpage/pgadmin4:latest" "" "pull"
-            add_item "redis-stack" "redis/redis-stack:latest" "" "pull"
-            add_item "rabbitmq" "rabbitmq:3-management" "" "pull"
-            add_item "consul" "hashicorp/consul:1.19" "" "pull"
-            add_item "elasticsearch" "docker.elastic.co/elasticsearch/elasticsearch:8.13.4" "" "pull"
-            add_item "kibana" "docker.elastic.co/kibana/kibana:8.13.4" "" "pull"
-            add_item "apm-server" "docker.elastic.co/apm/apm-server:8.13.4" "" "pull"
-            add_item "neo4j" "neo4j:5" "" "pull"
           fi
 
           if [[ ${#matrix_items[@]} -eq 0 ]]; then
             jq -n \
               --arg generatedAt "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-              --arg eventName "$EVENT_NAME" \
-              --arg buildScope "$BUILD_SCOPE" \
-              --arg includeInfra "$INCLUDE_INFRA" \
-              --arg pushToGhcr "$PUSH_TO_GHCR" \
-              --arg exportImageArchives "$EXPORT_IMAGE_ARCHIVES" \
               --arg gitSha "$GIT_SHA" \
               --arg gitRef "$GIT_REF_NAME" \
               '{
-              generatedAt: $generatedAt,
-              eventName: $eventName,
-              buildScope: $buildScope,
-              includeInfra: ($includeInfra == "true"),
-              pushToGhcr: ($pushToGhcr == "true"),
-              exportImageArchives: ($exportImageArchives == "true"),
-              gitSha: $gitSha,
-              gitRef: $gitRef,
-              items: []
+                generatedAt: $generatedAt,
+                eventName: "push",
+                buildScope: "changed",
+                exportImageArchives: true,
+                gitSha: $gitSha,
+                gitRef: $gitRef,
+                items: []
               }' > workflow-metadata/changed-images.json
 
             echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
             echo 'has_images=false' >> "$GITHUB_OUTPUT"
-            echo 'deploy_services_csv=' >> "$GITHUB_OUTPUT"
-            echo 'has_deploy_services=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          owner="$(echo "${REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           include_json=$(printf '%s\n' "${matrix_items[@]}" | jq -cs '.')
-          deploy_services_csv="$(jq -r 'map(select(.mode == "build" and (.service | length) > 0) | .service) | unique | join(",")' <<< "$include_json")"
           jq -n \
             --arg generatedAt "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-            --arg eventName "$EVENT_NAME" \
-            --arg buildScope "$BUILD_SCOPE" \
-            --arg includeInfra "$INCLUDE_INFRA" \
-            --arg pushToGhcr "$PUSH_TO_GHCR" \
-            --arg exportImageArchives "$EXPORT_IMAGE_ARCHIVES" \
             --arg gitSha "$GIT_SHA" \
             --arg gitRef "$GIT_REF_NAME" \
-            --arg owner "$owner" \
             --argjson items "$include_json" \
             '{
               generatedAt: $generatedAt,
-              eventName: $eventName,
-              buildScope: $buildScope,
-              includeInfra: ($includeInfra == "true"),
-              pushToGhcr: ($pushToGhcr == "true"),
-              exportImageArchives: ($exportImageArchives == "true"),
+              eventName: "push",
+              buildScope: "changed",
+              exportImageArchives: true,
               gitSha: $gitSha,
               gitRef: $gitRef,
-              items: ($items | map(
-                . + {
-                  ghcrImage: (
-                    if .mode == "build" and (.service | length) > 0
-                    then ("ghcr.io/" + $owner + "/" + .service + ":latest")
-                    else .image
-                    end
-                  )
-                }
-              ))
+              items: $items
             }' > workflow-metadata/changed-images.json
 
           matrix_json=$(printf '%s\n' "${matrix_items[@]}" | jq -cs '{include: .}')
           echo "matrix=${matrix_json}" >> "$GITHUB_OUTPUT"
           echo 'has_images=true' >> "$GITHUB_OUTPUT"
-          echo "deploy_services_csv=${deploy_services_csv}" >> "$GITHUB_OUTPUT"
-          if [[ -n "${deploy_services_csv}" ]]; then
-            echo 'has_deploy_services=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'has_deploy_services=false' >> "$GITHUB_OUTPUT"
-          fi
           {
             echo "## Changed Image Detection"
             echo
-            echo "- Event: ${EVENT_NAME}"
-            echo "- Build scope: ${BUILD_SCOPE}"
-            echo "- Push to GHCR: ${PUSH_TO_GHCR}"
-            echo "- Export image archives: ${EXPORT_IMAGE_ARCHIVES}"
-            echo "- Include infra: ${INCLUDE_INFRA}"
-            echo "- Deploy services CSV: ${deploy_services_csv:-<none>}"
+            echo "- Event: push"
+            echo "- Build scope: changed"
+            echo "- Export image archives: true"
             echo
             echo "### Matrix"
             echo '```json'
             echo "${matrix_json}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "$matrix_json"
 
       - name: Upload changed images manifest
         if: always()
@@ -294,14 +200,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        if: github.event_name == 'workflow_dispatch' && inputs.push_to_ghcr && matrix.mode == 'build'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Show disk space
         run: df -h
 
@@ -312,31 +210,12 @@ jobs:
           echo "artifact=${{ matrix.artifact }}"
           echo "image=${{ matrix.image }}"
           echo "service=${{ matrix.service }}"
-          echo "mode=${{ matrix.mode }}"
 
       - name: Validate docker compose
-        if: matrix.mode == 'build'
         run: docker compose config
 
       - name: Build application image
-        if: matrix.mode == 'build'
         run: docker compose build ${{ matrix.service }}
-
-      - name: Pull infrastructure image
-        if: matrix.mode == 'pull'
-        run: docker pull ${{ matrix.image }}
-
-      - name: Push application image to GHCR
-        if: github.event_name == 'workflow_dispatch' && inputs.push_to_ghcr && matrix.mode == 'build'
-        shell: bash
-        run: |
-          set -euo pipefail
-          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          ghcr_image="ghcr.io/${owner}/${{ matrix.service }}:latest"
-          echo "Tagging ${{ matrix.image }} as ${ghcr_image}"
-          docker tag "${{ matrix.image }}" "${ghcr_image}"
-          echo "Pushing ${ghcr_image}"
-          docker push "${ghcr_image}"
 
       - name: Write matrix step summary
         if: always()
@@ -347,14 +226,12 @@ jobs:
             echo
             echo "- Artifact: ${{ matrix.artifact }}"
             echo "- Image: ${{ matrix.image }}"
-            echo "- Service: ${{ matrix.service || 'n/a' }}"
-            echo "- Mode: ${{ matrix.mode }}"
-            echo "- GHCR push enabled: ${{ inputs.push_to_ghcr }}"
-            echo "- Archive export enabled: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_image_artifacts || env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH }}"
+            echo "- Service: ${{ matrix.service }}"
+            echo "- Archive export enabled: ${{ env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save image as tar.gz
-        if: (github.event_name == 'workflow_dispatch' && inputs.upload_image_artifacts) || (github.event_name == 'push' && env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true')
+        if: env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -366,7 +243,7 @@ jobs:
           ls -lh docker-image
 
       - name: Upload image artifact
-        if: (github.event_name == 'workflow_dispatch' && inputs.upload_image_artifacts) || (github.event_name == 'push' && env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true')
+        if: env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-${{ matrix.artifact }}
@@ -382,107 +259,3 @@ jobs:
     steps:
       - name: No changed microservice images
         run: echo "No changed microservice image detected for this run."
-
-  deploy-main-server:
-    name: Deploy changed services to main server
-    needs:
-      - detect-images
-      - export-image
-    if: github.event_name == 'workflow_dispatch' && inputs.push_to_ghcr && needs.detect-images.outputs.has_deploy_services == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validate deploy settings
-        shell: bash
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
-        run: |
-          set -euo pipefail
-          [[ -n "${DEPLOY_HOST}" ]] || { echo "Missing repo variable DEPLOY_HOST" >&2; exit 1; }
-          [[ -n "${DEPLOY_USER}" ]] || { echo "Missing repo variable DEPLOY_USER" >&2; exit 1; }
-          [[ -n "${DEPLOY_SSH_KEY}" ]] || { echo "Missing secret DEPLOY_SSH_KEY" >&2; exit 1; }
-          if [[ -z "${GHCR_PULL_USERNAME}" || -z "${GHCR_PAT}" ]]; then
-            echo "Missing GHCR_PULL_USERNAME or GHCR_PAT secret. Remote docker login would be unreliable with runner token." >&2
-            exit 1
-          fi
-          echo "Deploy host: ${DEPLOY_HOST}"
-          echo "Deploy user: ${DEPLOY_USER}"
-          echo "Deploy port: ${DEPLOY_PORT:-22}"
-          echo "Deploy services: ${{ needs.detect-images.outputs.deploy_services_csv }}"
-
-      - name: Write deploy summary
-        shell: bash
-        run: |
-          {
-            echo "## Deploy Plan"
-            echo
-            echo "- Host: [redacted]"
-            echo "- User: [redacted]"
-            echo "- Port: ${{ secrets.DEPLOY_PORT || '22' }}"
-            echo "- Project path: C:\\inetpub\\nivad"
-            echo "- Services: ${{ needs.detect-images.outputs.deploy_services_csv }}"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || '22' }}
-          script_stop: true
-          timeout: 30m
-          command_timeout: 30m
-          envs: GHCR_PULL_USERNAME,GHCR_PAT
-          script: |
-            $ErrorActionPreference = 'Stop'
-            $projectDir = 'C:\inetpub\nivad'
-            $services = '${{ needs.detect-images.outputs.deploy_services_csv }}'.Split(',', [System.StringSplitOptions]::RemoveEmptyEntries)
-            if ($services.Count -eq 0) {
-              Write-Host 'No build services were detected for deployment.'
-              exit 0
-            }
-
-            if (-not (Test-Path $projectDir)) {
-              throw "Deploy path not found: $projectDir"
-            }
-
-            Set-Location $projectDir
-            Write-Host ("Working directory: " + (Get-Location).Path)
-            & docker compose config --services
-            & docker version
-            & docker compose version
-
-            if ([string]::IsNullOrWhiteSpace($env:GHCR_PULL_USERNAME) -or [string]::IsNullOrWhiteSpace($env:GHCR_PAT)) {
-              throw 'GHCR pull credentials were not provided to the deploy step.'
-            }
-
-            $env:GHCR_PAT | docker login ghcr.io --username $env:GHCR_PULL_USERNAME --password-stdin
-            if ($LASTEXITCODE -ne 0) {
-              throw 'docker login to ghcr.io failed.'
-            }
-
-            Write-Host ('Pulling services: ' + ($services -join ', '))
-            & docker compose pull @services
-            if ($LASTEXITCODE -ne 0) {
-              throw 'docker compose pull failed.'
-            }
-
-            Write-Host ('Restarting services: ' + ($services -join ', '))
-            & docker compose up -d @services
-            if ($LASTEXITCODE -ne 0) {
-              throw 'docker compose up failed.'
-            }
-
-            Write-Host ('Current service status: ' + ($services -join ', '))
-            & docker compose ps @services
-            if ($LASTEXITCODE -ne 0) {
-              throw 'docker compose ps failed.'
-            }
