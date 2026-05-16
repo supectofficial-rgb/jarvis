@@ -1,0 +1,84 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.VariantManagementPageViewModel
+@{
+    var hasSelectedProduct = !string.IsNullOrWhiteSpace(Model.SelectedProductId);
+    var hasSelectedVariant = !string.IsNullOrWhiteSpace(Model.SelectedVariantId);
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+}
+<div class="tab-pane fade" id="variant-tab-conversions" role="tabpanel">
+    @if (hasSelectedProduct && hasSelectedVariant)
+    {
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">@UiText["catalog.variants.manageUnitConversions"]</h5>
+                <form asp-action="UpsertVariantUomConversion" method="post" id="variant-uom-conversion-form" data-loading-form data-dirty-watch>
+                    @Html.AntiForgeryToken()
+                    <input asp-for="VariantUomConversionForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                    <input asp-for="VariantUomConversionForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                    <div class="form-row">
+                        <div class="col-md-6 mb-2">
+                            <label>@UiText["catalog.variants.fromUnit"]</label>
+                            <select asp-for="VariantUomConversionForm.FromUomRef" class="form-control js-search-select" data-placeholder='@UiText["catalog.variants.selectSourceUnit"]'>
+                                @foreach (var uom in Model.UnitOfMeasures)
+                                {
+                                    <option value="@uom.Id">@uom.Code - @uom.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label>@UiText["catalog.variants.toUnit"]</label>
+                            <select asp-for="VariantUomConversionForm.ToUomRef" class="form-control js-search-select" data-placeholder='@UiText["catalog.variants.selectTargetUnit"]'>
+                                @foreach (var uom in Model.UnitOfMeasures)
+                                {
+                                    <option value="@uom.Id">@uom.Code - @uom.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="col-md-4 mb-2"><label>@UiText["catalog.variants.conversionFactor"]</label><input asp-for="VariantUomConversionForm.Factor" type="number" step="0.000001" class="form-control" /></div>
+                        <div class="col-md-4 mb-2">
+                            <label>@UiText["catalog.variants.roundingMode"]</label>
+                            <select asp-for="VariantUomConversionForm.RoundingMode" class="form-control js-search-select" data-no-search="true">
+                                <option value="None">@UiText["catalog.variants.noRounding"]</option><option value="Up">@UiText["catalog.variants.roundUp"]</option><option value="Down">@UiText["catalog.variants.roundDown"]</option><option value="Nearest">@UiText["catalog.variants.nearest"]</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-2 d-flex align-items-center">
+                            <div class="custom-control custom-checkbox mt-3">
+                                <input asp-for="VariantUomConversionForm.IsBasePath" class="custom-control-input" />
+                                <label class="custom-control-label" asp-for="VariantUomConversionForm.IsBasePath">@UiText["catalog.variants.basePath"]</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm" type="submit" @(Can("Catalog.VariantUomConversion.Upsert", "ProductVariantUomConversion.Upsert") ? null : "disabled")>@UiText["catalog.variants.saveConversion"]</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="alert alert-light mb-0">
+                    <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
+                    <p class="mb-0 text-muted">@UiText["catalog.variants.noVariantSelectedConversionHelp"]</p>
+                </div>
+            </div>
+        </div>
+    }
+</div>

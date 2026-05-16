@@ -115,10 +115,8 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetCategoryVariantNameFormulasAsync(selectedCategoryId, token, includeInactive: true)
             : new ApiResponse<List<CategoryVariantNameFormulaModel>> { IsSuccess = true, Data = new List<CategoryVariantNameFormulaModel>() };
 
-        var selectedAttribute = (attributesResult.Data ?? new List<AttributeDefinitionModel>())
-            .FirstOrDefault();
-        var selectedRule = (rulesResult.Data ?? new List<CategoryAttributeRuleModel>())
-            .FirstOrDefault(x => !x.IsInherited) ?? rulesResult.Data?.FirstOrDefault();
+        AttributeDefinitionModel? selectedAttribute = null;
+        CategoryAttributeRuleModel? selectedRule = null;
 
         var model = new CategoryManagementPageViewModel
         {

@@ -1,0 +1,81 @@
+@using System
+@using System.Linq
+@using System.Text.Json
+@model Insurance.InventoryDashboard.Panel.Models.VariantManagementPageViewModel
+@{
+    var hasSelectedProduct = !string.IsNullOrWhiteSpace(Model.SelectedProductId);
+    var hasSelectedVariant = !string.IsNullOrWhiteSpace(Model.SelectedVariantId);
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+}
+<div class="tab-pane fade" id="variant-tab-attributes" role="tabpanel">
+    @if (hasSelectedProduct && hasSelectedVariant)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">@UiText["catalog.variants.setVariantAttribute"]</h5>
+                <form asp-action="SetVariantAttributeValue" method="post" id="variant-attribute-form" data-loading-form data-dirty-watch>
+                    @Html.AntiForgeryToken()
+                    <input asp-for="VariantAttributeForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                    <input asp-for="VariantAttributeForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                    <div class="form-group">
+                        <label>@UiText["catalog.variants.attribute"]</label>
+                        <select asp-for="VariantAttributeForm.AttributeId" class="form-control js-search-select" id="variant-attribute-select" data-placeholder='@UiText["catalog.variants.selectAttribute"]' required>
+                            <option value="">@UiText["catalog.variants.selectAttribute"]</option>
+                            @foreach (var attr in Model.EffectiveProductAttributes)
+                            {
+                                var optionsJson = JsonSerializer.Serialize(attr.Options.Select(o => new { name = o.OptionName, value = o.OptionValue }));
+                                <option value="@attr.AttributeId"
+                                        data-type="@attr.DataType"
+                                        data-required="@(attr.IsRequired ? "true" : "false")"
+                                        data-options='@optionsJson'>
+                                    @attr.Name (@attr.DataType / @attr.Scope)
+                                    @(attr.IsRequired ? $" - {UiText["catalog.variants.required"]}" : $" - {UiText["catalog.variants.optional"]}")
+                                    @(attr.IsInherited ? $" - {UiText["catalog.variants.inherited"]} {attr.SourceCategoryName}" : $" - {UiText["catalog.variants.direct"]}")
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group" id="variant-value-text-group"><label>@UiText["catalog.variants.value"]</label><input type="text" class="form-control" id="variant-value-text" /></div>
+                    <div class="form-group d-none" id="variant-value-number-group"><label>@UiText["catalog.variants.numericValue"]</label><input type="number" step="any" class="form-control" id="variant-value-number" /></div>
+                    <div class="form-group d-none" id="variant-value-date-group"><label>@UiText["catalog.variants.date"]</label><input type="date" class="form-control" id="variant-value-date" /></div>
+                    <div class="form-group d-none" id="variant-value-boolean-group">
+                        <label class="d-block">@UiText["catalog.variants.booleanValue"]</label>
+                        <div class="custom-control custom-switch mb-2">
+                            <input type="checkbox" class="custom-control-input" id="variant-value-boolean">
+                            <label class="custom-control-label" for="variant-value-boolean">@UiText["catalog.variants.booleanValueToggle"]</label>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-xs" id="variant-value-boolean-clear">@UiText["catalog.variants.clearValue"]</button>
+                    </div>
+                    <div class="form-group d-none" id="variant-value-option-group"><label>@UiText["catalog.variants.option"]</label><select class="form-control js-search-select" id="variant-value-option" data-no-search="true"></select></div>
+                    <input asp-for="VariantAttributeForm.Value" type="hidden" id="variant-value-hidden" />
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.VariantAttributeValue.Set", "VariantAttributeValue.Set") ? null : "disabled")>@UiText["catalog.variants.submitValue"]</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="alert alert-light mb-0">
+                    <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
+                    <p class="mb-0 text-muted">@UiText["catalog.variants.noVariantSelectedAttributeHelp"]</p>
+                </div>
+            </div>
+        </div>
+    }
+</div>

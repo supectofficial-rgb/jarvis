@@ -1,0 +1,205 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.ProductManagementPageViewModel
+@{
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+}
+<div class="col-12 mb-4" id="product-list-tab-panel">
+    <div class="card mb-4">
+        <div class="card-body" id="product-list-scope">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">@UiText["catalog.products.listTitle"]</h5>
+                <span class="text-muted small">@Model.ProductTotalCount @UiText["catalog.products.recordCountSuffix"]</span>
+            </div>
+            <form asp-action="ApplyProductBulkAction"
+                  method="post"
+                  class="form-inline mb-3"
+                  data-loading-form
+                  data-bulk-form
+                  data-bulk-scope="#product-list-scope">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="selectedIds" data-bulk-target />
+                <input type="hidden" name="bulkAction" data-bulk-action-input />
+                <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                <input type="hidden" name="searchTerm" value="@Model.ProductSearchTerm" />
+                <input type="hidden" name="categoryFilterId" value="@Model.ProductCategoryFilterId" />
+                <input type="hidden" name="statusFilter" value="@Model.ProductStatusFilter" />
+                <input type="hidden" name="sort" value="@Model.ProductSort" />
+                <input type="hidden" name="page" value="@Model.ProductPage" />
+                <input type="hidden" name="pageSize" value="@Model.ProductPageSize" />
+                <div class="small text-muted mr-2 mb-2">
+                    @UiText["catalog.products.selectedCount"] <span data-bulk-count>0</span>
+                </div>
+                <div class="btn-group btn-group-sm mb-2">
+                    <button type="submit"
+                            class="btn btn-outline-success btn-xs"
+                            data-bulk-action="activate"
+                            data-bulk-permission="@(Can("Catalog.Product.Activate", "Product.Activate") ? "allowed" : "denied")"
+                            data-confirm-title="@UiText["catalog.products.bulkActivateTitle"]"
+                            data-confirm="@UiText["catalog.products.bulkActivateConfirm"]"
+                            disabled
+                            @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>
+                        @UiText["catalog.products.bulkActivateButton"]
+                    </button>
+                    <button type="submit"
+                            class="btn btn-outline-warning btn-xs"
+                            data-bulk-action="deactivate"
+                            data-bulk-permission="@(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? "allowed" : "denied")"
+                            data-confirm-title="@UiText["catalog.products.bulkDeactivateTitle"]"
+                            data-confirm="@UiText["catalog.products.bulkDeactivateConfirm"]"
+                            disabled
+                            @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>
+                        @UiText["catalog.products.bulkDeactivateButton"]
+                    </button>
+                    <button type="submit"
+                            class="btn btn-outline-danger btn-xs"
+                            data-bulk-action="delete"
+                            data-bulk-permission="@(Can("Catalog.Product.Delete", "Product.Delete") ? "allowed" : "denied")"
+                            data-confirm-title="@UiText["catalog.products.bulkDeleteTitle"]"
+                            data-confirm="@UiText["catalog.products.bulkDeleteConfirm"]"
+                            disabled
+                            @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
+                        @UiText["catalog.products.bulkDeleteButton"]
+                    </button>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" data-bulk-toggle aria-label='@UiText["catalog.products.selectAll"]' /></th>
+                            <th>@UiText["common.name"]</th>
+                            <th>@UiText["catalog.products.baseSku"]</th>
+                            <th>@UiText["common.status"]</th>
+                            <th>@UiText["catalog.products.category"]</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Products.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6">
+                                    <div class="alert alert-light my-2">
+                                        <h6>@UiText["catalog.products.noProductsFound"]</h6>
+                                        <p class="mb-0 text-muted">@UiText["catalog.products.changeSearchOrFilter"]</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var product in Model.Products)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" data-bulk-row value="@product.Id" aria-label='@string.Format(UiText["catalog.products.rowDetailsFormat"], product.Name)' /></td>
+                                    <td>@product.Name</td>
+                                    <td><span class="text-monospace">@product.BaseSku</span></td>
+                                    <td>
+                                        <span class="badge badge-pill @(product.IsActive ? "badge-primary" : "badge-secondary")">
+                                            @(product.IsActive ? UiText["common.active"] : UiText["common.inactive"])
+                                        </span>
+                                    </td>
+                                    <td>@(product.CategoryName ?? product.CategoryId)</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a class="btn btn-outline-primary btn-xs"
+                                               asp-action="Products"
+                                               asp-route-categoryId="@product.CategoryId"
+                                               asp-route-productId="@product.Id"
+                                               asp-route-searchTerm="@Model.ProductSearchTerm"
+                                               asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
+                                               asp-route-statusFilter="@Model.ProductStatusFilter"
+                                               asp-route-sort="@Model.ProductSort"
+                                               asp-route-page="@Model.ProductPage"
+                                               asp-route-pageSize="@Model.ProductPageSize"
+                                               asp-fragment="product-tab-main">@UiText["common.edit"]</a>
+                                            <a class="btn btn-outline-info btn-xs"
+                                               asp-action="Products"
+                                               asp-route-categoryId="@product.CategoryId"
+                                               asp-route-productId="@product.Id"
+                                               asp-route-searchTerm="@Model.ProductSearchTerm"
+                                               asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
+                                               asp-route-statusFilter="@Model.ProductStatusFilter"
+                                               asp-route-sort="@Model.ProductSort"
+                                               asp-route-page="@Model.ProductPage"
+                                               asp-route-pageSize="@Model.ProductPageSize">@UiText["catalog.products.variantsButton"]</a>
+                                            <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <span class="sr-only">@UiText["common.operations"]</span>
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right">
+                                                <a class="dropdown-item"
+                                                   asp-action="Variants"
+                                                   asp-route-productId="@product.Id">
+                                                    @UiText["catalog.products.variantsButton"]
+                                                </a>
+                                                <form asp-action="ActivateProduct" method="post" class="px-3 py-1" data-loading-form>
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="productId" value="@product.Id" />
+                                                    <input type="hidden" name="categoryId" value="@product.CategoryId" />
+                                                    <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Activate", "Product.Activate") ? null : "disabled")>@UiText["catalog.products.activateButton"]</button>
+                                                </form>
+                                                <form asp-action="DeactivateProduct" method="post" class="px-3 py-1" data-loading-form>
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="productId" value="@product.Id" />
+                                                    <input type="hidden" name="categoryId" value="@product.CategoryId" />
+                                                    <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>@UiText["catalog.products.deactivateButton"]</button>
+                                                </form>
+                                                <form asp-action="DeleteProduct" method="post" class="px-3 py-1" data-loading-form>
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="productId" value="@product.Id" />
+                                                    <input type="hidden" name="categoryId" value="@product.CategoryId" />
+                                                    <button type="submit"
+                                                            class="btn btn-link text-danger p-0"
+                                                            data-confirm-title="@UiText["catalog.products.deleteTitle"]"
+                                                            data-confirm="@UiText["catalog.products.deleteConfirm"]"
+                                                            @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
+                                                        @UiText["common.delete"]
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.ProductTotalPages > 1)
+            {
+                <nav class="mt-3">
+                    <ul class="pagination pagination-sm mb-0">
+                        @for (var i = 1; i <= Model.ProductTotalPages; i++)
+                        {
+                            <li class="page-item @(i == Model.ProductPage ? "active" : null)">
+                                <a class="page-link"
+                                   asp-action="Products"
+                                   asp-route-categoryId="@Model.SelectedCategoryId"
+                                   asp-route-productId="@Model.SelectedProductId"
+                                   asp-route-searchTerm="@Model.ProductSearchTerm"
+                                   asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
+                                   asp-route-statusFilter="@Model.ProductStatusFilter"
+                                   asp-route-sort="@Model.ProductSort"
+                                   asp-route-page="@i"
+                                   asp-route-pageSize="@Model.ProductPageSize">@i</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+</div>

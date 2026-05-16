@@ -332,8 +332,7 @@ public sealed class ApiService : IApiService
             Name = request.Name.Trim(),
             DataType = NormalizeAttributeDataType(request.DataType),
             Scope = NormalizeAttributeScope(request.Scope),
-            IsActive = request.IsActive,
-            Options = Array.Empty<object>()
+            IsActive = request.IsActive
         };
 
         return PutCommandAsync(

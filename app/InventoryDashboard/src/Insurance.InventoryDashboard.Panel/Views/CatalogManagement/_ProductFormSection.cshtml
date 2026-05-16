@@ -1,0 +1,411 @@
+@using System
+@using System.Linq
+@using System.Text.Json
+@model Insurance.InventoryDashboard.Panel.Models.ProductManagementPageViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
+    var isEditMode = !string.IsNullOrWhiteSpace(Model.ProductForm.ProductId);
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var selectedAttributeValues = (Model.SelectedProductDetails?.Attributes ?? new List<Insurance.InventoryDashboard.Panel.Models.ProductAttributeValueModel>())
+        .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+    var selectedVariantOptionIds = Model.ProductVariantDetails
+        .SelectMany(x => x.Attributes ?? new List<Insurance.InventoryDashboard.Panel.Models.VariantAttributeValueModel>())
+        .Where(x => !string.IsNullOrWhiteSpace(x.OptionId))
+        .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(
+            x => x.Key,
+            x => x.Select(v => v.OptionId!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
+
+    bool IsProductScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
+    {
+        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
+        if (scope is "product" or "both")
+        {
+            return true;
+        }
+
+        if (scope == "variant")
+        {
+            return false;
+        }
+
+        return !attribute.IsVariantLevel;
+    }
+
+    bool IsVariantScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
+    {
+        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
+        if (scope is "variant" or "both")
+        {
+            return true;
+        }
+
+        if (scope == "product")
+        {
+            return false;
+        }
+
+        return attribute.IsVariantLevel;
+    }
+
+    string? ResolveMediaUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        var trimmed = url.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out _))
+        {
+            return trimmed;
+        }
+
+        var configuredBaseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        var requestHost = Context?.Request?.Host.Host;
+        var requestScheme = Context?.Request?.Scheme ?? "http";
+        var configuredBaseIsLocalOnly =
+            Uri.TryCreate(configuredBaseUrl, UriKind.Absolute, out var configuredUri) &&
+            (string.Equals(configuredUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(configuredUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrWhiteSpace(requestHost) &&
+            !string.Equals(requestHost, "localhost", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(requestHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
+        var baseUrl = !string.IsNullOrWhiteSpace(configuredBaseUrl) && !configuredBaseIsLocalOnly
+            ? configuredBaseUrl
+            : (!string.IsNullOrWhiteSpace(requestHost) ? $"{requestScheme}://{requestHost}:8080" : null);
+
+        return string.IsNullOrWhiteSpace(baseUrl)
+            ? trimmed
+            : $"{baseUrl}/{trimmed.TrimStart('/')}";
+    }
+
+    var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
+        .Where(IsProductScopeAttribute)
+        .OrderBy(x => x.DisplayOrder)
+        .ThenBy(x => x.Name)
+        .ToList();
+    var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
+        .Where(IsVariantScopeAttribute)
+        .Where(x => x.IsVariantLevel)
+        .OrderBy(x => x.DisplayOrder)
+        .ThenBy(x => x.Name)
+        .ToList();
+    var productFormPreviewUrl = ResolveMediaUrl(Model.ProductForm.ImageThumbnailUrl ?? Model.ProductForm.ImageUrl);
+}
+<div class="tab-pane fade show active" id="product-tab-main" role="tabpanel">
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">@(isEditMode ? UiText["catalog.products.editTitle"] : UiText["catalog.products.createTitle"])</h5>
+                @if (isEditMode)
+                {
+                    <a asp-action="Products" asp-route-categoryId="@Model.SelectedCategoryId" asp-route-create="true" class="btn btn-outline-secondary btn-xs">@UiText["common.createNew"]</a>
+                }
+            </div>
+
+            <form asp-action="SaveProduct" method="post" id="product-upsert-form" data-loading-form data-dirty-watch>
+                @Html.AntiForgeryToken()
+                <input asp-for="ProductForm.ProductId" type="hidden" />
+                <input asp-for="ProductForm.ImageFileKey" type="hidden" />
+                <input asp-for="ProductForm.ImageUrl" type="hidden" />
+                <input asp-for="ProductForm.ImageThumbnailUrl" type="hidden" />
+                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+                <div class="form-group @(isEditMode ? string.Empty : "d-none")">
+                    <label>@UiText["catalog.products.name"]</label>
+                    <input asp-for="ProductForm.Name" class="form-control" maxlength="160" />
+                </div>
+                <input asp-for="ProductForm.BaseSku" type="hidden" />
+                @if (isEditMode)
+                {
+                    <div class="form-group">
+                        <label>@UiText["catalog.products.baseSku"]</label>
+                        <div class="form-control-plaintext text-monospace">@Model.ProductForm.BaseSku</div>
+                        <small class="form-text text-muted">@UiText["catalog.products.baseSkuHelp"]</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-light border mb-3">
+                        <strong class="d-block mb-1">@UiText["catalog.products.baseSku"]</strong>
+                        <small class="text-muted">@UiText["catalog.products.baseSkuCreateHelp"]</small>
+                    </div>
+                }
+                <div class="form-group">
+                    <label>@UiText["catalog.products.category"]</label>
+                    <div class="product-category-tree-shell">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                            <div>
+                                <strong class="d-block">@UiText["catalog.products.stagedCategorySelection"]</strong>
+                                <small class="text-muted">@UiText["catalog.products.stagedCategorySelectionHelp"]</small>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-xs" type="button" data-toggle="collapse" data-target="#product-category-search-fallback" aria-expanded="false" aria-controls="product-category-search-fallback">
+                                @UiText["catalog.products.quickCategorySearch"]
+                            </button>
+                        </div>
+                        <div class="product-category-selected-path mb-3">
+                            <span class="badge badge-pill badge-outline-primary d-none" id="product-category-path-badge" role="status" aria-live="polite"></span>
+                        </div>
+                        <div id="product-category-tree-levels"></div>
+                        <div class="collapse mt-3" id="product-category-search-fallback">
+                            <label class="small text-muted">@UiText["catalog.products.quickCategorySearchHelp"]</label>
+                            <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" id="ProductForm_CategoryId" data-placeholder='@UiText["catalog.products.selectProductCategory"]' required>
+                                <option value="">@UiText["catalog.products.selectLeafCategory"]</option>
+                                @foreach (var category in Model.LeafCategories)
+                                {
+                                    <option value="@category.Id" data-category-code="@category.Code">@category.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <small class="form-text text-muted">@UiText["catalog.products.leafOnlyHelp"]</small>
+                </div>
+                <div class="form-group">
+                    <label>@UiText["catalog.products.defaultUom"]</label>
+                    <select asp-for="ProductForm.DefaultUomRef" class="form-control js-search-select" data-placeholder='@UiText["catalog.products.selectUnit"]' required>
+                        <option value="">@UiText["catalog.products.selectUnit"]</option>
+                        @foreach (var uom in Model.UnitOfMeasures)
+                        {
+                            <option value="@uom.Id">@uom.Code - @uom.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>@UiText["catalog.products.taxReference"]</label>
+                    <input asp-for="ProductForm.TaxCategoryRef" class="form-control" />
+                </div>
+                <div class="custom-control custom-checkbox mt-2">
+                    <input asp-for="ProductForm.IsActive" class="custom-control-input" />
+                    <label class="custom-control-label" asp-for="ProductForm.IsActive">@UiText["catalog.products.activeToggle"]</label>
+                </div>
+                <div class="form-group mt-3">
+                    <label>@UiText["catalog.products.descriptionLabel"]</label>
+                    <textarea asp-for="ProductForm.Description" class="form-control" rows="3" maxlength="500"></textarea>
+                </div>
+                <div class="form-group" data-media-uploader data-policy="product-image" data-base-url="@Configuration["FileService:BaseUrl"]">
+                    <label>@UiText["product.image"]</label>
+                    <div class="border rounded p-3 bg-light">
+                        <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp" data-media-file />
+                        <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
+                            <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                        </div>
+                        <div class="small text-muted mb-2" data-media-status>@UiText["media.imageHelp"]</div>
+                        <button type="button" class="btn btn-outline-danger btn-xs d-none" data-media-remove>@UiText["media.removeImage"]</button>
+                        <div class="mt-3 @(string.IsNullOrWhiteSpace(productFormPreviewUrl) ? "d-none" : null)" data-media-preview-wrap>
+                            <img src="@productFormPreviewUrl" alt="preview" class="img-fluid rounded border" style="max-height:180px;" data-media-preview />
+                        </div>
+                    </div>
+                </div>
+                <input asp-for="ProductForm.AutoVariantPayload" type="hidden" id="product-auto-variant-payload" />
+
+                @if (Model.IsProductCreateMode)
+                {
+                    <div class="alert alert-light border mt-3 mb-3">
+                        <strong class="d-block mb-2">@UiText["catalog.products.autoVariantGeneration"]</strong>
+                        <small class="text-muted d-block mb-0">
+                            @UiText["catalog.products.autoVariantGenerationHelp"]
+                        </small>
+                    </div>
+
+                    <div class="d-flex align-items-center mb-2">
+                        <strong class="mb-0">@UiText["catalog.products.attributeLoadStatus"]</strong>
+                        <span class="badge badge-secondary ml-2" id="product-create-attribute-status">@UiText["catalog.products.notReady"]</span>
+                    </div>
+                    <div id="product-create-attribute-feedback"></div>
+                    <div id="product-create-dynamic-sections">
+
+                    @if (string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
+                    {
+                        <div class="alert alert-warning">
+                            @UiText["catalog.products.selectCategoryForDynamicSections"]
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">@UiText["catalog.products.nonVariantAttributes"]</h6>
+                                @if (autoCreateProductAttributes.Count == 0)
+                                {
+                                    <div class="text-muted small">@UiText["catalog.products.noProductAttributeDefined"]</div>
+                                }
+                                else
+                                {
+                                    @foreach (var attr in autoCreateProductAttributes)
+                                    {
+                                        var hasOptions = attr.Options.Count > 0;
+                                        selectedAttributeValues.TryGetValue(attr.AttributeId, out var selectedAttributeValue);
+                                        var selectedRawValue = selectedAttributeValue?.Value ?? selectedAttributeValue?.OptionValue ?? string.Empty;
+                                        <div class="form-group js-auto-product-attribute"
+                                             data-attribute-id="@attr.AttributeId"
+                                             data-attribute-name="@attr.Name"
+                                             data-data-type="@attr.DataType"
+                                             data-required="@(attr.IsRequired ? "true" : "false")">
+                                            <label>@attr.Name (@attr.DataType) @(attr.IsRequired ? "*" : "")</label>
+                                            @if (hasOptions)
+                                            {
+                                                <select class="form-control js-search-select js-auto-product-value"
+                                                        data-option-input="true"
+                                                        name="AutoProductOption_@attr.AttributeId"
+                                                        data-placeholder='@UiText["catalog.products.selectOption"]'>
+                                                    <option value="">@UiText["catalog.products.selectValue"]</option>
+                                                    @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                                    {
+                                                        var isSelectedOption =
+                                                            string.Equals(option.Id, selectedAttributeValue?.OptionId, StringComparison.OrdinalIgnoreCase) ||
+                                                            string.Equals(option.OptionValue, selectedAttributeValue?.OptionValue, StringComparison.OrdinalIgnoreCase) ||
+                                                            string.Equals(option.OptionValue, selectedAttributeValue?.Value, StringComparison.OrdinalIgnoreCase);
+                                                        <option value="@option.Id"
+                                                                data-option-name="@option.OptionName"
+                                                                data-option-value="@option.OptionValue"
+                                                                selected="@(isSelectedOption ? "selected" : null)">
+                                                            @option.OptionName (@option.OptionValue)
+                                                        </option>
+                                                    }
+                                                </select>
+                                            }
+                                            else
+                                            {
+                                                var normalizedType = (attr.DataType ?? string.Empty).Trim().ToLowerInvariant();
+                                                if (normalizedType == "number")
+                                                {
+                                                    <input type="number"
+                                                           step="any"
+                                                           class="form-control js-auto-product-value"
+                                                           name="AutoProductValue_@attr.AttributeId"
+                                                           value="@selectedRawValue"
+                                                           placeholder="@UiText["catalog.products.numericValue"]" />
+                                                }
+                                                else if (normalizedType == "date")
+                                                {
+                                                    <input type="date"
+                                                           class="form-control js-auto-product-value"
+                                                           name="AutoProductValue_@attr.AttributeId"
+                                                           value="@selectedRawValue" />
+                                                }
+                                                else if (normalizedType == "boolean")
+                                                {
+                                                    var selectedBool = (selectedRawValue ?? string.Empty).Trim().ToLowerInvariant();
+                                                    <select class="form-control js-auto-product-value"
+                                                            name="AutoProductValue_@attr.AttributeId">
+                                                        <option value="">@UiText["catalog.products.selectAttribute"]</option>
+                                                        <option value="true" selected="@(selectedBool is "true" or "1" or "yes" or "بله" ? "selected" : null)">@UiText["common.yes"]</option>
+                                                        <option value="false" selected="@(selectedBool is "false" or "0" or "no" or "خیر" ? "selected" : null)">@UiText["common.no"]</option>
+                                                    </select>
+                                                }
+                                                else
+                                                {
+                                                    <input type="text"
+                                                           class="form-control js-auto-product-value"
+                                                           name="AutoProductValue_@attr.AttributeId"
+                                                           value="@selectedRawValue"
+                                                           placeholder="@UiText["catalog.products.attributeValuePlaceholder"]" />
+                                                }
+                                            }
+                                            <small class="form-text text-muted">
+                                                @(attr.IsInherited ? $"{UiText["catalog.products.inheritedFromPrefix"]}{attr.SourceCategoryName}" : UiText["catalog.products.direct"]) -
+                                                @(attr.IsRequired ? UiText["catalog.products.required"] : UiText["catalog.products.optional"])
+                                            </small>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">@UiText["catalog.products.variantBuilderAttributes"]</h6>
+                                @if (autoCreateVariantBuilderAttributes.Count == 0)
+                                {
+                                    <div class="text-muted small">@UiText["catalog.products.noVariantBuilderAttributeDefined"]</div>
+                                }
+                                else
+                                {
+                                    @foreach (var attr in autoCreateVariantBuilderAttributes)
+                                    {
+                                        selectedVariantOptionIds.TryGetValue(attr.AttributeId, out var activeVariantOptionIds);
+                                        <div class="form-group js-auto-variant-attribute"
+                                             data-attribute-id="@attr.AttributeId"
+                                             data-attribute-name="@attr.Name"
+                                             data-data-type="@attr.DataType"
+                                             data-display-order="@attr.DisplayOrder"
+                                             data-required="@(attr.IsRequired ? "true" : "false")">
+                                            <label>@attr.Name @(attr.IsRequired ? "*" : "")</label>
+                                            <select multiple
+                                                    class="form-control js-search-select js-auto-variant-values"
+                                                    name="AutoVariantOptions_@attr.AttributeId"
+                                                    data-no-search="true"
+                                                    data-placeholder='@UiText["catalog.products.selectMultipleOptions"]'>
+                                                @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                                {
+                                                    var isVariantOptionSelected = activeVariantOptionIds?.Contains(option.Id) == true;
+                                                    <option value="@option.Id"
+                                                            data-option-name="@option.OptionName"
+                                                            data-option-value="@option.OptionValue"
+                                                            data-option-display-order="@option.DisplayOrder"
+                                                            selected="@(isVariantOptionSelected ? "selected" : null)">
+                                                        @option.OptionName (@option.OptionValue)
+                                                    </option>
+                                                }
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                @UiText["catalog.products.attributePriorityPrefix"]@attr.DisplayOrder - @(attr.IsRequired ? UiText["catalog.products.required"] : UiText["catalog.products.optional"])
+                                            </small>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title mb-2">@UiText["catalog.products.generatedVariantPreview"]</h6>
+                                <div id="auto-variant-preview-empty" class="text-muted small">
+                                    @UiText["catalog.products.generatedVariantPreviewHelp"]
+                                </div>
+                                <div id="auto-variant-preview-container" class="table-responsive d-none">
+                                    <table class="table table-sm table-striped mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>@UiText["catalog.products.variantName"]</th>
+                                                <th>SKU</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="auto-variant-preview-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    </div>
+                }
+
+                <div class="mt-3">
+                    <button class="btn btn-primary" type="submit" @(Can("Catalog.Product.Create", "Catalog.Product.Update", "Product.Create", "Product.Update") ? null : "disabled")>
+                        @(isEditMode ? UiText["catalog.products.updateButton"] : UiText["catalog.products.createButton"])
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

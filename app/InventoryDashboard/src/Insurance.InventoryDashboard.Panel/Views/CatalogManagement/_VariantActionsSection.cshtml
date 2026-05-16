@@ -1,0 +1,104 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.VariantManagementPageViewModel
+@{
+    var hasSelectedProduct = !string.IsNullOrWhiteSpace(Model.SelectedProductId);
+    var hasSelectedVariant = !string.IsNullOrWhiteSpace(Model.SelectedVariantId);
+    var movementLocked = Model.SelectedVariantDetails?.InventoryMovementLocked ?? false;
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+}
+<div class="tab-pane fade" id="variant-tab-actions" role="tabpanel">
+    @if (hasSelectedProduct && hasSelectedVariant)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">@UiText["catalog.variants.domainActionsTitle"]</h5>
+                <form asp-action="ActivateVariant" method="post" class="d-inline" data-loading-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                    <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>@UiText["common.active"]</button>
+                </form>
+                <form asp-action="DeactivateVariant" method="post" class="d-inline" data-loading-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                    <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>@UiText["common.inactive"]</button>
+                </form>
+                <form asp-action="DeleteVariant" method="post" class="d-inline" data-loading-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                    <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="@UiText["catalog.variants.deleteTitle"]" data-confirm="@UiText["catalog.variants.deleteConfirm"]" @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
+                </form>
+                <form asp-action="LockVariantInventoryMovement" method="post" class="d-inline" data-loading-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                    <button class="btn btn-outline-dark btn-xs" type="submit" data-confirm-title="@UiText["catalog.variants.lockMovementTitle"]" data-confirm="@UiText["catalog.variants.lockMovementConfirm"]" @(Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement") ? null : "disabled")>@UiText["catalog.variants.lockMovementButton"]</button>
+                </form>
+
+                <hr />
+
+                <form asp-action="ChangeVariantTrackingPolicy" method="post" id="variant-tracking-policy-form" class="form-inline" data-loading-form data-dirty-watch>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                    <label class="mr-2">@UiText["catalog.variants.changeTrackingPolicyLabel"]</label>
+                    <select name="trackingPolicy" class="form-control form-control-sm mr-2 js-search-select" data-no-search="true" @(movementLocked ? "disabled" : null)>
+                        <option value="None">@UiText["catalog.variants.trackingNone"]</option>
+                        <option value="Batch">@UiText["catalog.variants.trackingBatch"]</option>
+                        <option value="Serial">@UiText["catalog.variants.trackingSerial"]</option>
+                    </select>
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="@UiText["catalog.variants.changeTrackingPolicyTitle"]" data-confirm="@UiText["catalog.variants.changeTrackingPolicyConfirm"]" @((Can("Catalog.Variant.ChangeTrackingPolicy", "ProductVariant.ChangeTrackingPolicy") && !movementLocked) ? null : "disabled")>@UiText["common.apply"]</button>
+                    </div>
+                </form>
+                <form asp-action="ChangeVariantBaseUom" method="post" id="variant-base-uom-form" class="mt-2" data-loading-form data-dirty-watch>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                    <div class="form-group mb-2">
+                        <label class="small">@UiText["catalog.variants.changeBaseUomLabel"]</label>
+                        <select name="baseUomRef" class="form-control form-control-sm js-search-select" data-placeholder='@UiText["catalog.variants.selectTargetUnit"]' @(movementLocked ? "disabled" : null)>
+                            @foreach (var uom in Model.UnitOfMeasures)
+                            {
+                                <option value="@uom.Id">@uom.Code - @uom.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm" type="submit" data-confirm-title="@UiText["catalog.variants.changeBaseUomTitle"]" data-confirm="@UiText["catalog.variants.changeBaseUomConfirm"]" @((Can("Catalog.Variant.ChangeBaseUom", "ProductVariant.ChangeBaseUom") && !movementLocked) ? null : "disabled")>@UiText["common.apply"]</button>
+                    </div>
+                </form>
+                @if (movementLocked)
+                {
+                    <p class="text-warning small mt-2 mb-0">@UiText["catalog.variants.lockedWarning"]</p>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="alert alert-light mb-0">
+                    <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
+                    <p class="mb-0 text-muted">@UiText["catalog.variants.noVariantSelectedDomainHelp"]</p>
+                </div>
+            </div>
+        </div>
+    }
+</div>

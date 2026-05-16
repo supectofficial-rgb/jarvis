@@ -1,0 +1,88 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.VariantManagementPageViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
+    var isEditMode = !string.IsNullOrWhiteSpace(Model.VariantForm.VariantId);
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+}
+<div class="tab-pane fade show active" id="variant-tab-main" role="tabpanel">
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">@(isEditMode ? UiText["catalog.variants.editTitle"] : UiText["catalog.variants.createTitle"])</h5>
+                @if (isEditMode)
+                {
+                    <a asp-action="Variants" asp-route-productId="@Model.SelectedProductId" asp-route-createNew="true" class="btn btn-outline-secondary btn-xs">@UiText["common.createNew"]</a>
+                }
+            </div>
+
+            <form asp-action="SaveVariant" method="post" id="variant-upsert-form" data-loading-form data-dirty-watch>
+                @Html.AntiForgeryToken()
+                <input asp-for="VariantForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                <input asp-for="VariantForm.VariantId" type="hidden" />
+                <input asp-for="VariantForm.SelectedImagesJson" type="hidden" />
+                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                <div class="form-group"><label>SKU</label><input asp-for="VariantForm.Sku" class="form-control text-monospace" required maxlength="100" placeholder="@UiText["catalog.variants.skuExample"]" /></div>
+                <div class="form-group"><label>@UiText["catalog.variants.barcode"]</label><input asp-for="VariantForm.Barcode" class="form-control" maxlength="100" /></div>
+                <div class="form-group">
+                    <label>@UiText["catalog.variants.baseUom"]</label>
+                    <select asp-for="VariantForm.BaseUomRef" class="form-control js-search-select" data-placeholder='@UiText["catalog.variants.selectBaseUom"]' required>
+                        <option value="">@UiText["catalog.variants.selectUnit"]</option>
+                        @foreach (var uom in Model.UnitOfMeasures)
+                        {
+                            <option value="@uom.Id">@uom.Code - @uom.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>@UiText["catalog.variants.trackingPolicy"]</label>
+                    <select asp-for="VariantForm.TrackingPolicy" class="form-control js-search-select" data-no-search="true">
+                        <option value="None">@UiText["catalog.variants.trackingNone"]</option>
+                        <option value="Batch">@UiText["catalog.variants.trackingBatch"]</option>
+                        <option value="Serial">@UiText["catalog.variants.trackingSerial"]</option>
+                    </select>
+                    <small class="form-text text-muted">@UiText["catalog.variants.trackingPolicyHelp"]</small>
+                </div>
+                <div class="custom-control custom-checkbox mt-2">
+                    <input asp-for="VariantForm.IsActive" class="custom-control-input" />
+                    <label class="custom-control-label" asp-for="VariantForm.IsActive">@UiText["catalog.variants.activeToggle"]</label>
+                </div>
+                <div class="form-group mt-3"
+                     data-media-manager
+                     data-policy="variant-gallery"
+                     data-base-url="@Configuration["FileService:BaseUrl"]"
+                     data-input-name="VariantForm.SelectedImagesJson">
+                    <label>@UiText["variant.media.label"]</label>
+                    <div class="border rounded p-3 bg-light">
+                        <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
+                        <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
+                            <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                        </div>
+                        <div class="small text-muted mb-2" data-media-status>@UiText["variant.media.help"]</div>
+                        <div class="small text-muted mb-3">@UiText["variant.media.instructions"]</div>
+                        <div class="row" data-media-items></div>
+                        <div class="alert alert-light mb-0" data-media-empty>@UiText["variant.media.empty"]</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.Variant.Create", "Catalog.Variant.Update", "ProductVariant.Create", "ProductVariant.Update") ? null : "disabled")>
+                        @(isEditMode ? UiText["catalog.variants.updateButton"] : UiText["catalog.variants.createButton"])
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
