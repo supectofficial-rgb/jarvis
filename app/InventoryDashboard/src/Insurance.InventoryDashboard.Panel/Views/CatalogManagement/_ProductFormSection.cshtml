@@ -38,7 +38,7 @@
         var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
         if (scope is "product" or "both")
         {
-            return true;
+            return !attribute.IsVariantLevel;
         }
 
         if (scope == "variant")
@@ -123,6 +123,13 @@
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
+    var availableVariantNameFormulas = Model.CategoryVariantNameFormulas
+        .OrderBy(x => x.DisplayOrder)
+        .ThenBy(x => x.Name)
+        .ToList();
+    var selectedVariantNameFormulaId = Model.ProductForm.VariantNameFormulaId
+        ?? availableVariantNameFormulas.FirstOrDefault(x => x.IsActive)?.FormulaId
+        ?? availableVariantNameFormulas.FirstOrDefault()?.FormulaId;
     var productFormPreviewUrl = ResolveMediaUrl(Model.ProductForm.ImageThumbnailUrl ?? Model.ProductForm.ImageUrl);
 }
 <div class="tab-pane fade show active" id="product-tab-main" role="tabpanel">
@@ -278,6 +285,46 @@
                     {
                         <div class="card mb-3">
                             <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title mb-0">@UiText["catalog.categories.formulas.title"]</h6>
+                                    <span class="badge badge-pill badge-outline-primary">@availableVariantNameFormulas.Count</span>
+                                </div>
+                                @if (availableVariantNameFormulas.Count == 0)
+                                {
+                                    <div class="alert alert-warning mb-0">
+                                        @UiText["catalog.products.noVariantNameFormulaDefined"]
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="form-group mb-0">
+                                        <label>@UiText["catalog.products.variantNameFormula"]</label>
+                                        <select asp-for="ProductForm.VariantNameFormulaId"
+                                                class="form-control js-search-select"
+                                                id="ProductForm_VariantNameFormulaId"
+                                                data-placeholder='@UiText["catalog.products.selectVariantNameFormula"]'>
+                                            <option value="">@UiText["catalog.products.selectVariantNameFormula"]</option>
+                                            @foreach (var formula in availableVariantNameFormulas)
+                                            {
+                                                <option value="@formula.FormulaId"
+                                                        selected="@(string.Equals(formula.FormulaId, selectedVariantNameFormulaId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)"
+                                                        data-is-active="@(formula.IsActive ? "true" : "false")"
+                                                        data-preview="@formula.Preview">
+                                                    @formula.Name
+                                                    @(formula.IsActive ? string.Empty : $" ({UiText["common.inactive"]})")
+                                                </option>
+                                            }
+                                        </select>
+                                        <small class="form-text text-muted">
+                                            @UiText["catalog.products.variantNameFormulaHelp"]
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-body">
                                 <h6 class="card-title mb-3">@UiText["catalog.products.nonVariantAttributes"]</h6>
                                 @if (autoCreateProductAttributes.Count == 0)
                                 {
@@ -414,6 +461,7 @@
                         <div class="card mb-3">
                             <div class="card-body">
                                 <h6 class="card-title mb-2">@UiText["catalog.products.generatedVariantPreview"]</h6>
+                                <div id="auto-variant-preview-meta" class="small text-muted mb-2"></div>
                                 <div id="auto-variant-preview-empty" class="text-muted small">
                                     @UiText["catalog.products.generatedVariantPreviewHelp"]
                                 </div>
@@ -423,6 +471,7 @@
                                             <tr>
                                                 <th>#</th>
                                                 <th>@UiText["catalog.products.variantName"]</th>
+                                                <th>ترکیب</th>
                                                 <th>SKU</th>
                                             </tr>
                                         </thead>

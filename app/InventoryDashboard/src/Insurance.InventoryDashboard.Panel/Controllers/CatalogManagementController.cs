@@ -613,6 +613,10 @@ public abstract partial class CatalogManagementController : Controller
         var (attributeGroups, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedCategoryId, flatCategories, token);
         var effectiveProductAttributes = FilterEffectiveAttributesForProduct(effectiveAttributes);
+        var variantNameFormulasResult = !string.IsNullOrWhiteSpace(selectedCategoryId)
+            ? await _apiService.GetCategoryVariantNameFormulasAsync(selectedCategoryId, token, includeInactive: true)
+            : new ApiResponse<List<CategoryVariantNameFormulaModel>> { IsSuccess = true, Data = new List<CategoryVariantNameFormulaModel>() };
+        var selectedVariantNameFormulaId = ResolveDefaultVariantNameFormulaId(variantNameFormulasResult.Data ?? new List<CategoryVariantNameFormulaModel>());
 
         var missingRequired = !string.IsNullOrWhiteSpace(selectedProductId)
             ? FindMissingRequiredAttributes(
@@ -648,6 +652,7 @@ public abstract partial class CatalogManagementController : Controller
             ProductVariantDetails = productVariantDetails,
             ProductVariantTotalCount = productVariants.Count,
             UnitOfMeasures = unitOfMeasures,
+            CategoryVariantNameFormulas = variantNameFormulasResult.Data ?? new List<CategoryVariantNameFormulaModel>(),
 
             CategoryAttributeGroups = attributeGroups,
             EffectiveCategoryAttributes = effectiveProductAttributes,
@@ -668,7 +673,8 @@ public abstract partial class CatalogManagementController : Controller
                 productsResult.ErrorMessage,
                 uomLookupResult.ErrorMessage,
                 productDetailsResult.ErrorMessage,
-                attributesError),
+                attributesError,
+                variantNameFormulasResult.ErrorMessage),
 
             ProductForm = new ProductUpsertForm
             {
@@ -677,6 +683,7 @@ public abstract partial class CatalogManagementController : Controller
                 BaseSku = productDetailsResult.Data?.BaseSku ?? string.Empty,
                 CategoryId = selectedCategoryId ?? string.Empty,
                 DefaultUomRef = productDetailsResult.Data?.DefaultUomRef ?? string.Empty,
+                VariantNameFormulaId = selectedVariantNameFormulaId,
                 TaxCategoryRef = productDetailsResult.Data?.TaxCategoryRef,
                 IsActive = productDetailsResult.Data?.IsActive ?? true,
                 Description = productDetailsResult.Data?.Description,
@@ -749,6 +756,7 @@ public abstract partial class CatalogManagementController : Controller
 
         var (_, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedCategory.Id, flatCategories, token);
+        var variantNameFormulasResult = await _apiService.GetCategoryVariantNameFormulasAsync(selectedCategory.Id, token, includeInactive: true);
 
         var productAttributes = FilterEffectiveAttributesForProduct(effectiveAttributes)
             .OrderBy(x => x.DisplayOrder)
@@ -809,6 +817,8 @@ public abstract partial class CatalogManagementController : Controller
             categoryId = selectedCategory.Id,
             categoryName = selectedCategory.Name,
             errorMessage = JoinErrors(categoriesResult.ErrorMessage, attributesError),
+            variantNameFormulaId = ResolveDefaultVariantNameFormulaId(variantNameFormulasResult.Data ?? new List<CategoryVariantNameFormulaModel>()),
+            variantNameFormulas = variantNameFormulasResult.Data ?? new List<CategoryVariantNameFormulaModel>(),
             productAttributes,
             variantAttributes
         });
@@ -949,11 +959,27 @@ public abstract partial class CatalogManagementController : Controller
 
             shouldReconcileVariants = string.IsNullOrWhiteSpace(form.ProductId) || effectiveVariantAttributes.Count > 0;
             var productCodeSegments = BuildProductCodeSegments(productCreateAttributes, effectiveProductAttributes);
+            CategoryVariantNameFormulaModel? selectedVariantNameFormula = null;
+            if (!string.IsNullOrWhiteSpace(autoPayload.VariantNameFormulaId))
+            {
+                var formulaResult = await _apiService.GetCategoryVariantNameFormulasAsync(form.CategoryId, token, includeInactive: true);
+                if (formulaResult.IsSuccess)
+                {
+                    selectedVariantNameFormula = (formulaResult.Data ?? new List<CategoryVariantNameFormulaModel>())
+                        .FirstOrDefault(x => string.Equals(x.FormulaId, autoPayload.VariantNameFormulaId, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            var productValuesByAttributeId = productCreateAttributes
+                .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.Last(), StringComparer.OrdinalIgnoreCase);
             generatedVariantPlans = BuildGeneratedVariantPlans(
                 form.Name.Trim(),
                 form.BaseSku.Trim(),
                 variantDimensions,
-                productCodeSegments);
+                productCodeSegments,
+                selectedVariantNameFormula,
+                productValuesByAttributeId);
 
             if (generatedVariantPlans.Count == 0)
             {
@@ -963,7 +989,11 @@ public abstract partial class CatalogManagementController : Controller
 
                 generatedVariantPlans.Add(new GeneratedVariantPlan
                 {
-                    GeneratedName = form.Name.Trim(),
+                    GeneratedName = BuildVariantGeneratedName(
+                        form.Name.Trim(),
+                        selectedVariantNameFormula,
+                        Array.Empty<VariantCombinationSelection>(),
+                        productValuesByAttributeId),
                     GeneratedSku = string.Join("-", baseSkuSegments),
                     AttributeValues = new List<CatalogAttributeValueInputModel>()
                 });
@@ -2173,7 +2203,9 @@ public abstract partial class CatalogManagementController : Controller
         string productName,
         string baseSku,
         IReadOnlyList<VariantDimensionSelection> dimensions,
-        IReadOnlyList<string> productCodeSegments)
+        IReadOnlyList<string> productCodeSegments,
+        CategoryVariantNameFormulaModel? selectedFormula,
+        IReadOnlyDictionary<string, CatalogAttributeValueInputModel> productValuesByAttributeId)
     {
         var plans = new List<GeneratedVariantPlan>();
         if (dimensions.Count == 0)
@@ -2220,10 +2252,11 @@ public abstract partial class CatalogManagementController : Controller
                 sequence++;
             }
 
-            var generatedNameSuffix = string.Join(" / ", orderedSelection.Select(x => x.OptionName));
-            var generatedName = string.IsNullOrWhiteSpace(generatedNameSuffix)
-                ? productName
-                : $"{productName} - {generatedNameSuffix}";
+            var generatedName = BuildVariantGeneratedName(
+                productName,
+                selectedFormula,
+                orderedSelection,
+                productValuesByAttributeId);
 
             plans.Add(new GeneratedVariantPlan
             {
@@ -2241,6 +2274,92 @@ public abstract partial class CatalogManagementController : Controller
         }
 
         return plans;
+    }
+
+    private static string BuildVariantGeneratedName(
+        string productName,
+        CategoryVariantNameFormulaModel? selectedFormula,
+        IReadOnlyList<VariantCombinationSelection> orderedSelection,
+        IReadOnlyDictionary<string, CatalogAttributeValueInputModel> productValuesByAttributeId)
+    {
+        var fallbackName = BuildFallbackVariantName(productName, orderedSelection);
+        if (selectedFormula is null || selectedFormula.Parts.Count == 0)
+        {
+            return fallbackName;
+        }
+
+        var selectedVariantValuesByAttributeId = orderedSelection
+            .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        var parts = selectedFormula.Parts
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.AttributeName)
+            .Select(part =>
+            {
+                if (productValuesByAttributeId.TryGetValue(part.AttributeId, out var productValue))
+                {
+                    return ResolveAttributeValueToken(productValue, orderedSelection.FirstOrDefault(x => string.Equals(x.AttributeId, part.AttributeId, StringComparison.OrdinalIgnoreCase)));
+                }
+
+                if (selectedVariantValuesByAttributeId.TryGetValue(part.AttributeId, out var variantValue))
+                {
+                    return !string.IsNullOrWhiteSpace(variantValue.OptionName)
+                        ? variantValue.OptionName
+                        : variantValue.OptionValue;
+                }
+
+                return string.Empty;
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        if (parts.Count == 0)
+        {
+            return fallbackName;
+        }
+
+        var separator = NormalizeFormulaSeparator(selectedFormula.Separator);
+        if (string.IsNullOrEmpty(separator))
+        {
+            return string.Concat(parts);
+        }
+
+        return string.Join(separator, parts);
+    }
+
+    private static string BuildFallbackVariantName(
+        string productName,
+        IReadOnlyList<VariantCombinationSelection> orderedSelection)
+    {
+        var generatedNameSuffix = string.Join(" / ", orderedSelection.Select(x => x.OptionName).Where(x => !string.IsNullOrWhiteSpace(x)));
+        if (string.IsNullOrWhiteSpace(generatedNameSuffix))
+        {
+            return productName;
+        }
+
+        return string.IsNullOrWhiteSpace(productName)
+            ? generatedNameSuffix
+            : $"{productName} - {generatedNameSuffix}";
+    }
+
+    private static string ResolveAttributeValueToken(
+        CatalogAttributeValueInputModel productValue,
+        VariantCombinationSelection? matchingVariantValue)
+    {
+        if (!string.IsNullOrWhiteSpace(productValue.Value))
+        {
+            return productValue.Value.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(productValue.OptionId))
+        {
+            return matchingVariantValue?.OptionName
+                ?? matchingVariantValue?.OptionValue
+                ?? productValue.OptionId.Trim();
+        }
+
+        return string.Empty;
     }
 
     private static List<List<VariantCombinationSelection>> BuildVariantCombinations(IReadOnlyList<VariantDimensionSelection> dimensions)
@@ -2609,6 +2728,7 @@ public abstract partial class CatalogManagementController : Controller
     {
         return attributes
             .Where(IsProductScope)
+            .Where(attribute => !attribute.IsVariantLevel)
             .ToList();
     }
 
@@ -2618,6 +2738,21 @@ public abstract partial class CatalogManagementController : Controller
         return attributes
             .Where(IsVariantScope)
             .ToList();
+    }
+
+    private static string? ResolveDefaultVariantNameFormulaId(IReadOnlyList<CategoryVariantNameFormulaModel> formulas)
+    {
+        return formulas
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => x.FormulaId)
+            .FirstOrDefault()
+            ?? formulas
+                .OrderBy(x => x.DisplayOrder)
+                .ThenBy(x => x.Name)
+                .Select(x => x.FormulaId)
+                .FirstOrDefault();
     }
 
     private static IReadOnlyList<EffectiveAttributeViewModel> ApplyAttributeTypeFilter(
@@ -2894,6 +3029,7 @@ public abstract partial class CatalogManagementController : Controller
     {
         public List<ProductAutoAttributeItem> ProductAttributes { get; set; } = new();
         public List<ProductAutoVariantAttributeItem> VariantAttributes { get; set; } = new();
+        public string? VariantNameFormulaId { get; set; }
     }
 
     private sealed class ProductAutoAttributeItem

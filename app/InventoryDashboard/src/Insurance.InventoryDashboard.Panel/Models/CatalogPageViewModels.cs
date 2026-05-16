@@ -64,6 +64,7 @@ public sealed class ProductManagementPageViewModel
     public int ProductVariantTotalCount { get; set; }
     public IReadOnlyList<UnitOfMeasureLookupModel> UnitOfMeasures { get; set; } = Array.Empty<UnitOfMeasureLookupModel>();
     public IReadOnlyList<string> Permissions { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<CategoryVariantNameFormulaModel> CategoryVariantNameFormulas { get; set; } = Array.Empty<CategoryVariantNameFormulaModel>();
 
     public IReadOnlyList<CategoryAttributeGroupViewModel> CategoryAttributeGroups { get; set; } = Array.Empty<CategoryAttributeGroupViewModel>();
     public IReadOnlyList<EffectiveAttributeViewModel> EffectiveCategoryAttributes { get; set; } = Array.Empty<EffectiveAttributeViewModel>();
@@ -379,6 +380,8 @@ public sealed class ProductUpsertForm
 
     [Required(ErrorMessage = "انتخاب واحد پایه الزامی است.")]
     public string DefaultUomRef { get; set; } = string.Empty;
+
+    public string? VariantNameFormulaId { get; set; }
 
     public string? TaxCategoryRef { get; set; }
 
