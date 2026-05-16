@@ -88,6 +88,8 @@
         return depth;
     }
 
+    var mediaBaseUrl = (Configuration["FileService:BaseUrl"] ?? string.Empty).TrimEnd('/');
+
     string? ResolveMediaUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -101,7 +103,7 @@
             return trimmed;
         }
 
-        var configuredBaseUrl = Configuration["FileService:BaseUrl"]?.TrimEnd('/');
+        var configuredBaseUrl = mediaBaseUrl;
         var requestHost = Context?.Request?.Host.Host;
         var requestScheme = Context?.Request?.Scheme ?? "http";
         var configuredBaseIsLocalOnly =

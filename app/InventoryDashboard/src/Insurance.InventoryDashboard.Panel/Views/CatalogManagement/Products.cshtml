@@ -495,6 +495,7 @@
             var autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
             var createAttributeStatus = document.getElementById('product-create-attribute-status');
             var createAttributesUrl = pageElement ? (pageElement.getAttribute('data-create-attributes-url') || '') : '';
+            var mediaBaseUrl = @Html.Raw(JsonSerializer.Serialize((Configuration["FileService:BaseUrl"] ?? string.Empty).TrimEnd('/')));
             var productListRequestId = 0;
             var createAttributesRequestId = 0;
             var lastCreateAttributesCategoryId = '';
@@ -828,7 +829,9 @@
                     return normalizedValue;
                 }
 
-                return baseUrl + (normalizedValue.charAt(0) === '/' ? normalizedValue : '/' + normalizedValue);
+                return mediaBaseUrl
+                    ? mediaBaseUrl + (normalizedValue.charAt(0) === '/' ? normalizedValue : '/' + normalizedValue)
+                    : normalizedValue;
             }
 
             function initializeCategoryTreeData() {
