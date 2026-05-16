@@ -489,6 +489,7 @@
             var variantNameFormulaSelect = document.getElementById('ProductForm_VariantNameFormulaId');
             var currentVariantNameFormulas = [];
             var autoVariantPreviewMeta = document.getElementById('auto-variant-preview-meta');
+            var autoVariantPreviewDebug = document.getElementById('auto-variant-preview-debug');
             var autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
             var autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
             var autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
@@ -817,6 +818,19 @@
                     .replace(/'/g, '&#39;');
             }
 
+            function toMediaUrl(value) {
+                var normalizedValue = (value || '').trim();
+                if (!normalizedValue) {
+                    return '';
+                }
+
+                if (/^https?:\/\//i.test(normalizedValue)) {
+                    return normalizedValue;
+                }
+
+                return baseUrl + (normalizedValue.charAt(0) === '/' ? normalizedValue : '/' + normalizedValue);
+            }
+
             function initializeCategoryTreeData() {
                 categoryNodeLookup = {};
                 categoryChildrenLookup = {};
@@ -1000,7 +1014,7 @@
                         + '<div class="product-category-grid">'
                         + level.items.map(function (item) {
                             var isActive = level.activeId && level.activeId.toLowerCase() === item.id.toLowerCase();
-                            var imageUrl = item.imageThumbnailUrl || item.imageUrl || '';
+                            var imageUrl = toMediaUrl(item.imageThumbnailUrl || item.imageUrl || '');
                             var mediaHtml = imageUrl
                                 ? ('<span class="product-category-card-media"><img src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(item.name) + '" /></span>')
                                 : '';
@@ -1223,12 +1237,14 @@
                     + '<div class="card mb-3"><div class="card-body">'
                     + '<h6 class="card-title mb-2">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreview"])) + '</h6>'
                     + '<div id="auto-variant-preview-meta" class="small text-muted mb-2"></div>'
+                    + '<div id="auto-variant-preview-debug" class="small text-warning mb-2 d-none"></div>'
                     + '<div id="auto-variant-preview-empty" class="text-muted small">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.generatedVariantPreviewHelp"])) + '</div>'
                     + '<div id="auto-variant-preview-container" class="table-responsive d-none">'
                     + '<table class="table table-sm table-striped mb-0"><thead><tr><th>#</th><th>' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.variantName"])) + '</th><th>ترکیب</th><th>SKU</th></tr></thead><tbody id="auto-variant-preview-body"></tbody></table>'
                     + '</div></div></div>';
 
                 autoVariantPreviewMeta = document.getElementById('auto-variant-preview-meta');
+                autoVariantPreviewDebug = document.getElementById('auto-variant-preview-debug');
                 autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
                 autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
                 autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
@@ -1245,6 +1261,8 @@
                 scope.querySelectorAll('.js-auto-product-value, .js-auto-variant-values').forEach(function (input) {
                     input.addEventListener('change', renderAutoVariantPreview);
                     input.addEventListener('input', renderAutoVariantPreview);
+                    input.addEventListener('select2:select', renderAutoVariantPreview);
+                    input.addEventListener('select2:unselect', renderAutoVariantPreview);
                 });
 
                 if (!variantNameFormulaSelect) {
@@ -1253,6 +1271,8 @@
 
                 if (variantNameFormulaSelect && variantNameFormulaSelect.dataset.previewBound !== 'true') {
                     variantNameFormulaSelect.addEventListener('change', renderAutoVariantPreview);
+                    variantNameFormulaSelect.addEventListener('select2:select', renderAutoVariantPreview);
+                    variantNameFormulaSelect.addEventListener('select2:unselect', renderAutoVariantPreview);
                     variantNameFormulaSelect.dataset.previewBound = 'true';
                 }
             }
@@ -1453,6 +1473,26 @@
                 }) || null;
             }
 
+            function getSelectedValues(selectElement) {
+                if (!selectElement) {
+                    return [];
+                }
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    var selected = window.jQuery(selectElement).val();
+                    if (Array.isArray(selected)) {
+                        return selected.map(function (item) { return (item || '').toString().trim(); }).filter(function (item) { return !!item; });
+                    }
+                    if (typeof selected === 'string' && selected.trim()) {
+                        return [selected.trim()];
+                    }
+                }
+
+                return Array.from(selectElement.selectedOptions || [])
+                    .map(function (option) { return (option.value || '').trim(); })
+                    .filter(function (item) { return !!item; });
+            }
+
             function resolveFormulaToken(part, combination, productValues) {
                 if (!part) {
                     return '';
@@ -1634,19 +1674,22 @@
                         return;
                     }
 
-                    var selectedOptions = Array.from(select.selectedOptions || []);
-                    if (isRequired && selectedOptions.length === 0) {
+                    var selectedValues = getSelectedValues(select);
+                    if (isRequired && selectedValues.length === 0) {
                         validationErrors.push(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionPrefix"])) + attributeName + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.requiredAtLeastOneOptionSuffix"])));
                         return;
                     }
 
-                    if (selectedOptions.length === 0) {
+                    if (selectedValues.length === 0) {
                         return;
                     }
 
-                    var optionIds = selectedOptions
-                        .map(function (option) { return (option.value || '').trim(); })
-                        .filter(function (optionId) { return !!optionId; });
+                    var selectedOptions = Array.from(select.options || [])
+                        .filter(function (option) {
+                            return selectedValues.indexOf((option.value || '').trim()) >= 0;
+                        });
+
+                    var optionIds = selectedValues.filter(function (optionId) { return !!optionId; });
 
                     if (optionIds.length === 0) {
                         return;
@@ -1692,6 +1735,29 @@
                 var combinations = buildVariantCombinations(result.dimensions);
                 var selectedFormula = getVariantNameFormulaData();
                 var selectedFormulaName = selectedFormula ? (selectedFormula.name || '').trim() : '';
+                var debugMessages = [];
+
+                if (!baseSku) {
+                    debugMessages.push('SKU پایه خالی است.');
+                }
+
+                if (!result.dimensions || result.dimensions.length === 0) {
+                    debugMessages.push('هیچ optionی از attributeهای واریانت‌ساز انتخاب نشده یا type آن‌ها پشتیبانی نمی‌شود.');
+                }
+
+                if (result.validationErrors && result.validationErrors.length > 0) {
+                    debugMessages.push('خطاهای اعتبارسنجی وجود دارد: ' + result.validationErrors.join(' | '));
+                }
+
+                if (autoVariantPreviewDebug) {
+                    if (debugMessages.length > 0) {
+                        autoVariantPreviewDebug.textContent = debugMessages.join(' ');
+                        autoVariantPreviewDebug.classList.remove('d-none');
+                    } else {
+                        autoVariantPreviewDebug.textContent = '';
+                        autoVariantPreviewDebug.classList.add('d-none');
+                    }
+                }
 
                 if (!baseSku || combinations.length === 0) {
                     autoVariantPreviewBody.innerHTML = '';
@@ -1889,6 +1955,26 @@
                     window.jQuery(productCategoryField).on('select2:clear', handleCategoryChange);
                 }
             }
+
+            document.addEventListener('change', function (event) {
+                if (!event || !event.target) {
+                    return;
+                }
+
+                if (event.target.closest('.js-auto-product-value, .js-auto-variant-values, #ProductForm_VariantNameFormulaId')) {
+                    renderAutoVariantPreview();
+                }
+            });
+
+            document.addEventListener('input', function (event) {
+                if (!event || !event.target) {
+                    return;
+                }
+
+                if (event.target.closest('.js-auto-product-value, .js-auto-variant-values, #ProductForm_VariantNameFormulaId')) {
+                    renderAutoVariantPreview();
+                }
+            });
 
             if (productUpsertForm) {
                 productUpsertForm.addEventListener('submit', function (event) {
