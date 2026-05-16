@@ -44,7 +44,10 @@ public class DeleteAttributeOptionCommandHandler : CommandHandler<DeleteAttribut
         if (inUseByVariants)
             return Fail("Option cannot be deleted because variants are using it.");
 
-        aggregate.RemoveOption(command.OptionBusinessKey);
+        var removed = await _repository.RemoveOptionAsync(command.AttributeDefinitionBusinessKey, command.OptionBusinessKey);
+        if (!removed)
+            return Fail("Attribute option was not found.");
+
         await _repository.CommitAsync();
 
         return Ok(new DeleteAttributeOptionCommandResult

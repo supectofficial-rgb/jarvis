@@ -1529,6 +1529,7 @@
             var booleanHasValue = false;
 
             initializeCategoryTreeData();
+            initSearchableSelects(document);
             clearSubmittedDraftAfterSuccess();
             restorePageState();
             restoreFormDrafts();
@@ -1537,6 +1538,9 @@
                 productListTabPane.appendChild(productListTabPanel);
             }
             syncCategoryTreeFromValue(productCategoryField ? productCategoryField.value : '');
+            if (categoryTreeLevels && !categoryTreeLevels.innerHTML && Array.isArray(categoryTreeNodes) && categoryTreeNodes.length > 0) {
+                renderCategoryTree([]);
+            }
             setCreateAttributeStatus(
                 isEditMode ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.editMode"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.scriptActivated"])),
                 isEditMode ? 'secondary' : 'success'
@@ -1560,11 +1564,23 @@
                     if (event && event.params && event.params.data && event.params.data.id) {
                         selectedCategoryId = (event.params.data.id || '').trim();
                     }
+                    if (!selectedCategoryId && window.jQuery) {
+                        var selectedValue = window.jQuery(productCategoryField).val();
+                        if (Array.isArray(selectedValue)) {
+                            selectedCategoryId = selectedValue.length > 0 ? (selectedValue[0] || '').trim() : '';
+                        } else {
+                            selectedCategoryId = (selectedValue || '').toString().trim();
+                        }
+                    }
 
                     selectProductCategory(selectedCategoryId, { force: true });
                 };
 
                 productCategoryField.addEventListener('change', handleCategoryChange);
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(productCategoryField).on('select2:select', handleCategoryChange);
+                    window.jQuery(productCategoryField).on('select2:clear', handleCategoryChange);
+                }
             }
 
             if (productUpsertForm) {

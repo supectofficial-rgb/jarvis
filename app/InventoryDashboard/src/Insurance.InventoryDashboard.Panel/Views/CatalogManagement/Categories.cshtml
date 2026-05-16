@@ -412,13 +412,7 @@
                                                                                         <td>@(option.IsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
                                                                                         <td class="text-nowrap">
                                                                                             <button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="@option.Id" data-option-name="@option.OptionName" data-option-value="@option.OptionValue" data-display-order="@option.DisplayOrder" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>@UiText["common.edit"]</button>
-                                                                                            <form asp-action="DeleteAttributeOption" method="post" class="d-inline option-delete-form" data-option-delete-form data-loading-form>
-                                                                                                @Html.AntiForgeryToken()
-                                                                                                <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                                                                                <input type="hidden" name="attributeId" value="@attr.Id" />
-                                                                                                <input type="hidden" name="optionId" value="@option.Id" />
-                                                                                                <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.attributeOptions.deleteTitle"]' data-confirm='@UiText["catalog.categories.attributeOptions.deleteConfirm"]' @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
-                                                                                            </form>
+                                                                                            <button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="@option.Id" @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
                                                                                         </td>
                                                                                     </tr>
                                                                                 }
@@ -2128,6 +2122,7 @@
             var formulaPartsList = document.getElementById('formula-parts-list');
             var formulaPartsEmpty = document.getElementById('formula-parts-empty');
             var formulaState = { parts: [] };
+            var formulaPendingAttributeId = '';
 
             function getFormulaById(formulaId) {
                 if (!formulaId || !Array.isArray(formulaRegistry)) {
@@ -2174,6 +2169,10 @@
             }
 
             function getSelectedFormulaAttributeId() {
+                if (formulaPendingAttributeId) {
+                    return formulaPendingAttributeId;
+                }
+
                 if (!formulaAttributePicker) {
                     return '';
                 }
@@ -2189,6 +2188,10 @@
                 }
 
                 return formulaAttributePicker.value || '';
+            }
+
+            function setSelectedFormulaAttributeId(attributeId) {
+                formulaPendingAttributeId = attributeId ? String(attributeId) : '';
             }
 
             function setFormulaMode(isEditMode) {
@@ -2252,6 +2255,7 @@
                 if (formulaSeparatorField) formulaSeparatorField.value = ' ';
                 if (formulaDisplayOrderField) formulaDisplayOrderField.value = '0';
                 if (formulaIsActiveField) formulaIsActiveField.checked = true;
+                setSelectedFormulaAttributeId('');
                 if (formulaAttributePicker) formulaAttributePicker.value = '';
                 if (formulaAttributePicker && window.jQuery) {
                     window.jQuery(formulaAttributePicker).val('').trigger('change');
@@ -2283,6 +2287,7 @@
             }
 
             function addFormulaPart(attributeId) {
+                attributeId = attributeId ? String(attributeId) : '';
                 if (!attributeId) {
                     return;
                 }
@@ -2292,6 +2297,7 @@
                 }
 
                 formulaState.parts.push(attributeId);
+                setSelectedFormulaAttributeId('');
                 if (formulaAttributePicker) {
                     formulaAttributePicker.value = '';
                     if (window.jQuery) {
@@ -2348,17 +2354,22 @@
             if (formulaAttributePicker) {
                 formulaAttributePicker.addEventListener('change', function () {
                     var selectedAttributeId = getSelectedFormulaAttributeId();
-                    if (selectedAttributeId) {
-                        addFormulaPart(selectedAttributeId);
+                    if (!selectedAttributeId && formulaAttributePicker.selectedOptions && formulaAttributePicker.selectedOptions.length > 0) {
+                        selectedAttributeId = formulaAttributePicker.selectedOptions[0].value || '';
                     }
+                    setSelectedFormulaAttributeId(selectedAttributeId);
                 });
 
                 if (window.jQuery) {
-                    window.jQuery(formulaAttributePicker).on('select2:select', function () {
-                        var selectedAttributeId = getSelectedFormulaAttributeId();
-                        if (selectedAttributeId) {
-                            addFormulaPart(selectedAttributeId);
+                    window.jQuery(formulaAttributePicker).on('select2:select', function (event) {
+                        var selectedAttributeId = '';
+                        if (event && event.params && event.params.data && event.params.data.id) {
+                            selectedAttributeId = event.params.data.id;
                         }
+                        if (!selectedAttributeId) {
+                            selectedAttributeId = getSelectedFormulaAttributeId();
+                        }
+                        setSelectedFormulaAttributeId(selectedAttributeId);
                     });
                 }
             }

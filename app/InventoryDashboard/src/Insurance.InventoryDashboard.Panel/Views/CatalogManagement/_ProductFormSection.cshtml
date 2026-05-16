@@ -102,6 +102,15 @@
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
+    var flatCategoryLookup = Model.FlatCategories
+        .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+    var rootCategories = Model.FlatCategories
+        .Where(x => string.IsNullOrWhiteSpace(x.ParentCategoryId) || !flatCategoryLookup.ContainsKey(x.ParentCategoryId))
+        .OrderBy(x => x.DisplayOrder)
+        .ThenBy(x => x.Name)
+        .ThenBy(x => x.Id)
+        .ToList();
     var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
         .Where(IsVariantScopeAttribute)
         .Where(x => x.IsVariantLevel)
@@ -164,7 +173,33 @@
                         <div class="product-category-selected-path mb-3">
                             <span class="badge badge-pill badge-outline-primary d-none" id="product-category-path-badge" role="status" aria-live="polite"></span>
                         </div>
-                        <div id="product-category-tree-levels"></div>
+                        <div id="product-category-tree-levels">
+                            @if (rootCategories.Count > 0)
+                            {
+                                <div class="product-category-level" data-level="1">
+                                    <div class="product-category-level-title">@UiText["catalog.products.categorySelectionStepPrefix"] 1 @UiText["catalog.products.categorySelectionStepSuffix"]</div>
+                                    <div class="product-category-grid">
+                                        @foreach (var category in rootCategories)
+                                        {
+                                            var categoryImageUrl = ResolveMediaUrl(category.ImageThumbnailUrl ?? category.ImageUrl);
+                                            <button type="button"
+                                                    class="product-category-card@(string.IsNullOrWhiteSpace(categoryImageUrl) ? " product-category-card-no-media" : string.Empty)"
+                                                    data-category-card
+                                                    data-category-id="@category.Id">
+                                                @if (!string.IsNullOrWhiteSpace(categoryImageUrl))
+                                                {
+                                                    <span class="product-category-card-media">
+                                                        <img src="@categoryImageUrl" alt="@category.Name" />
+                                                    </span>
+                                                }
+                                                <span class="product-category-card-name">@category.Name</span>
+                                                <span class="product-category-card-code">@(string.IsNullOrWhiteSpace(category.Code) ? UiText["catalog.products.noCode"] : category.Code)</span>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
                         <div class="collapse mt-3" id="product-category-search-fallback">
                             <label class="small text-muted">@UiText["catalog.products.quickCategorySearchHelp"]</label>
                             <select asp-for="ProductForm.CategoryId" class="form-control js-search-select" id="ProductForm_CategoryId" data-placeholder='@UiText["catalog.products.selectProductCategory"]' required>

@@ -245,16 +245,6 @@ public sealed class CategoryManagementController : CatalogManagementController
             return BadRequest(new { isSuccess = false, errorMessage = "اتریبیوت یا آپشن انتخاب نشده است." });
 
         var result = await _apiService.DeleteAttributeOptionAsync(attributeId, optionId, token);
-        if (!result.IsSuccess && IsNotFound(result.ErrorMessage))
-        {
-            return await OptionsMutationResult(
-                attributeId,
-                token,
-                new ApiResponse<bool> { IsSuccess = true, Data = true },
-                "آپشن قبلا حذف شده است.",
-                optionId);
-        }
-
         return await OptionsMutationResult(attributeId, token, result, "آپشن با موفقیت حذف شد.", optionId);
     }
 
@@ -287,10 +277,6 @@ public sealed class CategoryManagementController : CatalogManagementController
             items
         });
     }
-
-    private static bool IsNotFound(string? message)
-        => !string.IsNullOrWhiteSpace(message)
-           && message.Contains("not found", StringComparison.OrdinalIgnoreCase);
 
     [HttpPost]
     [ValidateAntiForgeryToken]

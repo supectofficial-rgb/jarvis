@@ -58,4 +58,18 @@ public class AttributeDefinitionCommandRepository
 
         return query.AnyAsync();
     }
+
+    public async Task<bool> RemoveOptionAsync(Guid attributeDefinitionBusinessKey, Guid optionBusinessKey)
+    {
+        var option = await _dbContext.Set<AttributeOption>()
+            .FirstOrDefaultAsync(x =>
+                x.AttributeRef == attributeDefinitionBusinessKey &&
+                x.BusinessKey.Value == optionBusinessKey);
+
+        if (option is null)
+            return false;
+
+        _dbContext.Set<AttributeOption>().Remove(option);
+        return true;
+    }
 }
