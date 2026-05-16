@@ -76,6 +76,28 @@
                                     </div>
                                 </div>
 
+                                <div class="form-group mt-3">
+                                    <label>@UiText["catalog.categories.formulas.attributes"]</label>
+                                    <div class="input-group mb-2">
+                                        <select id="formula-create-attribute-picker" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectAttribute"]'>
+                                            <option value="">@UiText["catalog.categories.formulas.selectAttribute"]</option>
+                                            @foreach (var attr in formulaAttributeSource)
+                                            {
+                                                <option value="@attr.Id">@attr.Name (@attr.Code / @attr.Scope @((attr.IsInherited ? UiText["catalog.categories.formulas.inheritedSuffix"] : string.Empty)))</option>
+                                            }
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-outline-primary" id="formula-create-add-part-btn" @(formulaAttributeSource.Count == 0 ? "disabled" : null)>@UiText["catalog.categories.attributeOptions.add"]</button>
+                                        </div>
+                                    </div>
+                                    @if (formulaAttributeSource.Count == 0)
+                                    {
+                                        <small class="form-text text-warning">@UiText["catalog.categories.formulas.noAttributes"]</small>
+                                    }
+                                    <div id="formula-create-parts-empty" class="alert alert-light small mb-2">@UiText["catalog.categories.formulas.emptyParts"]</div>
+                                    <div id="formula-create-parts-list" class="list-group"></div>
+                                </div>
+
                                 <div class="mt-3">
                                     <button class="btn btn-primary" type="submit" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.save"]</button>
                                 </div>
@@ -232,55 +254,6 @@
                                                         <input type="hidden" name="formulaId" value="@formula.FormulaId" />
                                                         <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.formulas.deleteTitle"]' data-confirm='@UiText["catalog.categories.formulas.deleteConfirm"]' @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.delete"]</button>
                                                     </form>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="5">
-                                                    <div class="table-responsive">
-                                                        <table class="table table-sm mb-0">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>@UiText["catalog.categories.formulas.partRow"]</th>
-                                                                    <th>@UiText["catalog.categories.rules.attribute"]</th>
-                                                                    <th>@UiText["common.code"]</th>
-                                                                    <th class="text-right">@UiText["common.operations"]</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                @if (formulaParts.Count == 0)
-                                                                {
-                                                                    <tr>
-                                                                        <td colspan="4" class="text-muted small">@UiText["catalog.categories.formulas.noItems"]</td>
-                                                                    </tr>
-                                                                }
-                                                                @for (var partIndex = 0; partIndex < formulaParts.Count; partIndex++)
-                                                                {
-                                                                    var part = formulaParts[partIndex];
-                                                                    <tr>
-                                                                        <td>@(partIndex + 1)</td>
-                                                                        <td>@part.AttributeName</td>
-                                                                        <td><span class="text-monospace">@part.AttributeCode</span></td>
-                                                                        <td class="text-right text-nowrap">
-                                                                            <button type="button"
-                                                                                    class="btn btn-outline-secondary btn-xs formula-part-manage-btn"
-                                                                                    data-formula-id="@formula.FormulaId"
-                                                                                    data-formula-part-index="@partIndex"
-                                                                                    @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
-                                                                                @UiText["common.edit"]
-                                                                            </button>
-                                                                            <button type="button"
-                                                                                    class="btn btn-outline-danger btn-xs formula-part-remove-btn"
-                                                                                    data-formula-id="@formula.FormulaId"
-                                                                                    data-formula-part-index="@partIndex"
-                                                                                    @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
-                                                                                @UiText["common.delete"]
-                                                                            </button>
-                                                                        </td>
-                                                                    </tr>
-                                                                }
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
                                                 </td>
                                             </tr>
                                         }

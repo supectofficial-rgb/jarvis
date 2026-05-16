@@ -1,3 +1,6 @@
+@using System
+@using System.Linq
+@using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
 @{
     ViewData["Title"] = UiText["catalog.categories.title"];
@@ -6,16 +9,645 @@
     ViewBag.MenuModules = Model.Modules;
     ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
     ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var parentLookup = Model.FlatCategories
+        .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+    string GetCategoryPathById(string? categoryId)
+    {
+        if (string.IsNullOrWhiteSpace(categoryId) || !parentLookup.TryGetValue(categoryId, out var current))
+        {
+            return "-";
+        }
+
+        var parts = new List<string>();
+        var guard = 0;
+        while (current is not null && guard < 1024)
+        {
+            parts.Add(current.Name);
+            if (string.IsNullOrWhiteSpace(current.ParentCategoryId) || !parentLookup.TryGetValue(current.ParentCategoryId, out current))
+            {
+                break;
+            }
+            guard++;
+        }
+
+        parts.Reverse();
+        return string.Join(" / ", parts);
+    }
+
+    var hasRestrictedActions = !Can("Catalog.Category.Create", "Catalog.Category.Update", "Category.Create", "Category.Update")
+        || !Can("Catalog.Category.Move", "Category.Move")
+        || !Can("Catalog.Category.Activate", "Category.Activate")
+        || !Can("Catalog.Category.Deactivate", "Category.Deactivate")
+        || !Can("Catalog.Category.Delete", "Category.Delete")
+        || !Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update")
+        || !Can("Catalog.AttributeOption.Update", "AttributeOption.Update")
+        || !Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update")
+        || !Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage");
+    var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
+    var selectedCategoryPath = GetCategoryPathById(Model.SelectedCategoryId);
+    var activeSurface = Model.ActiveItem?.ItemId ?? "categories";
+
+    var attributeRows = Model.AllAttributes.Count > 0 ? Model.AllAttributes : Model.CategoryAttributes;
 }
 
-@await Html.PartialAsync(
-    "~/Views/CatalogManagement/_CategoryPageShell.cshtml",
-    Model,
-    new ViewDataDictionary(ViewData)
-    {
-        ["SectionPartial"] = "~/Views/CatalogManagement/_CategoryAttributesSection.cshtml"
-    })
+<style>
+    .category-list-image {
+        width: 48px;
+        height: 48px;
+        border-radius: .75rem;
+        overflow: hidden;
+        background: #f2f4f7;
+        border: 1px solid #e2e6ea;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9aa3ad;
+        font-size: 1.25rem;
+    }
+
+    .category-list-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+</style>
+
+<main id="categories-page"
+      class="catalog-page"
+      data-selected-category-id="@Model.SelectedCategoryId"
+      data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1>@UiText["catalog.categories.title"]</h1>
+                <p class="text-muted">@UiText["catalog.categories.description"]</p>
+                <div class="mb-3">
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.primaryGoal"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.secondaryOperations"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.totalCount"] @Model.FlatCategories.Count</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.filteredCount"] @Model.FilteredFlatCategories.Count</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
+                    {
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.selectedPath"] @selectedCategoryPath</span>
+                    }
+                </div>
+                <p class="small text-muted mb-3">
+                    @UiText["catalog.categories.quickGuide"]
+                </p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage) || TempData["CatalogError"] is string)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-warning mb-3">
+                        @(TempData["CatalogError"] as string ?? Model.ErrorMessage)
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (TempData["CatalogSuccess"] is string successMessage)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-success mb-3">@successMessage</div>
+                </div>
+            </div>
+        }
+
+        @await Html.PartialAsync("~/Views/Shared/_CatalogPermissionNotice.cshtml", hasRestrictedActions)
+
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "categories", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="Categories"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.categories"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "attributes", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="Attributes"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.attributesAndOptions"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "category_attribute_rules", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="CategoryAttributes"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.rules"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "variant_name_formulas", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="VariantNameFormulas"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.formulas"]
+                        </a>
+                    </li>
+                </ul>
+
+                <div id="attribute-tab">
+                    <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
+                        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">@UiText["catalog.categories.attributeTabs.add"]</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">@UiText["catalog.categories.attributeTabs.search"]</a></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane show active" id="attribute-section-form" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12 mb-4">
+                                    <div class="card mb-4">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@UiText["catalog.categories.attributes.createTitle"]</h5>
+                                            <form asp-action="CreateCategoryAttribute" method="post" id="create-category-attribute-form" data-loading-form data-dirty-watch>
+                                                @Html.AntiForgeryToken()
+                                                <input asp-for="AttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                                <input asp-for="AttributeForm.Scope" type="hidden" value="Both" />
+                                                <div class="form-group"><label>@UiText["common.code"]</label><input asp-for="AttributeForm.Code" class="form-control" required /></div>
+                                                <div class="form-group"><label>@UiText["common.name"]</label><input asp-for="AttributeForm.Name" class="form-control" required /></div>
+                                                <div class="form-group">
+                                                    <label>@UiText["catalog.categories.attributes.dataType"]</label>
+                                                    <select asp-for="AttributeForm.DataType" class="form-control" required>
+                                                        <option value="Option">@UiText["catalog.categories.attributes.dataType.option"]</option>
+                                                        <option value="Text">@UiText["catalog.categories.attributes.dataType.text"]</option>
+                                                        <option value="Number">@UiText["catalog.categories.attributes.dataType.number"]</option>
+                                                        <option value="Boolean">@UiText["catalog.categories.attributes.dataType.boolean"]</option>
+                                                        <option value="Date">@UiText["catalog.categories.attributes.dataType.date"]</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group"><label>@UiText["catalog.categories.displayOrder"]</label><input asp-for="AttributeForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                                <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.AttributeDefinition.Create", "AttributeDefinition.Create") ? null : "disabled")>@UiText["common.save"]</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="attribute-section-bank" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12 mb-4">
+                                    <div class="card mb-4" id="attribute-edit-panel" style="display:none;">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@UiText["catalog.categories.attributes.editTitle"]</h5>
+                                            <form asp-action="UpdateAttributeDefinition" method="post" id="attribute-update-form" data-loading-form data-dirty-watch>
+                                                @Html.AntiForgeryToken()
+                                                <input asp-for="AttributeUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                                <input asp-for="AttributeUpdateForm.AttributeId" type="hidden" id="attribute-update-id" />
+                                                <input asp-for="AttributeUpdateForm.Scope" type="hidden" id="AttributeUpdateForm_Scope" value="Both" />
+                                                <input asp-for="AttributeUpdateForm.IsRequired" type="hidden" id="AttributeUpdateForm_IsRequired" />
+                                                <input asp-for="AttributeUpdateForm.IsVariant" type="hidden" id="AttributeUpdateForm_IsVariant" />
+                                                <input asp-for="AttributeUpdateForm.IsActive" type="hidden" id="AttributeUpdateForm_IsActive" />
+                                                <div class="form-group"><label>@UiText["catalog.categories.attributes.selected"]</label><input id="attribute-update-selected" type="text" class="form-control" readonly /></div>
+                                                <div class="form-group"><label>@UiText["common.code"]</label><input asp-for="AttributeUpdateForm.Code" id="AttributeUpdateForm_Code" class="form-control" required /></div>
+                                                <div class="form-group"><label>@UiText["common.name"]</label><input asp-for="AttributeUpdateForm.Name" id="AttributeUpdateForm_Name" class="form-control" required /></div>
+                                                <div class="form-group">
+                                                    <label>@UiText["catalog.categories.attributes.dataType"]</label>
+                                                    <select asp-for="AttributeUpdateForm.DataType" id="AttributeUpdateForm_DataType" class="form-control" required>
+                                                        <option value="Option">@UiText["catalog.categories.attributes.dataType.option"]</option>
+                                                        <option value="Text">@UiText["catalog.categories.attributes.dataType.text"]</option>
+                                                        <option value="Number">@UiText["catalog.categories.attributes.dataType.number"]</option>
+                                                        <option value="Boolean">@UiText["catalog.categories.attributes.dataType.boolean"]</option>
+                                                        <option value="Date">@UiText["catalog.categories.attributes.dataType.date"]</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group"><label>@UiText["catalog.categories.displayOrder"]</label><input asp-for="AttributeUpdateForm.DisplayOrder" id="AttributeUpdateForm_DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                                <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.update"]</button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@UiText["catalog.categories.attributes.listTitle"]</h5>
+                                            <div class="form-group">
+                                                <label>@UiText["common.search"]</label>
+                                                <input type="search" class="form-control" id="attribute-list-search" placeholder='@UiText["catalog.categories.attributes.searchPlaceholder"]' />
+                                            </div>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>@UiText["common.name"]</th>
+                                                            <th>@UiText["common.code"]</th>
+                                                            <th>@UiText["catalog.categories.displayOrder"]</th>
+                                                            <th>@UiText["common.status"]</th>
+                                                            <th></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @if (attributeRows.Count == 0)
+                                                        {
+                                                            <tr><td colspan="5"><div class="alert alert-light my-2">@UiText["catalog.categories.attributes.none"]</div></td></tr>
+                                                        }
+                                                        @foreach (var attr in attributeRows.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
+                                                        {
+                                                            var isOptionAttribute = string.Equals(attr.DataType, "Option", StringComparison.OrdinalIgnoreCase)
+                                                                || string.Equals(attr.DataType, "Enum", StringComparison.OrdinalIgnoreCase)
+                                                                || string.Equals(attr.DataType, "Select", StringComparison.OrdinalIgnoreCase);
+                                                            <tr data-attribute-list-row data-attribute-search="@($"{attr.Name} {attr.Code}")">
+                                                                <td>@attr.Name</td>
+                                                                <td><span class="text-monospace">@attr.Code</span></td>
+                                                                <td>@attr.DisplayOrder</td>
+                                                                <td>@(attr.IsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
+                                                                <td class="text-nowrap">
+                                                                    @if (isOptionAttribute)
+                                                                    {
+                                                                        <button type="button" class="btn btn-outline-primary btn-xs attribute-options-btn" data-attribute-id="@attr.Id">@UiText["catalog.categories.attributes.optionsList"]</button>
+                                                                    }
+                                                                    <button type="button"
+                                                                            class="btn btn-outline-secondary btn-xs attribute-edit-btn"
+                                                                            data-attribute-id="@attr.Id"
+                                                                            data-attribute-name="@attr.Name"
+                                                                            data-attribute-code="@attr.Code"
+                                                                            data-attribute-datatype="@attr.DataType"
+                                                                            data-attribute-scope="@(string.IsNullOrWhiteSpace(attr.Scope) ? "Both" : attr.Scope)"
+                                                                            data-attribute-display-order="@attr.DisplayOrder"
+                                                                            data-attribute-is-required="@(attr.IsRequired ? "true" : "false")"
+                                                                            data-attribute-is-variant="@(attr.IsVariant ? "true" : "false")"
+                                                                            data-attribute-isactive="@(attr.IsActive ? "true" : "false")"
+                                                                            @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>
+                                                                        @UiText["common.edit"]
+                                                                    </button>
+                                                                    <form asp-action="DeleteAttributeDefinition" method="post" class="d-inline" data-loading-form>
+                                                                        @Html.AntiForgeryToken()
+                                                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                                        <input type="hidden" name="attributeId" value="@attr.Id" />
+                                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.attributes.deleteTitle"]' data-confirm='@UiText["catalog.categories.attributes.deleteConfirm"]' @(Can("Catalog.AttributeDefinition.Delete", "AttributeDefinition.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
+                                                                    </form>
+                                                                </td>
+                                                            </tr>
+                                                            @if (isOptionAttribute)
+                                                            {
+                                                                <tr class="attribute-options-row" data-options-for="@attr.Id" style="display:none;">
+                                                                    <td colspan="5">
+                                                                        <div class="border rounded p-3 bg-light">
+                                                                            <h6 class="mb-3">@string.Format(UiText["catalog.categories.attributeOptions.titleFormat"], attr.Name)</h6>
+                                                                            <div class="attribute-options-message small mb-2" data-options-message></div>
+                                                                            <form asp-action="AddAttributeOption" method="post" class="mb-3 option-add-form" data-option-add-form data-loading-form>
+                                                                                @Html.AntiForgeryToken()
+                                                                                <input type="hidden" name="OptionForm.CategoryId" value="@Model.SelectedCategoryId" />
+                                                                                <input type="hidden" name="OptionForm.AttributeId" value="@attr.Id" />
+                                                                                <div class="form-row">
+                                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.code"]</label><input name="OptionForm.OptionValue" class="form-control text-monospace" required /></div>
+                                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.name"]</label><input name="OptionForm.OptionName" class="form-control" required /></div>
+                                                                                    <div class="form-group col-md-2"><label>@UiText["catalog.categories.displayOrder"]</label><input name="OptionForm.DisplayOrder" type="number" min="0" class="form-control" value="0" /></div>
+                                                                                    <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Create", "AttributeOption.Create") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.add"]</button></div>
+                                                                                </div>
+                                                                            </form>
+                                                                            <form asp-action="UpdateAttributeOption" method="post" class="option-inline-edit-form mb-3" data-option-update-form data-loading-form style="display:none;">
+                                                                                @Html.AntiForgeryToken()
+                                                                                <input type="hidden" name="OptionUpdateForm.CategoryId" value="@Model.SelectedCategoryId" />
+                                                                                <input type="hidden" name="OptionUpdateForm.AttributeId" value="@attr.Id" />
+                                                                                <input type="hidden" name="OptionUpdateForm.OptionId" data-option-update-id />
+                                                                                <div class="form-row">
+                                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.code"]</label><input name="OptionUpdateForm.OptionValue" class="form-control text-monospace" data-option-update-value required /></div>
+                                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.name"]</label><input name="OptionUpdateForm.OptionName" class="form-control" data-option-update-name required /></div>
+                                                                                    <div class="form-group col-md-2"><label>@UiText["catalog.categories.displayOrder"]</label><input name="OptionUpdateForm.DisplayOrder" type="number" min="0" class="form-control" data-option-update-order /></div>
+                                                                                    <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-outline-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.update"]</button></div>
+                                                                                </div>
+                                                                            </form>
+                                                                            <div class="table-responsive">
+                                                                                <table class="table table-sm table-striped mb-0">
+                                                                                    <thead><tr><th>@UiText["common.code"]</th><th>@UiText["common.name"]</th><th>@UiText["catalog.categories.displayOrder"]</th><th>@UiText["common.status"]</th><th></th></tr></thead>
+                                                                                    <tbody data-options-tbody data-attribute-id="@attr.Id">
+                                                                                        @if (attr.Options.Count == 0)
+                                                                                        {
+                                                                                            <tr><td colspan="5">@UiText["catalog.categories.attributeOptions.none"]</td></tr>
+                                                                                        }
+                                                                                        @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                                                                        {
+                                                                                            <tr>
+                                                                                                <td><span class="text-monospace">@option.OptionValue</span></td>
+                                                                                                <td>@option.OptionName</td>
+                                                                                                <td>@option.DisplayOrder</td>
+                                                                                                <td>@(option.IsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
+                                                                                                <td class="text-nowrap">
+                                                                                                    <button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="@option.Id" data-option-name="@option.OptionName" data-option-value="@option.OptionValue" data-display-order="@option.DisplayOrder" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>@UiText["common.edit"]</button>
+                                                                                                    <button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="@option.Id" @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        }
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
 
 @section Scripts {
-    @await Html.PartialAsync("~/Views/CatalogManagement/_CategoryAttributesScripts.cshtml", Model)
+    <script>
+        (function () {
+            function showBootstrapTab(selector) {
+                var target = document.querySelector(selector);
+                if (target && window.jQuery) {
+                    window.jQuery(target).tab('show');
+                }
+            }
+
+            function escapeHtml(value) {
+                return (value || '')
+                    .toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function escapeSelector(value) {
+                if (window.CSS && window.CSS.escape) {
+                    return window.CSS.escape(value);
+                }
+
+                return String(value || '').replace(/["\\]/g, '\\$&');
+            }
+
+            function getJson(response) {
+                return response.json().catch(function () {
+                    return { isSuccess: false, errorMessage: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverResponseUnreadable"])) };
+                });
+            }
+
+            var optionEndpoints = {
+                list: '@Url.Action("GetAttributeOptions", "CategoryManagement")',
+                add: '@Url.Action("AddAttributeOptionAjax", "CategoryManagement")',
+                update: '@Url.Action("UpdateAttributeOptionAjax", "CategoryManagement")',
+                delete: '@Url.Action("DeleteAttributeOptionAjax", "CategoryManagement")'
+            };
+
+            var optionTexts = {
+                none: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.none"])),
+                active: @Html.Raw(JsonSerializer.Serialize(UiText["common.active"])),
+                inactive: @Html.Raw(JsonSerializer.Serialize(UiText["common.inactive"])),
+                edit: @Html.Raw(JsonSerializer.Serialize(UiText["common.edit"])),
+                delete: @Html.Raw(JsonSerializer.Serialize(UiText["common.delete"])),
+                loading: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.loading"])),
+                unavailable: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.serverUnavailable"])),
+                loadFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.loadFailed"])),
+                submitting: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitting"])),
+                submitFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitFailed"])),
+                submitSucceeded: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.submitSucceeded"])),
+                deleteConfirm: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteConfirm"])),
+                deleting: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleting"])),
+                deleteFailed: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteFailed"])),
+                deleteSucceeded: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.deleteSucceeded"]))
+            };
+
+            function setOptionsMessage(row, message, isError) {
+                var box = row ? row.querySelector('[data-options-message]') : null;
+                if (!box) return;
+                box.className = 'attribute-options-message small mb-2 ' + (isError ? 'text-danger' : 'text-success');
+                box.textContent = message || '';
+            }
+
+            function renderOptions(row, options) {
+                var tbody = row ? row.querySelector('[data-options-tbody]') : null;
+                if (!tbody) return;
+                if (!options || !options.length) {
+                    tbody.innerHTML = '<tr><td colspan="5">' + optionTexts.none + '</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = options.slice().sort(function (a, b) {
+                    return (a.displayOrder || a.DisplayOrder || 0) - (b.displayOrder || b.DisplayOrder || 0)
+                        || String(a.optionName || a.OptionName || '').localeCompare(String(b.optionName || b.OptionName || ''));
+                }).map(function (option) {
+                    var id = escapeHtml(option.id || option.Id);
+                    var name = escapeHtml(option.optionName || option.OptionName);
+                    var value = escapeHtml(option.optionValue || option.OptionValue);
+                    var order = option.displayOrder || option.DisplayOrder || 0;
+                    var isActive = option.isActive !== undefined ? option.isActive : option.IsActive;
+                    return '<tr>'
+                        + '<td><span class="text-monospace">' + value + '</span></td>'
+                        + '<td>' + name + '</td>'
+                        + '<td>' + order + '</td>'
+                        + '<td>' + (isActive ? optionTexts.active : optionTexts.inactive) + '</td>'
+                        + '<td class="text-nowrap">'
+                        + '<button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="' + id + '" data-option-name="' + name + '" data-option-value="' + value + '" data-display-order="' + order + '">' + optionTexts.edit + '</button> '
+                        + '<button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="' + id + '">' + optionTexts.delete + '</button>'
+                        + '</td>'
+                        + '</tr>';
+                }).join('');
+            }
+
+            function loadOptions(row, attributeId) {
+                setOptionsMessage(row, optionTexts.loading, false);
+                return fetch(optionEndpoints.list + '?attributeId=' + encodeURIComponent(attributeId), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(getJson)
+                    .then(function (payload) {
+                        if (!payload.isSuccess) {
+                            setOptionsMessage(row, payload.errorMessage || optionTexts.loadFailed, true);
+                            return;
+                        }
+                        renderOptions(row, payload.items || []);
+                        setOptionsMessage(row, '', false);
+                    })
+                    .catch(function () {
+                        setOptionsMessage(row, optionTexts.unavailable, true);
+                    });
+            }
+
+            function submitOptionForm(form, url) {
+                var row = form.closest('.attribute-options-row');
+                var buttons = form.querySelectorAll('button[type="submit"]');
+                buttons.forEach(function (button) { button.disabled = true; });
+                setOptionsMessage(row, optionTexts.submitting, false);
+                return fetch(url, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(getJson)
+                    .then(function (payload) {
+                        if (!payload.isSuccess) {
+                            setOptionsMessage(row, payload.errorMessage || optionTexts.submitFailed, true);
+                            return;
+                        }
+                        renderOptions(row, payload.items || []);
+                        setOptionsMessage(row, payload.message || optionTexts.submitSucceeded, false);
+                        form.reset();
+                        if (form.matches('[data-option-update-form]')) {
+                            form.style.display = 'none';
+                        }
+                    })
+                    .catch(function () {
+                        setOptionsMessage(row, optionTexts.unavailable, true);
+                    })
+                    .finally(function () {
+                        buttons.forEach(function (button) { button.disabled = false; });
+                    });
+            }
+
+            document.addEventListener('click', function (event) {
+                var attributeEditButton = event.target.closest('.attribute-edit-btn');
+                if (attributeEditButton) {
+                    var pairs = {
+                        'attribute-update-id': 'data-attribute-id',
+                        'attribute-update-selected': 'data-attribute-name',
+                        'AttributeUpdateForm_Code': 'data-attribute-code',
+                        'AttributeUpdateForm_Name': 'data-attribute-name',
+                        'AttributeUpdateForm_DataType': 'data-attribute-datatype',
+                        'AttributeUpdateForm_Scope': 'data-attribute-scope',
+                        'AttributeUpdateForm_DisplayOrder': 'data-attribute-display-order'
+                    };
+                    Object.keys(pairs).forEach(function (id) {
+                        var field = document.getElementById(id);
+                        if (field) field.value = attributeEditButton.getAttribute(pairs[id]) || '';
+                    });
+                    var isActiveField = document.getElementById('AttributeUpdateForm_IsActive');
+                    if (isActiveField) {
+                        isActiveField.value = (attributeEditButton.getAttribute('data-attribute-isactive') || '').toLowerCase() === 'true' ? 'true' : 'false';
+                    }
+
+                    showBootstrapTab('#attribute-section-tabs .nav-link[href="#attribute-section-bank"]');
+                    var editPanel = document.getElementById('attribute-edit-panel');
+                    if (editPanel) editPanel.style.display = '';
+                    var form = document.getElementById('attribute-update-form');
+                    if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+
+                var optionsButton = event.target.closest('.attribute-options-btn');
+                if (optionsButton) {
+                    var attributeId = optionsButton.getAttribute('data-attribute-id') || '';
+                    var row = document.querySelector('.attribute-options-row[data-options-for="' + escapeSelector(attributeId) + '"]');
+                    if (!row) return;
+                    var isVisible = row.style.display !== 'none';
+                    document.querySelectorAll('.attribute-options-row').forEach(function (optionsRow) {
+                        optionsRow.style.display = 'none';
+                    });
+                    row.style.display = isVisible ? 'none' : '';
+                    if (!isVisible) {
+                        loadOptions(row, attributeId);
+                    }
+                    return;
+                }
+
+                var optionEditButton = event.target.closest('.option-edit-btn');
+                if (optionEditButton) {
+                    var optionRow = optionEditButton.closest('.attribute-options-row');
+                    var updateForm = optionRow ? optionRow.querySelector('[data-option-update-form]') : null;
+                    if (!updateForm) return;
+                    var fields = {
+                        '[data-option-update-id]': 'data-option-id',
+                        '[data-option-update-name]': 'data-option-name',
+                        '[data-option-update-value]': 'data-option-value',
+                        '[data-option-update-order]': 'data-display-order'
+                    };
+                    Object.keys(fields).forEach(function (selector) {
+                        var field = updateForm.querySelector(selector);
+                        if (field) field.value = optionEditButton.getAttribute(fields[selector]) || '';
+                    });
+                    updateForm.style.display = '';
+                    updateForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+
+                var optionDeleteButton = event.target.closest('.ajax-option-delete-btn');
+                if (optionDeleteButton) {
+                    var deleteRow = optionDeleteButton.closest('.attribute-options-row');
+                    var deleteToken = deleteRow ? deleteRow.querySelector('input[name="__RequestVerificationToken"]') : null;
+                    var deleteAttributeId = deleteRow ? deleteRow.getAttribute('data-options-for') || '' : '';
+                    var deleteOptionId = optionDeleteButton.getAttribute('data-option-id') || '';
+                    if (!deleteRow || !deleteToken || !deleteAttributeId || !deleteOptionId || !window.confirm(optionTexts.deleteConfirm)) return;
+                    var data = new FormData();
+                    data.append('__RequestVerificationToken', deleteToken.value);
+                    data.append('attributeId', deleteAttributeId);
+                    data.append('optionId', deleteOptionId);
+                    setOptionsMessage(deleteRow, optionTexts.deleting, false);
+                    fetch(optionEndpoints.delete, {
+                        method: 'POST',
+                        body: data,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(getJson)
+                        .then(function (payload) {
+                            if (!payload.isSuccess) {
+                                setOptionsMessage(deleteRow, payload.errorMessage || optionTexts.deleteFailed, true);
+                                return;
+                            }
+                            renderOptions(deleteRow, payload.items || []);
+                            setOptionsMessage(deleteRow, payload.message || optionTexts.deleteSucceeded, false);
+                        })
+                        .catch(function () {
+                            setOptionsMessage(deleteRow, optionTexts.unavailable, true);
+                        });
+                }
+            }, true);
+
+            document.addEventListener('submit', function (event) {
+                var form = event.target;
+                if (!(form instanceof HTMLFormElement)) return;
+                if (form.matches('[data-option-add-form]')) {
+                    event.preventDefault();
+                    submitOptionForm(form, optionEndpoints.add);
+                    return;
+                }
+                if (form.matches('[data-option-update-form]')) {
+                    event.preventDefault();
+                    submitOptionForm(form, optionEndpoints.update);
+                }
+            }, true);
+
+            var attributeListSearch = document.getElementById('attribute-list-search');
+            if (attributeListSearch) {
+                attributeListSearch.addEventListener('input', function () {
+                    var needle = (attributeListSearch.value || '').trim().toLowerCase();
+                    document.querySelectorAll('[data-attribute-list-row]').forEach(function (row) {
+                        var haystack = (row.getAttribute('data-attribute-search') || '').toLowerCase();
+                        var visible = !needle || haystack.indexOf(needle) >= 0;
+                        row.style.display = visible ? '' : 'none';
+                        var optionsButton = row.querySelector('.attribute-options-btn');
+                        var attributeId = optionsButton ? optionsButton.getAttribute('data-attribute-id') || '' : '';
+                        var optionsRow = attributeId ? document.querySelector('.attribute-options-row[data-options-for="' + escapeSelector(attributeId) + '"]') : null;
+                        if (optionsRow && !visible) {
+                            optionsRow.style.display = 'none';
+                        }
+                    });
+                });
+            }
+        })();
+    </script>
 }

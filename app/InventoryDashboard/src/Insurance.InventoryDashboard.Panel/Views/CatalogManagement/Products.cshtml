@@ -1069,7 +1069,7 @@
 
                 parts.push(attribute.isInherited
                     ? (@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.inheritedFromPrefix"])) + (attribute.sourceCategoryName || ''))
-                    : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.direct"]));
+                    : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.direct"])));
                 parts.push(attribute.isRequired ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.required"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.optional"])));
                 return parts.join(' - ');
             }

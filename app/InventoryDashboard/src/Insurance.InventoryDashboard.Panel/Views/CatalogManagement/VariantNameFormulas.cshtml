@@ -1,3 +1,6 @@
+@using System
+@using System.Linq
+@using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
 @{
     ViewData["Title"] = UiText["catalog.categories.title"];
@@ -6,16 +9,1107 @@
     ViewBag.MenuModules = Model.Modules;
     ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
     ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var parentLookup = Model.FlatCategories
+        .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+    string GetCategoryPathById(string? categoryId)
+    {
+        if (string.IsNullOrWhiteSpace(categoryId) || !parentLookup.TryGetValue(categoryId, out var current))
+        {
+            return "-";
+        }
+
+        var parts = new List<string>();
+        var guard = 0;
+        while (current is not null && guard < 1024)
+        {
+            parts.Add(current.Name);
+            if (string.IsNullOrWhiteSpace(current.ParentCategoryId) || !parentLookup.TryGetValue(current.ParentCategoryId, out current))
+            {
+                break;
+            }
+            guard++;
+        }
+
+        parts.Reverse();
+        return string.Join(" / ", parts);
+    }
+
+    var hasRestrictedActions = !Can("Catalog.Category.Create", "Catalog.Category.Update", "Category.Create", "Category.Update")
+        || !Can("Catalog.Category.Move", "Category.Move")
+        || !Can("Catalog.Category.Activate", "Category.Activate")
+        || !Can("Catalog.Category.Deactivate", "Category.Deactivate")
+        || !Can("Catalog.Category.Delete", "Category.Delete")
+        || !Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update")
+        || !Can("Catalog.AttributeOption.Update", "AttributeOption.Update")
+        || !Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update")
+        || !Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage");
+    var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
+    var selectedCategoryPath = GetCategoryPathById(Model.SelectedCategoryId);
+    var activeSurface = Model.ActiveItem?.ItemId ?? "categories";
+
+    var localFormulas = Model.CategoryVariantNameFormulas.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+    var formulaAttributeSource = Model.CategoryAttributes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
 }
 
-@await Html.PartialAsync(
-    "~/Views/CatalogManagement/_CategoryPageShell.cshtml",
-    Model,
-    new ViewDataDictionary(ViewData)
-    {
-        ["SectionPartial"] = "~/Views/CatalogManagement/_CategoryFormulasSection.cshtml"
-    })
+<style>
+    .category-list-image {
+        width: 48px;
+        height: 48px;
+        border-radius: .75rem;
+        overflow: hidden;
+        background: #f2f4f7;
+        border: 1px solid #e2e6ea;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9aa3ad;
+        font-size: 1.25rem;
+    }
+
+    .category-list-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+</style>
+
+<main id="categories-page"
+      class="catalog-page"
+      data-selected-category-id="@Model.SelectedCategoryId"
+      data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1>@UiText["catalog.categories.title"]</h1>
+                <p class="text-muted">@UiText["catalog.categories.description"]</p>
+                <div class="mb-3">
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.primaryGoal"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.secondaryOperations"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.totalCount"] @Model.FlatCategories.Count</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.filteredCount"] @Model.FilteredFlatCategories.Count</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
+                    {
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.selectedPath"] @selectedCategoryPath</span>
+                    }
+                </div>
+                <p class="small text-muted mb-3">
+                    @UiText["catalog.categories.quickGuide"]
+                </p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage) || TempData["CatalogError"] is string)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-warning mb-3">
+                        @(TempData["CatalogError"] as string ?? Model.ErrorMessage)
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (TempData["CatalogSuccess"] is string successMessage)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-success mb-3">@successMessage</div>
+                </div>
+            </div>
+        }
+
+        @await Html.PartialAsync("~/Views/Shared/_CatalogPermissionNotice.cshtml", hasRestrictedActions)
+
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "categories", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="Categories"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.categories"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "attributes", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="Attributes"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.attributesAndOptions"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "category_attribute_rules", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="CategoryAttributes"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.rules"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "variant_name_formulas", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="VariantNameFormulas"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.formulas"]
+                        </a>
+                    </li>
+                </ul>
+
+                <div id="formula-tab">
+                    <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="formula-section-tabs">
+                        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#formula-section-create" role="tab">@UiText["catalog.categories.sections.edit"]</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#formula-section-list" role="tab">@UiText["catalog.categories.formulaList"]</a></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane show active" id="formula-section-create" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12 mb-4">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title mb-3">@UiText["catalog.categories.variantFormulaCreate"]</h5>
+                                            <p class="text-muted small mb-3">@UiText["catalog.categories.formulas.partsHelp"]</p>
+                                            <form asp-action="CreateVariantNameFormula" method="post" id="variant-name-formula-create-form" data-loading-form data-dirty-watch>
+                                                @Html.AntiForgeryToken()
+                                                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                                <input id="VariantNameFormulaForm_Create_FormulaId" name="VariantNameFormulaForm.FormulaId" type="hidden" value="" />
+                                                <input id="VariantNameFormulaForm_Create_PartsJson" name="VariantNameFormulaForm.PartsJson" type="hidden" value="[]" />
+
+                                                <div class="form-group">
+                                                    <label>@UiText["catalog.categories.rules.category"]</label>
+                                                    <select asp-for="VariantNameFormulaForm.CategoryId" id="VariantNameFormulaForm_Create_CategoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectCategory"]' required>
+                                                        <option value="">@UiText["catalog.categories.formulas.selectCategory"]</option>
+                                                        @foreach (var category in Model.LeafCategories)
+                                                        {
+                                                            <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label>@UiText["catalog.categories.formulas.name"]</label>
+                                                    <input asp-for="VariantNameFormulaForm.Name" id="VariantNameFormulaForm_Create_Name" class="form-control" required maxlength="120" />
+                                                </div>
+
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-6">
+                                                        <label>@UiText["catalog.categories.formulas.separator"]</label>
+                                                        <select asp-for="VariantNameFormulaForm.Separator" id="VariantNameFormulaForm_Create_Separator" class="form-control">
+                                                            <option value="-">@UiText["catalog.categories.formulas.separator.dash"]</option>
+                                                            <option value=" ">@UiText["catalog.categories.formulas.separator.space"]</option>
+                                                            <option value="__none">@UiText["catalog.categories.formulas.separator.none"]</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group col-md-3">
+                                                        <label>@UiText["catalog.categories.displayOrder"]</label>
+                                                        <input asp-for="VariantNameFormulaForm.DisplayOrder" id="VariantNameFormulaForm_Create_DisplayOrder" class="form-control" type="number" min="0" />
+                                                    </div>
+                                                    <div class="form-group col-md-3 d-flex align-items-end">
+                                                        <div class="custom-control custom-checkbox">
+                                                            <input asp-for="VariantNameFormulaForm.IsActive" class="custom-control-input" id="VariantNameFormulaForm_IsActive_Create" />
+                                                            <label class="custom-control-label" for="VariantNameFormulaForm_IsActive_Create">@UiText["catalog.categories.rules.isActive"]</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group mt-3">
+                                                    <label>@UiText["catalog.categories.formulas.attributes"]</label>
+                                                    <div class="input-group mb-2">
+                                                        <select id="formula-create-attribute-picker" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectAttribute"]'>
+                                                            <option value="">@UiText["catalog.categories.formulas.selectAttribute"]</option>
+                                                            @foreach (var attr in formulaAttributeSource)
+                                                            {
+                                                                <option value="@attr.Id">@attr.Name (@attr.Code / @attr.Scope @((attr.IsInherited ? UiText["catalog.categories.formulas.inheritedSuffix"] : string.Empty)))</option>
+                                                            }
+                                                        </select>
+                                                        <div class="input-group-append">
+                                                            <button type="button" class="btn btn-outline-primary" id="formula-create-add-part-btn" @(formulaAttributeSource.Count == 0 ? "disabled" : null)>@UiText["catalog.categories.attributeOptions.add"]</button>
+                                                        </div>
+                                                    </div>
+                                                    @if (formulaAttributeSource.Count == 0)
+                                                    {
+                                                        <small class="form-text text-warning">@UiText["catalog.categories.formulas.noAttributes"]</small>
+                                                    }
+                                                    <div id="formula-create-parts-empty" class="alert alert-light small mb-2">@UiText["catalog.categories.formulas.emptyParts"]</div>
+                                                    <div id="formula-create-parts-list" class="list-group"></div>
+                                                </div>
+
+                                                <div class="mt-3">
+                                                    <button class="btn btn-primary" type="submit" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.save"]</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="formula-section-list" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12 mb-4">
+                                    <div class="card mb-4">
+                                        <div class="card-body">
+                                            <form asp-action="VariantNameFormulas" method="get" class="row align-items-end" id="formula-category-list-form">
+                                                <div class="col-lg-8 col-md-8 mb-2">
+                                                    <label class="text-muted small">@UiText["catalog.categories.rules.category"]</label>
+                                                    <select name="categoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectCategory"]' required>
+                                                        <option value="">@UiText["catalog.categories.formulas.selectCategory"]</option>
+                                                        @foreach (var category in Model.LeafCategories)
+                                                        {
+                                                            <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-lg-4 col-md-4 mb-2">
+                                                    <button type="submit" class="btn btn-primary btn-block">@UiText["catalog.categories.formulas.loadList"]</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="card mb-4" id="formula-inline-edit-panel" style="display:none;">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h5 class="card-title mb-0" id="formula-form-title">@UiText["catalog.categories.variantFormulaEdit"]</h5>
+                                                <button type="button" class="btn btn-outline-secondary btn-xs" id="formula-edit-cancel">@UiText["catalog.categories.formulas.reset"]</button>
+                                            </div>
+                                            <form asp-action="UpdateVariantNameFormula" method="post" id="variant-name-formula-form" data-loading-form data-dirty-watch>
+                                                @Html.AntiForgeryToken()
+                                                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                                <input asp-for="VariantNameFormulaForm.CategoryId" type="hidden" id="VariantNameFormulaForm_Inline_CategoryId" value="@Model.SelectedCategoryId" />
+                                                <input asp-for="VariantNameFormulaForm.FormulaId" type="hidden" id="VariantNameFormulaForm_Inline_FormulaId" />
+                                                <input asp-for="VariantNameFormulaForm.PartsJson" type="hidden" id="VariantNameFormulaForm_Inline_PartsJson" value="[]" />
+
+                                                <div class="form-group">
+                                                    <label>@UiText["catalog.categories.formulas.name"]</label>
+                                                    <input asp-for="VariantNameFormulaForm.Name" class="form-control" id="VariantNameFormulaForm_Inline_Name" required maxlength="120" />
+                                                </div>
+
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-6">
+                                                        <label>@UiText["catalog.categories.formulas.separator"]</label>
+                                                        <select asp-for="VariantNameFormulaForm.Separator" class="form-control" id="VariantNameFormulaForm_Inline_Separator">
+                                                            <option value="-">@UiText["catalog.categories.formulas.separator.dash"]</option>
+                                                            <option value=" ">@UiText["catalog.categories.formulas.separator.space"]</option>
+                                                            <option value="__none">@UiText["catalog.categories.formulas.separator.none"]</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group col-md-3">
+                                                        <label>@UiText["catalog.categories.displayOrder"]</label>
+                                                        <input asp-for="VariantNameFormulaForm.DisplayOrder" class="form-control" id="VariantNameFormulaForm_Inline_DisplayOrder" type="number" min="0" />
+                                                    </div>
+                                                    <div class="form-group col-md-3 d-flex align-items-end">
+                                                        <div class="custom-control custom-checkbox">
+                                                            <input asp-for="VariantNameFormulaForm.IsActive" class="custom-control-input" id="VariantNameFormulaForm_Inline_IsActive" />
+                                                            <label class="custom-control-label" for="VariantNameFormulaForm_Inline_IsActive">@UiText["catalog.categories.rules.isActive"]</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label>@UiText["catalog.categories.formulas.attributes"]</label>
+                                                    <div class="input-group mb-2">
+                                                        <select id="formula-attribute-picker" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectAttribute"]'>
+                                                            <option value="">@UiText["catalog.categories.formulas.selectAttribute"]</option>
+                                                            @foreach (var attr in formulaAttributeSource)
+                                                            {
+                                                                <option value="@attr.Id">@attr.Name (@attr.Code / @attr.Scope @((attr.IsInherited ? UiText["catalog.categories.formulas.inheritedSuffix"] : string.Empty)))</option>
+                                                            }
+                                                        </select>
+                                                        <div class="input-group-append">
+                                                            <button type="button" class="btn btn-outline-primary" id="formula-add-part-btn" @(formulaAttributeSource.Count == 0 ? "disabled" : null)>@UiText["catalog.categories.attributeOptions.add"]</button>
+                                                        </div>
+                                                    </div>
+                                                    @if (formulaAttributeSource.Count == 0)
+                                                    {
+                                                        <small class="form-text text-warning">@UiText["catalog.categories.formulas.noAttributes"]</small>
+                                                    }
+                                                    <div id="formula-parts-empty" class="alert alert-light small mb-2">@UiText["catalog.categories.formulas.emptyParts"]</div>
+                                                    <div id="formula-parts-list" class="list-group"></div>
+                                                </div>
+
+                                                <div class="mt-3 d-flex flex-wrap">
+                                                    <button class="btn btn-primary mr-2 mb-2" type="submit" id="formula-submit-btn" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["catalog.categories.formulas.update"]</button>
+                                                    <button class="btn btn-outline-secondary mb-2" type="button" id="formula-reset-btn">@UiText["catalog.categories.formulas.reset"]</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="card">
+                                        <div class="card-body" id="formula-list-scope">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h5 class="card-title mb-0">@UiText["catalog.categories.variantFormulaList"]</h5>
+                                                <span class="badge badge-pill badge-outline-primary">@localFormulas.Count</span>
+                                            </div>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-striped">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>@UiText["common.name"]</th>
+                                                            <th>@UiText["catalog.categories.formulas.preview"]</th>
+                                                            <th>@UiText["catalog.categories.displayOrder"]</th>
+                                                            <th>@UiText["common.status"]</th>
+                                                            <th></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @if (localFormulas.Count == 0)
+                                                        {
+                                                            <tr>
+                                                                <td colspan="5">
+                                                                    <div class="alert alert-light my-2">@UiText["catalog.categories.formulas.none"]</div>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                        @foreach (var formula in localFormulas)
+                                                        {
+                                                            var formulaParts = formula.Parts.OrderBy(x => x.SortOrder).ThenBy(x => x.AttributeName).ToList();
+                                                            <tr>
+                                                                <td>
+                                                                    <div class="font-weight-bold">@formula.Name</div>
+                                                                    <div class="small text-muted">@formulaParts.Count @UiText["catalog.categories.formulas.attributeCountSuffix"]</div>
+                                                                </td>
+                                                                <td class="text-monospace">@(!string.IsNullOrWhiteSpace(formula.Preview) ? formula.Preview : "-")</td>
+                                                                <td>@formula.DisplayOrder</td>
+                                                                <td>
+                                                                    <span class="badge badge-pill @(formula.IsActive ? "badge-success" : "badge-secondary")">
+                                                                        @(formula.IsActive ? UiText["common.active"] : UiText["common.inactive"])
+                                                                    </span>
+                                                                </td>
+                                                                <td class="text-nowrap">
+                                                                    <button type="button"
+                                                                            class="btn btn-outline-secondary btn-xs formula-edit-btn"
+                                                                            data-formula-id="@formula.FormulaId"
+                                                                            @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
+                                                                        @UiText["common.edit"]
+                                                                    </button>
+                                                                    <form asp-action="DeleteVariantNameFormula" method="post" class="d-inline" data-loading-form>
+                                                                        @Html.AntiForgeryToken()
+                                                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                                        <input type="hidden" name="formulaId" value="@formula.FormulaId" />
+                                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.formulas.deleteTitle"]' data-confirm='@UiText["catalog.categories.formulas.deleteConfirm"]' @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.delete"]</button>
+                                                                    </form>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
 
 @section Scripts {
-    @await Html.PartialAsync("~/Views/CatalogManagement/_CategoryFormulasScripts.cshtml", Model)
+    <script>
+        (function () {
+            function escapeHtml(value) {
+                return (value || '')
+                    .toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function initSearchableSelects(scope) {
+                if (!scope || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+
+                var $ = window.jQuery;
+                scope.querySelectorAll('select.js-search-select').forEach(function (select) {
+                    if (select.dataset.select2Initialized === 'true') {
+                        return;
+                    }
+
+                    $(select).select2({
+                        theme: 'bootstrap',
+                        dir: document.documentElement.getAttribute('dir') || 'rtl',
+                        width: select.getAttribute('data-width') || '100%',
+                        placeholder: select.getAttribute('data-placeholder') || '',
+                        minimumResultsForSearch: select.hasAttribute('data-no-search') ? Infinity : 0
+                    });
+
+                    select.dataset.select2Initialized = 'true';
+                });
+            }
+
+            var texts = {
+                add: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.add"])),
+                replace: @Html.Raw(JsonSerializer.Serialize(UiText["common.edit"])),
+                remove: @Html.Raw(JsonSerializer.Serialize(UiText["common.delete"])),
+                update: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.update"])),
+                empty: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.emptyParts"])),
+                inheritedSuffix: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.inheritedSuffix"])),
+                editTitle: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.variantFormulaEdit"]))
+            };
+
+            var formulas = @Html.Raw(JsonSerializer.Serialize(localFormulas.Select(functionFormula => new {
+                formulaId = functionFormula.FormulaId,
+                categoryId = functionFormula.CategoryId,
+                name = functionFormula.Name,
+                separator = functionFormula.Separator,
+                displayOrder = functionFormula.DisplayOrder,
+                isActive = functionFormula.IsActive,
+                parts = functionFormula.Parts
+                    .OrderBy(x => x.SortOrder)
+                    .ThenBy(x => x.AttributeName)
+                    .Select(part => new {
+                        attributeId = part.AttributeId,
+                        attributeName = part.AttributeName,
+                        attributeCode = part.AttributeCode,
+                        sortOrder = part.SortOrder
+                    })
+                    .ToList()
+            }).ToList()));
+
+            var formulaAttributes = @Html.Raw(JsonSerializer.Serialize(formulaAttributeSource.Select(attribute => new {
+                attributeId = attribute.Id,
+                attributeName = attribute.Name,
+                attributeCode = attribute.Code,
+                displayOrder = attribute.DisplayOrder,
+                isInherited = attribute.IsInherited
+            }).ToList()));
+
+            var createForm = document.getElementById('variant-name-formula-create-form');
+            var createCategoryField = document.getElementById('VariantNameFormulaForm_Create_CategoryId');
+            var createPartsJsonField = document.getElementById('VariantNameFormulaForm_Create_PartsJson');
+            var createAttributePicker = document.getElementById('formula-create-attribute-picker');
+            var createAddPartBtn = document.getElementById('formula-create-add-part-btn');
+            var createPartsList = document.getElementById('formula-create-parts-list');
+            var createPartsEmpty = document.getElementById('formula-create-parts-empty');
+
+            var listFilterForm = document.getElementById('formula-category-list-form');
+            var listCategoryField = listFilterForm ? listFilterForm.querySelector('select[name="categoryId"]') : null;
+
+            var inlinePanel = document.getElementById('formula-inline-edit-panel');
+            var inlineForm = document.getElementById('variant-name-formula-form');
+            var inlineTitle = document.getElementById('formula-form-title');
+            var inlineCancelBtn = document.getElementById('formula-edit-cancel');
+            var inlineSubmitBtn = document.getElementById('formula-submit-btn');
+            var inlineResetBtn = document.getElementById('formula-reset-btn');
+            var inlineFormulaIdField = document.getElementById('VariantNameFormulaForm_Inline_FormulaId');
+            var inlineCategoryField = document.getElementById('VariantNameFormulaForm_Inline_CategoryId');
+            var inlineNameField = document.getElementById('VariantNameFormulaForm_Inline_Name');
+            var inlineSeparatorField = document.getElementById('VariantNameFormulaForm_Inline_Separator');
+            var inlineDisplayOrderField = document.getElementById('VariantNameFormulaForm_Inline_DisplayOrder');
+            var inlineIsActiveField = document.getElementById('VariantNameFormulaForm_Inline_IsActive');
+            var inlinePartsJsonField = document.getElementById('VariantNameFormulaForm_Inline_PartsJson');
+            var attributePicker = document.getElementById('formula-attribute-picker');
+            var addPartBtn = document.getElementById('formula-add-part-btn');
+            var partsList = document.getElementById('formula-parts-list');
+            var partsEmpty = document.getElementById('formula-parts-empty');
+            var listTabLink = document.querySelector('#formula-section-tabs .nav-link[href="#formula-section-list"]');
+
+            var state = {
+                parts: [],
+                editingPartIndex: -1
+            };
+            var createState = {
+                parts: [],
+                editingPartIndex: -1
+            };
+
+            function getFormulaById(formulaId) {
+                if (!formulaId) {
+                    return null;
+                }
+
+                var normalized = String(formulaId).toLowerCase();
+                for (var i = 0; i < formulas.length; i += 1) {
+                    if (String(formulas[i].formulaId || '').toLowerCase() === normalized) {
+                        return formulas[i];
+                    }
+                }
+
+                return null;
+            }
+
+            function getAttributeById(attributeId) {
+                if (!attributeId) {
+                    return null;
+                }
+
+                var normalized = String(attributeId).toLowerCase();
+                for (var i = 0; i < formulaAttributes.length; i += 1) {
+                    if (String(formulaAttributes[i].attributeId || '').toLowerCase() === normalized) {
+                        return formulaAttributes[i];
+                    }
+                }
+
+                return null;
+            }
+
+            function getPickerValue() {
+                if (!attributePicker) {
+                    return '';
+                }
+
+                if (window.jQuery) {
+                    var jqValue = window.jQuery(attributePicker).val();
+                    if (Array.isArray(jqValue)) {
+                        return jqValue.length > 0 ? (jqValue[0] || '') : '';
+                    }
+                    if (jqValue) {
+                        return jqValue;
+                    }
+                }
+
+                return attributePicker.value || '';
+            }
+
+            function setPickerValue(value) {
+                if (!attributePicker) {
+                    return;
+                }
+
+                attributePicker.value = value || '';
+                if (window.jQuery) {
+                    window.jQuery(attributePicker).val(value || '').trigger('change');
+                }
+            }
+
+            function syncInlinePartsJson() {
+                if (inlinePartsJsonField) {
+                    inlinePartsJsonField.value = JSON.stringify(state.parts);
+                }
+            }
+
+            function updateInlineButtons() {
+                if (inlineSubmitBtn) {
+                    inlineSubmitBtn.disabled = !inlineFormulaIdField || !inlineFormulaIdField.value;
+                }
+
+                if (addPartBtn) {
+                    addPartBtn.textContent = state.editingPartIndex >= 0 ? texts.replace : texts.add;
+                }
+            }
+
+            function clearPartEditing() {
+                state.editingPartIndex = -1;
+                setPickerValue('');
+                updateInlineButtons();
+            }
+
+            function renderParts() {
+                if (!partsList || !partsEmpty) {
+                    return;
+                }
+
+                partsList.innerHTML = '';
+
+                if (!state.parts.length) {
+                    partsEmpty.style.display = '';
+                    partsEmpty.classList.remove('alert-warning');
+                    partsEmpty.classList.add('alert-light');
+                    partsEmpty.textContent = texts.empty;
+                    syncInlinePartsJson();
+                    updateInlineButtons();
+                    return;
+                }
+
+                partsEmpty.style.display = 'none';
+
+                state.parts.forEach(function (attributeId, index) {
+                    var attribute = getAttributeById(attributeId);
+                    var item = document.createElement('div');
+                    item.className = 'list-group-item';
+                    item.innerHTML = ''
+                        + '<div class="d-flex justify-content-between align-items-center flex-wrap">'
+                        + '<div class="pr-2 mb-2 mb-md-0">'
+                        + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : attributeId) + '</div>'
+                        + '<div class="small text-muted">'
+                        + escapeHtml(attribute ? attribute.attributeCode : '')
+                        + (attribute && attribute.isInherited ? escapeHtml(texts.inheritedSuffix) : '')
+                        + '</div>'
+                        + '</div>'
+                        + '<div class="btn-group btn-group-sm" role="group">'
+                        + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="up" data-formula-index="' + index + '"' + (index === 0 ? ' disabled' : '') + '>&uarr;</button>'
+                        + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="down" data-formula-index="' + index + '"' + (index === state.parts.length - 1 ? ' disabled' : '') + '>&darr;</button>'
+                        + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="edit" data-formula-index="' + index + '">' + escapeHtml(texts.replace) + '</button>'
+                        + '<button type="button" class="btn btn-outline-danger formula-part-action" data-formula-action="remove" data-formula-index="' + index + '">' + escapeHtml(texts.remove) + '</button>'
+                        + '</div>'
+                        + '</div>';
+                    partsList.appendChild(item);
+                });
+
+                syncInlinePartsJson();
+                updateInlineButtons();
+            }
+
+            function openInlineEditor(formula) {
+                if (!formula || !inlinePanel || !inlineForm) {
+                    return;
+                }
+
+                if (window.jQuery && listTabLink) {
+                    window.jQuery(listTabLink).tab('show');
+                }
+
+                inlinePanel.style.display = '';
+                if (inlineTitle) {
+                    inlineTitle.textContent = texts.editTitle;
+                }
+
+                if (inlineFormulaIdField) {
+                    inlineFormulaIdField.value = formula.formulaId || '';
+                }
+                if (inlineCategoryField) {
+                    inlineCategoryField.value = formula.categoryId || (listCategoryField ? listCategoryField.value : '') || '@Model.SelectedCategoryId';
+                }
+                if (inlineNameField) {
+                    inlineNameField.value = formula.name || '';
+                }
+                if (inlineSeparatorField) {
+                    inlineSeparatorField.value = formula.separator === '' ? '__none' : (formula.separator || ' ');
+                }
+                if (inlineDisplayOrderField) {
+                    inlineDisplayOrderField.value = formula.displayOrder != null ? formula.displayOrder : 0;
+                }
+                if (inlineIsActiveField) {
+                    inlineIsActiveField.checked = !!formula.isActive;
+                }
+
+                state.parts = (formula.parts || []).map(function (part) {
+                    return part.attributeId;
+                });
+
+                clearPartEditing();
+                renderParts();
+                inlinePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            function closeInlineEditor() {
+                if (!inlineForm || !inlinePanel) {
+                    return;
+                }
+
+                inlineForm.reset();
+                if (inlineFormulaIdField) {
+                    inlineFormulaIdField.value = '';
+                }
+                if (inlineCategoryField) {
+                    inlineCategoryField.value = (listCategoryField ? listCategoryField.value : '') || '@Model.SelectedCategoryId';
+                }
+                if (inlinePartsJsonField) {
+                    inlinePartsJsonField.value = '[]';
+                }
+
+                state.parts = [];
+                clearPartEditing();
+                renderParts();
+                inlinePanel.style.display = 'none';
+            }
+
+            function addOrReplacePart() {
+                var attributeId = getPickerValue();
+                if (!attributeId) {
+                    return;
+                }
+
+                var normalized = String(attributeId).toLowerCase();
+                var existingIndex = state.parts.findIndex(function (partId) {
+                    return String(partId).toLowerCase() === normalized;
+                });
+
+                if (state.editingPartIndex >= 0) {
+                    if (existingIndex >= 0 && existingIndex !== state.editingPartIndex) {
+                        return;
+                    }
+                    state.parts[state.editingPartIndex] = attributeId;
+                } else {
+                    if (existingIndex >= 0) {
+                        return;
+                    }
+                    state.parts.push(attributeId);
+                }
+
+                clearPartEditing();
+                renderParts();
+            }
+
+            function removePart(index) {
+                if (index < 0 || index >= state.parts.length) {
+                    return;
+                }
+
+                state.parts.splice(index, 1);
+                if (state.editingPartIndex === index) {
+                    clearPartEditing();
+                } else if (state.editingPartIndex > index) {
+                    state.editingPartIndex -= 1;
+                }
+                renderParts();
+            }
+
+            function movePart(index, delta) {
+                var nextIndex = index + delta;
+                if (index < 0 || nextIndex < 0 || nextIndex >= state.parts.length) {
+                    return;
+                }
+
+                var temp = state.parts[index];
+                state.parts[index] = state.parts[nextIndex];
+                state.parts[nextIndex] = temp;
+
+                if (state.editingPartIndex === index) {
+                    state.editingPartIndex = nextIndex;
+                } else if (state.editingPartIndex === nextIndex) {
+                    state.editingPartIndex = index;
+                }
+
+                renderParts();
+            }
+
+            function startPartEdit(index) {
+                if (index < 0 || index >= state.parts.length) {
+                    return;
+                }
+
+                state.editingPartIndex = index;
+                setPickerValue(state.parts[index]);
+                updateInlineButtons();
+                if (attributePicker) {
+                    attributePicker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            function syncCreateParts() {
+                if (createPartsJsonField) {
+                    createPartsJsonField.value = JSON.stringify(createState.parts);
+                }
+            }
+
+            function getCreatePickerValue() {
+                if (!createAttributePicker) {
+                    return '';
+                }
+
+                if (window.jQuery) {
+                    var jqValue = window.jQuery(createAttributePicker).val();
+                    if (Array.isArray(jqValue)) {
+                        return jqValue.length > 0 ? (jqValue[0] || '') : '';
+                    }
+                    if (jqValue) {
+                        return jqValue;
+                    }
+                }
+
+                return createAttributePicker.value || '';
+            }
+
+            function setCreatePickerValue(value) {
+                if (!createAttributePicker) {
+                    return;
+                }
+
+                createAttributePicker.value = value || '';
+                if (window.jQuery) {
+                    window.jQuery(createAttributePicker).val(value || '').trigger('change');
+                }
+            }
+
+            function updateCreateButtons() {
+                if (createAddPartBtn) {
+                    createAddPartBtn.textContent = createState.editingPartIndex >= 0 ? texts.replace : texts.add;
+                }
+            }
+
+            function clearCreatePartEditing() {
+                createState.editingPartIndex = -1;
+                setCreatePickerValue('');
+                updateCreateButtons();
+            }
+
+            function renderCreateParts() {
+                if (!createPartsList || !createPartsEmpty) {
+                    syncCreateParts();
+                    return;
+                }
+
+                createPartsList.innerHTML = '';
+
+                if (!createState.parts.length) {
+                    createPartsEmpty.style.display = '';
+                    createPartsEmpty.classList.remove('alert-warning');
+                    createPartsEmpty.classList.add('alert-light');
+                    createPartsEmpty.textContent = texts.empty;
+                    syncCreateParts();
+                    updateCreateButtons();
+                    return;
+                }
+
+                createPartsEmpty.style.display = 'none';
+
+                createState.parts.forEach(function (attributeId, index) {
+                    var attribute = getAttributeById(attributeId);
+                    var item = document.createElement('div');
+                    item.className = 'list-group-item';
+                    item.innerHTML = ''
+                        + '<div class="d-flex justify-content-between align-items-center flex-wrap">'
+                        + '<div class="pr-2 mb-2 mb-md-0">'
+                        + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : attributeId) + '</div>'
+                        + '<div class="small text-muted">'
+                        + escapeHtml(attribute ? attribute.attributeCode : '')
+                        + (attribute && attribute.isInherited ? escapeHtml(texts.inheritedSuffix) : '')
+                        + '</div>'
+                        + '</div>'
+                        + '<div class="btn-group btn-group-sm" role="group">'
+                        + '<button type="button" class="btn btn-outline-secondary formula-create-part-action" data-formula-action="up" data-formula-index="' + index + '"' + (index === 0 ? ' disabled' : '') + '>&uarr;</button>'
+                        + '<button type="button" class="btn btn-outline-secondary formula-create-part-action" data-formula-action="down" data-formula-index="' + index + '"' + (index === createState.parts.length - 1 ? ' disabled' : '') + '>&darr;</button>'
+                        + '<button type="button" class="btn btn-outline-secondary formula-create-part-action" data-formula-action="edit" data-formula-index="' + index + '">' + escapeHtml(texts.replace) + '</button>'
+                        + '<button type="button" class="btn btn-outline-danger formula-create-part-action" data-formula-action="remove" data-formula-index="' + index + '">' + escapeHtml(texts.remove) + '</button>'
+                        + '</div>'
+                        + '</div>';
+                    createPartsList.appendChild(item);
+                });
+
+                syncCreateParts();
+                updateCreateButtons();
+            }
+
+            function addOrReplaceCreatePart() {
+                var attributeId = getCreatePickerValue();
+                if (!attributeId) {
+                    return;
+                }
+
+                var normalized = String(attributeId).toLowerCase();
+                var existingIndex = createState.parts.findIndex(function (partId) {
+                    return String(partId).toLowerCase() === normalized;
+                });
+
+                if (createState.editingPartIndex >= 0) {
+                    if (existingIndex >= 0 && existingIndex !== createState.editingPartIndex) {
+                        return;
+                    }
+                    createState.parts[createState.editingPartIndex] = attributeId;
+                } else {
+                    if (existingIndex >= 0) {
+                        return;
+                    }
+                    createState.parts.push(attributeId);
+                }
+
+                clearCreatePartEditing();
+                renderCreateParts();
+            }
+
+            function moveCreatePart(index, delta) {
+                var nextIndex = index + delta;
+                if (index < 0 || nextIndex < 0 || nextIndex >= createState.parts.length) {
+                    return;
+                }
+
+                var temp = createState.parts[index];
+                createState.parts[index] = createState.parts[nextIndex];
+                createState.parts[nextIndex] = temp;
+
+                if (createState.editingPartIndex === index) {
+                    createState.editingPartIndex = nextIndex;
+                } else if (createState.editingPartIndex === nextIndex) {
+                    createState.editingPartIndex = index;
+                }
+
+                renderCreateParts();
+            }
+
+            function startCreatePartEdit(index) {
+                if (index < 0 || index >= createState.parts.length) {
+                    return;
+                }
+
+                createState.editingPartIndex = index;
+                setCreatePickerValue(createState.parts[index]);
+                updateCreateButtons();
+                if (createAttributePicker) {
+                    createAttributePicker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            function removeCreatePart(index) {
+                if (index < 0 || index >= createState.parts.length) {
+                    return;
+                }
+
+                createState.parts.splice(index, 1);
+                if (createState.editingPartIndex === index) {
+                    clearCreatePartEditing();
+                } else if (createState.editingPartIndex > index) {
+                    createState.editingPartIndex -= 1;
+                }
+                renderCreateParts();
+            }
+
+            function syncCategorySelections(sourceValue) {
+                if (createCategoryField && sourceValue && createCategoryField.value !== sourceValue) {
+                    createCategoryField.value = sourceValue;
+                    if (window.jQuery) {
+                        window.jQuery(createCategoryField).val(sourceValue).trigger('change');
+                    }
+                }
+
+                if (listCategoryField && sourceValue && listCategoryField.value !== sourceValue) {
+                    listCategoryField.value = sourceValue;
+                    if (window.jQuery) {
+                        window.jQuery(listCategoryField).val(sourceValue).trigger('change');
+                    }
+                }
+
+                if (inlineCategoryField && !inlineFormulaIdField.value) {
+                    inlineCategoryField.value = sourceValue || '@Model.SelectedCategoryId';
+                }
+            }
+
+            initSearchableSelects(document);
+            syncCreateParts();
+            renderCreateParts();
+            renderParts();
+            updateInlineButtons();
+
+            if (createForm) {
+                createForm.addEventListener('submit', syncCreateParts);
+            }
+
+            if (createAddPartBtn) {
+                createAddPartBtn.addEventListener('click', addOrReplaceCreatePart);
+            }
+
+            if (listFilterForm) {
+                listFilterForm.addEventListener('submit', function () {
+                    closeInlineEditor();
+                });
+            }
+
+            if (createCategoryField) {
+                createCategoryField.addEventListener('change', function () {
+                    syncCategorySelections(createCategoryField.value || '');
+                });
+                if (window.jQuery) {
+                    window.jQuery(createCategoryField).on('select2:select select2:clear', function () {
+                        syncCategorySelections(window.jQuery(createCategoryField).val() || '');
+                    });
+                }
+            }
+
+            if (listCategoryField) {
+                listCategoryField.addEventListener('change', function () {
+                    if (!inlineFormulaIdField.value) {
+                        inlineCategoryField.value = listCategoryField.value || '@Model.SelectedCategoryId';
+                    }
+                });
+            }
+
+            if (addPartBtn) {
+                addPartBtn.addEventListener('click', addOrReplacePart);
+            }
+
+            if (inlineResetBtn) {
+                inlineResetBtn.addEventListener('click', clearPartEditing);
+            }
+
+            if (inlineCancelBtn) {
+                inlineCancelBtn.addEventListener('click', closeInlineEditor);
+            }
+
+            document.addEventListener('click', function (event) {
+                var formulaEditButton = event.target.closest('.formula-edit-btn');
+                if (formulaEditButton) {
+                    var formulaToEdit = getFormulaById(formulaEditButton.getAttribute('data-formula-id') || '');
+                    if (formulaToEdit) {
+                        openInlineEditor(formulaToEdit);
+                    }
+                    return;
+                }
+
+                var formulaPartManageButton = event.target.closest('.formula-part-manage-btn');
+                if (formulaPartManageButton) {
+                    var hostFormula = getFormulaById(formulaPartManageButton.getAttribute('data-formula-id') || '');
+                    var hostPartIndex = parseInt(formulaPartManageButton.getAttribute('data-formula-part-index') || '-1', 10);
+                    if (hostFormula) {
+                        openInlineEditor(hostFormula);
+                        startPartEdit(hostPartIndex);
+                    }
+                    return;
+                }
+
+                var formulaPartRemoveButton = event.target.closest('.formula-part-remove-btn');
+                if (formulaPartRemoveButton) {
+                    var removeFormula = getFormulaById(formulaPartRemoveButton.getAttribute('data-formula-id') || '');
+                    var removePartIndex = parseInt(formulaPartRemoveButton.getAttribute('data-formula-part-index') || '-1', 10);
+                    if (removeFormula) {
+                        openInlineEditor(removeFormula);
+                        removePart(removePartIndex);
+                    }
+                    return;
+                }
+
+                var partActionButton = event.target.closest('.formula-part-action');
+                if (partActionButton) {
+                    var action = partActionButton.getAttribute('data-formula-action') || '';
+                    var index = parseInt(partActionButton.getAttribute('data-formula-index') || '-1', 10);
+
+                    if (action === 'up') {
+                        movePart(index, -1);
+                    } else if (action === 'down') {
+                        movePart(index, 1);
+                    } else if (action === 'edit') {
+                        startPartEdit(index);
+                    } else if (action === 'remove') {
+                        removePart(index);
+                    }
+                    return;
+                }
+
+                var createPartActionButton = event.target.closest('.formula-create-part-action');
+                if (!createPartActionButton) {
+                    return;
+                }
+
+                var createAction = createPartActionButton.getAttribute('data-formula-action') || '';
+                var createIndex = parseInt(createPartActionButton.getAttribute('data-formula-index') || '-1', 10);
+
+                if (createAction === 'up') {
+                    moveCreatePart(createIndex, -1);
+                } else if (createAction === 'down') {
+                    moveCreatePart(createIndex, 1);
+                } else if (createAction === 'edit') {
+                    startCreatePartEdit(createIndex);
+                } else if (createAction === 'remove') {
+                    removeCreatePart(createIndex);
+                }
+            }, true);
+
+            if (inlineForm) {
+                inlineForm.addEventListener('submit', function () {
+                    syncInlinePartsJson();
+                });
+            }
+        })();
+    </script>
 }
