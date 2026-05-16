@@ -892,7 +892,7 @@
                 categoryPathBadge.classList.remove('d-none');
             }
 
-            function setProductCategoryValue(categoryId, options) {
+            function persistSelectedProductCategory(categoryId, options) {
                 if (!productCategoryField) {
                     return;
                 }
@@ -900,27 +900,52 @@
                 var normalizedCategoryId = (categoryId || '').trim();
                 productCategoryField.value = normalizedCategoryId;
 
-                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                if ((!options || options.syncWidget !== false) && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     window.jQuery(productCategoryField).val(normalizedCategoryId).trigger('change.select2');
-                }
-
-                if (!options || options.silent !== true) {
-                    productCategoryField.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
 
-            function selectProductCategory(categoryId, options) {
-                var normalizedCategoryId = (categoryId || '').trim();
-                setProductCategoryValue(normalizedCategoryId, { silent: true });
-                syncCategoryTreeFromValue(normalizedCategoryId);
+            function clearSelectedProductCategory() {
+                persistSelectedProductCategory('', { syncWidget: true });
+                if (pageElement) {
+                    pageElement.setAttribute('data-selected-category-id', '');
+                }
+                lastCreateAttributesCategoryId = '';
+            }
 
-                if (options && options.loadAttributes === false) {
+            function handleQuickSearchCategorySelection(categoryId) {
+                var normalizedCategoryId = (categoryId || '').trim();
+                console.log('[Products][QuickSearch] category business id:', normalizedCategoryId || '<empty>');
+
+                persistSelectedProductCategory(normalizedCategoryId, { syncWidget: true });
+                syncCategoryTreeFromValue(normalizedCategoryId);
+                console.log('[Products][QuickSearch] calling attributes for category:', normalizedCategoryId || '<empty>');
+                loadCreateAttributesForCategory(normalizedCategoryId, { force: true });
+            }
+
+            function handleCategoryCardSelection(categoryId) {
+                var normalizedCategoryId = (categoryId || '').trim();
+                console.log('[Products][Card] category business id:', normalizedCategoryId || '<empty>');
+                if (!normalizedCategoryId) {
+                    console.log('[Products][Card] empty category id, stopping.');
                     return;
                 }
 
-                loadCreateAttributesForCategory(normalizedCategoryId, {
-                    force: options && options.force === true
-                });
+                var nextPath = buildCategoryPathIds(normalizedCategoryId);
+                renderCategoryTree(nextPath);
+                console.log('[Products][Card] category tree rendered for:', normalizedCategoryId);
+
+                if (isLeafCategory(normalizedCategoryId)) {
+                    console.log('[Products][Card] no children found, calling attributes for:', normalizedCategoryId);
+                    persistSelectedProductCategory(normalizedCategoryId, { syncWidget: true });
+                    loadCreateAttributesForCategory(normalizedCategoryId, { force: true });
+                    console.log('[Products][Card] attribute call dispatched for:', normalizedCategoryId);
+                    return;
+                }
+
+                console.log('[Products][Card] has children, rendering child categories for:', normalizedCategoryId);
+                clearSelectedProductCategory();
+                console.log('[Products][Card] child category render completed for:', normalizedCategoryId);
             }
 
             function renderCategoryLevelCards(pathIds) {
@@ -1154,17 +1179,21 @@
 
             function loadCreateAttributesForCategory(categoryId, options) {
                 if (!productUpsertForm || !createDynamicSections) {
+                    console.log('[Products][Attributes] form or dynamic section missing, skipping load.');
                     return;
                 }
 
                 var normalizedCategoryId = (categoryId || '').trim();
+                console.log('[Products][Attributes] requested category business id:', normalizedCategoryId || '<empty>');
                 var forceLoad = options && options.force === true;
                 if (!forceLoad && normalizedCategoryId && lastCreateAttributesCategoryId.toLowerCase() === normalizedCategoryId.toLowerCase()) {
+                    console.log('[Products][Attributes] duplicate category load skipped for:', normalizedCategoryId);
                     setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.duplicateCategory"])), 'secondary');
                     return;
                 }
 
                 if (!normalizedCategoryId) {
+                    console.log('[Products][Attributes] no category selected, clearing sections.');
                     if (pageElement) {
                         pageElement.setAttribute('data-selected-category-id', '');
                     }
@@ -1180,6 +1209,7 @@
                 }
 
                 if (!isLeafCategory(normalizedCategoryId)) {
+                    console.log('[Products][Attributes] selected category has children, attribute load canceled for:', normalizedCategoryId);
                     if (pageElement) {
                         pageElement.setAttribute('data-selected-category-id', '');
                     }
@@ -1197,6 +1227,7 @@
                 var currentRequestId = ++createAttributesRequestId;
                 var currentDraft = captureFormDraft(productUpsertForm);
                 lastCreateAttributesCategoryId = normalizedCategoryId;
+                console.log('[Products][Attributes] dispatching attribute fetch for:', normalizedCategoryId, 'requestId:', currentRequestId);
 
                 setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.sendingRequest"])), 'warning');
                 setCreateAttributeFeedback('', 'warning');
@@ -1213,16 +1244,19 @@
                     .then(function (response) { return response.json(); })
                     .then(function (data) {
                         if (currentRequestId !== createAttributesRequestId) {
+                            console.log('[Products][Attributes] stale response ignored for:', normalizedCategoryId, 'requestId:', currentRequestId);
                             return;
                         }
 
                         if (!data || data.isSuccess === false) {
+                            console.log('[Products][Attributes] attribute fetch failed for:', normalizedCategoryId, 'response:', data);
                             createDynamicSections.innerHTML = '';
                             setCreateAttributeFeedback((data && data.errorMessage) || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loadCategoryAttributesFailed"])), 'danger');
                             renderCreateAttributeSections(null);
                             return;
                         }
 
+                        console.log('[Products][Attributes] attribute fetch completed for:', normalizedCategoryId, 'response category:', data.categoryId || '<empty>');
                         setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loaded"])), 'success');
                         renderCreateAttributeSections(data);
                         applyFormDraft(productUpsertForm, currentDraft);
@@ -1240,9 +1274,11 @@
                     })
                     .catch(function () {
                         if (currentRequestId !== createAttributesRequestId) {
+                            console.log('[Products][Attributes] stale error ignored for:', normalizedCategoryId, 'requestId:', currentRequestId);
                             return;
                         }
 
+                        console.log('[Products][Attributes] attribute fetch threw error for:', normalizedCategoryId);
                         setCreateAttributeStatus(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loadError"])), 'danger');
                         createDynamicSections.innerHTML = '';
                         setCreateAttributeFeedback(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.loadCategoryAttributesFailed"])), 'danger');
@@ -1533,16 +1569,7 @@
                     if (!selectedId) {
                         return;
                     }
-
-                    var nextPath = buildCategoryPathIds(selectedId);
-                    renderCategoryTree(nextPath);
-
-                    if (isLeafCategory(selectedId)) {
-                        selectProductCategory(selectedId, { force: true });
-                    } else {
-                        setProductCategoryValue('', { silent: true });
-                        lastCreateAttributesCategoryId = '';
-                    }
+                    handleCategoryCardSelection(selectedId);
                 });
                 categoryTreeLevels.dataset.categoryTreeBound = 'true';
             }
@@ -1597,13 +1624,14 @@
                     }
 
                     if (selectedCategoryId) {
-                        setProductCategoryValue(selectedCategoryId, { silent: true });
-                        syncCategoryTreeFromValue(selectedCategoryId);
-                        loadCreateAttributesForCategory(selectedCategoryId, { force: true });
+                        console.log('[Products][QuickSearch] selection event received for category business id:', selectedCategoryId);
+                        handleQuickSearchCategorySelection(selectedCategoryId);
                         return;
                     }
 
-                    selectProductCategory('', { force: true });
+                    console.log('[Products][QuickSearch] selection cleared, resetting category state.');
+                    clearSelectedProductCategory();
+                    loadCreateAttributesForCategory('', { force: true });
                 };
 
                 productCategoryField.addEventListener('change', handleCategoryChange);

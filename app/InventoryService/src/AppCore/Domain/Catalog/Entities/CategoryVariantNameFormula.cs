@@ -56,9 +56,6 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
             .Distinct()
             .ToList();
 
-        if (distinctRefs.Count == 0)
-            throw new ArgumentException("At least one attribute is required.", nameof(attributeRefs));
-
         _parts.Clear();
         for (var i = 0; i < distinctRefs.Count; i++)
             _parts.Add(CategoryVariantNameFormulaPart.Create(BusinessKey.Value, distinctRefs[i], i + 1));

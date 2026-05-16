@@ -5,6 +5,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.AttributeDefinitions.Com
 using Insurance.InventoryService.AppCore.Shared.Catalog.Categories.Commands;
 using Insurance.InventoryService.AppCore.Shared.Catalog.Products.Commands;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands;
+using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Commands;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
 
@@ -14,17 +15,20 @@ public class DeleteAttributeDefinitionCommandHandler : CommandHandler<DeleteAttr
     private readonly ICategoryCommandRepository _categoryRepository;
     private readonly IProductCommandRepository _productRepository;
     private readonly IProductVariantCommandRepository _variantRepository;
+    private readonly ICategoryVariantNameFormulaCommandRepository _formulaRepository;
 
     public DeleteAttributeDefinitionCommandHandler(
         IAttributeDefinitionCommandRepository repository,
         ICategoryCommandRepository categoryRepository,
         IProductCommandRepository productRepository,
-        IProductVariantCommandRepository variantRepository)
+        IProductVariantCommandRepository variantRepository,
+        ICategoryVariantNameFormulaCommandRepository formulaRepository)
     {
         _repository = repository;
         _categoryRepository = categoryRepository;
         _productRepository = productRepository;
         _variantRepository = variantRepository;
+        _formulaRepository = formulaRepository;
     }
 
     public override async Task<CommandResult<DeleteAttributeDefinitionCommandResult>> Handle(DeleteAttributeDefinitionCommand command)
@@ -75,12 +79,25 @@ public class DeleteAttributeDefinitionCommandHandler : CommandHandler<DeleteAttr
         if (hasVariantUsage)
             return Fail("Attribute definition cannot be deleted because variants depend on it.");
 
-        foreach (var option in aggregate.Options.ToList())
-            aggregate.RemoveOption(option.Value);
-
-        aggregate.Deactivate();
+        bool hasFormulaUsage;
         try
         {
+            hasFormulaUsage = await _formulaRepository.ExistsByAttributeRefAsync(command.AttributeDefinitionBusinessKey);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Checking formula usage failed: {GetExceptionMessage(ex)}");
+        }
+
+        if (hasFormulaUsage)
+            return Fail("Attribute definition cannot be deleted because variant name formulas depend on it.");
+
+        try
+        {
+            var deleted = await _repository.DeleteByBusinessKeyAsync(command.AttributeDefinitionBusinessKey);
+            if (deleted == 0)
+                return Fail("Attribute definition was not found.");
+
             await _repository.CommitAsync();
         }
         catch (Exception ex)
@@ -90,7 +107,7 @@ public class DeleteAttributeDefinitionCommandHandler : CommandHandler<DeleteAttr
 
         return Ok(new DeleteAttributeDefinitionCommandResult
         {
-            AttributeDefinitionBusinessKey = aggregate.BusinessKey.Value,
+            AttributeDefinitionBusinessKey = command.AttributeDefinitionBusinessKey,
             Deleted = true
         });
     }

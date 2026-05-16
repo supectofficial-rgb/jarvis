@@ -34,6 +34,15 @@ public class CategoryVariantNameFormulaCommandRepository
         return query.AnyAsync();
     }
 
+    public Task<bool> ExistsByAttributeRefAsync(Guid attributeRef)
+    {
+        if (attributeRef == Guid.Empty)
+            return Task.FromResult(false);
+
+        return _dbContext.Set<CategoryVariantNameFormulaPart>()
+            .AnyAsync(x => x.AttributeRef == attributeRef);
+    }
+
     public async Task<int> DeleteByBusinessKeyAsync(Guid formulaBusinessKey)
     {
         var key = BusinessKey.FromGuid(formulaBusinessKey);

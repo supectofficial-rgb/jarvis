@@ -9,4 +9,5 @@ public interface IAttributeDefinitionCommandRepository : ICommandRepository<Attr
     Task<IReadOnlyCollection<AttributeDefinition>> GetByBusinessKeysAsync(IReadOnlyCollection<Guid> attributeDefinitionBusinessKeys);
     Task<bool> ExistsByCodeAsync(string code, Guid? exceptBusinessKey = null);
     Task<bool> RemoveOptionAsync(Guid attributeDefinitionBusinessKey, Guid optionBusinessKey);
+    Task<int> DeleteByBusinessKeyAsync(Guid attributeDefinitionBusinessKey);
 }

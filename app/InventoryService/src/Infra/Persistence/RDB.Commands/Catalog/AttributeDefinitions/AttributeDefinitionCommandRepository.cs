@@ -72,4 +72,17 @@ public class AttributeDefinitionCommandRepository
         _dbContext.Set<AttributeOption>().Remove(option);
         return true;
     }
+
+    public async Task<int> DeleteByBusinessKeyAsync(Guid attributeDefinitionBusinessKey)
+    {
+        var key = BusinessKey.FromGuid(attributeDefinitionBusinessKey);
+
+        await _dbContext.Set<AttributeOption>()
+            .Where(x => x.AttributeRef == attributeDefinitionBusinessKey)
+            .ExecuteDeleteAsync();
+
+        return await _dbContext.Set<AttributeDefinition>()
+            .Where(x => x.BusinessKey == key)
+            .ExecuteDeleteAsync();
+    }
 }

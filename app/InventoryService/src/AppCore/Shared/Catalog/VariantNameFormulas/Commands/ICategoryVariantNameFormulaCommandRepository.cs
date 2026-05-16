@@ -7,5 +7,6 @@ public interface ICategoryVariantNameFormulaCommandRepository : ICommandReposito
 {
     Task<CategoryVariantNameFormula?> GetByBusinessKeyAsync(Guid formulaBusinessKey);
     Task<bool> ExistsByCategoryAndNameAsync(Guid categoryRef, string name, Guid? exceptBusinessKey = null);
+    Task<bool> ExistsByAttributeRefAsync(Guid attributeRef);
     Task<int> DeleteByBusinessKeyAsync(Guid formulaBusinessKey);
 }

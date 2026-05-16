@@ -169,23 +169,40 @@ public class UpdateAttributeDefinitionCommandHandler
 
         if (shouldReplaceOptions)
         {
+            var retainedOptionKeys = new HashSet<Guid>();
+
             foreach (var option in incomingOptions)
             {
-                if (option.IsActive)
-                    aggregate.AddOption(option.Name, option.Value, option.DisplayOrder);
-                else
-                    aggregate.RemoveOption(option.Value);
-            }
+                var existing = aggregate.Options.FirstOrDefault(x =>
+                    string.Equals(x.Value, option.Value, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(x.Name, option.Name, StringComparison.OrdinalIgnoreCase));
 
-            var activeIncomingSet = incomingOptions
-                .Where(x => x.IsActive)
-                .Select(x => x.Value)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (!option.IsActive)
+                {
+                    if (existing is not null)
+                        aggregate.RemoveOption(existing.BusinessKey.Value);
+
+                    continue;
+                }
+
+                if (existing is not null)
+                {
+                    aggregate.UpdateOption(existing.BusinessKey.Value, option.Name, option.Value, option.DisplayOrder);
+                    if (!existing.IsActive)
+                        aggregate.SetOptionActive(existing.BusinessKey.Value, true);
+
+                    retainedOptionKeys.Add(existing.BusinessKey.Value);
+                    continue;
+                }
+
+                var added = aggregate.AddOption(option.Name, option.Value, option.DisplayOrder);
+                retainedOptionKeys.Add(added.BusinessKey.Value);
+            }
 
             foreach (var existing in aggregate.Options.ToList())
             {
-                if (!activeIncomingSet.Contains(existing.Value))
-                    aggregate.RemoveOption(existing.Value);
+                if (!retainedOptionKeys.Contains(existing.BusinessKey.Value))
+                    aggregate.RemoveOption(existing.BusinessKey.Value);
             }
         }
         else if (dataType != AttributeDataType.Option)
