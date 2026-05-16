@@ -13,9 +13,9 @@
     Model,
     new ViewDataDictionary(ViewData)
     {
-        ["SectionPartial"] = "~/Views/CatalogManagement/_CategoryCategoriesSection.cshtml"
+        ["SectionPartial"] = "~/Views/CatalogManagement/_CategoryFormulasSection.cshtml"
     })
 
 @section Scripts {
-    @await Html.PartialAsync("~/Views/CatalogManagement/_CategoryCategoriesScripts.cshtml", Model)
+    @await Html.PartialAsync("~/Views/CatalogManagement/_CategoryFormulasScripts.cshtml", Model)
 }

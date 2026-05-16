@@ -1,0 +1,105 @@
+@model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
+<script>
+    (function () {
+        var ruleSectionEditTab = document.querySelector('#rule-section-tabs .nav-link[href="#rule-section-edit"]');
+        var ruleInlineEditCard = document.getElementById('rule-inline-edit-card');
+        var ruleInlineEditCancel = document.getElementById('rule-inline-edit-cancel');
+        var ruleEditSelect = document.getElementById('RuleForm_AttributeId');
+        var ruleEditDisplayOrder = document.getElementById('RuleForm_DisplayOrder');
+        var ruleEditRequired = document.getElementById('RuleForm_IsRequired');
+        var ruleEditVariant = document.getElementById('RuleForm_IsVariant');
+        var ruleEditCodeCovered = document.getElementById('RuleForm_IsVariantCodeCovered');
+        var ruleEditOverridden = document.getElementById('RuleForm_IsOverridden');
+        var ruleEditActive = document.getElementById('RuleForm_IsActive');
+        var ruleEditCategoryId = document.getElementById('RuleForm_CategoryId');
+
+        function applyRuleOptionToEditForm() {
+            if (!ruleEditSelect) {
+                return;
+            }
+
+            var selected = ruleEditSelect.options[ruleEditSelect.selectedIndex];
+            if (!selected) {
+                return;
+            }
+
+            if (ruleEditDisplayOrder) ruleEditDisplayOrder.value = selected.getAttribute('data-rule-display-order') || '0';
+            if (ruleEditRequired) ruleEditRequired.checked = (selected.getAttribute('data-rule-required') || '').toLowerCase() === 'true';
+            if (ruleEditVariant) ruleEditVariant.checked = (selected.getAttribute('data-rule-variant') || '').toLowerCase() === 'true';
+            if (ruleEditCodeCovered) ruleEditCodeCovered.checked = (selected.getAttribute('data-rule-code-covered') || '').toLowerCase() === 'true';
+            if (ruleEditOverridden) ruleEditOverridden.checked = (selected.getAttribute('data-rule-overridden') || '').toLowerCase() === 'true';
+            if (ruleEditActive) ruleEditActive.checked = (selected.getAttribute('data-rule-active') || '').toLowerCase() === 'true';
+        }
+
+        function openRuleInlineEdit(button) {
+            if (!button) {
+                return;
+            }
+
+            if (ruleSectionEditTab && window.jQuery) {
+                window.jQuery(ruleSectionEditTab).tab('show');
+            }
+
+            if (ruleInlineEditCard) {
+                ruleInlineEditCard.style.display = '';
+            }
+
+            if (ruleEditCategoryId) {
+                ruleEditCategoryId.value = button.getAttribute('data-rule-category-id') || '@Model.SelectedCategoryId';
+            }
+            if (ruleEditSelect) {
+                ruleEditSelect.value = button.getAttribute('data-rule-attribute-id') || '';
+            }
+            if (ruleEditDisplayOrder) {
+                ruleEditDisplayOrder.value = button.getAttribute('data-rule-display-order') || '0';
+            }
+            if (ruleEditRequired) {
+                ruleEditRequired.checked = (button.getAttribute('data-rule-required') || '').toLowerCase() === 'true';
+            }
+            if (ruleEditVariant) {
+                ruleEditVariant.checked = (button.getAttribute('data-rule-variant') || '').toLowerCase() === 'true';
+            }
+            if (ruleEditCodeCovered) {
+                ruleEditCodeCovered.checked = (button.getAttribute('data-rule-code-covered') || '').toLowerCase() === 'true';
+            }
+            if (ruleEditOverridden) {
+                ruleEditOverridden.checked = (button.getAttribute('data-rule-overridden') || '').toLowerCase() === 'true';
+            }
+            if (ruleEditActive) {
+                ruleEditActive.checked = (button.getAttribute('data-rule-active') || '').toLowerCase() === 'true';
+            }
+
+            if (ruleEditSelect) {
+                ruleEditSelect.dispatchEvent(new Event('change'));
+                ruleEditSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function closeRuleInlineEdit() {
+            if (!ruleInlineEditCard) {
+                return;
+            }
+
+            ruleInlineEditCard.style.display = 'none';
+        }
+
+        if (ruleEditSelect) {
+            ruleEditSelect.addEventListener('change', applyRuleOptionToEditForm);
+            applyRuleOptionToEditForm();
+        }
+
+        document.addEventListener('click', function (event) {
+            var button = event.target.closest('.rule-inline-edit-btn');
+            if (!button) {
+                return;
+            }
+
+            event.preventDefault();
+            openRuleInlineEdit(button);
+        }, true);
+
+        if (ruleInlineEditCancel) {
+            ruleInlineEditCancel.addEventListener('click', closeRuleInlineEdit);
+        }
+    })();
+</script>

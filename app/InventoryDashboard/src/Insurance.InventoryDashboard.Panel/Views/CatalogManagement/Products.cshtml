@@ -156,13 +156,19 @@
             !string.IsNullOrWhiteSpace(requestHost) &&
             !string.Equals(requestHost, "localhost", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(requestHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
+        var rootUrl = !string.IsNullOrWhiteSpace(requestHost) ? $"{requestScheme}://{requestHost}" : null;
         var baseUrl = !string.IsNullOrWhiteSpace(configuredBaseUrl) && !configuredBaseIsLocalOnly
             ? configuredBaseUrl
-            : (!string.IsNullOrWhiteSpace(requestHost) ? $"{requestScheme}://{requestHost}:8080" : null);
+            : rootUrl;
 
-        return string.IsNullOrWhiteSpace(baseUrl)
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return $"{baseUrl}/{trimmed.TrimStart('/')}";
+        }
+
+        return trimmed.StartsWith("/", StringComparison.Ordinal)
             ? trimmed
-            : $"{baseUrl}/{trimmed.TrimStart('/')}";
+            : $"/{trimmed.TrimStart('/')}";
     }
 
     var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
@@ -235,8 +241,9 @@
 
     .product-category-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
         gap: .75rem;
+        justify-content: start;
     }
 
     .product-category-card {
@@ -966,24 +973,6 @@
                         + '</div>';
                 }).join('');
 
-                categoryTreeLevels.querySelectorAll('[data-category-card]').forEach(function (button) {
-                    button.addEventListener('click', function () {
-                        var selectedId = (button.getAttribute('data-category-id') || '').trim();
-                        if (!selectedId) {
-                            return;
-                        }
-
-                        var nextPath = buildCategoryPathIds(selectedId);
-                        renderCategoryTree(nextPath);
-
-                        if (isLeafCategory(selectedId)) {
-                            selectProductCategory(selectedId, { force: true });
-                        } else {
-                            setProductCategoryValue('', { silent: true });
-                            lastCreateAttributesCategoryId = '';
-                        }
-                    });
-                });
             }
 
             function renderCategoryTree(pathIds) {
@@ -1533,6 +1522,30 @@
             clearSubmittedDraftAfterSuccess();
             restorePageState();
             restoreFormDrafts();
+            if (categoryTreeLevels && categoryTreeLevels.dataset.categoryTreeBound !== 'true') {
+                categoryTreeLevels.addEventListener('click', function (event) {
+                    var categoryButton = event.target.closest('[data-category-card]');
+                    if (!categoryButton || !categoryTreeLevels.contains(categoryButton)) {
+                        return;
+                    }
+
+                    var selectedId = (categoryButton.getAttribute('data-category-id') || '').trim();
+                    if (!selectedId) {
+                        return;
+                    }
+
+                    var nextPath = buildCategoryPathIds(selectedId);
+                    renderCategoryTree(nextPath);
+
+                    if (isLeafCategory(selectedId)) {
+                        selectProductCategory(selectedId, { force: true });
+                    } else {
+                        setProductCategoryValue('', { silent: true });
+                        lastCreateAttributesCategoryId = '';
+                    }
+                });
+                categoryTreeLevels.dataset.categoryTreeBound = 'true';
+            }
             if (productListTabPane && productListTabPanel && productListTabPanel.parentElement !== productListTabPane) {
                 productListTabPanel.classList.remove('col-12');
                 productListTabPane.appendChild(productListTabPanel);
@@ -1560,10 +1573,20 @@
 
             if (productCategoryField && productUpsertForm) {
                 var handleCategoryChange = function (event) {
-                    var selectedCategoryId = (productCategoryField.value || '').trim();
+                    var selectedCategoryId = '';
+
                     if (event && event.params && event.params.data && event.params.data.id) {
-                        selectedCategoryId = (event.params.data.id || '').trim();
+                        selectedCategoryId = (event.params.data.id || '').toString().trim();
                     }
+
+                    if (!selectedCategoryId && event && event.target && typeof event.target.value === 'string') {
+                        selectedCategoryId = event.target.value.trim();
+                    }
+
+                    if (!selectedCategoryId) {
+                        selectedCategoryId = (productCategoryField.value || '').trim();
+                    }
+
                     if (!selectedCategoryId && window.jQuery) {
                         var selectedValue = window.jQuery(productCategoryField).val();
                         if (Array.isArray(selectedValue)) {
@@ -1573,7 +1596,14 @@
                         }
                     }
 
-                    selectProductCategory(selectedCategoryId, { force: true });
+                    if (selectedCategoryId) {
+                        setProductCategoryValue(selectedCategoryId, { silent: true });
+                        syncCategoryTreeFromValue(selectedCategoryId);
+                        loadCreateAttributesForCategory(selectedCategoryId, { force: true });
+                        return;
+                    }
+
+                    selectProductCategory('', { force: true });
                 };
 
                 productCategoryField.addEventListener('change', handleCategoryChange);

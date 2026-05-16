@@ -88,13 +88,19 @@
             !string.IsNullOrWhiteSpace(requestHost) &&
             !string.Equals(requestHost, "localhost", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(requestHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
+        var rootUrl = !string.IsNullOrWhiteSpace(requestHost) ? $"{requestScheme}://{requestHost}" : null;
         var baseUrl = !string.IsNullOrWhiteSpace(configuredBaseUrl) && !configuredBaseIsLocalOnly
             ? configuredBaseUrl
-            : (!string.IsNullOrWhiteSpace(requestHost) ? $"{requestScheme}://{requestHost}:8080" : null);
+            : rootUrl;
 
-        return string.IsNullOrWhiteSpace(baseUrl)
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return $"{baseUrl}/{trimmed.TrimStart('/')}";
+        }
+
+        return trimmed.StartsWith("/", StringComparison.Ordinal)
             ? trimmed
-            : $"{baseUrl}/{trimmed.TrimStart('/')}";
+            : $"/{trimmed.TrimStart('/')}";
     }
 
     var autoCreateProductAttributes = Model.EffectiveCategoryAttributes

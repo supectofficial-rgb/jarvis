@@ -1,0 +1,83 @@
+@model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
+<script>
+    (function () {
+        var collapsedSet = new Set();
+
+        function getRowById(categoryId) {
+            return document.querySelector('tr[data-category-row][data-category-id="' + categoryId + '"]');
+        }
+
+        function hasCollapsedAncestor(row) {
+            if (!row) {
+                return false;
+            }
+
+            var parentId = row.getAttribute('data-parent-id');
+            while (parentId) {
+                if (collapsedSet.has(parentId)) {
+                    return true;
+                }
+
+                var parentRow = getRowById(parentId);
+                if (!parentRow) {
+                    break;
+                }
+
+                parentId = parentRow.getAttribute('data-parent-id');
+            }
+
+            return false;
+        }
+
+        function updateTreeUi() {
+            document.querySelectorAll('tr[data-category-row]').forEach(function (row) {
+                row.style.display = hasCollapsedAncestor(row) ? 'none' : '';
+                var rowId = row.getAttribute('data-category-id');
+                var toggleIcon = row.querySelector('[data-toggle-icon]');
+                if (toggleIcon) {
+                    toggleIcon.textContent = collapsedSet.has(rowId) ? '+' : '-';
+                }
+            });
+        }
+
+        document.querySelectorAll('[data-category-toggle]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var categoryId = button.getAttribute('data-category-toggle');
+                if (!categoryId) {
+                    return;
+                }
+
+                if (collapsedSet.has(categoryId)) {
+                    collapsedSet.delete(categoryId);
+                } else {
+                    collapsedSet.add(categoryId);
+                }
+
+                updateTreeUi();
+            });
+        });
+
+        var expandAllButton = document.querySelector('[data-tree-expand-all]');
+        if (expandAllButton) {
+            expandAllButton.addEventListener('click', function () {
+                collapsedSet.clear();
+                updateTreeUi();
+            });
+        }
+
+        var collapseAllButton = document.querySelector('[data-tree-collapse-all]');
+        if (collapseAllButton) {
+            collapseAllButton.addEventListener('click', function () {
+                document.querySelectorAll('tr[data-category-row][data-has-children="true"]').forEach(function (row) {
+                    var rowId = row.getAttribute('data-category-id');
+                    if (rowId) {
+                        collapsedSet.add(rowId);
+                    }
+                });
+                updateTreeUi();
+            });
+        }
+
+        updateTreeUi();
+    })();
+</script>

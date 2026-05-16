@@ -1,0 +1,231 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
+@{
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var localRules = Model.CategoryAttributeRules.Where(x => !x.IsInherited).ToList();
+}
+
+<div id="rule-tab">
+    <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="rule-section-tabs">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#rule-section-edit" role="tab">@UiText["catalog.categories.ruleTabs.assignmentForm"]</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rule-section-list" role="tab">@UiText["catalog.categories.ruleTabs.list"]</a></li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane show active" id="rule-section-edit" role="tabpanel">
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">@UiText["catalog.categories.rules.assignmentTitle"]</h5>
+                            <form asp-action="AssignAttributeToCategory" method="post" id="assign-attribute-to-category-form" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.rules.category"]</label>
+                                    <select asp-for="AssignForm.CategoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.rules.selectLeafCategory"]'>
+                                        <option value="">@UiText["catalog.categories.rules.selectLeafCategory"]</option>
+                                        @foreach (var category in Model.LeafCategories)
+                                        {
+                                            <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                        }
+                                    </select>
+                                    <small class="form-text text-muted">@UiText["catalog.categories.rules.onlyLeafHelp"]</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.rules.attribute"]</label>
+                                    <select asp-for="AssignForm.AttributeId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.rules.searchAttributeBank"]'>
+                                        @foreach (var attr in Model.AllAttributes.OrderBy(x => x.Name))
+                                        {
+                                            <option value="@attr.Id">@attr.Name (@attr.Code / @attr.DataType / @attr.Scope)</option>
+                                        }
+                                    </select>
+                                    @if (Model.AllAttributes.Count == 0)
+                                    {
+                                        <small class="form-text text-warning">@UiText["catalog.categories.rules.noAttributes"]</small>
+                                    }
+                                </div>
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.rules.displayOrder"]</label>
+                                    <input asp-for="AssignForm.DisplayOrder" type="number" min="0" class="form-control" />
+                                </div>
+                                <div class="custom-control custom-checkbox">
+                                    <input asp-for="AssignForm.IsRequired" class="custom-control-input" />
+                                    <label class="custom-control-label" asp-for="AssignForm.IsRequired">@UiText["catalog.categories.rules.isRequired"]</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mt-2">
+                                    <input asp-for="AssignForm.IsVariant" class="custom-control-input" />
+                                    <label class="custom-control-label" asp-for="AssignForm.IsVariant">@UiText["catalog.categories.rules.isVariant"]</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mt-2">
+                                    <input asp-for="AssignForm.IsVariantCodeCovered" class="custom-control-input" />
+                                    <label class="custom-control-label" asp-for="AssignForm.IsVariantCodeCovered">@UiText["catalog.categories.rules.isVariantCodeCovered"]</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mt-2">
+                                    <input asp-for="AssignForm.IsOverridden" class="custom-control-input" />
+                                    <label class="custom-control-label" asp-for="AssignForm.IsOverridden">@UiText["catalog.categories.rules.isOverridden"]</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mt-2 mb-3">
+                                    <input asp-for="AssignForm.IsActive" class="custom-control-input" />
+                                    <label class="custom-control-label" asp-for="AssignForm.IsActive">@UiText["catalog.categories.rules.isActive"]</label>
+                                </div>
+                                <button class="btn btn-success" type="submit" @(Can("Inventory.CategoryAttributeRule.Assign", "Catalog.Category.Rule.Assign", "CategoryAttributeRule.Assign", "CategoryAttributeRule.Create") ? null : "disabled")>@UiText["catalog.categories.rules.assign"]</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card" id="rule-inline-edit-card" style="display:none;">
+                        <div class="card-body">
+                            <h5 class="card-title">@UiText["catalog.categories.rules.editTitle"]</h5>
+                            <p class="text-muted small mb-3">@UiText["catalog.categories.rules.editHelp"]</p>
+                            <form asp-action="UpdateCategoryAttributeRule" method="post" id="update-category-attribute-rule-form" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <input asp-for="RuleForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.rules.attribute"]</label>
+                                    <select asp-for="RuleForm.AttributeId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.rules.selectRuleAttribute"]'>
+                                        @foreach (var rule in localRules)
+                                        {
+                                            <option value="@rule.AttributeId"
+                                                    data-rule-display-order="@rule.RuleDisplayOrder"
+                                                    data-rule-required="@(rule.RuleIsRequired ? "true" : "false")"
+                                                    data-rule-variant="@(rule.RuleIsVariant ? "true" : "false")"
+                                                    data-rule-code-covered="@(rule.RuleIsVariantCodeCovered ? "true" : "false")"
+                                                    data-rule-overridden="@(rule.RuleIsOverridden ? "true" : "false")"
+                                                    data-rule-active="@(rule.RuleIsActive ? "true" : "false")">
+                                                @rule.AttributeName
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group"><label>@UiText["catalog.categories.rules.displayOrder"]</label><input asp-for="RuleForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                <div class="custom-control custom-checkbox"><input asp-for="RuleForm.IsRequired" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsRequired">@UiText["catalog.categories.rules.isRequired"]</label></div>
+                                <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariant" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariant">@UiText["catalog.categories.rules.isVariant"]</label></div>
+                                <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsVariantCodeCovered" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsVariantCodeCovered">@UiText["catalog.categories.rules.isVariantCodeCovered"]</label></div>
+                                <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsOverridden" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsOverridden">@UiText["catalog.categories.rules.isOverridden"]</label></div>
+                                <div class="custom-control custom-checkbox mt-2"><input asp-for="RuleForm.IsActive" class="custom-control-input" /><label class="custom-control-label" asp-for="RuleForm.IsActive">@UiText["catalog.categories.rules.isActive"]</label></div>
+                                @if (localRules.Count == 0)
+                                {
+                                    <small class="form-text text-warning">@UiText["catalog.categories.rules.noDirectRule"]</small>
+                                }
+                                <div class="mt-3">
+                                    <button class="btn btn-outline-primary" type="submit" @((Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") && localRules.Count > 0) ? null : "disabled")>@UiText["catalog.categories.rules.update"]</button>
+                                    <button class="btn btn-outline-secondary" type="button" id="rule-inline-edit-cancel">@UiText["catalog.categories.rules.cancelEdit"]</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="rule-section-list" role="tabpanel">
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-body" id="rule-list-scope">
+                            <form asp-action="CategoryAttributes" method="get" class="row align-items-end mb-3" id="rule-category-list-form">
+                                <div class="col-lg-8 col-md-8 mb-2">
+                                    <label class="text-muted small">@UiText["catalog.categories.rules.category"]</label>
+                                    <select name="categoryId" class="form-control" required>
+                                        <option value="">@UiText["catalog.categories.rules.selectLeafCategory"]</option>
+                                        @foreach (var category in Model.LeafCategories)
+                                        {
+                                            <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-lg-4 col-md-4 mb-2">
+                                    <button type="submit" class="btn btn-primary btn-block">@UiText["catalog.categories.rules.loadList"]</button>
+                                </div>
+                            </form>
+                            <h5 class="card-title">@UiText["catalog.categories.rules.listTitle"]</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>@UiText["catalog.categories.rules.attribute"]</th>
+                                            <th>@UiText["catalog.categories.rules.isRequired"]</th>
+                                            <th>@UiText["catalog.categories.rules.isVariant"]</th>
+                                            <th>@UiText["catalog.categories.rules.codeCoverage"]</th>
+                                            <th>@UiText["catalog.categories.rules.displayOrder"]</th>
+                                            <th>@UiText["catalog.categories.rules.isOverridden"]</th>
+                                            <th>@UiText["catalog.categories.rules.isActive"]</th>
+                                            <th>@UiText["catalog.categories.rules.source"]</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var rule in Model.CategoryAttributeRules)
+                                        {
+                                            <tr>
+                                                <td>@rule.AttributeName <span class="text-muted small">(@rule.DataType)</span></td>
+                                                <td>@(rule.RuleIsRequired ? UiText["common.yes"] : UiText["common.no"])</td>
+                                                <td>@(rule.RuleIsVariant ? UiText["common.yes"] : UiText["common.no"])</td>
+                                                <td>@(rule.RuleIsVariantCodeCovered ? UiText["common.yes"] : UiText["common.no"])</td>
+                                                <td>@rule.RuleDisplayOrder</td>
+                                                <td>@(rule.RuleIsOverridden ? UiText["common.yes"] : UiText["common.no"])</td>
+                                                <td>@(rule.RuleIsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
+                                                <td>@(rule.IsInherited ? string.Format(UiText["catalog.categories.rules.sourceInheritedFormat"], rule.SourceCategoryName) : UiText["catalog.categories.rules.sourceDirect"])</td>
+                                                <td class="text-nowrap">
+                                                    @if (!rule.IsInherited)
+                                                    {
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-xs rule-inline-edit-btn"
+                                                                data-rule-category-id="@Model.SelectedCategoryId"
+                                                                data-rule-attribute-id="@rule.AttributeId"
+                                                                data-rule-attribute-name="@rule.AttributeName"
+                                                                data-rule-display-order="@rule.RuleDisplayOrder"
+                                                                data-rule-required="@(rule.RuleIsRequired ? "true" : "false")"
+                                                                data-rule-variant="@(rule.RuleIsVariant ? "true" : "false")"
+                                                                data-rule-code-covered="@(rule.RuleIsVariantCodeCovered ? "true" : "false")"
+                                                                data-rule-overridden="@(rule.RuleIsOverridden ? "true" : "false")"
+                                                                data-rule-active="@(rule.RuleIsActive ? "true" : "false")"
+                                                                @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Update", "CategoryAttributeRule.Update") ? null : "disabled")>
+                                                            @UiText["common.edit"]
+                                                        </button>
+                                                        <form asp-action="ActivateCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                            <input type="hidden" name="attributeId" value="@rule.AttributeId" />
+                                                            <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Activate", "CategoryAttributeRule.Activate") ? null : "disabled")>@UiText["catalog.categories.rules.activate"]</button>
+                                                        </form>
+                                                        <form asp-action="DeactivateCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                            <input type="hidden" name="attributeId" value="@rule.AttributeId" />
+                                                            <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.CategoryAttributeRule.Update", "Catalog.Category.Rule.Deactivate", "CategoryAttributeRule.Deactivate") ? null : "disabled")>@UiText["catalog.categories.rules.deactivate"]</button>
+                                                        </form>
+                                                        <form asp-action="RemoveCategoryAttributeRule" method="post" class="d-inline" data-loading-form>
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                            <input type="hidden" name="attributeId" value="@rule.AttributeId" />
+                                                            <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title='@UiText["catalog.categories.rules.deleteTitle"]' data-confirm='@UiText["catalog.categories.rules.deleteConfirm"]' @(Can("Inventory.CategoryAttributeRule.Remove", "Catalog.Category.Rule.Remove", "CategoryAttributeRule.Remove", "CategoryAttributeRule.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
+                                                        </form>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

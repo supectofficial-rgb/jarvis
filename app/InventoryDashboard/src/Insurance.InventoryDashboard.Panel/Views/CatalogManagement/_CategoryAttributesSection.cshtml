@@ -1,0 +1,220 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
+@{
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var attributeRows = Model.AllAttributes.Count > 0 ? Model.AllAttributes : Model.CategoryAttributes;
+}
+
+<div id="attribute-tab">
+    <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">@UiText["catalog.categories.attributeTabs.add"]</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#attribute-section-bank" role="tab">@UiText["catalog.categories.attributeTabs.search"]</a></li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane show active" id="attribute-section-form" role="tabpanel">
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">@UiText["catalog.categories.attributes.createTitle"]</h5>
+                            <form asp-action="CreateCategoryAttribute" method="post" id="create-category-attribute-form" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <input asp-for="AttributeForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                <input asp-for="AttributeForm.Scope" type="hidden" value="Both" />
+                                <div class="form-group"><label>@UiText["common.code"]</label><input asp-for="AttributeForm.Code" class="form-control" required /></div>
+                                <div class="form-group"><label>@UiText["common.name"]</label><input asp-for="AttributeForm.Name" class="form-control" required /></div>
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.attributes.dataType"]</label>
+                                    <select asp-for="AttributeForm.DataType" class="form-control" required>
+                                        <option value="Option">@UiText["catalog.categories.attributes.dataType.option"]</option>
+                                        <option value="Text">@UiText["catalog.categories.attributes.dataType.text"]</option>
+                                        <option value="Number">@UiText["catalog.categories.attributes.dataType.number"]</option>
+                                        <option value="Boolean">@UiText["catalog.categories.attributes.dataType.boolean"]</option>
+                                        <option value="Date">@UiText["catalog.categories.attributes.dataType.date"]</option>
+                                    </select>
+                                </div>
+                                <div class="form-group"><label>@UiText["catalog.categories.displayOrder"]</label><input asp-for="AttributeForm.DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                <button class="btn btn-primary mt-3" type="submit" @(Can("Catalog.AttributeDefinition.Create", "AttributeDefinition.Create") ? null : "disabled")>@UiText["common.save"]</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="attribute-section-bank" role="tabpanel">
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card mb-4" id="attribute-edit-panel" style="display:none;">
+                        <div class="card-body">
+                            <h5 class="card-title">@UiText["catalog.categories.attributes.editTitle"]</h5>
+                            <form asp-action="UpdateAttributeDefinition" method="post" id="attribute-update-form" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <input asp-for="AttributeUpdateForm.CategoryId" type="hidden" value="@Model.SelectedCategoryId" />
+                                <input asp-for="AttributeUpdateForm.AttributeId" type="hidden" id="attribute-update-id" />
+                                <input asp-for="AttributeUpdateForm.Scope" type="hidden" id="AttributeUpdateForm_Scope" value="Both" />
+                                <input asp-for="AttributeUpdateForm.IsRequired" type="hidden" id="AttributeUpdateForm_IsRequired" />
+                                <input asp-for="AttributeUpdateForm.IsVariant" type="hidden" id="AttributeUpdateForm_IsVariant" />
+                                <input asp-for="AttributeUpdateForm.IsActive" type="hidden" id="AttributeUpdateForm_IsActive" />
+                                <div class="form-group"><label>@UiText["catalog.categories.attributes.selected"]</label><input id="attribute-update-selected" type="text" class="form-control" readonly /></div>
+                                <div class="form-group"><label>@UiText["common.code"]</label><input asp-for="AttributeUpdateForm.Code" id="AttributeUpdateForm_Code" class="form-control" required /></div>
+                                <div class="form-group"><label>@UiText["common.name"]</label><input asp-for="AttributeUpdateForm.Name" id="AttributeUpdateForm_Name" class="form-control" required /></div>
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.attributes.dataType"]</label>
+                                    <select asp-for="AttributeUpdateForm.DataType" id="AttributeUpdateForm_DataType" class="form-control" required>
+                                        <option value="Option">@UiText["catalog.categories.attributes.dataType.option"]</option>
+                                        <option value="Text">@UiText["catalog.categories.attributes.dataType.text"]</option>
+                                        <option value="Number">@UiText["catalog.categories.attributes.dataType.number"]</option>
+                                        <option value="Boolean">@UiText["catalog.categories.attributes.dataType.boolean"]</option>
+                                        <option value="Date">@UiText["catalog.categories.attributes.dataType.date"]</option>
+                                    </select>
+                                </div>
+                                <div class="form-group"><label>@UiText["catalog.categories.displayOrder"]</label><input asp-for="AttributeUpdateForm.DisplayOrder" id="AttributeUpdateForm_DisplayOrder" type="number" min="0" class="form-control" /></div>
+                                <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.update"]</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">@UiText["catalog.categories.attributes.listTitle"]</h5>
+                            <div class="form-group">
+                                <label>@UiText["common.search"]</label>
+                                <input type="search" class="form-control" id="attribute-list-search" placeholder='@UiText["catalog.categories.attributes.searchPlaceholder"]' />
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>@UiText["common.name"]</th>
+                                            <th>@UiText["common.code"]</th>
+                                            <th>@UiText["catalog.categories.displayOrder"]</th>
+                                            <th>@UiText["common.status"]</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (attributeRows.Count == 0)
+                                        {
+                                            <tr><td colspan="5"><div class="alert alert-light my-2">@UiText["catalog.categories.attributes.none"]</div></td></tr>
+                                        }
+                                        @foreach (var attr in attributeRows.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
+                                        {
+                                            var isOptionAttribute = string.Equals(attr.DataType, "Option", StringComparison.OrdinalIgnoreCase)
+                                                || string.Equals(attr.DataType, "Enum", StringComparison.OrdinalIgnoreCase)
+                                                || string.Equals(attr.DataType, "Select", StringComparison.OrdinalIgnoreCase);
+                                            <tr data-attribute-list-row data-attribute-search="@($"{attr.Name} {attr.Code}")">
+                                                <td>@attr.Name</td>
+                                                <td><span class="text-monospace">@attr.Code</span></td>
+                                                <td>@attr.DisplayOrder</td>
+                                                <td>@(attr.IsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
+                                                <td class="text-nowrap">
+                                                    @if (isOptionAttribute)
+                                                    {
+                                                        <button type="button" class="btn btn-outline-primary btn-xs attribute-options-btn" data-attribute-id="@attr.Id">@UiText["catalog.categories.attributes.optionsList"]</button>
+                                                    }
+                                                    <button type="button"
+                                                            class="btn btn-outline-secondary btn-xs attribute-edit-btn"
+                                                            data-attribute-id="@attr.Id"
+                                                            data-attribute-name="@attr.Name"
+                                                            data-attribute-code="@attr.Code"
+                                                            data-attribute-datatype="@attr.DataType"
+                                                            data-attribute-scope="@(string.IsNullOrWhiteSpace(attr.Scope) ? "Both" : attr.Scope)"
+                                                            data-attribute-display-order="@attr.DisplayOrder"
+                                                            data-attribute-is-required="@(attr.IsRequired ? "true" : "false")"
+                                                            data-attribute-is-variant="@(attr.IsVariant ? "true" : "false")"
+                                                            data-attribute-isactive="@(attr.IsActive ? "true" : "false")"
+                                                            @(Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update") ? null : "disabled")>
+                                                        @UiText["common.edit"]
+                                                    </button>
+                                                    <form asp-action="DeleteAttributeDefinition" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                        <input type="hidden" name="attributeId" value="@attr.Id" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.attributes.deleteTitle"]' data-confirm='@UiText["catalog.categories.attributes.deleteConfirm"]' @(Can("Catalog.AttributeDefinition.Delete", "AttributeDefinition.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                            @if (isOptionAttribute)
+                                            {
+                                                <tr class="attribute-options-row" data-options-for="@attr.Id" style="display:none;">
+                                                    <td colspan="5">
+                                                        <div class="border rounded p-3 bg-light">
+                                                            <h6 class="mb-3">@string.Format(UiText["catalog.categories.attributeOptions.titleFormat"], attr.Name)</h6>
+                                                            <div class="attribute-options-message small mb-2" data-options-message></div>
+                                                            <form asp-action="AddAttributeOption" method="post" class="mb-3 option-add-form" data-option-add-form data-loading-form>
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="OptionForm.CategoryId" value="@Model.SelectedCategoryId" />
+                                                                <input type="hidden" name="OptionForm.AttributeId" value="@attr.Id" />
+                                                                <div class="form-row">
+                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.code"]</label><input name="OptionForm.OptionValue" class="form-control text-monospace" required /></div>
+                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.name"]</label><input name="OptionForm.OptionName" class="form-control" required /></div>
+                                                                    <div class="form-group col-md-2"><label>@UiText["catalog.categories.displayOrder"]</label><input name="OptionForm.DisplayOrder" type="number" min="0" class="form-control" value="0" /></div>
+                                                                    <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Create", "AttributeOption.Create") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.add"]</button></div>
+                                                                </div>
+                                                            </form>
+                                                            <form asp-action="UpdateAttributeOption" method="post" class="option-inline-edit-form mb-3" data-option-update-form data-loading-form style="display:none;">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="OptionUpdateForm.CategoryId" value="@Model.SelectedCategoryId" />
+                                                                <input type="hidden" name="OptionUpdateForm.AttributeId" value="@attr.Id" />
+                                                                <input type="hidden" name="OptionUpdateForm.OptionId" data-option-update-id />
+                                                                <div class="form-row">
+                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.code"]</label><input name="OptionUpdateForm.OptionValue" class="form-control text-monospace" data-option-update-value required /></div>
+                                                                    <div class="form-group col-md-4"><label>@UiText["catalog.categories.attributeOptions.name"]</label><input name="OptionUpdateForm.OptionName" class="form-control" data-option-update-name required /></div>
+                                                                    <div class="form-group col-md-2"><label>@UiText["catalog.categories.displayOrder"]</label><input name="OptionUpdateForm.DisplayOrder" type="number" min="0" class="form-control" data-option-update-order /></div>
+                                                                    <div class="form-group col-md-2 d-flex align-items-end"><button class="btn btn-outline-primary btn-block" type="submit" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>@UiText["catalog.categories.attributeOptions.update"]</button></div>
+                                                                </div>
+                                                            </form>
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm table-striped mb-0">
+                                                                    <thead><tr><th>@UiText["common.code"]</th><th>@UiText["common.name"]</th><th>@UiText["catalog.categories.displayOrder"]</th><th>@UiText["common.status"]</th><th></th></tr></thead>
+                                                                    <tbody data-options-tbody data-attribute-id="@attr.Id">
+                                                                        @if (attr.Options.Count == 0)
+                                                                        {
+                                                                            <tr><td colspan="5">@UiText["catalog.categories.attributeOptions.none"]</td></tr>
+                                                                        }
+                                                                        @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
+                                                                        {
+                                                                            <tr>
+                                                                                <td><span class="text-monospace">@option.OptionValue</span></td>
+                                                                                <td>@option.OptionName</td>
+                                                                                <td>@option.DisplayOrder</td>
+                                                                                <td>@(option.IsActive ? UiText["common.active"] : UiText["common.inactive"])</td>
+                                                                                <td class="text-nowrap">
+                                                                                    <button type="button" class="btn btn-outline-secondary btn-xs option-edit-btn" data-option-id="@option.Id" data-option-name="@option.OptionName" data-option-value="@option.OptionValue" data-display-order="@option.DisplayOrder" @(Can("Catalog.AttributeOption.Update", "AttributeOption.Update") ? null : "disabled")>@UiText["common.edit"]</button>
+                                                                                    <button type="button" class="btn btn-outline-danger btn-xs ajax-option-delete-btn" data-option-id="@option.Id" @(Can("Catalog.AttributeOption.Delete", "AttributeOption.Delete") ? null : "disabled")>@UiText["common.delete"]</button>
+                                                                                </td>
+                                                                            </tr>
+                                                                        }
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

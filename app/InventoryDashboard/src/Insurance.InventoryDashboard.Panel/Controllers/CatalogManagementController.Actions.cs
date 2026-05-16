@@ -1238,7 +1238,7 @@ public abstract partial class CatalogManagementController
     {
         if (attributeIds.Count == 0)
         {
-            return new ApiResponse<List<string>> { IsSuccess = false, ErrorMessage = "حداقل یک ویژگی برای فرمول انتخاب کنید." };
+            return new ApiResponse<List<string>> { IsSuccess = true, Data = new List<string>() };
         }
 
         var categoryAttributesResult = await _apiService.GetCategoryAttributesAsync(
@@ -1295,8 +1295,7 @@ public abstract partial class CatalogManagementController
 
         if (string.IsNullOrWhiteSpace(partsJson))
         {
-            errorMessage = "حداقل یک ویژگی برای فرمول انتخاب کنید.";
-            return false;
+            return true;
         }
 
         try
@@ -1313,12 +1312,6 @@ public abstract partial class CatalogManagementController
             .Where(attributeId => !string.IsNullOrWhiteSpace(attributeId))
             .Select(attributeId => attributeId.Trim())
             .ToList();
-
-        if (attributeIds.Count == 0)
-        {
-            errorMessage = "حداقل یک ویژگی برای فرمول انتخاب کنید.";
-            return false;
-        }
 
         return true;
     }

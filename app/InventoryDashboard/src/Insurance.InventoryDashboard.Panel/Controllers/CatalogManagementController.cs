@@ -212,7 +212,27 @@ public abstract partial class CatalogManagementController : Controller
         };
 
         SetLayoutViewBag(model.Modules, model.ActiveModule?.ModuleId, model.ActiveItem?.ItemId, model.UserName);
-        return View("~/Views/CatalogManagement/Categories.cshtml", model);
+        return View(ResolveCategoryManagementViewPath(activeItemId), model);
+    }
+
+    private static string ResolveCategoryManagementViewPath(string activeItemId)
+    {
+        if (string.Equals(activeItemId, "attributes", StringComparison.OrdinalIgnoreCase))
+        {
+            return "~/Views/CatalogManagement/Attributes.cshtml";
+        }
+
+        if (string.Equals(activeItemId, "category_attribute_rules", StringComparison.OrdinalIgnoreCase))
+        {
+            return "~/Views/CatalogManagement/CategoryAttributes.cshtml";
+        }
+
+        if (string.Equals(activeItemId, "variant_name_formulas", StringComparison.OrdinalIgnoreCase))
+        {
+            return "~/Views/CatalogManagement/VariantNameFormulas.cshtml";
+        }
+
+        return "~/Views/CatalogManagement/Categories.cshtml";
     }
 
     [HttpPost]

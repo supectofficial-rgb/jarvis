@@ -1,0 +1,296 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
+@{
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var localFormulas = Model.CategoryVariantNameFormulas.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+    var formulaAttributeSource = Model.CategoryAttributes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+}
+
+<div id="formula-tab">
+    <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="formula-section-tabs">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#formula-section-create" role="tab">@UiText["catalog.categories.sections.edit"]</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#formula-section-list" role="tab">@UiText["catalog.categories.formulaList"]</a></li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane show active" id="formula-section-create" role="tabpanel">
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3">@UiText["catalog.categories.variantFormulaCreate"]</h5>
+                            <p class="text-muted small mb-3">@UiText["catalog.categories.formulas.partsHelp"]</p>
+                            <form asp-action="CreateVariantNameFormula" method="post" id="variant-name-formula-create-form" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                <input id="VariantNameFormulaForm_Create_FormulaId" name="VariantNameFormulaForm.FormulaId" type="hidden" value="" />
+                                <input id="VariantNameFormulaForm_Create_PartsJson" name="VariantNameFormulaForm.PartsJson" type="hidden" value="[]" />
+
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.rules.category"]</label>
+                                    <select asp-for="VariantNameFormulaForm.CategoryId" id="VariantNameFormulaForm_Create_CategoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectCategory"]' required>
+                                        <option value="">@UiText["catalog.categories.formulas.selectCategory"]</option>
+                                        @foreach (var category in Model.LeafCategories)
+                                        {
+                                            <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.formulas.name"]</label>
+                                    <input asp-for="VariantNameFormulaForm.Name" id="VariantNameFormulaForm_Create_Name" class="form-control" required maxlength="120" />
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label>@UiText["catalog.categories.formulas.separator"]</label>
+                                        <select asp-for="VariantNameFormulaForm.Separator" id="VariantNameFormulaForm_Create_Separator" class="form-control">
+                                            <option value="-">@UiText["catalog.categories.formulas.separator.dash"]</option>
+                                            <option value=" ">@UiText["catalog.categories.formulas.separator.space"]</option>
+                                            <option value="__none">@UiText["catalog.categories.formulas.separator.none"]</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label>@UiText["catalog.categories.displayOrder"]</label>
+                                        <input asp-for="VariantNameFormulaForm.DisplayOrder" id="VariantNameFormulaForm_Create_DisplayOrder" class="form-control" type="number" min="0" />
+                                    </div>
+                                    <div class="form-group col-md-3 d-flex align-items-end">
+                                        <div class="custom-control custom-checkbox">
+                                            <input asp-for="VariantNameFormulaForm.IsActive" class="custom-control-input" id="VariantNameFormulaForm_IsActive_Create" />
+                                            <label class="custom-control-label" for="VariantNameFormulaForm_IsActive_Create">@UiText["catalog.categories.rules.isActive"]</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <button class="btn btn-primary" type="submit" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.save"]</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="formula-section-list" role="tabpanel">
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <form asp-action="VariantNameFormulas" method="get" class="row align-items-end" id="formula-category-list-form">
+                                <div class="col-lg-8 col-md-8 mb-2">
+                                    <label class="text-muted small">@UiText["catalog.categories.rules.category"]</label>
+                                    <select name="categoryId" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectCategory"]' required>
+                                        <option value="">@UiText["catalog.categories.formulas.selectCategory"]</option>
+                                        @foreach (var category in Model.LeafCategories)
+                                        {
+                                            <option value="@category.Id" selected="@(category.Id == Model.SelectedCategoryId ? "selected" : null)">@category.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-lg-4 col-md-4 mb-2">
+                                    <button type="submit" class="btn btn-primary btn-block">@UiText["catalog.categories.formulas.loadList"]</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4" id="formula-inline-edit-panel" style="display:none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0" id="formula-form-title">@UiText["catalog.categories.variantFormulaEdit"]</h5>
+                                <button type="button" class="btn btn-outline-secondary btn-xs" id="formula-edit-cancel">@UiText["catalog.categories.formulas.reset"]</button>
+                            </div>
+                            <form asp-action="UpdateVariantNameFormula" method="post" id="variant-name-formula-form" data-loading-form data-dirty-watch>
+                                @Html.AntiForgeryToken()
+                                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                                <input asp-for="VariantNameFormulaForm.CategoryId" type="hidden" id="VariantNameFormulaForm_Inline_CategoryId" value="@Model.SelectedCategoryId" />
+                                <input asp-for="VariantNameFormulaForm.FormulaId" type="hidden" id="VariantNameFormulaForm_Inline_FormulaId" />
+                                <input asp-for="VariantNameFormulaForm.PartsJson" type="hidden" id="VariantNameFormulaForm_Inline_PartsJson" value="[]" />
+
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.formulas.name"]</label>
+                                    <input asp-for="VariantNameFormulaForm.Name" class="form-control" id="VariantNameFormulaForm_Inline_Name" required maxlength="120" />
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label>@UiText["catalog.categories.formulas.separator"]</label>
+                                        <select asp-for="VariantNameFormulaForm.Separator" class="form-control" id="VariantNameFormulaForm_Inline_Separator">
+                                            <option value="-">@UiText["catalog.categories.formulas.separator.dash"]</option>
+                                            <option value=" ">@UiText["catalog.categories.formulas.separator.space"]</option>
+                                            <option value="__none">@UiText["catalog.categories.formulas.separator.none"]</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3">
+                                        <label>@UiText["catalog.categories.displayOrder"]</label>
+                                        <input asp-for="VariantNameFormulaForm.DisplayOrder" class="form-control" id="VariantNameFormulaForm_Inline_DisplayOrder" type="number" min="0" />
+                                    </div>
+                                    <div class="form-group col-md-3 d-flex align-items-end">
+                                        <div class="custom-control custom-checkbox">
+                                            <input asp-for="VariantNameFormulaForm.IsActive" class="custom-control-input" id="VariantNameFormulaForm_Inline_IsActive" />
+                                            <label class="custom-control-label" for="VariantNameFormulaForm_Inline_IsActive">@UiText["catalog.categories.rules.isActive"]</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>@UiText["catalog.categories.formulas.attributes"]</label>
+                                    <div class="input-group mb-2">
+                                        <select id="formula-attribute-picker" class="form-control js-search-select" data-placeholder='@UiText["catalog.categories.formulas.selectAttribute"]'>
+                                            <option value="">@UiText["catalog.categories.formulas.selectAttribute"]</option>
+                                            @foreach (var attr in formulaAttributeSource)
+                                            {
+                                                <option value="@attr.Id">@attr.Name (@attr.Code / @attr.Scope @((attr.IsInherited ? UiText["catalog.categories.formulas.inheritedSuffix"] : string.Empty)))</option>
+                                            }
+                                        </select>
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-outline-primary" id="formula-add-part-btn" @(formulaAttributeSource.Count == 0 ? "disabled" : null)>@UiText["catalog.categories.attributeOptions.add"]</button>
+                                        </div>
+                                    </div>
+                                    @if (formulaAttributeSource.Count == 0)
+                                    {
+                                        <small class="form-text text-warning">@UiText["catalog.categories.formulas.noAttributes"]</small>
+                                    }
+                                    <div id="formula-parts-empty" class="alert alert-light small mb-2">@UiText["catalog.categories.formulas.emptyParts"]</div>
+                                    <div id="formula-parts-list" class="list-group"></div>
+                                </div>
+
+                                <div class="mt-3 d-flex flex-wrap">
+                                    <button class="btn btn-primary mr-2 mb-2" type="submit" id="formula-submit-btn" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["catalog.categories.formulas.update"]</button>
+                                    <button class="btn btn-outline-secondary mb-2" type="button" id="formula-reset-btn">@UiText["catalog.categories.formulas.reset"]</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body" id="formula-list-scope">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">@UiText["catalog.categories.variantFormulaList"]</h5>
+                                <span class="badge badge-pill badge-outline-primary">@localFormulas.Count</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>@UiText["common.name"]</th>
+                                            <th>@UiText["catalog.categories.formulas.preview"]</th>
+                                            <th>@UiText["catalog.categories.displayOrder"]</th>
+                                            <th>@UiText["common.status"]</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (localFormulas.Count == 0)
+                                        {
+                                            <tr>
+                                                <td colspan="5">
+                                                    <div class="alert alert-light my-2">@UiText["catalog.categories.formulas.none"]</div>
+                                                </td>
+                                            </tr>
+                                        }
+                                        @foreach (var formula in localFormulas)
+                                        {
+                                            var formulaParts = formula.Parts.OrderBy(x => x.SortOrder).ThenBy(x => x.AttributeName).ToList();
+                                            <tr>
+                                                <td>
+                                                    <div class="font-weight-bold">@formula.Name</div>
+                                                    <div class="small text-muted">@formulaParts.Count @UiText["catalog.categories.formulas.attributeCountSuffix"]</div>
+                                                </td>
+                                                <td class="text-monospace">@(!string.IsNullOrWhiteSpace(formula.Preview) ? formula.Preview : "-")</td>
+                                                <td>@formula.DisplayOrder</td>
+                                                <td>
+                                                    <span class="badge badge-pill @(formula.IsActive ? "badge-success" : "badge-secondary")">
+                                                        @(formula.IsActive ? UiText["common.active"] : UiText["common.inactive"])
+                                                    </span>
+                                                </td>
+                                                <td class="text-nowrap">
+                                                    <button type="button"
+                                                            class="btn btn-outline-secondary btn-xs formula-edit-btn"
+                                                            data-formula-id="@formula.FormulaId"
+                                                            @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
+                                                        @UiText["common.edit"]
+                                                    </button>
+                                                    <form asp-action="DeleteVariantNameFormula" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                                                        <input type="hidden" name="formulaId" value="@formula.FormulaId" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title='@UiText["catalog.categories.formulas.deleteTitle"]' data-confirm='@UiText["catalog.categories.formulas.deleteConfirm"]' @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.delete"]</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="5">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>@UiText["catalog.categories.formulas.partRow"]</th>
+                                                                    <th>@UiText["catalog.categories.rules.attribute"]</th>
+                                                                    <th>@UiText["common.code"]</th>
+                                                                    <th class="text-right">@UiText["common.operations"]</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @if (formulaParts.Count == 0)
+                                                                {
+                                                                    <tr>
+                                                                        <td colspan="4" class="text-muted small">@UiText["catalog.categories.formulas.noItems"]</td>
+                                                                    </tr>
+                                                                }
+                                                                @for (var partIndex = 0; partIndex < formulaParts.Count; partIndex++)
+                                                                {
+                                                                    var part = formulaParts[partIndex];
+                                                                    <tr>
+                                                                        <td>@(partIndex + 1)</td>
+                                                                        <td>@part.AttributeName</td>
+                                                                        <td><span class="text-monospace">@part.AttributeCode</span></td>
+                                                                        <td class="text-right text-nowrap">
+                                                                            <button type="button"
+                                                                                    class="btn btn-outline-secondary btn-xs formula-part-manage-btn"
+                                                                                    data-formula-id="@formula.FormulaId"
+                                                                                    data-formula-part-index="@partIndex"
+                                                                                    @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
+                                                                                @UiText["common.edit"]
+                                                                            </button>
+                                                                            <button type="button"
+                                                                                    class="btn btn-outline-danger btn-xs formula-part-remove-btn"
+                                                                                    data-formula-id="@formula.FormulaId"
+                                                                                    data-formula-part-index="@partIndex"
+                                                                                    @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>
+                                                                                @UiText["common.delete"]
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                }
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

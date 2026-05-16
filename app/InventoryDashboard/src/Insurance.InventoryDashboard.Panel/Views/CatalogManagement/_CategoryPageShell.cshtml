@@ -1,0 +1,171 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
+@{
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x =>
+        string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    var parentLookup = Model.FlatCategories
+        .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+    string GetCategoryPathById(string? categoryId)
+    {
+        if (string.IsNullOrWhiteSpace(categoryId) || !parentLookup.TryGetValue(categoryId, out var current))
+        {
+            return "-";
+        }
+
+        var parts = new List<string>();
+        var guard = 0;
+        while (current is not null && guard < 1024)
+        {
+            parts.Add(current.Name);
+            if (string.IsNullOrWhiteSpace(current.ParentCategoryId) || !parentLookup.TryGetValue(current.ParentCategoryId, out current))
+            {
+                break;
+            }
+            guard++;
+        }
+
+        parts.Reverse();
+        return string.Join(" / ", parts);
+    }
+
+    var hasRestrictedActions = !Can("Catalog.Category.Create", "Catalog.Category.Update", "Category.Create", "Category.Update")
+        || !Can("Catalog.Category.Move", "Category.Move")
+        || !Can("Catalog.Category.Activate", "Category.Activate")
+        || !Can("Catalog.Category.Deactivate", "Category.Deactivate")
+        || !Can("Catalog.Category.Delete", "Category.Delete")
+        || !Can("Catalog.AttributeDefinition.Update", "AttributeDefinition.Update")
+        || !Can("Catalog.AttributeOption.Update", "AttributeOption.Update")
+        || !Can("Catalog.Category.Rule.Update", "CategoryAttributeRule.Update")
+        || !Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage");
+    var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
+    var selectedCategoryPath = GetCategoryPathById(Model.SelectedCategoryId);
+    var activeSurface = Model.ActiveItem?.ItemId ?? "categories";
+    var sectionPartial = ViewData["SectionPartial"] as string;
+}
+
+<style>
+    .category-list-image {
+        width: 48px;
+        height: 48px;
+        border-radius: .75rem;
+        overflow: hidden;
+        background: #f2f4f7;
+        border: 1px solid #e2e6ea;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9aa3ad;
+        font-size: 1.25rem;
+    }
+
+    .category-list-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+</style>
+
+<main id="categories-page"
+      class="catalog-page"
+      data-selected-category-id="@Model.SelectedCategoryId"
+      data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <h1>@UiText["catalog.categories.title"]</h1>
+                <p class="text-muted">@UiText["catalog.categories.description"]</p>
+                <div class="mb-3">
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.primaryGoal"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.secondaryOperations"]</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.totalCount"] @Model.FlatCategories.Count</span>
+                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.filteredCount"] @Model.FilteredFlatCategories.Count</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.SelectedCategoryId))
+                    {
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.categories.selectedPath"] @selectedCategoryPath</span>
+                    }
+                </div>
+                <p class="small text-muted mb-3">
+                    @UiText["catalog.categories.quickGuide"]
+                </p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage) || TempData["CatalogError"] is string)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-warning mb-3">
+                        @(TempData["CatalogError"] as string ?? Model.ErrorMessage)
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (TempData["CatalogSuccess"] is string successMessage)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-success mb-3">@successMessage</div>
+                </div>
+            </div>
+        }
+
+        @await Html.PartialAsync("~/Views/Shared/_CatalogPermissionNotice.cshtml", hasRestrictedActions)
+
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "categories", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="Categories"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.categories"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "attributes", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="Attributes"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.attributesAndOptions"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "category_attribute_rules", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="CategoryAttributes"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.rules"]
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(string.Equals(activeSurface, "variant_name_formulas", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
+                           asp-action="VariantNameFormulas"
+                           asp-route-categoryId="@Model.SelectedCategoryId">
+                            @UiText["catalog.categories.tabs.formulas"]
+                        </a>
+                    </li>
+                </ul>
+
+                @if (!string.IsNullOrWhiteSpace(sectionPartial))
+                {
+                    @await Html.PartialAsync(sectionPartial, Model)
+                }
+            </div>
+        </div>
+    </div>
+</main>

@@ -1,0 +1,504 @@
+@using System.Linq
+@using System.Text.Json
+@model Insurance.InventoryDashboard.Panel.Models.CategoryManagementPageViewModel
+@{
+    var localFormulas = Model.CategoryVariantNameFormulas.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+    var formulaAttributeSource = Model.CategoryAttributes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+}
+<script>
+    (function () {
+        function escapeHtml(value) {
+            return (value || '')
+                .toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function initSearchableSelects(scope) {
+            if (!scope || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                return;
+            }
+
+            var $ = window.jQuery;
+            scope.querySelectorAll('select.js-search-select').forEach(function (select) {
+                if (select.dataset.select2Initialized === 'true') {
+                    return;
+                }
+
+                $(select).select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: select.getAttribute('data-width') || '100%',
+                    placeholder: select.getAttribute('data-placeholder') || '',
+                    minimumResultsForSearch: select.hasAttribute('data-no-search') ? Infinity : 0
+                });
+
+                select.dataset.select2Initialized = 'true';
+            });
+        }
+
+        var texts = {
+            add: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.attributeOptions.add"])),
+            replace: @Html.Raw(JsonSerializer.Serialize(UiText["common.edit"])),
+            remove: @Html.Raw(JsonSerializer.Serialize(UiText["common.delete"])),
+            update: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.update"])),
+            empty: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.emptyParts"])),
+            inheritedSuffix: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.inheritedSuffix"])),
+            editTitle: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.variantFormulaEdit"]))
+        };
+
+        var formulas = @Html.Raw(JsonSerializer.Serialize(localFormulas.Select(functionFormula => new {
+            formulaId = functionFormula.FormulaId,
+            categoryId = functionFormula.CategoryId,
+            name = functionFormula.Name,
+            separator = functionFormula.Separator,
+            displayOrder = functionFormula.DisplayOrder,
+            isActive = functionFormula.IsActive,
+            parts = functionFormula.Parts
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.AttributeName)
+                .Select(part => new {
+                    attributeId = part.AttributeId,
+                    attributeName = part.AttributeName,
+                    attributeCode = part.AttributeCode,
+                    sortOrder = part.SortOrder
+                })
+                .ToList()
+        }).ToList()));
+
+        var formulaAttributes = @Html.Raw(JsonSerializer.Serialize(formulaAttributeSource.Select(attribute => new {
+            attributeId = attribute.Id,
+            attributeName = attribute.Name,
+            attributeCode = attribute.Code,
+            displayOrder = attribute.DisplayOrder,
+            isInherited = attribute.IsInherited
+        }).ToList()));
+
+        var createForm = document.getElementById('variant-name-formula-create-form');
+        var createCategoryField = document.getElementById('VariantNameFormulaForm_Create_CategoryId');
+        var createPartsJsonField = document.getElementById('VariantNameFormulaForm_Create_PartsJson');
+
+        var listFilterForm = document.getElementById('formula-category-list-form');
+        var listCategoryField = listFilterForm ? listFilterForm.querySelector('select[name="categoryId"]') : null;
+
+        var inlinePanel = document.getElementById('formula-inline-edit-panel');
+        var inlineForm = document.getElementById('variant-name-formula-form');
+        var inlineTitle = document.getElementById('formula-form-title');
+        var inlineCancelBtn = document.getElementById('formula-edit-cancel');
+        var inlineSubmitBtn = document.getElementById('formula-submit-btn');
+        var inlineResetBtn = document.getElementById('formula-reset-btn');
+        var inlineFormulaIdField = document.getElementById('VariantNameFormulaForm_Inline_FormulaId');
+        var inlineCategoryField = document.getElementById('VariantNameFormulaForm_Inline_CategoryId');
+        var inlineNameField = document.getElementById('VariantNameFormulaForm_Inline_Name');
+        var inlineSeparatorField = document.getElementById('VariantNameFormulaForm_Inline_Separator');
+        var inlineDisplayOrderField = document.getElementById('VariantNameFormulaForm_Inline_DisplayOrder');
+        var inlineIsActiveField = document.getElementById('VariantNameFormulaForm_Inline_IsActive');
+        var inlinePartsJsonField = document.getElementById('VariantNameFormulaForm_Inline_PartsJson');
+        var attributePicker = document.getElementById('formula-attribute-picker');
+        var addPartBtn = document.getElementById('formula-add-part-btn');
+        var partsList = document.getElementById('formula-parts-list');
+        var partsEmpty = document.getElementById('formula-parts-empty');
+        var listTabLink = document.querySelector('#formula-section-tabs .nav-link[href="#formula-section-list"]');
+
+        var state = {
+            parts: [],
+            editingPartIndex: -1
+        };
+
+        function getFormulaById(formulaId) {
+            if (!formulaId) {
+                return null;
+            }
+
+            var normalized = String(formulaId).toLowerCase();
+            for (var i = 0; i < formulas.length; i += 1) {
+                if (String(formulas[i].formulaId || '').toLowerCase() === normalized) {
+                    return formulas[i];
+                }
+            }
+
+            return null;
+        }
+
+        function getAttributeById(attributeId) {
+            if (!attributeId) {
+                return null;
+            }
+
+            var normalized = String(attributeId).toLowerCase();
+            for (var i = 0; i < formulaAttributes.length; i += 1) {
+                if (String(formulaAttributes[i].attributeId || '').toLowerCase() === normalized) {
+                    return formulaAttributes[i];
+                }
+            }
+
+            return null;
+        }
+
+        function getPickerValue() {
+            if (!attributePicker) {
+                return '';
+            }
+
+            if (window.jQuery) {
+                var jqValue = window.jQuery(attributePicker).val();
+                if (Array.isArray(jqValue)) {
+                    return jqValue.length > 0 ? (jqValue[0] || '') : '';
+                }
+                if (jqValue) {
+                    return jqValue;
+                }
+            }
+
+            return attributePicker.value || '';
+        }
+
+        function setPickerValue(value) {
+            if (!attributePicker) {
+                return;
+            }
+
+            attributePicker.value = value || '';
+            if (window.jQuery) {
+                window.jQuery(attributePicker).val(value || '').trigger('change');
+            }
+        }
+
+        function syncInlinePartsJson() {
+            if (inlinePartsJsonField) {
+                inlinePartsJsonField.value = JSON.stringify(state.parts);
+            }
+        }
+
+        function updateInlineButtons() {
+            if (inlineSubmitBtn) {
+                inlineSubmitBtn.disabled = !inlineFormulaIdField || !inlineFormulaIdField.value;
+            }
+
+            if (addPartBtn) {
+                addPartBtn.textContent = state.editingPartIndex >= 0 ? texts.replace : texts.add;
+            }
+        }
+
+        function clearPartEditing() {
+            state.editingPartIndex = -1;
+            setPickerValue('');
+            updateInlineButtons();
+        }
+
+        function renderParts() {
+            if (!partsList || !partsEmpty) {
+                return;
+            }
+
+            partsList.innerHTML = '';
+
+            if (!state.parts.length) {
+                partsEmpty.style.display = '';
+                partsEmpty.classList.remove('alert-warning');
+                partsEmpty.classList.add('alert-light');
+                partsEmpty.textContent = texts.empty;
+                syncInlinePartsJson();
+                updateInlineButtons();
+                return;
+            }
+
+            partsEmpty.style.display = 'none';
+
+            state.parts.forEach(function (attributeId, index) {
+                var attribute = getAttributeById(attributeId);
+                var item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = ''
+                    + '<div class="d-flex justify-content-between align-items-center flex-wrap">'
+                    + '<div class="pr-2 mb-2 mb-md-0">'
+                    + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : attributeId) + '</div>'
+                    + '<div class="small text-muted">'
+                    + escapeHtml(attribute ? attribute.attributeCode : '')
+                    + (attribute && attribute.isInherited ? escapeHtml(texts.inheritedSuffix) : '')
+                    + '</div>'
+                    + '</div>'
+                    + '<div class="btn-group btn-group-sm" role="group">'
+                    + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="up" data-formula-index="' + index + '"' + (index === 0 ? ' disabled' : '') + '>&uarr;</button>'
+                    + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="down" data-formula-index="' + index + '"' + (index === state.parts.length - 1 ? ' disabled' : '') + '>&darr;</button>'
+                    + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="edit" data-formula-index="' + index + '">' + escapeHtml(texts.replace) + '</button>'
+                    + '<button type="button" class="btn btn-outline-danger formula-part-action" data-formula-action="remove" data-formula-index="' + index + '">' + escapeHtml(texts.remove) + '</button>'
+                    + '</div>'
+                    + '</div>';
+                partsList.appendChild(item);
+            });
+
+            syncInlinePartsJson();
+            updateInlineButtons();
+        }
+
+        function openInlineEditor(formula) {
+            if (!formula || !inlinePanel || !inlineForm) {
+                return;
+            }
+
+            if (window.jQuery && listTabLink) {
+                window.jQuery(listTabLink).tab('show');
+            }
+
+            inlinePanel.style.display = '';
+            if (inlineTitle) {
+                inlineTitle.textContent = texts.editTitle;
+            }
+
+            if (inlineFormulaIdField) {
+                inlineFormulaIdField.value = formula.formulaId || '';
+            }
+            if (inlineCategoryField) {
+                inlineCategoryField.value = formula.categoryId || (listCategoryField ? listCategoryField.value : '') || '@Model.SelectedCategoryId';
+            }
+            if (inlineNameField) {
+                inlineNameField.value = formula.name || '';
+            }
+            if (inlineSeparatorField) {
+                inlineSeparatorField.value = formula.separator === '' ? '__none' : (formula.separator || ' ');
+            }
+            if (inlineDisplayOrderField) {
+                inlineDisplayOrderField.value = formula.displayOrder != null ? formula.displayOrder : 0;
+            }
+            if (inlineIsActiveField) {
+                inlineIsActiveField.checked = !!formula.isActive;
+            }
+
+            state.parts = (formula.parts || []).map(function (part) {
+                return part.attributeId;
+            });
+
+            clearPartEditing();
+            renderParts();
+            inlinePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeInlineEditor() {
+            if (!inlineForm || !inlinePanel) {
+                return;
+            }
+
+            inlineForm.reset();
+            if (inlineFormulaIdField) {
+                inlineFormulaIdField.value = '';
+            }
+            if (inlineCategoryField) {
+                inlineCategoryField.value = (listCategoryField ? listCategoryField.value : '') || '@Model.SelectedCategoryId';
+            }
+            if (inlinePartsJsonField) {
+                inlinePartsJsonField.value = '[]';
+            }
+
+            state.parts = [];
+            clearPartEditing();
+            renderParts();
+            inlinePanel.style.display = 'none';
+        }
+
+        function addOrReplacePart() {
+            var attributeId = getPickerValue();
+            if (!attributeId) {
+                return;
+            }
+
+            var normalized = String(attributeId).toLowerCase();
+            var existingIndex = state.parts.findIndex(function (partId) {
+                return String(partId).toLowerCase() === normalized;
+            });
+
+            if (state.editingPartIndex >= 0) {
+                if (existingIndex >= 0 && existingIndex !== state.editingPartIndex) {
+                    return;
+                }
+                state.parts[state.editingPartIndex] = attributeId;
+            } else {
+                if (existingIndex >= 0) {
+                    return;
+                }
+                state.parts.push(attributeId);
+            }
+
+            clearPartEditing();
+            renderParts();
+        }
+
+        function removePart(index) {
+            if (index < 0 || index >= state.parts.length) {
+                return;
+            }
+
+            state.parts.splice(index, 1);
+            if (state.editingPartIndex === index) {
+                clearPartEditing();
+            } else if (state.editingPartIndex > index) {
+                state.editingPartIndex -= 1;
+            }
+            renderParts();
+        }
+
+        function movePart(index, delta) {
+            var nextIndex = index + delta;
+            if (index < 0 || nextIndex < 0 || nextIndex >= state.parts.length) {
+                return;
+            }
+
+            var temp = state.parts[index];
+            state.parts[index] = state.parts[nextIndex];
+            state.parts[nextIndex] = temp;
+
+            if (state.editingPartIndex === index) {
+                state.editingPartIndex = nextIndex;
+            } else if (state.editingPartIndex === nextIndex) {
+                state.editingPartIndex = index;
+            }
+
+            renderParts();
+        }
+
+        function startPartEdit(index) {
+            if (index < 0 || index >= state.parts.length) {
+                return;
+            }
+
+            state.editingPartIndex = index;
+            setPickerValue(state.parts[index]);
+            updateInlineButtons();
+            if (attributePicker) {
+                attributePicker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function syncCreateParts() {
+            if (createPartsJsonField) {
+                createPartsJsonField.value = '[]';
+            }
+        }
+
+        function syncCategorySelections(sourceValue) {
+            if (createCategoryField && sourceValue && createCategoryField.value !== sourceValue) {
+                createCategoryField.value = sourceValue;
+                if (window.jQuery) {
+                    window.jQuery(createCategoryField).val(sourceValue).trigger('change');
+                }
+            }
+
+            if (listCategoryField && sourceValue && listCategoryField.value !== sourceValue) {
+                listCategoryField.value = sourceValue;
+                if (window.jQuery) {
+                    window.jQuery(listCategoryField).val(sourceValue).trigger('change');
+                }
+            }
+
+            if (inlineCategoryField && !inlineFormulaIdField.value) {
+                inlineCategoryField.value = sourceValue || '@Model.SelectedCategoryId';
+            }
+        }
+
+        initSearchableSelects(document);
+        syncCreateParts();
+        renderParts();
+        updateInlineButtons();
+
+        if (createForm) {
+            createForm.addEventListener('submit', syncCreateParts);
+        }
+
+        if (listFilterForm) {
+            listFilterForm.addEventListener('submit', function () {
+                closeInlineEditor();
+            });
+        }
+
+        if (createCategoryField) {
+            createCategoryField.addEventListener('change', function () {
+                syncCategorySelections(createCategoryField.value || '');
+            });
+            if (window.jQuery) {
+                window.jQuery(createCategoryField).on('select2:select select2:clear', function () {
+                    syncCategorySelections(window.jQuery(createCategoryField).val() || '');
+                });
+            }
+        }
+
+        if (listCategoryField) {
+            listCategoryField.addEventListener('change', function () {
+                if (!inlineFormulaIdField.value) {
+                    inlineCategoryField.value = listCategoryField.value || '@Model.SelectedCategoryId';
+                }
+            });
+        }
+
+        if (addPartBtn) {
+            addPartBtn.addEventListener('click', addOrReplacePart);
+        }
+
+        if (inlineResetBtn) {
+            inlineResetBtn.addEventListener('click', clearPartEditing);
+        }
+
+        if (inlineCancelBtn) {
+            inlineCancelBtn.addEventListener('click', closeInlineEditor);
+        }
+
+        document.addEventListener('click', function (event) {
+            var formulaEditButton = event.target.closest('.formula-edit-btn');
+            if (formulaEditButton) {
+                var formulaToEdit = getFormulaById(formulaEditButton.getAttribute('data-formula-id') || '');
+                if (formulaToEdit) {
+                    openInlineEditor(formulaToEdit);
+                }
+                return;
+            }
+
+            var formulaPartManageButton = event.target.closest('.formula-part-manage-btn');
+            if (formulaPartManageButton) {
+                var hostFormula = getFormulaById(formulaPartManageButton.getAttribute('data-formula-id') || '');
+                var hostPartIndex = parseInt(formulaPartManageButton.getAttribute('data-formula-part-index') || '-1', 10);
+                if (hostFormula) {
+                    openInlineEditor(hostFormula);
+                    startPartEdit(hostPartIndex);
+                }
+                return;
+            }
+
+            var formulaPartRemoveButton = event.target.closest('.formula-part-remove-btn');
+            if (formulaPartRemoveButton) {
+                var removeFormula = getFormulaById(formulaPartRemoveButton.getAttribute('data-formula-id') || '');
+                var removePartIndex = parseInt(formulaPartRemoveButton.getAttribute('data-formula-part-index') || '-1', 10);
+                if (removeFormula) {
+                    openInlineEditor(removeFormula);
+                    removePart(removePartIndex);
+                }
+                return;
+            }
+
+            var partActionButton = event.target.closest('.formula-part-action');
+            if (!partActionButton) {
+                return;
+            }
+
+            var action = partActionButton.getAttribute('data-formula-action') || '';
+            var index = parseInt(partActionButton.getAttribute('data-formula-index') || '-1', 10);
+
+            if (action === 'up') {
+                movePart(index, -1);
+            } else if (action === 'down') {
+                movePart(index, 1);
+            } else if (action === 'edit') {
+                startPartEdit(index);
+            } else if (action === 'remove') {
+                removePart(index);
+            }
+        }, true);
+
+        if (inlineForm) {
+            inlineForm.addEventListener('submit', function () {
+                syncInlinePartsJson();
+            });
+        }
+    })();
+</script>
