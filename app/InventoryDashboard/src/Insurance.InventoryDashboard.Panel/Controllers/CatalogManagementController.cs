@@ -875,6 +875,7 @@ public abstract partial class CatalogManagementController : Controller
         foreach (var key in ModelState.Keys
                      .Where(key => string.Equals(key, "Name", StringComparison.OrdinalIgnoreCase) ||
                                    string.Equals(key, "BaseSku", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(key, "ProductForm.BaseSku", StringComparison.OrdinalIgnoreCase) ||
                                    string.Equals(key, "ProductForm.Name", StringComparison.OrdinalIgnoreCase))
                      .ToList())
         {
