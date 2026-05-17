@@ -1,0 +1,1 @@
+{"isSuccess":true,"data":{"productBusinessKey":"806ba7dd-d612-476f-a48d-d7e861f67c83","categorySchemaVersionRef":"369ad094-2061-4016-895a-5d27de2d31b7","baseSku":"111-000002","name":"زیر دسته یک شماره 2","isActive":true},"errorMessages":[],"validationErrors":{},"errorMessage":null}

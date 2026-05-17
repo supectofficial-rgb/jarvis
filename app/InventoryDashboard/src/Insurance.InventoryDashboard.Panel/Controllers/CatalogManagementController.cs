@@ -874,6 +874,7 @@ public abstract partial class CatalogManagementController : Controller
 
         foreach (var key in ModelState.Keys
                      .Where(key => string.Equals(key, "Name", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(key, "BaseSku", StringComparison.OrdinalIgnoreCase) ||
                                    string.Equals(key, "ProductForm.Name", StringComparison.OrdinalIgnoreCase))
                      .ToList())
         {
@@ -908,7 +909,7 @@ public abstract partial class CatalogManagementController : Controller
             .ThenBy(x => x.Name)
             .ToList();
         var effectiveVariantAttributes = FilterEffectiveAttributesForVariant(effectiveAttributes)
-            .Where(x => x.IsVariantLevel)
+            .Where(x => x.IsVariantCodeCovered)
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
             .ToList();
@@ -2108,13 +2109,18 @@ public abstract partial class CatalogManagementController : Controller
         out List<VariantDimensionSelection> dimensions)
     {
         dimensions = new List<VariantDimensionSelection>();
+        var codeCoveredVariantAttributes = effectiveVariantAttributes
+            .Where(x => x.IsVariantCodeCovered)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name)
+            .ToList();
         var incoming = payload.VariantAttributes
             .Where(x => !string.IsNullOrWhiteSpace(x.AttributeId))
             .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.Last())
             .ToDictionary(x => x.AttributeId, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var attribute in effectiveVariantAttributes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
+        foreach (var attribute in codeCoveredVariantAttributes)
         {
             incoming.TryGetValue(attribute.AttributeId, out var item);
             var incomingOptionIds = (item?.OptionIds ?? new List<string>())
@@ -2137,10 +2143,18 @@ public abstract partial class CatalogManagementController : Controller
             {
                 if (attribute.IsRequired)
                 {
-                    return $"برای ویژگی واریانت‌ساز \"{attribute.Name}\" باید حداقل یک گزینه انتخاب شود.";
-                }
+                    var defaultOption = attribute.Options.FirstOrDefault();
+                    if (defaultOption is null)
+                    {
+                        return $"برای ویژگی واریانت‌ساز \"{attribute.Name}\" باید حداقل یک گزینه انتخاب شود.";
+                    }
 
-                continue;
+                    incomingOptionIds.Add(defaultOption.Id);
+                }
+                else
+                {
+                    continue;
+                }
             }
 
             var selectedOptions = new List<VariantDimensionOptionSelection>();
@@ -2172,7 +2186,7 @@ public abstract partial class CatalogManagementController : Controller
                 AttributeId = attribute.AttributeId,
                 AttributeName = attribute.Name,
                 AttributeDisplayOrder = attribute.DisplayOrder,
-                IsVariantCodeCovered = attribute.IsVariantCodeCovered,
+                IsVariantCodeCovered = true,
                 Options = selectedOptions
                     .OrderBy(x => x.OptionDisplayOrder)
                     .ThenBy(x => x.OptionName)

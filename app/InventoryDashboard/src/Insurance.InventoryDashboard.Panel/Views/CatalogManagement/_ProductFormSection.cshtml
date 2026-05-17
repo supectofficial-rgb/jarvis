@@ -119,7 +119,7 @@
         .ToList();
     var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
         .Where(IsVariantScopeAttribute)
-        .Where(x => x.IsVariantLevel)
+        .Where(x => x.IsVariantLevel && x.IsVariantCodeCovered)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();

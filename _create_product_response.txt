@@ -1,0 +1,1 @@
+{"isSuccess":true,"data":{"productBusinessKey":"e537d559-2626-4ac7-b8c7-35aa1897adc4","categorySchemaVersionRef":"369ad094-2061-4016-895a-5d27de2d31b7","baseSku":"111-000001","name":"??? ???? ?? ????? 1","isActive":true},"errorMessages":[],"validationErrors":{},"errorMessage":null}

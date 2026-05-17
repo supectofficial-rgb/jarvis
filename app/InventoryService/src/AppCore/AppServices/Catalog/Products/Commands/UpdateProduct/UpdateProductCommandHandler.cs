@@ -84,7 +84,14 @@ public class UpdateProductCommandHandler : CommandHandler<UpdateProductCommand, 
             .Select(x => new ProductAttributeInput(x.AttributeRef, x.Value, x.OptionRef))
             .ToList();
 
-        var attributeValidationError = await ValidateProductAttributesAsync(category, targetCategorySchemaVersionRef, incoming);
+        var shouldSyncAttributes = incoming.Count > 0;
+        var attributesToValidate = shouldSyncAttributes
+            ? incoming
+            : aggregate.AttributeValues
+                .Select(x => new ProductAttributeInput(x.AttributeRef, x.Value, x.OptionRef))
+                .ToList();
+
+        var attributeValidationError = await ValidateProductAttributesAsync(category, targetCategorySchemaVersionRef, attributesToValidate);
         if (attributeValidationError is not null)
             return Fail(attributeValidationError);
 
@@ -99,14 +106,17 @@ public class UpdateProductCommandHandler : CommandHandler<UpdateProductCommand, 
         else
             aggregate.Deactivate();
 
-        foreach (var item in incoming)
-            aggregate.SetAttributeValue(item.AttributeRef, item.Value, item.OptionRef);
-
-        var incomingSet = incoming.Select(x => x.AttributeRef).ToHashSet();
-        foreach (var existing in aggregate.AttributeValues.ToList())
+        if (shouldSyncAttributes)
         {
-            if (!incomingSet.Contains(existing.AttributeRef))
-                aggregate.RemoveAttributeValue(existing.AttributeRef);
+            foreach (var item in incoming)
+                aggregate.SetAttributeValue(item.AttributeRef, item.Value, item.OptionRef);
+
+            var incomingSet = incoming.Select(x => x.AttributeRef).ToHashSet();
+            foreach (var existing in aggregate.AttributeValues.ToList())
+            {
+                if (!incomingSet.Contains(existing.AttributeRef))
+                    aggregate.RemoveAttributeValue(existing.AttributeRef);
+            }
         }
 
         await _productRepository.CommitAsync();
