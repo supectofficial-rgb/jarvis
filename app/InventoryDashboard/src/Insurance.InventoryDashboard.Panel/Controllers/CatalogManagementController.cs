@@ -831,7 +831,7 @@ public abstract partial class CatalogManagementController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    protected async Task<IActionResult> SaveProduct(ProductUpsertForm form)
+    protected async Task<IActionResult> SaveProduct([Bind(Prefix = "ProductForm")] ProductUpsertForm form)
     {
         if (!TryGetToken(out var token))
         {
