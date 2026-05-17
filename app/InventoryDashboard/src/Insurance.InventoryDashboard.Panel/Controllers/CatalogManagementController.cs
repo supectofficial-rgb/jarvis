@@ -772,6 +772,7 @@ public abstract partial class CatalogManagementController : Controller
                 name = x.Name,
                 dataType = x.DataType,
                 isRequired = x.IsRequired,
+                isVariantLevel = x.IsVariantLevel,
                 displayOrder = x.DisplayOrder,
                 isInherited = x.IsInherited,
                 sourceCategoryName = x.SourceCategoryName,
@@ -790,7 +791,6 @@ public abstract partial class CatalogManagementController : Controller
             .ToList();
 
         var variantAttributes = FilterEffectiveAttributesForVariant(effectiveAttributes)
-            .Where(x => x.IsVariantLevel)
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
             .Select(x => new
@@ -799,6 +799,7 @@ public abstract partial class CatalogManagementController : Controller
                 name = x.Name,
                 dataType = x.DataType,
                 isRequired = x.IsRequired,
+                isVariantLevel = x.IsVariantLevel,
                 displayOrder = x.DisplayOrder,
                 isInherited = x.IsInherited,
                 sourceCategoryName = x.SourceCategoryName,
@@ -2757,6 +2758,7 @@ public abstract partial class CatalogManagementController : Controller
     {
         return attributes
             .Where(IsVariantScope)
+            .Where(attribute => attribute.IsVariantCodeCovered)
             .ToList();
     }
 
@@ -2860,7 +2862,7 @@ public abstract partial class CatalogManagementController : Controller
             "basesku_desc" => query.OrderByDescending(p => p.BaseSku).ThenBy(p => p.Id),
             "status_asc" => query.OrderBy(p => p.IsActive ? 0 : 1).ThenBy(p => p.Name),
             "status_desc" => query.OrderBy(p => p.IsActive ? 1 : 0).ThenBy(p => p.Name),
-            _ => query.OrderBy(p => p.Name).ThenBy(p => p.Id)
+            _ => query.OrderByDescending(p => p.BaseSku).ThenByDescending(p => p.Id)
         };
 
         return query.ToList();

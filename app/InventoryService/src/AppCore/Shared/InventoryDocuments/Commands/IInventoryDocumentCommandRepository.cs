@@ -7,4 +7,5 @@ public interface IInventoryDocumentCommandRepository : ICommandRepository<Invent
 {
     Task<InventoryDocument?> GetByBusinessKeyAsync(Guid documentBusinessKey);
     Task<bool> ExistsByDocumentNoAsync(string documentNo, Guid? exceptBusinessKey = null);
+    Task<bool> ExistsLineByVariantRefAsync(Guid variantRef);
 }

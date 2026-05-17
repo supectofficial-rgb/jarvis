@@ -20,7 +20,20 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
             .Include(x => x.UomConversions)
             .Include(x => x.Components)
             .Include(x => x.AddOns)
+            .Include(x => x.Images)
             .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey));
+    }
+
+    public Task<List<ProductVariant>> GetByProductRefAsync(Guid productRef)
+    {
+        return _dbContext.Set<ProductVariant>()
+            .Where(x => x.ProductRef == productRef)
+            .Include(x => x.AttributeValues)
+            .Include(x => x.UomConversions)
+            .Include(x => x.Components)
+            .Include(x => x.AddOns)
+            .Include(x => x.Images)
+            .ToListAsync();
     }
 
     public Task<bool> ExistsByVariantSkuAsync(string variantSku, Guid? exceptBusinessKey = null)

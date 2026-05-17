@@ -747,7 +747,7 @@ public abstract partial class CatalogManagementController
         var result = await _apiService.DeleteProductAsync(productId, token);
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "محصول حذف شد." : result.ErrorMessage ?? "حذف محصول اهمهجاهمه همهشد.";
-        return RedirectToAction(nameof(Products), new { categoryId });
+        return RedirectToAction(actionName: nameof(Products), controllerName: null, routeValues: new { categoryId }, fragment: "product-tab-list");
     }
 
     [HttpPost]
@@ -768,11 +768,18 @@ public abstract partial class CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
+        IActionResult RedirectBack() =>
+            RedirectToAction(
+                actionName: nameof(Products),
+                controllerName: null,
+                routeValues: new { categoryId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize },
+                fragment: "product-tab-list");
+
         var ids = ParseSelectedIds(selectedIds);
         if (ids.Count == 0)
         {
             TempData["CatalogError"] = "هیچ محصولی برای عملیات گروهی انتخاب نشده است.";
-            return RedirectToAction(nameof(Products), new { categoryId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize });
+            return RedirectBack();
         }
 
         Func<string, string, Task<ApiResponse<bool>>> executor;
@@ -784,7 +791,7 @@ public abstract partial class CatalogManagementController
             if (!IsAuthorizedFor(token, "Catalog.Product.Activate", "Product.Activate"))
             {
                 TempData["CatalogError"] = "دسترسی فعال‌سازی گروهی محصول را ندارید.";
-                return RedirectToAction(nameof(Products), new { categoryId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize });
+                return RedirectBack();
             }
 
             executor = (id, auth) => _apiService.ActivateProductAsync(id, auth);
@@ -796,7 +803,7 @@ public abstract partial class CatalogManagementController
             if (!IsAuthorizedFor(token, "Catalog.Product.Deactivate", "Product.Deactivate"))
             {
                 TempData["CatalogError"] = "دسترسی غیرفعال‌سازی گروهی محصول را ندارید.";
-                return RedirectToAction(nameof(Products), new { categoryId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize });
+                return RedirectBack();
             }
 
             executor = (id, auth) => _apiService.DeactivateProductAsync(id, auth);
@@ -808,7 +815,7 @@ public abstract partial class CatalogManagementController
             if (!IsAuthorizedFor(token, "Catalog.Product.Delete", "Product.Delete"))
             {
                 TempData["CatalogError"] = "دسترسی حذف گروهی محصول را ندارید.";
-                return RedirectToAction(nameof(Products), new { categoryId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize });
+                return RedirectBack();
             }
 
             executor = (id, auth) => _apiService.DeleteProductAsync(id, auth);
@@ -818,7 +825,7 @@ public abstract partial class CatalogManagementController
         else
         {
             TempData["CatalogError"] = "نوع عملیات گروهی محصول معتبر نیست.";
-            return RedirectToAction(nameof(Products), new { categoryId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize });
+            return RedirectBack();
         }
 
         var successCount = 0;
@@ -845,7 +852,7 @@ public abstract partial class CatalogManagementController
             TempData["CatalogError"] = string.Join(" | ", errors.Take(3));
         }
 
-        return RedirectToAction(nameof(Products), new { categoryId, searchTerm, categoryFilterId, statusFilter, sort, page, pageSize });
+        return RedirectBack();
     }
 
     [HttpPost]

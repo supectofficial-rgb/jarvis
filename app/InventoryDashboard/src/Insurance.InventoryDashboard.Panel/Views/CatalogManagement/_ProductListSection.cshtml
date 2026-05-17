@@ -115,6 +115,16 @@
                                     <td>@(product.CategoryName ?? product.CategoryId)</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
+                                            <a class="btn btn-outline-info btn-xs"
+                                               asp-action="Variants"
+                                               asp-route-categoryId="@product.CategoryId"
+                                               asp-route-productId="@product.Id"
+                                               asp-route-searchTerm="@Model.ProductSearchTerm"
+                                               asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
+                                               asp-route-statusFilter="@Model.ProductStatusFilter"
+                                               asp-route-sort="@Model.ProductSort"
+                                               asp-route-page="@Model.ProductPage"
+                                               asp-route-pageSize="@Model.ProductPageSize">@UiText["catalog.products.variantsButton"]</a>
                                             <a class="btn btn-outline-primary btn-xs"
                                                asp-action="Products"
                                                asp-route-categoryId="@product.CategoryId"
@@ -126,16 +136,6 @@
                                                asp-route-page="@Model.ProductPage"
                                                asp-route-pageSize="@Model.ProductPageSize"
                                                asp-fragment="product-tab-main">@UiText["common.edit"]</a>
-                                            <a class="btn btn-outline-info btn-xs"
-                                               asp-action="Products"
-                                               asp-route-categoryId="@product.CategoryId"
-                                               asp-route-productId="@product.Id"
-                                               asp-route-searchTerm="@Model.ProductSearchTerm"
-                                               asp-route-categoryFilterId="@Model.ProductCategoryFilterId"
-                                               asp-route-statusFilter="@Model.ProductStatusFilter"
-                                               asp-route-sort="@Model.ProductSort"
-                                               asp-route-page="@Model.ProductPage"
-                                               asp-route-pageSize="@Model.ProductPageSize">@UiText["catalog.products.variantsButton"]</a>
                                             <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                 <span class="sr-only">@UiText["common.operations"]</span>
                                             </button>

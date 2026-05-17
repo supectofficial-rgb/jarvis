@@ -203,7 +203,7 @@
 
     var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
         .Where(IsVariantScopeAttribute)
-        .Where(x => x.IsVariantLevel)
+        .Where(x => x.IsVariantCodeCovered)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
@@ -520,6 +520,17 @@
             var categoryNodeLookup = {};
             var categoryChildrenLookup = {};
 
+            function hasRestorablePageState() {
+                var params = new URLSearchParams(window.location.search || '');
+                return params.has('productId')
+                    || params.has('searchTerm')
+                    || params.has('categoryFilterId')
+                    || params.has('statusFilter')
+                    || params.has('sort')
+                    || params.has('page')
+                    || params.has('pageSize');
+            }
+
             function readState() {
                 try {
                     return JSON.parse(localStorage.getItem(stateKey) || '{}');
@@ -651,6 +662,10 @@
             }
 
             function restoreFormDrafts() {
+                if (!hasRestorablePageState()) {
+                    return;
+                }
+
                 var drafts = readDrafts();
                 watchedForms.forEach(function (form) {
                     if (form.id === 'product-upsert-form' && !shouldRestoreProductDraft(drafts[form.id])) {
@@ -731,6 +746,10 @@
             }
 
             function restorePageState() {
+                if (!hasRestorablePageState()) {
+                    return;
+                }
+
                 var state = readState();
                 if (!state || !state.filters) {
                     return;
@@ -1302,7 +1321,7 @@
                         var options = Array.isArray(attribute.options) ? attribute.options : [];
                         return '<div class="form-group js-auto-variant-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
                             + '<label>' + escapeHtml(attribute.name || '') + (attribute.isRequired ? ' *' : '') + '</label>'
-                            + '<select multiple class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"])) + '">'
+                            + '<select ' + (attribute.isVariantLevel ? 'multiple ' : '') + 'class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="' + (attribute.isVariantLevel ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectOption"]))) + '">'
                             + options.map(function (option) {
                                 return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '" data-option-display-order="' + escapeHtml(option.displayOrder || 0) + '">'
                                     + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
@@ -2010,7 +2029,7 @@
                     }
                 });
             });
-            var initialTab = window.location.hash || localStorage.getItem(tabKey) || '#product-tab-main';
+            var initialTab = window.location.hash || (hasRestorablePageState() ? localStorage.getItem(tabKey) : null) || '#product-tab-main';
             syncProductListTabPanel(initialTab);
             showTabByHref(initialTab);
 

@@ -20,6 +20,15 @@ public class StockDetailCommandRepository
             .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(stockDetailBusinessKey));
     }
 
+    public Task<bool> ExistsByVariantRefAsync(Guid variantRef, bool onlyActive = true)
+    {
+        var query = _dbContext.StockDetails.Where(x => x.VariantRef == variantRef);
+        if (onlyActive)
+            query = query.Where(x => x.QuantityOnHand > 0);
+
+        return query.AnyAsync();
+    }
+
     public Task<StockDetail?> FindByBucketAsync(
         Guid variantRef,
         Guid sellerRef,

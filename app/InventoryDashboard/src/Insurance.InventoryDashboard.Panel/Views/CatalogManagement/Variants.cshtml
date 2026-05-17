@@ -685,11 +685,11 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm">
-                                                    <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
-                                                            data-detail-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
-                                                            data-detail-title="@UiText["catalog.variants.inventoryAndWarehouses"]">
-                                                        @UiText["catalog.variants.warehousesButton"]
-                                                    </button>
+                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
+                                                                data-detail-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
+                                                                data-detail-title="@UiText["catalog.variants.inventoryAndWarehouses"]">
+                                                            @UiText["catalog.variants.warehousesButton"]
+                                                        </button>
                                                         <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
                                                                 data-detail-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.pricesTitle"]">
@@ -726,18 +726,6 @@
                                                                         data-confirm="@UiText["catalog.variants.lockListConfirm"]"
                                                                         @(Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement") ? null : "disabled")>
                                                                     @UiText["catalog.variants.lockButtonShort"]
-                                                                </button>
-                                                            </form>
-                                                            <form asp-action="DeleteVariant" method="post" class="px-3 py-1" data-loading-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                                <input type="hidden" name="variantId" value="@variant.Id" />
-                                                                <button type="submit"
-                                                                        class="btn btn-link text-danger p-0"
-                                                                        data-confirm-title="@UiText["catalog.variants.deleteTitle"]"
-                                                                        data-confirm="@UiText["catalog.variants.deleteConfirm"]"
-                                                                        @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>
-                                                                    @UiText["common.delete"]
                                                                 </button>
                                                             </form>
                                                         </div>

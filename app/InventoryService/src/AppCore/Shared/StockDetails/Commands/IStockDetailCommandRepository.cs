@@ -6,6 +6,7 @@ using OysterFx.AppCore.Shared.Commands;
 public interface IStockDetailCommandRepository : ICommandRepository<StockDetail, long>
 {
     Task<StockDetail?> GetByBusinessKeyAsync(Guid stockDetailBusinessKey);
+    Task<bool> ExistsByVariantRefAsync(Guid variantRef, bool onlyActive = true);
 
     Task<StockDetail?> FindByBucketAsync(
         Guid variantRef,

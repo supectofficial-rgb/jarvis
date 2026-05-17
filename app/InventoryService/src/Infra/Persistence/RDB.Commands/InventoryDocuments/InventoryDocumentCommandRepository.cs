@@ -34,4 +34,12 @@ public class InventoryDocumentCommandRepository : CommandRepository<InventoryDoc
 
         return query.AnyAsync();
     }
+
+    public Task<bool> ExistsLineByVariantRefAsync(Guid variantRef)
+    {
+        if (variantRef == Guid.Empty)
+            return Task.FromResult(false);
+
+        return _dbContext.Set<InventoryDocumentLine>().AnyAsync(x => x.VariantRef == variantRef);
+    }
 }
