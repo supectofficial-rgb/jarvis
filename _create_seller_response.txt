@@ -1,0 +1,1 @@
+{"isSuccess":true,"data":{"sellerBusinessKey":"8e0d20ba-c86b-4759-b4d5-2a5c0aee703e","code":"TMP-LK-001","name":"Temp Lookup 001","isSystemOwner":true,"isActive":true},"errorMessages":[],"validationErrors":{},"errorMessage":null}

@@ -1,0 +1,1 @@
+{"isSuccess":true,"data":{"unitOfMeasureBusinessKey":"c9193d0a-4caf-4b17-a477-e7ac67822c35","code":"TMP-LK-001","name":"Temp Lookup 001","precision":2,"isActive":true},"errorMessages":[],"validationErrors":{},"errorMessage":null}

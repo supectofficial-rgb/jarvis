@@ -150,6 +150,17 @@
         var trimmed = url.Trim();
         if (Uri.TryCreate(trimmed, UriKind.Absolute, out _))
         {
+            if (!string.IsNullOrWhiteSpace(Configuration["FileService:BaseUrl"]) &&
+                Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri) &&
+                !string.IsNullOrWhiteSpace(Context?.Request?.Host.Host) &&
+                (string.Equals(absoluteUri.Host, Context!.Request!.Host.Host, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(absoluteUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(absoluteUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)))
+            {
+                var fileServiceBaseUrl = (Configuration["FileService:BaseUrl"] ?? string.Empty).TrimEnd('/');
+                return $"{fileServiceBaseUrl}{absoluteUri.PathAndQuery}{absoluteUri.Fragment}";
+            }
+
             return trimmed;
         }
 
@@ -254,19 +265,21 @@
 
     .product-category-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
+        grid-template-columns: repeat(auto-fill, minmax(160px, 190px));
         gap: .75rem;
         justify-content: start;
     }
 
     .product-category-card {
-        display: block;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         width: 100%;
-        text-align: center;
+        min-height: 160px;
         border: 1px solid #d7dce1;
         border-radius: .75rem;
         background: #fff;
-        padding: 1rem .75rem;
+        padding: .75rem;
         transition: all .2s ease;
         cursor: pointer;
     }
@@ -274,23 +287,24 @@
     .product-category-card:hover,
     .product-category-card:focus {
         border-color: #145388;
-        box-shadow: 0 .25rem 1rem rgba(20, 83, 136, .12);
+        box-shadow: 0 .15rem .75rem rgba(20, 83, 136, .12);
         outline: none;
     }
 
     .product-category-card.active {
         border-color: #145388;
-        background: #145388;
-        color: #fff;
-        box-shadow: 0 .5rem 1.25rem rgba(20, 83, 136, .18);
+        background: #fff;
+        color: inherit;
+        box-shadow: none;
     }
 
     .product-category-card-media {
-        width: 100%;
-        height: 92px;
+        width: 80px;
+        height: 80px;
+        aspect-ratio: 1 / 1;
         border-radius: .6rem;
         overflow: hidden;
-        margin-bottom: .75rem;
+        margin: 0 auto .5rem;
         background: #f8f9fa;
     }
 
@@ -314,7 +328,8 @@
         display: block;
         font-size: .75rem;
         opacity: .75;
-        margin-top: .25rem;
+        margin-top: .2rem;
+        text-align: center;
     }
 
     .product-category-selected-path {
@@ -493,6 +508,7 @@
             var autoVariantPreviewContainer = document.getElementById('auto-variant-preview-container');
             var autoVariantPreviewBody = document.getElementById('auto-variant-preview-body');
             var autoVariantPreviewEmpty = document.getElementById('auto-variant-preview-empty');
+            var autoVariantPreviewFrame = 0;
             var createAttributeStatus = document.getElementById('product-create-attribute-status');
             var createAttributesUrl = pageElement ? (pageElement.getAttribute('data-create-attributes-url') || '') : '';
             var mediaBaseUrl = @Html.Raw(JsonSerializer.Serialize((Configuration["FileService:BaseUrl"] ?? string.Empty).TrimEnd('/')));
@@ -826,6 +842,14 @@
                 }
 
                 if (/^https?:\/\//i.test(normalizedValue)) {
+                    try {
+                        var parsedUrl = new URL(normalizedValue, window.location.origin);
+                        if (parsedUrl.host === window.location.host || parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') {
+                            return mediaBaseUrl ? mediaBaseUrl + parsedUrl.pathname + parsedUrl.search + parsedUrl.hash : normalizedValue;
+                        }
+                    } catch (error) {
+                    }
+
                     return normalizedValue;
                 }
 
@@ -1043,6 +1067,20 @@
                 renderCategoryTree(buildCategoryPathIds(categoryId));
             }
 
+            function bindSelect2PreviewEvents(selectElement) {
+                if (!selectElement || selectElement.dataset.previewSelect2Bound === 'true') {
+                    return;
+                }
+
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+
+                var $ = window.jQuery;
+                $(selectElement).on('select2:select select2:unselect select2:clear change.select2', scheduleAutoVariantPreview);
+                selectElement.dataset.previewSelect2Bound = 'true';
+            }
+
             function initSearchableSelects(scope) {
                 if (!scope || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
                     return;
@@ -1061,6 +1099,10 @@
                         placeholder: select.getAttribute('data-placeholder') || '',
                         minimumResultsForSearch: select.hasAttribute('data-no-search') ? Infinity : 0
                     });
+
+                    if (select.matches('.js-auto-product-value, .js-auto-variant-values, #ProductForm_VariantNameFormulaId')) {
+                        bindSelect2PreviewEvents(select);
+                    }
 
                     select.dataset.select2Initialized = 'true';
                 });
@@ -1262,10 +1304,9 @@
                 }
 
                 scope.querySelectorAll('.js-auto-product-value, .js-auto-variant-values').forEach(function (input) {
-                    input.addEventListener('change', renderAutoVariantPreview);
-                    input.addEventListener('input', renderAutoVariantPreview);
-                    input.addEventListener('select2:select', renderAutoVariantPreview);
-                    input.addEventListener('select2:unselect', renderAutoVariantPreview);
+                    input.addEventListener('change', scheduleAutoVariantPreview);
+                    input.addEventListener('input', scheduleAutoVariantPreview);
+                    bindSelect2PreviewEvents(input);
                 });
 
                 if (!variantNameFormulaSelect) {
@@ -1273,9 +1314,8 @@
                 }
 
                 if (variantNameFormulaSelect && variantNameFormulaSelect.dataset.previewBound !== 'true') {
-                    variantNameFormulaSelect.addEventListener('change', renderAutoVariantPreview);
-                    variantNameFormulaSelect.addEventListener('select2:select', renderAutoVariantPreview);
-                    variantNameFormulaSelect.addEventListener('select2:unselect', renderAutoVariantPreview);
+                    variantNameFormulaSelect.addEventListener('change', scheduleAutoVariantPreview);
+                    bindSelect2PreviewEvents(variantNameFormulaSelect);
                     variantNameFormulaSelect.dataset.previewBound = 'true';
                 }
             }
@@ -1481,19 +1521,22 @@
                     return [];
                 }
 
+                var domSelected = Array.from(selectElement.selectedOptions || [])
+                    .map(function (option) { return (option.value || '').trim(); })
+                    .filter(function (item) { return !!item; });
+
                 if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     var selected = window.jQuery(selectElement).val();
                     if (Array.isArray(selected)) {
-                        return selected.map(function (item) { return (item || '').toString().trim(); }).filter(function (item) { return !!item; });
+                        var selectedArray = selected.map(function (item) { return (item || '').toString().trim(); }).filter(function (item) { return !!item; });
+                        return selectedArray.length > 0 ? selectedArray : domSelected;
                     }
                     if (typeof selected === 'string' && selected.trim()) {
                         return [selected.trim()];
                     }
                 }
 
-                return Array.from(selectElement.selectedOptions || [])
-                    .map(function (option) { return (option.value || '').trim(); })
-                    .filter(function (item) { return !!item; });
+                return domSelected;
             }
 
             function resolveFormulaToken(part, combination, productValues) {
@@ -1834,6 +1877,17 @@
                 autoVariantPreviewContainer.classList.remove('d-none');
             }
 
+            function scheduleAutoVariantPreview() {
+                if (autoVariantPreviewFrame) {
+                    window.cancelAnimationFrame(autoVariantPreviewFrame);
+                }
+
+                autoVariantPreviewFrame = window.requestAnimationFrame(function () {
+                    autoVariantPreviewFrame = 0;
+                    renderAutoVariantPreview();
+                });
+            }
+
             function showTabByHref(href) {
                 if (!href) {
                     return;
@@ -1965,7 +2019,7 @@
                 }
 
                 if (event.target.closest('.js-auto-product-value, .js-auto-variant-values, #ProductForm_VariantNameFormulaId')) {
-                    renderAutoVariantPreview();
+                    scheduleAutoVariantPreview();
                 }
             });
 
@@ -1975,7 +2029,7 @@
                 }
 
                 if (event.target.closest('.js-auto-product-value, .js-auto-variant-values, #ProductForm_VariantNameFormulaId')) {
-                    renderAutoVariantPreview();
+                    scheduleAutoVariantPreview();
                 }
             });
 
@@ -2008,13 +2062,13 @@
             }
 
             if (productNameField) {
-                productNameField.addEventListener('input', renderAutoVariantPreview);
+                productNameField.addEventListener('input', scheduleAutoVariantPreview);
             }
             if (productBaseSkuField) {
-                productBaseSkuField.addEventListener('input', renderAutoVariantPreview);
+                productBaseSkuField.addEventListener('input', scheduleAutoVariantPreview);
             }
             bindAutoCreateInputEvents(createDynamicSections || document);
-            renderAutoVariantPreview();
+            scheduleAutoVariantPreview();
 
             if (attributeSelect && hiddenValue && form) {
                 function parseOptions(optionElement) {

@@ -79,6 +79,13 @@
         var trimmed = url.Trim();
         if (Uri.TryCreate(trimmed, UriKind.Absolute, out _))
         {
+            if (!string.IsNullOrWhiteSpace(mediaBaseUrl) &&
+                Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri) &&
+                absoluteUri.AbsolutePath.StartsWith("/media/", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{mediaBaseUrl}{absoluteUri.PathAndQuery}{absoluteUri.Fragment}";
+            }
+
             return trimmed;
         }
 

@@ -62,8 +62,6 @@
         || !Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage");
     var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
     var selectedCategoryPath = GetCategoryPathById(Model.SelectedCategoryId);
-    var activeSurface = Model.ActiveItem?.ItemId ?? "categories";
-
     var attributeRows = Model.AllAttributes.Count > 0 ? Model.AllAttributes : Model.CategoryAttributes;
 }
 
@@ -139,37 +137,6 @@
 
         <div class="row">
             <div class="col-12">
-                <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="category-tabs">
-                    <li class="nav-item">
-                        <a class="nav-link @(string.Equals(activeSurface, "categories", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
-                           asp-action="Categories"
-                           asp-route-categoryId="@Model.SelectedCategoryId">
-                            @UiText["catalog.categories.tabs.categories"]
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link @(string.Equals(activeSurface, "attributes", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
-                           asp-action="Attributes"
-                           asp-route-categoryId="@Model.SelectedCategoryId">
-                            @UiText["catalog.categories.tabs.attributesAndOptions"]
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link @(string.Equals(activeSurface, "category_attribute_rules", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
-                           asp-action="CategoryAttributes"
-                           asp-route-categoryId="@Model.SelectedCategoryId">
-                            @UiText["catalog.categories.tabs.rules"]
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link @(string.Equals(activeSurface, "variant_name_formulas", StringComparison.OrdinalIgnoreCase) ? "active" : null)"
-                           asp-action="VariantNameFormulas"
-                           asp-route-categoryId="@Model.SelectedCategoryId">
-                            @UiText["catalog.categories.tabs.formulas"]
-                        </a>
-                    </li>
-                </ul>
-
                 <div id="attribute-tab">
                     <ul class="nav nav-tabs separator-tabs mb-4" role="tablist" id="attribute-section-tabs">
                         <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#attribute-section-form" role="tab">@UiText["catalog.categories.attributeTabs.add"]</a></li>

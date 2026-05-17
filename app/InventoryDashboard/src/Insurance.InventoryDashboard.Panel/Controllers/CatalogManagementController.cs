@@ -578,6 +578,11 @@ public abstract partial class CatalogManagementController : Controller
         var allProducts = productsResult.Data ?? new List<ProductSummaryModel>();
         var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
         var unitOfMeasures = uomLookupResult.Data ?? new List<UnitOfMeasureLookupModel>();
+        _logger.LogInformation(
+            "Product page UOM lookup completed. Success={Success}, Count={Count}, Error={Error}",
+            uomLookupResult.IsSuccess,
+            unitOfMeasures.Count,
+            string.IsNullOrWhiteSpace(uomLookupResult.ErrorMessage) ? "-" : uomLookupResult.ErrorMessage);
 
         foreach (var product in allProducts)
         {
@@ -865,6 +870,14 @@ public abstract partial class CatalogManagementController : Controller
             {
                 form.Name = GenerateProductName(selectedCategory, existingCategoryProducts, form.BaseSku);
             }
+        }
+
+        foreach (var key in ModelState.Keys
+                     .Where(key => string.Equals(key, "Name", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(key, "ProductForm.Name", StringComparison.OrdinalIgnoreCase))
+                     .ToList())
+        {
+            ModelState.Remove(key);
         }
 
         if (!TryValidateModel(form))
@@ -2461,20 +2474,12 @@ public abstract partial class CatalogManagementController : Controller
         var categoryName = string.IsNullOrWhiteSpace(category.Name)
             ? "محصول"
             : category.Name.Trim();
-        var namePrefix = $"محصول {categoryName} شماره ";
+        var namePrefix = $"{categoryName} شماره ";
 
-        var nextFromNames = existingProducts
-            .Select(x => TryReadGeneratedProductNameSequence(x.Name, namePrefix))
-            .Where(x => x.HasValue)
-            .Select(x => x!.Value)
-            .DefaultIfEmpty(0)
-            .Max();
-
-        var nextFromSku = TryReadProductNumberSequence(generatedProductNumber, NormalizeSkuSegment(category.Code))
+        var nextSequence = TryReadProductNumberSequence(generatedProductNumber, NormalizeSkuSegment(category.Code))
             ?? TryReadProductNumberSequence(generatedProductNumber, NormalizeSkuSegment(category.Name))
             ?? 0;
 
-        var nextSequence = Math.Max(nextFromNames, nextFromSku);
         if (nextSequence <= 0)
         {
             nextSequence = existingProducts.Count + 1;
