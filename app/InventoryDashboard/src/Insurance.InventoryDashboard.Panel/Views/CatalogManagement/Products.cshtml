@@ -949,6 +949,48 @@
                 categoryPathBadge.classList.remove('d-none');
             }
 
+            function resolveCategoryCode(categoryId) {
+                var normalizedCategoryId = (categoryId || '').trim();
+                if (!normalizedCategoryId) {
+                    return '';
+                }
+
+                if (categoryNodeLookup[normalizedCategoryId] && categoryNodeLookup[normalizedCategoryId].code) {
+                    return categoryNodeLookup[normalizedCategoryId].code;
+                }
+
+                if (productCategoryField) {
+                    var matchedOption = Array.from(productCategoryField.options || []).find(function (option) {
+                        return (option.value || '').trim().toLowerCase() === normalizedCategoryId.toLowerCase();
+                    });
+
+                    if (matchedOption) {
+                        return (matchedOption.getAttribute('data-category-code') || '').trim();
+                    }
+                }
+
+                return '';
+            }
+
+            function syncProductBaseSkuFromCategory(categoryId) {
+                if (!productBaseSkuField) {
+                    return;
+                }
+
+                if (isEditMode) {
+                    return;
+                }
+
+                var categoryCode = resolveCategoryCode(categoryId);
+                var nextValue = categoryCode ? categoryCode : '';
+                if (productBaseSkuField.value === nextValue) {
+                    return;
+                }
+
+                productBaseSkuField.value = nextValue;
+                productBaseSkuField.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
             function persistSelectedProductCategory(categoryId, options) {
                 if (!productCategoryField) {
                     return;
@@ -956,6 +998,7 @@
 
                 var normalizedCategoryId = (categoryId || '').trim();
                 productCategoryField.value = normalizedCategoryId;
+                syncProductBaseSkuFromCategory(normalizedCategoryId);
 
                 if ((!options || options.syncWidget !== false) && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     window.jQuery(productCategoryField).val(normalizedCategoryId).trigger('change.select2');
@@ -1950,6 +1993,7 @@
                 productListTabPane.appendChild(productListTabPanel);
             }
             syncCategoryTreeFromValue(productCategoryField ? productCategoryField.value : '');
+            syncProductBaseSkuFromCategory(productCategoryField ? productCategoryField.value : '');
             if (categoryTreeLevels && !categoryTreeLevels.innerHTML && Array.isArray(categoryTreeNodes) && categoryTreeNodes.length > 0) {
                 renderCategoryTree([]);
             }
