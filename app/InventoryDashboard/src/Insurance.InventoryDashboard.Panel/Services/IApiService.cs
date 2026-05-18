@@ -111,6 +111,9 @@ public interface IApiService
     Task<ApiResponse<bool>> RejectInventoryDocumentAsync(string documentId, string? reasonCode, string token);
     Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token);
     Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string? postedBy, string token);
+    Task<ApiResponse<bool>> AddInventoryDocumentLineAsync(string documentId, InventoryDocumentLineForm line, string token);
+    Task<ApiResponse<bool>> UpdateInventoryDocumentLineAsync(string documentId, string lineId, InventoryDocumentLineForm line, string token);
+    Task<ApiResponse<bool>> DeleteInventoryDocumentLineAsync(string documentId, string lineId, string token);
     Task<ApiResponse<List<SellerLookupItemModel>>> GetSellerLookupAsync(string token, bool includeInactive = true);
     Task<ApiResponse<List<LocationLookupItemModel>>> GetLocationLookupAsync(string token, string? warehouseId = null, bool includeInactive = false);
     Task<ApiResponse<List<QualityStatusLookupItemModel>>> GetQualityStatusLookupAsync(string token, bool includeInactive = false);

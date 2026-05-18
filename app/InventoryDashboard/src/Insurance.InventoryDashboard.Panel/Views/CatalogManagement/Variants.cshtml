@@ -48,7 +48,7 @@
     var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
     var selectedProduct = Model.Products.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedProductId, StringComparison.OrdinalIgnoreCase));
     var selectedVariant = Model.Variants.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedVariantId, StringComparison.OrdinalIgnoreCase));
-    var selectedVariantName = selectedVariant?.Sku ?? Model.SelectedVariantDetails?.Sku;
+    var selectedVariantName = selectedVariant?.Name ?? selectedVariant?.Sku ?? Model.SelectedVariantDetails?.Sku;
     string? RelatedVariantProductId(string? variantId)
     {
         if (string.IsNullOrWhiteSpace(variantId))
@@ -135,6 +135,12 @@
         _ => "badge-secondary"
     };
 }
+
+<style>
+    .variant-hidden-panel {
+        display: none;
+    }
+</style>
 
 <main id="variants-page"
       class="catalog-page"
@@ -495,6 +501,39 @@
                             <h5 class="card-title mb-0">@UiText["catalog.variants.listTitle"]</h5>
                             <span class="text-muted small">@Model.VariantTotalCount @UiText["catalog.variants.recordCountSuffix"]</span>
                         </div>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                            <div class="btn-group btn-group-sm mb-2">
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-xs"
+                                        data-show-panel="#variant-media-library-card">
+                                    @UiText["variant.media.label"]
+                                </button>
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-xs"
+                                        data-show-panel="#variant-addons-card">
+                                    @UiText["catalog.variants.addonListTitle"]
+                                </button>
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-xs"
+                                        data-show-panel="#variant-components-card">
+                                    @UiText["catalog.variants.componentsTitle"]
+                                </button>
+                            </div>
+                            <div class="btn-group btn-group-sm mb-2">
+                                <button type="button"
+                                        class="btn btn-outline-info btn-xs"
+                                        data-toggle="modal"
+                                        data-target="#variant-bulk-addon-modal">
+                                    @UiText["catalog.variants.bulkAddonTitle"]
+                                </button>
+                                <button type="button"
+                                        class="btn btn-outline-info btn-xs"
+                                        data-toggle="modal"
+                                        data-target="#variant-bulk-media-modal">
+                                    @UiText["catalog.variants.bulkMediaTitle"]
+                                </button>
+                            </div>
+                        </div>
                         <form asp-action="ApplyVariantBulkAction"
                               method="post"
                               class="form-inline mb-3"
@@ -548,103 +587,133 @@
                                 </button>
                             </div>
                         </form>
-                        <form asp-action="BulkAssignVariantAddOn"
-                              method="post"
-                              class="border rounded p-3 mb-3 bg-light"
-                              data-loading-form
-                              data-bulk-form
-                              data-bulk-scope="#variant-list-scope">
-                            @Html.AntiForgeryToken()
-                            <input asp-for="BulkVariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                            <input asp-for="BulkVariantAddOnForm.SelectedVariantIds" type="hidden" data-bulk-target />
-                            <input asp-for="BulkVariantAddOnForm.SelectedAddOnVariantIds" type="hidden" id="bulk-addon-selected-ids" />
-                            <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" id="bulk-addon-primary-id" />
-                            <input type="hidden" data-bulk-action-input />
-                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                <div>
-                                    <strong>@UiText["catalog.variants.bulkAddonTitle"]</strong>
-                                    <div class="small text-muted">@UiText["catalog.variants.bulkAddonHelp"]</div>
-                                </div>
-                                <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
-                            </div>
-                            <div class="form-row align-items-end">
-                                <div class="col-md-9 mb-2">
-                                    <label>@UiText["catalog.variants.addonVariant"]</label>
-                                    <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
-                                            class="form-control js-search-select"
-                                            data-placeholder='@UiText["catalog.variants.selectAddon"]'>
-                                        <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
-                                        @foreach (var variant in Model.RelatedVariantLookup)
-                                        {
-                                            <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
-                                        }
-                                    </select>
-                                    <button type="button"
-                                            class="btn btn-outline-secondary btn-block text-left mt-2"
-                                            data-toggle="modal"
-                                            data-target="#bulk-addon-selector-modal">
-                                        @UiText["catalog.variants.selectMultipleAddons"]
-                                    </button>
-                                    <div class="small text-muted mt-2">@UiText["catalog.variants.multiAddonSearchHelp"]</div>
-                                    <div class="border rounded bg-white p-2 mt-2" id="bulk-addon-selection-summary">
-                                        <span class="text-muted small" data-empty-text>@UiText["catalog.variants.noAddonSelectedYet"]</span>
-                                        <div class="d-flex flex-wrap" id="bulk-addon-selection-pills"></div>
+                        <div class="modal fade" id="variant-bulk-addon-modal" tabindex="-1" role="dialog" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">@UiText["catalog.variants.bulkAddonTitle"]</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form asp-action="BulkAssignVariantAddOn"
+                                              method="post"
+                                              class="bg-light"
+                                              data-loading-form
+                                              data-bulk-form
+                                              data-bulk-scope="#variant-list-scope">
+                                            @Html.AntiForgeryToken()
+                                            <input asp-for="BulkVariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                            <input asp-for="BulkVariantAddOnForm.SelectedVariantIds" type="hidden" data-bulk-target />
+                                            <input asp-for="BulkVariantAddOnForm.SelectedAddOnVariantIds" type="hidden" id="bulk-addon-selected-ids" />
+                                            <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" id="bulk-addon-primary-id" />
+                                            <input type="hidden" data-bulk-action-input />
+                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                                <div>
+                                                    <strong>@UiText["catalog.variants.bulkAddonTitle"]</strong>
+                                                    <div class="small text-muted">@UiText["catalog.variants.bulkAddonHelp"]</div>
+                                                </div>
+                                                <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
+                                            </div>
+                                            <div class="form-row align-items-end">
+                                                <div class="col-md-9 mb-2">
+                                                    <label>@UiText["catalog.variants.addonVariant"]</label>
+                                                    <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
+                                                            class="form-control js-search-select"
+                                                            data-placeholder='کد یا نام ادزآن را جستجو کنید'>
+                                                        <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
+                                                        @foreach (var variant in Model.RelatedVariantLookup)
+                                                        {
+                                                            <option value="@variant.Id">@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name) @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
+                                                        }
+                                                    </select>
+                                                    <div class="small text-muted mt-2">کد یا نام ادزآن را جستجو کنید</div>
+                                                    <button type="button"
+                                                            class="btn btn-outline-secondary btn-block text-left mt-2"
+                                                            data-toggle="modal"
+                                                            data-target="#bulk-addon-selector-modal">
+                                                        @UiText["catalog.variants.selectMultipleAddons"]
+                                                    </button>
+                                                    <div class="small text-muted mt-2">@UiText["catalog.variants.multiAddonSearchHelp"]</div>
+                                                    <div class="border rounded bg-white p-2 mt-2" id="bulk-addon-selection-summary">
+                                                        <span class="text-muted small" data-empty-text>@UiText["catalog.variants.noAddonSelectedYet"]</span>
+                                                        <div class="d-flex flex-wrap" id="bulk-addon-selection-pills"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3 mb-2">
+                                                    <button type="submit"
+                                                            class="btn btn-outline-primary btn-block"
+                                                            data-bulk-action="assign-addon"
+                                                            data-bulk-permission="allowed">
+                                                        @UiText["catalog.variants.registerForSelections"]
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
                                     </div>
                                 </div>
-                                <div class="col-md-3 mb-2">
-                                    <button type="submit"
-                                            class="btn btn-outline-primary btn-block"
-                                            data-bulk-action="assign-addon"
-                                            data-bulk-permission="allowed">
-                                        @UiText["catalog.variants.registerForSelections"]
-                                    </button>
+                            </div>
+                        </div>
+                        <div class="modal fade" id="variant-bulk-media-modal" tabindex="-1" role="dialog" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">@UiText["catalog.variants.bulkMediaTitle"]</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form asp-action="BulkAssignVariantImages"
+                                              method="post"
+                                              class="bg-light"
+                                              data-loading-form
+                                              data-bulk-form
+                                              data-bulk-scope="#variant-list-scope">
+                                            @Html.AntiForgeryToken()
+                                            <input asp-for="BulkVariantImageForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                            <input asp-for="BulkVariantImageForm.SelectedVariantIds" type="hidden" data-bulk-target />
+                                            <input asp-for="BulkVariantImageForm.ImagesJson" type="hidden" />
+                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                                <div>
+                                                    <strong>@UiText["catalog.variants.bulkMediaTitle"]</strong>
+                                                    <div class="small text-muted">@UiText["catalog.variants.bulkMediaHelp"]</div>
+                                                </div>
+                                                <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
+                                            </div>
+                                            <div data-media-manager
+                                                 data-policy="variant-gallery"
+                                                 data-base-url="@Configuration["FileService:BaseUrl"]"
+                                                 data-input-name="BulkVariantImageForm.ImagesJson">
+                                                <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
+                                                <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
+                                                    <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                                                </div>
+                                                <div class="small text-muted mb-2" data-media-status>@UiText["variant.media.bulkHelp"]</div>
+                                                <div class="row" data-media-items></div>
+                                                <div class="alert alert-light mb-3" data-media-empty>@UiText["variant.media.bulkEmpty"]</div>
+                                            </div>
+                                            <div class="text-right">
+                                                <button type="submit"
+                                                        class="btn btn-outline-primary"
+                                                        data-bulk-action="assign-media"
+                                                        data-bulk-permission="allowed">
+                                                    @UiText["catalog.variants.registerMediaForSelections"]
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
-                        </form>
-                        <form asp-action="BulkAssignVariantImages"
-                              method="post"
-                              class="border rounded p-3 mb-3 bg-light"
-                              data-loading-form
-                              data-bulk-form
-                              data-bulk-scope="#variant-list-scope">
-                            @Html.AntiForgeryToken()
-                            <input asp-for="BulkVariantImageForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                            <input asp-for="BulkVariantImageForm.SelectedVariantIds" type="hidden" data-bulk-target />
-                            <input asp-for="BulkVariantImageForm.ImagesJson" type="hidden" />
-                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                <div>
-                                    <strong>@UiText["catalog.variants.bulkMediaTitle"]</strong>
-                                    <div class="small text-muted">@UiText["catalog.variants.bulkMediaHelp"]</div>
-                                </div>
-                                <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
-                            </div>
-                            <div data-media-manager
-                                 data-policy="variant-gallery"
-                                 data-base-url="@Configuration["FileService:BaseUrl"]"
-                                 data-input-name="BulkVariantImageForm.ImagesJson">
-                                <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
-                                <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
-                                    <div class="progress-bar" style="width:0%;" data-media-progress></div>
-                                </div>
-                                <div class="small text-muted mb-2" data-media-status>@UiText["variant.media.bulkHelp"]</div>
-                                <div class="row" data-media-items></div>
-                                <div class="alert alert-light mb-3" data-media-empty>@UiText["variant.media.bulkEmpty"]</div>
-                            </div>
-                            <div class="text-right">
-                                <button type="submit"
-                                        class="btn btn-outline-primary"
-                                        data-bulk-action="assign-media"
-                                        data-bulk-permission="allowed">
-                                    @UiText["catalog.variants.registerMediaForSelections"]
-                                </button>
-                            </div>
-                        </form>
+                        </div>
                         <div class="table-responsive">
                             <table class="table table-sm table-striped">
                                 <thead>
                                     <tr>
                                         <th><input type="checkbox" data-bulk-toggle aria-label='@UiText["catalog.variants.selectAll"]' /></th>
-                                        <th>SKU</th>
+                                        <th>کد</th>
+                                        <th>نام</th>
                                         <th>@UiText["catalog.variants.barcode"]</th>
                                         <th>@UiText["catalog.variants.baseUom"]</th>
                                         <th>@UiText["catalog.variants.trackingPolicy"]</th>
@@ -656,7 +725,7 @@
                                     @if (Model.Variants.Count == 0)
                                     {
                                         <tr>
-                                            <td colspan="7">
+                                            <td colspan="8">
                                                 <div class="alert alert-light my-2">
                                                     <h6>@UiText["catalog.variants.noVariantsFound"]</h6>
                                                     <p class="mb-0 text-muted">@UiText["catalog.variants.reviewFiltersOrCreate"]</p>
@@ -671,6 +740,7 @@
                                             <tr>
                                                 <td><input type="checkbox" data-bulk-row value="@variant.Id" aria-label='@string.Format(UiText["catalog.variants.rowRequiredFormat"], variant.Sku)' /></td>
                                                 <td><span class="text-monospace">@variant.Sku</span></td>
+                                                <td>@(string.IsNullOrWhiteSpace(variant.Name) ? "-" : variant.Name)</td>
                                                 <td>@(string.IsNullOrWhiteSpace(variant.Barcode) ? "-" : $"#{variant.Barcode}")</td>
                                                 <td>@variant.BaseUom</td>
                                                 <td>@variant.TrackingPolicy</td>
@@ -700,6 +770,27 @@
                                                                 data-detail-title="@UiText["catalog.variants.documentsAndTransactions"]">
                                                             @UiText["catalog.variants.documentsButton"]
                                                         </button>
+                                                        <a class="btn btn-outline-primary btn-xs"
+                                                           asp-action="Variants"
+                                                           asp-route-productId="@Model.SelectedProductId"
+                                                           asp-route-variantId="@variant.Id"
+                                                           asp-fragment="variant-media-library-card">
+                                                            @UiText["variant.media.label"]
+                                                        </a>
+                                                        <a class="btn btn-outline-primary btn-xs"
+                                                           asp-action="Variants"
+                                                           asp-route-productId="@Model.SelectedProductId"
+                                                           asp-route-variantId="@variant.Id"
+                                                           asp-fragment="variant-addons-card">
+                                                            @UiText["catalog.variants.addonListTitle"]
+                                                        </a>
+                                                        <a class="btn btn-outline-primary btn-xs"
+                                                           asp-action="Variants"
+                                                           asp-route-productId="@Model.SelectedProductId"
+                                                           asp-route-variantId="@variant.Id"
+                                                           asp-fragment="variant-components-card">
+                                                            @UiText["catalog.variants.componentsTitle"]
+                                                        </a>
                                                         <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                             <span class="sr-only">@UiText["common.operations"]</span>
                                                         </button>
@@ -837,7 +928,7 @@
                     </div>
                 </div>
 
-                <div class="card mb-4" id="variant-media-library-card">
+                <div class="card mb-4 variant-hidden-panel" id="variant-media-library-card">
                     <div class="card-body">
                         <h5 class="card-title">@UiText["catalog.variants.variantMediaTitle"]</h5>
                         @if (Model.SelectedVariantDetails is null)
@@ -998,7 +1089,7 @@
                     </div>
                 </div>
 
-                <div class="card mb-4" id="variant-components-card">
+                <div class="card mb-4 variant-hidden-panel" id="variant-components-card">
                     <div class="card-body">
                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
                             <div>
@@ -1007,58 +1098,72 @@
                             </div>
                             @if (hasSelectedProduct && hasSelectedVariant)
                             {
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="collapse" data-target="#variant-component-editor" aria-expanded="false" aria-controls="variant-component-editor">@UiText["catalog.variants.addOrEditComponent"]</button>
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="modal" data-target="#variant-component-modal">@UiText["catalog.variants.addOrEditComponent"]</button>
                             }
                         </div>
                         @if (hasSelectedProduct && hasSelectedVariant)
                         {
                             <p class="text-muted small">@UiText["catalog.variants.componentsTableHelp"]</p>
-                            <div class="collapse mb-4" id="variant-component-editor">
-                            <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-loading-form data-dirty-watch>
-                                @Html.AntiForgeryToken()
-                                <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
-                                <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
-                                <div class="form-row">
-                                    <div class="col-md-8 mb-2">
-                                        <label>@UiText["catalog.variants.componentVariant"]</label>
-                                        <select asp-for="VariantComponentForm.ComponentVariantId" class="form-control js-search-select" data-placeholder='@UiText["catalog.variants.selectVariant"]'>
-                                            <option value="">@UiText["catalog.variants.selectVariant"]</option>
-                                            @foreach (var variant in Model.RelatedVariantLookup)
-                                            {
-                                                <option value="@variant.Id">@variant.Sku @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
-                                            }
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label>@UiText["common.count"]</label>
-                                        <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
+                            <div class="modal fade" id="variant-component-modal" tabindex="-1" role="dialog" aria-hidden="true">
+                                <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">@UiText["catalog.variants.componentsTitle"]</h5>
+                                            <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
+                                                <span aria-hidden="true">&times;</span>
+                                            </button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-loading-form data-dirty-watch>
+                                                @Html.AntiForgeryToken()
+                                                <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                                <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                                                <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
+                                                <div class="form-row">
+                                                    <div class="col-md-12 mb-2">
+                                                        <label>@UiText["catalog.variants.componentVariant"]</label>
+                                                        <select asp-for="VariantComponentForm.ComponentVariantId"
+                                                                class="form-control js-search-select"
+                                                                id="VariantComponentForm_ComponentVariantId"
+                                                                data-placeholder='کد یا نام واریانت را جستجو کنید'
+                                                                data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                                            <option value="">کد یا نام واریانت را جستجو کنید</option>
+                                                            @foreach (var variant in Model.RelatedVariantLookup.OrderBy(x => x.Sku))
+                                                            {
+                                                                <option value="@variant.Id">@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name) @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
+                                                            }
+                                                        </select>
+                                                        <small class="text-muted d-block mt-1">کد یا نام واریانت را جستجو کنید</small>
+                                                    </div>
+                                                </div>
+                                                <div class="border rounded p-3 mb-3 d-none" id="variant-component-stock-panel">
+                                                    <div class="form-row">
+                                                        <div class="col-md-6 mb-2">
+                                                            <label>@UiText["catalog.variants.componentWarehouse"]</label>
+                                                            <select asp-for="VariantComponentForm.WarehouseId" class="form-control" id="VariantComponentForm_WarehouseId">
+                                                                <option value="">@UiText["catalog.variants.selectWarehouse"]</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-6 mb-2">
+                                                            <label>@UiText["catalog.variants.componentLocation"]</label>
+                                                            <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
+                                                                <option value="">@UiText["catalog.variants.selectLocation"]</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="small text-muted" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</div>
+                                                </div>
+                                                <div class="form-row">
+                                                    <div class="col-md-4 mb-2">
+                                                        <label>@UiText["common.count"]</label>
+                                                        <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
+                                                    </div>
+                                                </div>
+                                                <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="form-row">
-                                    <div class="col-md-6 mb-2">
-                                        <label>@UiText["catalog.variants.componentWarehouse"]</label>
-                                        <select asp-for="VariantComponentForm.WarehouseId" class="form-control" id="VariantComponentForm_WarehouseId">
-                                            <option value="">@UiText["catalog.variants.selectWarehouse"]</option>
-                                            @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                            {
-                                                <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label>@UiText["catalog.variants.componentLocation"]</label>
-                                        <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
-                                            <option value="">@UiText["catalog.variants.selectLocation"]</option>
-                                            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                            {
-                                                <option value="@location.LocationBusinessKey" data-warehouse-id="@location.WarehouseRef">@location.LocationCode (@location.LocationType)</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-                                <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
-                            </form>
                             </div>
                             <h6>@UiText["catalog.variants.savedMedia"]</h6>
                             @if (Model.SelectedVariantDetails!.Images.Count == 0)
@@ -1132,11 +1237,21 @@
                                                             var componentProductId = RelatedVariantProductId(component.ComponentVariantId);
                                                         }
                                                         <div class="btn-group btn-group-sm">
-                                                            @if (!string.IsNullOrWhiteSpace(componentProductId))
-                                                            {
-                                                                <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@componentProductId" asp-route-variantId="@component.ComponentVariantId">@UiText["catalog.variants.view"]</a>
+                                                        @if (!string.IsNullOrWhiteSpace(componentProductId))
+                                                        {
+                                                            <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@componentProductId" asp-route-variantId="@component.ComponentVariantId">@UiText["catalog.variants.view"]</a>
+                                                        }
+                                                            @{
+                                                                var componentVariantLabel = Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, component.ComponentVariantId, StringComparison.OrdinalIgnoreCase));
+                                                                var componentVariantDisplay = componentVariantLabel is null
+                                                                    ? component.ComponentSku
+                                                                    : $"{componentVariantLabel.Sku} - {(string.IsNullOrWhiteSpace(componentVariantLabel.Name) ? componentVariantLabel.Sku : componentVariantLabel.Name)}";
+                                                                if (!string.IsNullOrWhiteSpace(component.ComponentBarcode))
+                                                                {
+                                                                    componentVariantDisplay = $"{componentVariantDisplay} - {component.ComponentBarcode}";
+                                                                }
                                                             }
-                                                            <button type="button" class="btn btn-outline-secondary btn-xs js-component-edit" data-component-id="@component.ComponentId" data-component-variant-id="@component.ComponentVariantId" data-component-warehouse-id="@component.WarehouseId" data-component-location-id="@component.LocationId" data-component-quantity="@component.Quantity">@UiText["common.edit"]</button>
+                                                            <button type="button" class="btn btn-outline-secondary btn-xs js-component-edit" data-component-id="@component.ComponentId" data-component-variant-id="@component.ComponentVariantId" data-component-variant-label="@componentVariantDisplay" data-component-warehouse-id="@component.WarehouseId" data-component-location-id="@component.LocationId" data-component-quantity="@component.Quantity">@UiText["common.edit"]</button>
                                                             <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-loading-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="productId" value="@Model.SelectedProductId" />
@@ -1160,7 +1275,7 @@
                         }
                     </div>
 
-                <div class="card mb-4" id="variant-addons-card">
+                <div class="card mb-4 variant-hidden-panel" id="variant-addons-card">
                     <div class="card-body">
                         <h5 class="card-title mb-1">@UiText["catalog.variants.addonListTitle"]</h5>
                         @if (hasSelectedProduct && hasSelectedVariant)
@@ -1536,6 +1651,20 @@
                 }
             }
 
+            function revealPanel(selector) {
+                if (!selector) {
+                    return;
+                }
+
+                var target = document.querySelector(selector);
+                if (!target) {
+                    return;
+                }
+
+                target.classList.remove('variant-hidden-panel');
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
             var attributeSelect = document.getElementById('variant-attribute-select');
             var textGroup = document.getElementById('variant-value-text-group');
             var textInput = document.getElementById('variant-value-text');
@@ -1563,7 +1692,15 @@
                     }
                 });
             });
+            document.querySelectorAll('[data-show-panel]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    revealPanel(button.getAttribute('data-show-panel'));
+                });
+            });
             showTabByHref(localStorage.getItem(tabKey));
+            if (window.location.hash) {
+                revealPanel(window.location.hash);
+            }
 
             if (attributeSelect && hiddenValue && form) {
                 function parseOptions(optionElement) {
@@ -1754,12 +1891,192 @@
             var conversionFactorInput = document.getElementById('VariantUomConversionForm_Factor');
             var conversionRoundingInput = document.getElementById('VariantUomConversionForm_RoundingMode');
             var conversionBasePathInput = document.getElementById('VariantUomConversionForm_IsBasePath');
-            var componentEditor = window.jQuery ? window.jQuery('#variant-component-editor') : null;
+            var componentEditor = window.jQuery ? window.jQuery('#variant-component-modal') : null;
             var componentIdInput = document.getElementById('VariantComponentForm_ComponentId');
             var componentVariantInput = document.getElementById('VariantComponentForm_ComponentVariantId');
             var componentWarehouseInput = document.getElementById('VariantComponentForm_WarehouseId');
             var componentLocationInput = document.getElementById('VariantComponentForm_LocationId');
             var componentQuantityInput = document.getElementById('VariantComponentForm_Quantity');
+            var componentStockPanel = document.getElementById('variant-component-stock-panel');
+            var componentStockSummary = document.getElementById('variant-component-stock-summary');
+            var componentVariantSearchUrl = componentVariantInput ? (componentVariantInput.getAttribute('data-ajax-url') || '') : '';
+            var componentStockLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("GetVariantComponentInventoryLookup", "CatalogManagement") ?? string.Empty));
+            var componentVariantPlaceholder = componentVariantInput ? (componentVariantInput.getAttribute('data-placeholder') || '') : '';
+            var componentStockWarehouses = [];
+            var componentStockLocations = [];
+
+            function setSelectOptions(select, items, placeholder, valueKey, textKey) {
+                if (!select) {
+                    return;
+                }
+
+                var currentValue = (select.value || '').trim();
+                select.innerHTML = '';
+
+                var placeholderOption = document.createElement('option');
+                placeholderOption.value = '';
+                placeholderOption.textContent = placeholder || '';
+                select.appendChild(placeholderOption);
+
+                (Array.isArray(items) ? items : []).forEach(function (item) {
+                    var option = document.createElement('option');
+                    option.value = item && item[valueKey] ? item[valueKey] : '';
+                    option.textContent = item && item[textKey] ? item[textKey] : option.value;
+                    if (item && item.warehouseId) {
+                        option.setAttribute('data-warehouse-id', item.warehouseId);
+                    }
+                    select.appendChild(option);
+                });
+
+                if (currentValue) {
+                    select.value = currentValue;
+                }
+            }
+
+            function setWarehouseOptions(items) {
+                componentStockWarehouses = Array.isArray(items) ? items.slice() : [];
+                setSelectOptions(componentWarehouseInput, componentStockWarehouses, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectWarehouse"])), 'warehouseId', 'text');
+            }
+
+            function setLocationOptionsForWarehouse(warehouseId) {
+                if (!componentLocationInput) {
+                    return;
+                }
+
+                var normalizedWarehouseId = (warehouseId || '').trim();
+                var filteredLocations = (Array.isArray(componentStockLocations) ? componentStockLocations : []).filter(function (item) {
+                    if (!item || !item.id) {
+                        return false;
+                    }
+
+                    if (!normalizedWarehouseId) {
+                        return true;
+                    }
+
+                    return (item.warehouseId || '').toString().trim() === normalizedWarehouseId;
+                });
+
+                setSelectOptions(componentLocationInput, filteredLocations, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
+
+                if (filteredLocations.length === 1) {
+                    componentLocationInput.value = filteredLocations[0].locationId || '';
+                }
+            }
+
+            function setComponentStockPanelVisible(isVisible) {
+                if (!componentStockPanel) {
+                    return;
+                }
+
+                componentStockPanel.classList.toggle('d-none', !isVisible);
+            }
+
+            function updateComponentStockSummary(message) {
+                if (!componentStockSummary) {
+                    return;
+                }
+
+                componentStockSummary.textContent = message || '';
+            }
+
+            function refreshComponentLocationFilter() {
+                if (!componentLocationInput) {
+                    return;
+                }
+
+                var selectedWarehouseId = componentWarehouseInput ? (componentWarehouseInput.value || '') : '';
+                setLocationOptionsForWarehouse(selectedWarehouseId);
+            }
+
+            function initializeComponentVariantSearch() {
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !componentVariantInput || componentVariantInput.dataset.select2Initialized === 'true') {
+                    return;
+                }
+
+                window.jQuery(componentVariantInput).select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: '100%',
+                    dropdownParent: componentEditor,
+                    placeholder: componentVariantPlaceholder,
+                    allowClear: true,
+                    minimumInputLength: 0,
+                    ajax: {
+                        url: componentVariantSearchUrl,
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return { term: params.term || '' };
+                        },
+                        processResults: function (data) {
+                            var items = data && data.items ? data.items : [];
+                            return {
+                                results: items.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.text || item.sku || '',
+                                        sku: item.sku || '',
+                                        name: item.name || '',
+                                        barcode: item.barcode || ''
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+
+                componentVariantInput.dataset.select2Initialized = 'true';
+            }
+
+            function loadComponentInventoryOptions(variantId, selectedWarehouseId, selectedLocationId) {
+                if (!componentStockLookupUrl) {
+                    return Promise.resolve();
+                }
+
+                if (!variantId) {
+                    componentStockWarehouses = [];
+                    componentStockLocations = [];
+                    setSelectOptions(componentWarehouseInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectWarehouse"])), 'warehouseId', 'text');
+                    setSelectOptions(componentLocationInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
+                    setComponentStockPanelVisible(false);
+                    updateComponentStockSummary(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectVariantSimple"])));
+                    return Promise.resolve();
+                }
+
+                return fetch(componentStockLookupUrl + '?variantId=' + encodeURIComponent(variantId), {
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (payload) {
+                        if (!payload || payload.isSuccess === false) {
+                            throw new Error((payload && payload.errorMessage) || 'Loading inventory options failed.');
+                        }
+
+                        componentStockLocations = Array.isArray(payload.locations) ? payload.locations.slice() : [];
+                        setWarehouseOptions(payload.warehouses || []);
+                        setSelectOptions(componentLocationInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
+                        setComponentStockPanelVisible(true);
+                        updateComponentStockSummary(
+                            (payload.warehouses && payload.warehouses.length ? payload.warehouses.length : 0) + ' انبار و ' +
+                            (payload.locations && payload.locations.length ? payload.locations.length : 0) + ' لوکیشن برای این واریانت پیدا شد');
+
+                        var warehouseToSelect = (selectedWarehouseId || '').trim();
+                        if (!warehouseToSelect && componentStockWarehouses.length === 1) {
+                            warehouseToSelect = componentStockWarehouses[0].warehouseId || '';
+                        }
+                        if (componentWarehouseInput) {
+                            componentWarehouseInput.value = warehouseToSelect;
+                        }
+
+                        setLocationOptionsForWarehouse(warehouseToSelect);
+
+                        if (selectedLocationId) {
+                            componentLocationInput.value = selectedLocationId;
+                        } else if (componentLocationInput && componentLocationInput.options && componentLocationInput.options.length === 2) {
+                            componentLocationInput.value = componentLocationInput.options[1].value || '';
+                        }
+                    });
+            }
 
             document.querySelectorAll('.conversion-edit-btn').forEach(function (button) {
                 button.addEventListener('click', function () {
@@ -1791,41 +2108,27 @@
                 });
             });
 
-            function filterComponentLocations(selectedWarehouseId) {
-                if (!componentLocationInput) {
-                    return;
-                }
-
-                Array.from(componentLocationInput.options || []).forEach(function (option) {
-                    if (!option.value) {
-                        option.hidden = false;
-                        return;
-                    }
-
-                    var optionWarehouseId = option.getAttribute('data-warehouse-id') || '';
-                    option.hidden = Boolean(selectedWarehouseId) && optionWarehouseId !== selectedWarehouseId;
-                });
-
-                if (componentLocationInput.value) {
-                    var selectedOption = componentLocationInput.options[componentLocationInput.selectedIndex];
-                    if (selectedOption && selectedOption.hidden) {
-                        componentLocationInput.value = '';
-                    }
-                }
-            }
-
             if (componentWarehouseInput) {
                 componentWarehouseInput.addEventListener('change', function () {
-                    filterComponentLocations(componentWarehouseInput.value || '');
+                    setLocationOptionsForWarehouse(componentWarehouseInput.value || '');
                 });
+            }
 
-                filterComponentLocations(componentWarehouseInput.value || '');
+            initializeComponentVariantSearch();
+
+            if (componentVariantInput) {
+                componentVariantInput.addEventListener('change', function () {
+                    var selectedVariantId = (componentVariantInput.value || '').trim();
+                    loadComponentInventoryOptions(selectedVariantId, '', '').catch(function () {
+                        updateComponentStockSummary('Loading inventory options failed.');
+                    });
+                });
             }
 
             document.querySelectorAll('.js-component-edit').forEach(function (button) {
                 button.addEventListener('click', function () {
-                    if (componentEditor && componentEditor.collapse) {
-                        componentEditor.collapse('show');
+                    if (componentEditor && componentEditor.modal) {
+                        componentEditor.modal('show');
                     }
 
                     if (componentIdInput) {
@@ -1835,13 +2138,17 @@
                     if (componentVariantInput) {
                         componentVariantInput.value = button.getAttribute('data-component-variant-id') || '';
                         if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                            window.jQuery(componentVariantInput).trigger('change.select2');
+                            var variantLabel = button.getAttribute('data-component-variant-label') || componentVariantInput.value || '';
+                            if (variantLabel) {
+                                var option = new Option(variantLabel, componentVariantInput.value, true, true);
+                                componentVariantInput.appendChild(option);
+                            }
+                            window.jQuery(componentVariantInput).trigger('change');
                         }
                     }
 
                     if (componentWarehouseInput) {
                         componentWarehouseInput.value = button.getAttribute('data-component-warehouse-id') || '';
-                        filterComponentLocations(componentWarehouseInput.value || '');
                     }
 
                     if (componentLocationInput) {
@@ -1851,6 +2158,25 @@
                     if (componentQuantityInput) {
                         componentQuantityInput.value = button.getAttribute('data-component-quantity') || '1';
                         componentQuantityInput.focus();
+                    }
+
+                    var editVariantId = (button.getAttribute('data-component-variant-id') || '').trim();
+                    var editWarehouseId = (button.getAttribute('data-component-warehouse-id') || '').trim();
+                    var editLocationId = (button.getAttribute('data-component-location-id') || '').trim();
+                    if (editVariantId) {
+                        loadComponentInventoryOptions(editVariantId, editWarehouseId, editLocationId)
+                            .then(function () {
+                                if (componentWarehouseInput && editWarehouseId) {
+                                    componentWarehouseInput.value = editWarehouseId;
+                                }
+                                setLocationOptionsForWarehouse(editWarehouseId);
+                                if (componentLocationInput && editLocationId) {
+                                    componentLocationInput.value = editLocationId;
+                                }
+                            })
+                            .catch(function () {
+                                updateComponentStockSummary('Loading inventory options failed.');
+                            });
                     }
                 });
             });
@@ -1863,6 +2189,40 @@
             var bulkAddonApplyButton = document.getElementById('bulk-addon-apply-selection');
             var bulkAddonPills = document.getElementById('bulk-addon-selection-pills');
             var bulkAddonSummary = document.getElementById('bulk-addon-selection-summary');
+            var bulkAddonLookupItems = @Html.Raw(JsonSerializer.Serialize(
+                Model.RelatedVariantLookup.Select(variant => new
+                {
+                    id = variant.Id,
+                    sku = variant.Sku,
+                    name = variant.Name,
+                    barcode = variant.Barcode
+                }).ToList()));
+
+            function formatBulkAddonLabel(item) {
+                if (!item) {
+                    return '';
+                }
+
+                var sku = (item.sku || '').toString().trim();
+                var name = (item.name || '').toString().trim();
+                var barcode = (item.barcode || '').toString().trim();
+                var label = name ? (sku ? (sku + ' - ' + name) : name) : sku;
+                if (barcode) {
+                    label = label ? (label + ' - ' + barcode) : barcode;
+                }
+                return label;
+            }
+
+            function getBulkAddonLookupItem(id) {
+                id = (id || '').toString().trim();
+                if (!id) {
+                    return null;
+                }
+
+                return Array.isArray(bulkAddonLookupItems)
+                    ? bulkAddonLookupItems.find(function (item) { return (item && item.id || '').toString().trim() === id; })
+                    : null;
+            }
 
             function readBulkAddonSelection() {
                 var rawValue = bulkAddonSelectedIdsInput ? bulkAddonSelectedIdsInput.value : '';
@@ -1882,20 +2242,20 @@
                 }
 
                 selectedIds.forEach(function (id) {
-                    var option = Array.from(bulkAddonSelect.options || []).find(function (item) { return item.value === id; });
-                    if (!option) {
+                    var item = getBulkAddonLookupItem(id);
+                    if (!item) {
                         return;
                     }
 
                     var badge = document.createElement('span');
                     badge.className = 'badge badge-light border mr-2 mb-2';
-                    badge.textContent = option.textContent || id;
+                    badge.textContent = formatBulkAddonLabel(item) || id;
                     bulkAddonPills.appendChild(badge);
                 });
             }
 
             function renderBulkAddonSelector() {
-                if (!bulkAddonSelect || !bulkAddonSelectorList) {
+                if (!bulkAddonSelectorList) {
                     return;
                 }
 
@@ -1903,31 +2263,36 @@
                 var filterText = (bulkAddonSearchInput && bulkAddonSearchInput.value ? bulkAddonSearchInput.value : '').toLowerCase();
                 bulkAddonSelectorList.innerHTML = '';
 
-                Array.from(bulkAddonSelect.options || []).forEach(function (option) {
-                    if (!option.value) {
+                (Array.isArray(bulkAddonLookupItems) ? bulkAddonLookupItems : []).forEach(function (lookupItem) {
+                    if (!lookupItem || !lookupItem.id) {
                         return;
                     }
 
-                    var label = option.textContent || '';
-                    if (filterText && label.toLowerCase().indexOf(filterText) < 0) {
+                    var label = formatBulkAddonLabel(lookupItem);
+                    var haystack = [lookupItem.sku, lookupItem.name, lookupItem.barcode, label]
+                        .filter(Boolean)
+                        .join(' ')
+                        .toLowerCase();
+
+                    if (filterText && haystack.indexOf(filterText) < 0) {
                         return;
                     }
 
-                    var item = document.createElement('label');
-                    item.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                    var optionItem = document.createElement('label');
+                    optionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
 
                     var checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.className = 'mr-2';
-                    checkbox.value = option.value;
-                    checkbox.checked = selectedIds.has(option.value);
+                    checkbox.value = lookupItem.id;
+                    checkbox.checked = selectedIds.has(lookupItem.id);
 
                     var text = document.createElement('span');
                     text.textContent = label;
 
-                    item.appendChild(checkbox);
-                    item.appendChild(text);
-                    bulkAddonSelectorList.appendChild(item);
+                    optionItem.appendChild(checkbox);
+                    optionItem.appendChild(text);
+                    bulkAddonSelectorList.appendChild(optionItem);
                 });
             }
 

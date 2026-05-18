@@ -830,6 +830,159 @@ public abstract partial class CatalogManagementController : Controller
         });
     }
 
+    [HttpGet]
+    protected async Task<IActionResult> SearchVariantComponentLookup(string? term, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Catalog.Variant.View", "ProductVariant.Search", "ProductVariant.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی جستجوی واریانت را ندارید."
+            });
+        }
+
+        var result = await _apiService.SearchProductVariantsAsync(
+            token,
+            searchTerm: term,
+            isActive: true,
+            page: 1,
+            pageSize: 20);
+
+        if (!result.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = result.ErrorMessage
+            });
+        }
+
+        return Json(new
+        {
+            isSuccess = true,
+            items = (result.Data?.Items ?? new List<ProductVariantSummaryModel>())
+                .Select(x => new
+                {
+                    id = x.Id,
+                    text = BuildVariantLookupLabel(x),
+                    sku = x.Sku,
+                    name = x.Name,
+                    barcode = x.Barcode
+                })
+                .ToList()
+        });
+    }
+
+    [HttpGet]
+    protected async Task<IActionResult> GetVariantComponentInventoryLookup(string variantId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return Json(new
+            {
+                isSuccess = true,
+                warehouses = Array.Empty<object>(),
+                locations = Array.Empty<object>()
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Catalog.Variant.View", "ProductVariant.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده جزئیات واریانت را ندارید."
+            });
+        }
+
+        var stockResult = await _apiService.SearchStockDetailsAsync(
+            token,
+            variantId: variantId,
+            isEmpty: false,
+            page: 1,
+            pageSize: 200);
+        var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+
+        if (!stockResult.IsSuccess || !warehouseLookupResult.IsSuccess || !locationLookupResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = JoinErrors(
+                    stockResult.ErrorMessage,
+                    warehouseLookupResult.ErrorMessage,
+                    locationLookupResult.ErrorMessage)
+            });
+        }
+
+        var warehouseIds = (stockResult.Data?.Items ?? new List<StockDetailListItemModel>())
+            .Select(x => x.WarehouseRef)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var locationIds = (stockResult.Data?.Items ?? new List<StockDetailListItemModel>())
+            .Select(x => x.LocationRef)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var warehouses = (warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>())
+            .Where(x => warehouseIds.Contains(x.WarehouseBusinessKey))
+            .OrderBy(x => x.Code)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                id = x.WarehouseBusinessKey,
+                warehouseId = x.WarehouseBusinessKey,
+                text = $"{x.Code} - {x.Name}",
+                code = x.Code,
+                name = x.Name
+            })
+            .ToList();
+
+        var locations = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
+            .Where(x => locationIds.Contains(x.LocationBusinessKey))
+            .OrderBy(x => x.LocationCode)
+            .ThenBy(x => x.LocationType)
+            .Select(x => new
+            {
+                id = x.LocationBusinessKey,
+                locationId = x.LocationBusinessKey,
+                warehouseId = x.WarehouseRef,
+                text = string.IsNullOrWhiteSpace(x.LocationType)
+                    ? x.LocationCode
+                    : $"{x.LocationCode} ({x.LocationType})",
+                code = x.LocationCode,
+                type = x.LocationType
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            warehouses,
+            locations
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     protected async Task<IActionResult> SaveProduct([Bind(Prefix = "ProductForm")] ProductUpsertForm form)
@@ -990,7 +1143,7 @@ public abstract partial class CatalogManagementController : Controller
                 .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(x => x.Key, x => x.Last(), StringComparer.OrdinalIgnoreCase);
             generatedVariantPlans = BuildGeneratedVariantPlans(
-                form.Name.Trim(),
+                selectedCategory.Name,
                 form.BaseSku.Trim(),
                 variantDimensions,
                 productCodeSegments,
@@ -1006,7 +1159,7 @@ public abstract partial class CatalogManagementController : Controller
                 generatedVariantPlans.Add(new GeneratedVariantPlan
                 {
                     GeneratedName = BuildVariantGeneratedName(
-                        form.Name.Trim(),
+                        selectedCategory.Name,
                         selectedVariantNameFormula,
                         Array.Empty<VariantCombinationSelection>(),
                         productValuesByAttributeId),
@@ -2229,7 +2382,7 @@ public abstract partial class CatalogManagementController : Controller
     }
 
     private static List<GeneratedVariantPlan> BuildGeneratedVariantPlans(
-        string productName,
+        string categoryName,
         string baseSku,
         IReadOnlyList<VariantDimensionSelection> dimensions,
         IReadOnlyList<string> productCodeSegments,
@@ -2282,7 +2435,7 @@ public abstract partial class CatalogManagementController : Controller
             }
 
             var generatedName = BuildVariantGeneratedName(
-                productName,
+                categoryName,
                 selectedFormula,
                 orderedSelection,
                 productValuesByAttributeId);
@@ -2306,12 +2459,12 @@ public abstract partial class CatalogManagementController : Controller
     }
 
     private static string BuildVariantGeneratedName(
-        string productName,
+        string categoryName,
         CategoryVariantNameFormulaModel? selectedFormula,
         IReadOnlyList<VariantCombinationSelection> orderedSelection,
         IReadOnlyDictionary<string, CatalogAttributeValueInputModel> productValuesByAttributeId)
     {
-        var fallbackName = BuildFallbackVariantName(productName, orderedSelection);
+        var fallbackName = BuildFallbackVariantName(categoryName, orderedSelection);
         if (selectedFormula is null || selectedFormula.Parts.Count == 0)
         {
             return fallbackName;
@@ -2349,27 +2502,39 @@ public abstract partial class CatalogManagementController : Controller
         }
 
         var separator = NormalizeFormulaSeparator(selectedFormula.Separator);
-        if (string.IsNullOrEmpty(separator))
-        {
-            return string.Concat(parts);
-        }
-
-        return string.Join(separator, parts);
+        var generatedName = string.IsNullOrEmpty(separator)
+            ? string.Concat(parts)
+            : string.Join(separator, parts);
+        return RenderCategoryPrefixedName(categoryName, generatedName);
     }
 
     private static string BuildFallbackVariantName(
-        string productName,
+        string categoryName,
         IReadOnlyList<VariantCombinationSelection> orderedSelection)
     {
         var generatedNameSuffix = string.Join(" / ", orderedSelection.Select(x => x.OptionName).Where(x => !string.IsNullOrWhiteSpace(x)));
-        if (string.IsNullOrWhiteSpace(generatedNameSuffix))
+        var fallbackBase = string.IsNullOrWhiteSpace(generatedNameSuffix)
+            ? string.Empty
+            : generatedNameSuffix;
+        return RenderCategoryPrefixedName(categoryName, fallbackBase);
+    }
+
+    private static string RenderCategoryPrefixedName(string categoryName, string generatedName)
+    {
+        var normalizedCategoryName = (categoryName ?? string.Empty).Trim();
+        var normalizedGeneratedName = (generatedName ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedCategoryName))
         {
-            return productName;
+            return normalizedGeneratedName;
         }
 
-        return string.IsNullOrWhiteSpace(productName)
-            ? generatedNameSuffix
-            : $"{productName} - {generatedNameSuffix}";
+        if (string.IsNullOrWhiteSpace(normalizedGeneratedName))
+        {
+            return normalizedCategoryName;
+        }
+
+        return $"{normalizedCategoryName} - {normalizedGeneratedName}";
     }
 
     private static string ResolveAttributeValueToken(
@@ -2460,6 +2625,26 @@ public abstract partial class CatalogManagementController : Controller
 
         normalized = normalized.Trim('-', '_');
         return normalized;
+    }
+
+    private static string BuildVariantLookupLabel(ProductVariantSummaryModel variant)
+    {
+        var sku = (variant.Sku ?? string.Empty).Trim();
+        var name = (variant.Name ?? string.Empty).Trim();
+        var barcode = (variant.Barcode ?? string.Empty).Trim();
+
+        var label = string.IsNullOrWhiteSpace(name)
+            ? sku
+            : string.IsNullOrWhiteSpace(sku)
+                ? name
+                : $"{sku} - {name}";
+
+        if (!string.IsNullOrWhiteSpace(barcode))
+        {
+            label = string.IsNullOrWhiteSpace(label) ? barcode : $"{label} - {barcode}";
+        }
+
+        return string.IsNullOrWhiteSpace(label) ? sku : label;
     }
 
     private static string GenerateProductNumber(CategoryNodeModel category, IReadOnlyList<ProductSummaryModel> existingProducts)
@@ -2748,8 +2933,7 @@ public abstract partial class CatalogManagementController : Controller
         IReadOnlyList<EffectiveAttributeViewModel> attributes)
     {
         return attributes
-            .Where(IsProductScope)
-            .Where(attribute => !attribute.IsVariantLevel)
+            .Where(attribute => !attribute.IsVariantCodeCovered)
             .ToList();
     }
 
@@ -2757,7 +2941,6 @@ public abstract partial class CatalogManagementController : Controller
         IReadOnlyList<EffectiveAttributeViewModel> attributes)
     {
         return attributes
-            .Where(IsVariantScope)
             .Where(attribute => attribute.IsVariantCodeCovered)
             .ToList();
     }

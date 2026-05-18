@@ -6,6 +6,8 @@
 @{
     ViewData["Title"] = UiText["catalog.products.title"];
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var showListFirst = string.IsNullOrWhiteSpace(Model.SelectedProductId);
+    ViewData["ProductListFirst"] = showListFirst;
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
     ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
@@ -101,38 +103,6 @@
         .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
-    bool IsProductScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
-    {
-        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
-        if (scope is "product" or "both")
-        {
-            return !attribute.IsVariantLevel;
-        }
-
-        if (scope == "variant")
-        {
-            return false;
-        }
-
-        return !attribute.IsVariantLevel;
-    }
-
-    bool IsVariantScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
-    {
-        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
-        if (scope is "variant" or "both")
-        {
-            return true;
-        }
-
-        if (scope == "product")
-        {
-            return false;
-        }
-
-        return attribute.IsVariantLevel;
-    }
-
     bool IsLocalOnlyBaseUrl(string? configuredUrl)
     {
         return Uri.TryCreate(configuredUrl, UriKind.Absolute, out var configuredUri) &&
@@ -196,13 +166,12 @@
     }
 
     var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
-        .Where(IsProductScopeAttribute)
+        .Where(x => !x.IsVariantCodeCovered)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
 
     var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
-        .Where(IsVariantScopeAttribute)
         .Where(x => x.IsVariantCodeCovered)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
@@ -437,10 +406,10 @@
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4" role="tablist" id="product-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-toggle="tab" href="#product-tab-main" role="tab">@UiText["catalog.products.tabs.form"]</a>
+                        <a class="nav-link @(showListFirst ? null : "active")" data-toggle="tab" href="#product-tab-main" role="tab">@UiText["catalog.products.tabs.form"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#product-tab-list" role="tab">@UiText["catalog.products.tabs.list"]</a>
+                        <a class="nav-link @(showListFirst ? "active" : null)" data-toggle="tab" href="#product-tab-list" role="tab">@UiText["catalog.products.tabs.list"]</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-toggle="tab" href="#product-tab-attributes" role="tab">@UiText["catalog.products.tabs.attributes"]</a>
@@ -448,7 +417,7 @@
                 </ul>
                 <div class="tab-content">
                     @await Html.PartialAsync("~/Views/CatalogManagement/_ProductFormSection.cshtml", Model)
-                    <div class="tab-pane fade" id="product-tab-list" role="tabpanel">
+                    <div class="tab-pane fade @(showListFirst ? "show active" : null)" id="product-tab-list" role="tabpanel">
                         <div class="card mb-4">
                             <div class="card-body">
                                 <h5 class="card-title mb-3">@UiText["catalog.products.searchAndFilter"]</h5>
@@ -985,6 +954,29 @@
 
                     if (matchedOption) {
                         return (matchedOption.getAttribute('data-category-code') || '').trim();
+                    }
+                }
+
+                return '';
+            }
+
+            function resolveCategoryName(categoryId) {
+                var normalizedCategoryId = (categoryId || '').trim();
+                if (!normalizedCategoryId) {
+                    return '';
+                }
+
+                if (categoryNodeLookup[normalizedCategoryId] && categoryNodeLookup[normalizedCategoryId].name) {
+                    return categoryNodeLookup[normalizedCategoryId].name;
+                }
+
+                if (productCategoryField) {
+                    var matchedOption = Array.from(productCategoryField.options || []).find(function (option) {
+                        return (option.value || '').trim().toLowerCase() === normalizedCategoryId.toLowerCase();
+                    });
+
+                    if (matchedOption) {
+                        return (matchedOption.textContent || '').trim();
                     }
                 }
 
@@ -1630,18 +1622,19 @@
                 return '';
             }
 
-            function buildVariantGeneratedName(productName, formula, combination, productValues) {
+            function buildVariantGeneratedName(categoryName, formula, combination, productValues) {
                 var fallbackName = (function () {
                     var suffix = (Array.isArray(combination) ? combination : [])
                         .map(function (item) { return (item && item.optionName ? item.optionName : '').toString().trim(); })
                         .filter(function (item) { return !!item; })
                         .join(' / ');
 
-                    if (!suffix) {
-                        return productName || '';
+                    var baseName = suffix || '';
+                    if (!categoryName) {
+                        return baseName;
                     }
 
-                    return productName ? (productName + ' - ' + suffix) : suffix;
+                    return baseName ? (categoryName + ' - ' + baseName) : categoryName;
                 })();
 
                 if (!formula || !Array.isArray(formula.parts) || formula.parts.length === 0) {
@@ -1669,7 +1662,10 @@
                 }
 
                 var separator = normalizeFormulaSeparator(formula.separator);
-                return separator ? tokens.join(separator) : tokens.join('');
+                var generatedName = separator ? tokens.join(separator) : tokens.join('');
+                return categoryName
+                    ? (generatedName ? (categoryName + ' - ' + generatedName) : categoryName)
+                    : generatedName;
             }
 
             function buildCombinationSummary(combination) {
@@ -1840,6 +1836,7 @@
                 var result = collectAutoCreatePayload();
                 var baseSku = getProductNumberPreview();
                 var productName = (productNameField ? productNameField.value : '').trim();
+                var categoryName = resolveCategoryName(productCategoryField ? productCategoryField.value : '');
                 var combinations = buildVariantCombinations(result.dimensions);
                 var selectedFormula = getVariantNameFormulaData();
                 var selectedFormulaName = selectedFormula ? (selectedFormula.name || '').trim() : '';
@@ -1905,7 +1902,7 @@
                     usedSkus[candidateSku.toUpperCase()] = true;
 
                     var generatedName = buildVariantGeneratedName(
-                        productName || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.defaultProductName"])),
+                        categoryName,
                         selectedFormula,
                         ordered,
                         result.payload.productAttributes || []);
@@ -2029,7 +2026,7 @@
                     }
                 });
             });
-            var initialTab = window.location.hash || (hasRestorablePageState() ? localStorage.getItem(tabKey) : null) || '#product-tab-main';
+            var initialTab = window.location.hash || (hasRestorablePageState() ? localStorage.getItem(tabKey) : null) || '#product-tab-list';
             syncProductListTabPanel(initialTab);
             showTabByHref(initialTab);
 

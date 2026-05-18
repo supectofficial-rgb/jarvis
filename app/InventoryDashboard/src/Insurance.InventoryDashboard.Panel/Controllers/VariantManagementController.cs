@@ -52,7 +52,8 @@ public sealed class VariantManagementController : CatalogManagementController
         var relatedVariantsResult = await _apiService.SearchProductVariantsAsync(token, isActive: true, pageSize: 2000);
         var relatedVariants = (relatedVariantsResult.Data?.Items ?? new List<ProductVariantSummaryModel>())
             .Where(x => !string.Equals(x.Id, model.SelectedVariantId, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(x => x.Sku)
+            .OrderBy(x => x.Name)
+            .ThenBy(x => x.Sku)
             .ToList();
 
         model.RelatedVariantLookup = relatedVariants;

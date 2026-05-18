@@ -184,13 +184,18 @@
         }
     }
 
-    function initSearchableSelects() {
+    function getScope(root) {
+        return root instanceof Element || root instanceof Document ? root : document;
+    }
+
+    function initSearchableSelects(root) {
+        root = getScope(root);
         if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
             return;
         }
 
         var $ = window.jQuery;
-        document.querySelectorAll("select.js-search-select").forEach(function (select) {
+        root.querySelectorAll("select.js-search-select").forEach(function (select) {
             if (select.dataset.select2Initialized === "true") {
                 return;
             }
@@ -207,8 +212,9 @@
         });
     }
 
-    function initBulkActions() {
-        document.querySelectorAll("form[data-bulk-form]").forEach(function (form) {
+    function initBulkActions(root) {
+        root = getScope(root);
+        root.querySelectorAll("form[data-bulk-form]").forEach(function (form) {
             var scopeSelector = form.getAttribute("data-bulk-scope") || "";
             var scope = scopeSelector ? document.querySelector(scopeSelector) : null;
             if (!scope) {
@@ -288,9 +294,72 @@
         });
     }
 
+    function initInventoryManagementPage(root) {
+        root = getScope(root);
+
+        var tabKey = 'inventory-warehouses-active-tab';
+        var tabs = root.querySelectorAll('#warehouse-management-tabs .nav-link');
+        if (tabs.length > 0) {
+            tabs.forEach(function (tab) {
+                if (tab.dataset.imBound === 'true') {
+                    return;
+                }
+
+                tab.dataset.imBound = 'true';
+                tab.addEventListener('shown.bs.tab', function () {
+                    var href = tab.getAttribute('href');
+                    if (href) {
+                        localStorage.setItem(tabKey, href);
+                    }
+                });
+            });
+
+            var activeTab = localStorage.getItem(tabKey);
+            if (activeTab && window.jQuery) {
+                var target = root.querySelector('#warehouse-management-tabs .nav-link[href="' + activeTab + '"]');
+                if (target) {
+                    window.jQuery(target).tab('show');
+                }
+            }
+        }
+
+        root.querySelectorAll('[data-section-tabs]').forEach(function (tabList) {
+            if (tabList.dataset.imBound === 'true') {
+                return;
+            }
+
+            tabList.dataset.imBound = 'true';
+            var links = tabList.querySelectorAll('[data-section-target]');
+            links.forEach(function (link) {
+                link.addEventListener('click', function () {
+                    var targetSelector = link.getAttribute('data-section-target');
+                    var target = targetSelector ? root.querySelector(targetSelector) : null;
+                    if (!target) {
+                        return;
+                    }
+
+                    links.forEach(function (item) { item.classList.remove('active'); });
+                    link.classList.add('active');
+
+                    var prefix = targetSelector.indexOf('#location-') === 0 ? 'location-' : 'warehouse-';
+                    root.querySelectorAll('.inventory-section-pane[id^="' + prefix + '"]').forEach(function (pane) {
+                        pane.classList.add('d-none');
+                    });
+                    target.classList.remove('d-none');
+                });
+            });
+        });
+    }
+
     onReady(function () {
+        window.appUi = window.appUi || {};
+        window.appUi.initSearchableSelects = initSearchableSelects;
+        window.appUi.initBulkActions = initBulkActions;
+        window.appUi.initInventoryManagementPage = initInventoryManagementPage;
+
         initLocalizationBridge();
         initSearchableSelects();
         initBulkActions();
+        initInventoryManagementPage();
     });
 })();

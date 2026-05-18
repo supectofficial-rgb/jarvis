@@ -5,6 +5,7 @@ public class VariantListItem
     public Guid VariantBusinessKey { get; set; }
     public Guid ProductRef { get; set; }
     public string VariantSku { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public string? Barcode { get; set; }
     public string TrackingPolicy { get; set; } = string.Empty;
     public Guid BaseUomRef { get; set; }

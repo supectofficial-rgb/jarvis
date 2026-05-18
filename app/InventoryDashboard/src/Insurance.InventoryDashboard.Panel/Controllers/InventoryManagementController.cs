@@ -41,7 +41,7 @@ public sealed partial class InventoryManagementController : Controller
         int locationPage = 1,
         int locationPageSize = 10,
         CancellationToken cancellationToken = default)
-        => Warehouses(
+        => BuildInventoryManagementPageAsync(
             warehouseId,
             locationId,
             warehouseCode,
@@ -55,6 +55,8 @@ public sealed partial class InventoryManagementController : Controller
             locationBin,
             locationStatus,
             "locations",
+            includeWarehouseDetails: false,
+            includeLocations: true,
             warehousePage,
             warehousePageSize,
             locationPage,
@@ -62,7 +64,7 @@ public sealed partial class InventoryManagementController : Controller
             cancellationToken);
 
     [HttpGet]
-    public async Task<IActionResult> Warehouses(
+    public Task<IActionResult> Warehouses(
         string? warehouseId,
         string? locationId,
         string? warehouseCode,
@@ -81,6 +83,49 @@ public sealed partial class InventoryManagementController : Controller
         int locationPage = 1,
         int locationPageSize = 10,
         CancellationToken cancellationToken = default)
+        => BuildInventoryManagementPageAsync(
+            warehouseId,
+            locationId,
+            warehouseCode,
+            warehouseName,
+            warehouseStatus,
+            locationCode,
+            locationType,
+            locationAisle,
+            locationRack,
+            locationShelf,
+            locationBin,
+            locationStatus,
+            string.IsNullOrWhiteSpace(activeItem) ? "warehouses" : activeItem,
+            includeWarehouseDetails: true,
+            includeLocations: false,
+            warehousePage,
+            warehousePageSize,
+            locationPage,
+            locationPageSize,
+            cancellationToken);
+
+    private async Task<IActionResult> BuildInventoryManagementPageAsync(
+        string? warehouseId,
+        string? locationId,
+        string? warehouseCode,
+        string? warehouseName,
+        string? warehouseStatus,
+        string? locationCode,
+        string? locationType,
+        string? locationAisle,
+        string? locationRack,
+        string? locationShelf,
+        string? locationBin,
+        string? locationStatus,
+        string activeItem,
+        bool includeWarehouseDetails,
+        bool includeLocations,
+        int warehousePage,
+        int warehousePageSize,
+        int locationPage,
+        int locationPageSize,
+        CancellationToken cancellationToken)
     {
         if (!TryGetToken(out var token))
         {
@@ -99,7 +144,7 @@ public sealed partial class InventoryManagementController : Controller
             modules,
             "inventory_management",
             string.Equals(activeItem, "locations", StringComparison.OrdinalIgnoreCase) ? "locations" : "warehouses");
-        var isLocationsPage = string.Equals(menu.Item?.ItemId, "locations", StringComparison.OrdinalIgnoreCase);
+        var isLocationsPage = includeLocations;
 
         warehousePageSize = NormalizePageSize(warehousePageSize);
         locationPageSize = NormalizePageSize(locationPageSize);
@@ -121,7 +166,7 @@ public sealed partial class InventoryManagementController : Controller
 
         var selectedWarehouseId = ResolveSelectedWarehouseId(warehouseId, warehouses, warehouseLookup);
 
-        var locationsResult = isLocationsPage
+        var locationsResult = includeLocations
             ? await _apiService.SearchLocationsAsync(
                 token,
                 selectedWarehouseId,
@@ -150,7 +195,7 @@ public sealed partial class InventoryManagementController : Controller
         var selectedLocationId = ResolveSelectedLocationId(locationId, locations);
         var selectedLocation = locations.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, selectedLocationId, StringComparison.OrdinalIgnoreCase));
 
-        var selectedWarehouseDetailsResult = !string.IsNullOrWhiteSpace(selectedWarehouseId) && !isLocationsPage
+        var selectedWarehouseDetailsResult = includeWarehouseDetails && !string.IsNullOrWhiteSpace(selectedWarehouseId)
             ? await _apiService.GetWarehouseWithLocationsAsync(selectedWarehouseId, token, includeInactiveLocations: true)
             : new ApiResponse<WarehouseWithLocationsModel> { IsSuccess = true };
 
@@ -171,7 +216,7 @@ public sealed partial class InventoryManagementController : Controller
             Warehouses = warehouses,
             WarehouseLookup = warehouseLookup,
             Locations = locations,
-            SelectedWarehouseDetails = selectedWarehouseDetails,
+            SelectedWarehouseDetails = includeWarehouseDetails ? selectedWarehouseDetails : null,
 
             WarehouseCodeFilter = warehouseCode,
             WarehouseNameFilter = warehouseName,
@@ -222,7 +267,10 @@ public sealed partial class InventoryManagementController : Controller
         };
 
         SetLayoutViewBag(model.Modules, model.ActiveModule?.ModuleId, model.ActiveItem?.ItemId, model.UserName);
-        return View("~/Views/InventoryManagement/Warehouses.cshtml", model);
+        var viewPath = includeLocations
+            ? "~/Views/InventoryManagement/Locations.cshtml"
+            : "~/Views/InventoryManagement/Warehouses.cshtml";
+        return View(viewPath, model);
     }
 
     [HttpPost]
@@ -289,6 +337,12 @@ public sealed partial class InventoryManagementController : Controller
             return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
         }
 
+        if (!Guid.TryParse(form.WarehouseId, out _))
+        {
+            TempData["CatalogError"] = "انبار انتخاب شده معتبر نیست.";
+            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
+        }
+
         var request = new UpsertLocationRequest
         {
             WarehouseId = form.WarehouseId,
@@ -310,10 +364,10 @@ public sealed partial class InventoryManagementController : Controller
 
         if (string.IsNullOrWhiteSpace(form.LocationId))
         {
-            return RedirectToAction(nameof(Warehouses), new { warehouseId = form.WarehouseId, locationCode = form.LocationCode });
+            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId });
         }
 
-        return RedirectToAction(nameof(Warehouses), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
+        return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
     }
 
     [HttpPost]

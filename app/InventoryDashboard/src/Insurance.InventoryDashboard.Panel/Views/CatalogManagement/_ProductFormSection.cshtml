@@ -4,6 +4,7 @@
 @model Insurance.InventoryDashboard.Panel.Models.ProductManagementPageViewModel
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
+    var productListFirst = (ViewData["ProductListFirst"] as bool?) ?? false;
     var isEditMode = !string.IsNullOrWhiteSpace(Model.ProductForm.ProductId);
     var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     var isAdmin = Model.Roles.Any(x =>
@@ -32,38 +33,6 @@
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase),
             StringComparer.OrdinalIgnoreCase);
-
-    bool IsProductScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
-    {
-        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
-        if (scope is "product" or "both")
-        {
-            return !attribute.IsVariantLevel;
-        }
-
-        if (scope == "variant")
-        {
-            return false;
-        }
-
-        return !attribute.IsVariantLevel;
-    }
-
-    bool IsVariantScopeAttribute(Insurance.InventoryDashboard.Panel.Models.EffectiveAttributeViewModel attribute)
-    {
-        var scope = (attribute.Scope ?? string.Empty).Trim().ToLowerInvariant();
-        if (scope is "variant" or "both")
-        {
-            return true;
-        }
-
-        if (scope == "product")
-        {
-            return false;
-        }
-
-        return attribute.IsVariantLevel;
-    }
 
     string? ResolveMediaUrl(string? url)
     {
@@ -104,7 +73,7 @@
     }
 
     var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
-        .Where(IsProductScopeAttribute)
+        .Where(x => !x.IsVariantCodeCovered)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
@@ -118,8 +87,7 @@
         .ThenBy(x => x.Id)
         .ToList();
     var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
-        .Where(IsVariantScopeAttribute)
-        .Where(x => x.IsVariantLevel && x.IsVariantCodeCovered)
+        .Where(x => x.IsVariantCodeCovered)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
@@ -132,7 +100,7 @@
         ?? availableVariantNameFormulas.FirstOrDefault()?.FormulaId;
     var productFormPreviewUrl = ResolveMediaUrl(Model.ProductForm.ImageThumbnailUrl ?? Model.ProductForm.ImageUrl);
 }
-<div class="tab-pane fade show active" id="product-tab-main" role="tabpanel">
+<div class="tab-pane fade @(productListFirst ? null : "show active")" id="product-tab-main" role="tabpanel">
     <div class="card mb-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">

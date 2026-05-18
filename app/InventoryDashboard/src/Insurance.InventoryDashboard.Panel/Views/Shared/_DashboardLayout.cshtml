@@ -322,6 +322,170 @@
             }
         })();
     </script>
+    <script>
+        (function () {
+            function getTargetSelector(element) {
+                return element && element.getAttribute ? element.getAttribute('data-ajax-target') : null;
+            }
+
+            function refreshWidgets(root) {
+                if (!window.appUi) {
+                    return;
+                }
+
+                if (typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(root);
+                }
+
+                if (typeof window.appUi.initBulkActions === 'function') {
+                    window.appUi.initBulkActions(root);
+                }
+
+                if (typeof window.appUi.initInventoryManagementPage === 'function') {
+                    window.appUi.initInventoryManagementPage(root);
+                }
+            }
+
+            function replaceTargetFromHtml(targetSelector, html) {
+                if (!targetSelector) {
+                    return false;
+                }
+
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var nextRoot = doc.querySelector(targetSelector);
+                var currentRoot = document.querySelector(targetSelector);
+                if (!nextRoot || !currentRoot) {
+                    return false;
+                }
+
+                currentRoot.replaceWith(nextRoot);
+                refreshWidgets(nextRoot);
+                doc.querySelectorAll('script[data-ajax-reinit]').forEach(function (script) {
+                    if (script.src) {
+                        return;
+                    }
+
+                    var scriptType = (script.getAttribute('type') || '').toLowerCase();
+                    if (scriptType && scriptType !== 'text/javascript' && scriptType !== 'application/javascript' && scriptType !== 'module') {
+                        return;
+                    }
+
+                    var code = script.textContent || '';
+                    if (!code.trim()) {
+                        return;
+                    }
+
+                    try {
+                        (new Function(code)).call(window);
+                    } catch (error) {
+                        console.error('Failed to execute refreshed script.', error);
+                    }
+                });
+                return true;
+            }
+
+            async function submitAjaxForm(form) {
+                var targetSelector = getTargetSelector(form);
+                if (!targetSelector) {
+                    return;
+                }
+
+                var method = (form.getAttribute('method') || 'get').toUpperCase();
+                var action = form.getAttribute('action') || window.location.href;
+                var url = new URL(action, window.location.origin);
+                var requestInit = {
+                    method: method,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                };
+
+                if (method === 'GET') {
+                    var params = new URLSearchParams();
+                    new FormData(form).forEach(function (value, key) {
+                        if (value !== null && value !== undefined && String(value).trim() !== '') {
+                            params.append(key, value);
+                        }
+                    });
+                    var query = params.toString();
+                    if (query) {
+                        url.search = query;
+                    }
+                } else {
+                    requestInit.body = new FormData(form);
+                }
+
+                var response = await fetch(url.toString(), requestInit);
+                var html = await response.text();
+                var refreshed = replaceTargetFromHtml(targetSelector, html);
+                if (refreshed && response.url) {
+                    try {
+                        history.replaceState(null, '', response.url);
+                    } catch (error) {
+                        // Ignore history update failures.
+                    }
+                }
+
+                if (!refreshed) {
+                    window.location.href = response.url || url.toString();
+                }
+            }
+
+            async function navigateAjax(link) {
+                var targetSelector = getTargetSelector(link);
+                if (!targetSelector) {
+                    return;
+                }
+
+                var href = link.getAttribute('href');
+                if (!href || href.indexOf('#') === 0) {
+                    return;
+                }
+
+                var response = await fetch(href, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+                var html = await response.text();
+                var refreshed = replaceTargetFromHtml(targetSelector, html);
+                if (refreshed && response.url) {
+                    try {
+                        history.replaceState(null, '', response.url);
+                    } catch (error) {
+                        // Ignore history update failures.
+                    }
+                }
+
+                if (!refreshed) {
+                    window.location.href = response.url || href;
+                }
+            }
+
+            document.addEventListener('submit', function (event) {
+                var form = event.target;
+                if (!(form instanceof HTMLFormElement) || !form.matches('form[data-ajax-target]')) {
+                    return;
+                }
+
+                event.preventDefault();
+                submitAjaxForm(form);
+            }, true);
+
+            document.addEventListener('click', function (event) {
+                var link = event.target && event.target.closest ? event.target.closest('a[data-ajax-target]') : null;
+                if (!(link instanceof HTMLAnchorElement)) {
+                    return;
+                }
+
+                event.preventDefault();
+                navigateAjax(link);
+            }, true);
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -1379,6 +1379,61 @@ public sealed class ApiService : IApiService
         };
     }
 
+    public Task<ApiResponse<bool>> AddInventoryDocumentLineAsync(string documentId, InventoryDocumentLineForm line, string token)
+    {
+        var payload = new
+        {
+            Line = new
+            {
+                VariantRef = ParseGuidOrEmpty(line.VariantId),
+                Qty = line.Qty,
+                UomRef = ParseGuidOrEmpty(line.UomRef),
+                BaseQty = line.Qty,
+                BaseUomRef = ParseGuidOrEmpty(line.BaseUomRef),
+                SourceLocationRef = ParseNullableGuid(line.SourceLocationRef),
+                DestinationLocationRef = ParseNullableGuid(line.DestinationLocationRef),
+                QualityStatusRef = ParseNullableGuid(line.QualityStatusRef),
+                FromQualityStatusRef = ParseNullableGuid(line.FromQualityStatusRef),
+                ToQualityStatusRef = ParseNullableGuid(line.ToQualityStatusRef),
+                LotBatchNo = NormalizeOptional(line.LotBatchNo),
+                ReasonCode = NormalizeOptional(line.ReasonCode),
+                AdjustmentDirection = NormalizeOptional(line.AdjustmentDirection),
+                Serials = Array.Empty<object>()
+            }
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/lines", payload, token, "Adding document line failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdateInventoryDocumentLineAsync(string documentId, string lineId, InventoryDocumentLineForm line, string token)
+    {
+        var payload = new
+        {
+            Line = new
+            {
+                VariantRef = ParseGuidOrEmpty(line.VariantId),
+                Qty = line.Qty,
+                UomRef = ParseGuidOrEmpty(line.UomRef),
+                BaseQty = line.Qty,
+                BaseUomRef = ParseGuidOrEmpty(line.BaseUomRef),
+                SourceLocationRef = ParseNullableGuid(line.SourceLocationRef),
+                DestinationLocationRef = ParseNullableGuid(line.DestinationLocationRef),
+                QualityStatusRef = ParseNullableGuid(line.QualityStatusRef),
+                FromQualityStatusRef = ParseNullableGuid(line.FromQualityStatusRef),
+                ToQualityStatusRef = ParseNullableGuid(line.ToQualityStatusRef),
+                LotBatchNo = NormalizeOptional(line.LotBatchNo),
+                ReasonCode = NormalizeOptional(line.ReasonCode),
+                AdjustmentDirection = NormalizeOptional(line.AdjustmentDirection),
+                Serials = Array.Empty<object>()
+            }
+        };
+
+        return PutCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/lines/{lineId}", payload, token, "Updating document line failed.");
+    }
+
+    public Task<ApiResponse<bool>> DeleteInventoryDocumentLineAsync(string documentId, string lineId, string token) =>
+        DeleteCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/lines/{lineId}", token, "Deleting document line failed.");
+
     public Task<ApiResponse<bool>> ApproveInventoryDocumentAsync(string documentId, string approvedBy, string token) =>
         PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/approve", new { ApprovedBy = approvedBy.Trim() }, token, "Approving inventory document failed.");
 
@@ -1509,6 +1564,7 @@ public sealed class ApiService : IApiService
             Id = item.VariantBusinessKey.ToString("D"),
             ProductId = item.ProductRef.ToString("D"),
             Sku = item.VariantSku,
+            Name = item.Name,
             Barcode = item.Barcode,
             BaseUomRef = item.BaseUomRef.ToString("D"),
             TrackingPolicy = item.TrackingPolicy,
@@ -1853,6 +1909,7 @@ public sealed class ApiService : IApiService
             Id = item.VariantBusinessKey.ToString("D"),
             ProductId = item.ProductRef.ToString("D"),
             Sku = item.VariantSku,
+            Name = item.Name,
             Barcode = item.Barcode,
             TrackingPolicy = item.TrackingPolicy,
             BaseUomRef = item.BaseUomRef.ToString("D"),
@@ -2496,6 +2553,7 @@ public sealed class ApiService : IApiService
         public Guid VariantBusinessKey { get; set; }
         public Guid ProductRef { get; set; }
         public string VariantSku { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
         public string? Barcode { get; set; }
         public string TrackingPolicy { get; set; } = string.Empty;
         public Guid BaseUomRef { get; set; }

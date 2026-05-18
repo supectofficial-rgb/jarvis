@@ -84,10 +84,14 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             return null;
 
         var sku = variantSku.Trim();
-        var item = await _dbContext.Set<ProductVariantReadModel>()
-            .FirstOrDefaultAsync(x => x.VariantSku == sku);
+        var item = await (
+            from variant in _dbContext.Set<ProductVariantReadModel>()
+            join product in _dbContext.Set<ProductReadModel>() on variant.ProductRef equals product.BusinessKey
+            where variant.VariantSku == sku
+            select new { Variant = variant, ProductName = product.Name })
+            .FirstOrDefaultAsync();
 
-        return item is null ? null : ToVariantListItem(item);
+        return item is null ? null : ToVariantListItem(item.Variant, item.ProductName);
     }
 
     public async Task<VariantListItem?> GetByBarcodeAsync(string barcode)
@@ -96,22 +100,34 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             return null;
 
         var code = barcode.Trim();
-        var item = await _dbContext.Set<ProductVariantReadModel>()
-            .FirstOrDefaultAsync(x => x.Barcode == code);
+        var item = await (
+            from variant in _dbContext.Set<ProductVariantReadModel>()
+            join product in _dbContext.Set<ProductReadModel>() on variant.ProductRef equals product.BusinessKey
+            where variant.Barcode == code
+            select new { Variant = variant, ProductName = product.Name })
+            .FirstOrDefaultAsync();
 
-        return item is null ? null : ToVariantListItem(item);
+        return item is null ? null : ToVariantListItem(item.Variant, item.ProductName);
     }
 
     public async Task<List<VariantListItem>> GetByProductIdAsync(Guid productId, bool includeInactive = false)
     {
+        var productName = await _dbContext.Set<ProductReadModel>()
+            .Where(x => x.BusinessKey == productId)
+            .Select(x => x.Name)
+            .FirstOrDefaultAsync();
+
         var query = _dbContext.Set<ProductVariantReadModel>().Where(x => x.ProductRef == productId);
         if (!includeInactive)
             query = query.Where(x => x.IsActive);
 
-        return await query
+        var items = await query
             .OrderBy(x => x.VariantSku)
-            .Select(x => ToVariantListItem(x))
             .ToListAsync();
+
+        return items
+            .Select(x => ToVariantListItem(x, productName ?? string.Empty))
+            .ToList();
     }
 
     public async Task<SearchVariantsQueryResult> SearchAsync(SearchVariantsQuery query)
@@ -189,11 +205,13 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         }
 
         var totalCount = await dbQuery.CountAsync();
-        var items = await dbQuery
-            .OrderBy(x => x.VariantSku)
+        var items = await (
+                from variant in dbQuery
+                join product in _dbContext.Set<ProductReadModel>() on variant.ProductRef equals product.BusinessKey
+                orderby variant.VariantSku
+                select new { Variant = variant, ProductName = product.Name })
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(x => ToVariantListItem(x))
             .ToListAsync();
 
         return new SearchVariantsQueryResult
@@ -201,17 +219,21 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize,
-            Items = items
+            Items = items.Select(x => ToVariantListItem(x.Variant, x.ProductName)).ToList()
         };
     }
 
     public async Task<List<VariantListItem>> GetActiveAsync()
     {
-        return await _dbContext.Set<ProductVariantReadModel>()
-            .Where(x => x.IsActive)
-            .OrderBy(x => x.VariantSku)
-            .Select(x => ToVariantListItem(x))
+        var items = await (
+                from variant in _dbContext.Set<ProductVariantReadModel>()
+                join product in _dbContext.Set<ProductReadModel>() on variant.ProductRef equals product.BusinessKey
+                where variant.IsActive
+                orderby variant.VariantSku
+                select new { Variant = variant, ProductName = product.Name })
             .ToListAsync();
+
+        return items.Select(x => ToVariantListItem(x.Variant, x.ProductName)).ToList();
     }
 
     public async Task<VariantSummaryItem?> GetSummaryAsync(Guid variantId)
@@ -239,11 +261,16 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         if (variant is null)
             return null;
 
+        var productName = await _dbContext.Set<ProductReadModel>()
+            .Where(x => x.BusinessKey == variant.ProductRef)
+            .Select(x => x.Name)
+            .FirstOrDefaultAsync() ?? string.Empty;
+
         var values = await GetAttributeValuesByVariantIdAsync(variantId);
 
         return new VariantDetailsWithAttributesItem
         {
-            Variant = ToVariantListItem(variant),
+            Variant = ToVariantListItem(variant, productName),
             AttributeValues = values
         };
     }
@@ -266,7 +293,7 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
 
         return new VariantDetailsWithProductContextItem
         {
-            Variant = ToVariantListItem(variant),
+            Variant = ToVariantListItem(variant, product.Name),
             ProductBusinessKey = product.BusinessKey,
             ProductName = product.Name,
             ProductBaseSku = product.BaseSku,
@@ -708,12 +735,13 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         return result;
     }
 
-    private static VariantListItem ToVariantListItem(ProductVariantReadModel x)
+    private static VariantListItem ToVariantListItem(ProductVariantReadModel x, string name)
         => new()
         {
             VariantBusinessKey = x.BusinessKey,
             ProductRef = x.ProductRef,
             VariantSku = x.VariantSku,
+            Name = name,
             Barcode = x.Barcode,
             TrackingPolicy = x.TrackingPolicy.ToString(),
             BaseUomRef = x.BaseUomRef,

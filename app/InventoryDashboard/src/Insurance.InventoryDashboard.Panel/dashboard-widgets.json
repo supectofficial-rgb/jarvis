@@ -168,19 +168,111 @@
           ],
           "description": "تعریف لوکیشن‌های مختلف برای هر انبار",
           "route": "/InventoryManagement/Locations"
-        },
+        }
+      ]
+    },
+    {
+      "moduleId": "document_management",
+      "title": "مدیریت اسناد",
+      "icon": "simple-icon-docs",
+      "isEnabled": true,
+      "description": "پیگیری، کنترل و تغییر وضعیت اسناد موجودی",
+      "roles": [
+        "SysAdmin",
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
         {
-          "itemId": "documents",
-          "title": "اسناد موجودی",
-          "icon": "simple-icon-docs",
+          "itemId": "receipt_documents",
+          "title": "رسید",
+          "icon": "simple-icon-login",
           "isEnabled": true,
           "roles": [
             "SysAdmin",
             "Admin",
             "InventoryManager"
           ],
-          "description": "پیگیری، کنترل و تغییر وضعیت اسناد موجودی",
-          "route": "/InventoryManagement/Documents"
+          "description": "ثبت و جستجوی رسیدهای انبار",
+          "route": "/InventoryManagement/Documents/Receipt"
+        },
+        {
+          "itemId": "issue_documents",
+          "title": "حواله",
+          "icon": "simple-icon-logout",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی حواله‌های انبار",
+          "route": "/InventoryManagement/Documents/Issue"
+        },
+        {
+          "itemId": "transfer_documents",
+          "title": "انتقال",
+          "icon": "simple-icon-shuffle",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی اسناد انتقال",
+          "route": "/InventoryManagement/Documents/Transfer"
+        },
+        {
+          "itemId": "adjustment_documents",
+          "title": "تعدیل",
+          "icon": "simple-icon-calculator",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی اسناد تعدیل",
+          "route": "/InventoryManagement/Documents/Adjustment"
+        },
+        {
+          "itemId": "return_documents",
+          "title": "برگشت",
+          "icon": "simple-icon-action-undo",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی اسناد برگشتی",
+          "route": "/InventoryManagement/Documents/Return"
+        },
+        {
+          "itemId": "quality_change_documents",
+          "title": "تغییر کیفیت",
+          "icon": "simple-icon-refresh",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی اسناد تغییر کیفیت",
+          "route": "/InventoryManagement/Documents/QualityChange"
+        },
+        {
+          "itemId": "conversion_documents",
+          "title": "تبدیل",
+          "icon": "simple-icon-reload",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی اسناد تبدیل",
+          "route": "/InventoryManagement/Documents/Conversion"
         }
       ]
     },

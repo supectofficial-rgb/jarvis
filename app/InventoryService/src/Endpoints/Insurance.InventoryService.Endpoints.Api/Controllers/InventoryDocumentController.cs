@@ -7,6 +7,9 @@ using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.Crea
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateReceiptDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateReturnDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateTransferDocument;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.AddInventoryDocumentLine;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.DeleteInventoryDocumentLine;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.UpdateInventoryDocumentLine;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.ApproveInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CancelInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.PostInventoryDocument;
@@ -52,6 +55,29 @@ public class InventoryDocumentController : OysterFxController
     [HttpPost("quality-change")]
     public Task<IActionResult> CreateQualityChange([FromBody] CreateQualityChangeDocumentCommand command)
         => SendCommand<CreateQualityChangeDocumentCommand, Guid>(command);
+
+    [HttpPost("{documentBusinessKey:guid}/lines")]
+    public Task<IActionResult> AddLine([FromRoute] Guid documentBusinessKey, [FromBody] AddInventoryDocumentLineCommand command)
+    {
+        command.DocumentBusinessKey = documentBusinessKey;
+        return SendCommand<AddInventoryDocumentLineCommand, Guid>(command);
+    }
+
+    [HttpPut("{documentBusinessKey:guid}/lines/{lineBusinessKey:guid}")]
+    public Task<IActionResult> UpdateLine([FromRoute] Guid documentBusinessKey, [FromRoute] Guid lineBusinessKey, [FromBody] UpdateInventoryDocumentLineCommand command)
+    {
+        command.DocumentBusinessKey = documentBusinessKey;
+        command.LineBusinessKey = lineBusinessKey;
+        return SendCommand<UpdateInventoryDocumentLineCommand, Guid>(command);
+    }
+
+    [HttpDelete("{documentBusinessKey:guid}/lines/{lineBusinessKey:guid}")]
+    public Task<IActionResult> DeleteLine([FromRoute] Guid documentBusinessKey, [FromRoute] Guid lineBusinessKey)
+        => SendCommand<DeleteInventoryDocumentLineCommand, Guid>(new DeleteInventoryDocumentLineCommand
+        {
+            DocumentBusinessKey = documentBusinessKey,
+            LineBusinessKey = lineBusinessKey
+        });
 
     [HttpPost("{documentBusinessKey:guid}/post")]
     public Task<IActionResult> Post([FromRoute] Guid documentBusinessKey, [FromBody] PostInventoryDocumentCommand? command)

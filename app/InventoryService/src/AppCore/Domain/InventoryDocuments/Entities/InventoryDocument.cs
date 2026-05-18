@@ -95,6 +95,67 @@ public sealed class InventoryDocument : AggregateRoot
         Lines.Add(line);
     }
 
+    public void UpdateLine(
+        Guid lineBusinessKey,
+        Guid variantRef,
+        decimal qty,
+        Guid uomRef,
+        decimal baseQty,
+        Guid baseUomRef,
+        Guid? sourceLocationRef = null,
+        Guid? destinationLocationRef = null,
+        Guid? qualityStatusRef = null,
+        Guid? fromQualityStatusRef = null,
+        Guid? toQualityStatusRef = null,
+        string? lotBatchNo = null,
+        string? reasonCode = null,
+        InventoryAdjustmentDirection? adjustmentDirection = null,
+        IReadOnlyCollection<(Guid? SerialRef, string SerialNo)>? serials = null)
+    {
+        if (Status != InventoryDocumentStatus.Draft)
+            throw new AggregateStateExceptions("Only draft documents can be edited.", nameof(Status));
+
+        var line = Lines.FirstOrDefault(x => x.BusinessKey.Value == lineBusinessKey)
+            ?? throw new AggregateStateExceptions("Document line was not found.", nameof(Lines));
+
+        line.Update(
+            variantRef,
+            qty,
+            uomRef,
+            baseQty,
+            baseUomRef,
+            sourceLocationRef,
+            destinationLocationRef,
+            qualityStatusRef,
+            fromQualityStatusRef,
+            toQualityStatusRef,
+            lotBatchNo,
+            reasonCode,
+            adjustmentDirection);
+
+        line.ClearSerials();
+        if (serials is not null)
+        {
+            foreach (var serial in serials)
+            {
+                line.AddSerial(serial.SerialRef, serial.SerialNo);
+            }
+        }
+
+        ValidateLineByType(line);
+    }
+
+    public void RemoveLine(Guid lineBusinessKey)
+    {
+        if (Status != InventoryDocumentStatus.Draft)
+            throw new AggregateStateExceptions("Only draft documents can be edited.", nameof(Status));
+
+        var line = Lines.FirstOrDefault(x => x.BusinessKey.Value == lineBusinessKey)
+            ?? throw new AggregateStateExceptions("Document line was not found.", nameof(Lines));
+
+        Lines.Remove(line);
+    }
+
     public void Approve(string approvedBy)
     {
         if (Status != InventoryDocumentStatus.Draft)

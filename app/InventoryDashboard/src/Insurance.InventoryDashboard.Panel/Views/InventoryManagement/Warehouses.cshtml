@@ -50,7 +50,7 @@
     }
 </style>
 
-<main id="warehouses-page" class="catalog-page">
+<main id="inventory-management-root" class="catalog-page">
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
@@ -114,10 +114,10 @@
                                     <h5 class="card-title mb-0">@(isWarehouseEditMode ? UiText["inventory.warehouses.editWarehouse"] : UiText["inventory.warehouses.createWarehouseTitle"])</h5>
                                     @if (isWarehouseEditMode)
                                     {
-                                        <a asp-action="Warehouses" class="btn btn-outline-secondary btn-xs">@UiText["common.createNew"]</a>
+                                        <a asp-action="Warehouses" class="btn btn-outline-secondary btn-xs" data-ajax-target="#inventory-management-root">@UiText["common.createNew"]</a>
                                     }
                                 </div>
-                                <form asp-action="SaveWarehouse" method="post" data-loading-form data-dirty-watch>
+                                <form asp-action="SaveWarehouse" method="post" data-loading-form data-dirty-watch data-ajax-target="#inventory-management-root">
                                     @Html.AntiForgeryToken()
                                     <input asp-for="WarehouseForm.WarehouseId" type="hidden" />
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
@@ -162,10 +162,10 @@
                                     <h5 class="card-title mb-0">@(isLocationEditMode ? UiText["inventory.warehouses.editLocation"] : UiText["inventory.warehouses.createLocationTitle"])</h5>
                                     @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
                                     {
-                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs">@UiText["inventory.warehouses.createLocationNew"]</a>
+                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs" data-ajax-target="#inventory-management-root">@UiText["inventory.warehouses.createLocationNew"]</a>
                                     }
                                 </div>
-                                <form asp-action="SaveLocation" method="post" data-loading-form data-dirty-watch>
+                                <form asp-action="SaveLocation" method="post" data-loading-form data-dirty-watch data-ajax-target="#inventory-management-root">
                                     @Html.AntiForgeryToken()
                                     <input asp-for="LocationForm.LocationId" type="hidden" />
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
@@ -299,7 +299,7 @@
                             <h5 class="card-title mb-0">لیست انبارها</h5>
                             <span class="text-muted small">@Model.WarehouseTotalCount رکورد</span>
                         </div>
-                        <form asp-action="Warehouses" method="get" class="form-row mb-3">
+                        <form asp-action="Warehouses" method="get" class="form-row mb-3" data-ajax-target="#inventory-management-root">
                             <input type="hidden" name="warehouseId" value="@Model.SelectedWarehouseId" />
                             <div class="form-group col-md-3">
                                 <label>کد</label>
@@ -358,18 +358,18 @@
                                                     </span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@warehouse.WarehouseBusinessKey">ویرایش</a>
-                                                    <form asp-action="ActivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form>
+                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@warehouse.WarehouseBusinessKey" data-ajax-target="#inventory-management-root">ویرایش</a>
+                                                    <form asp-action="ActivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
                                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Warehouse.Activate", "Warehouse.Activate") ? null : "disabled")>فعال</button>
                                                     </form>
-                                                    <form asp-action="DeactivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form>
+                                                    <form asp-action="DeactivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
                                                         <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Warehouse.Deactivate", "Warehouse.Deactivate") ? null : "disabled")>غیرفعال</button>
                                                     </form>
-                                                    <form asp-action="DeleteWarehouse" method="post" class="d-inline" data-loading-form>
+                                                    <form asp-action="DeleteWarehouse" method="post" class="d-inline" data-loading-form data-ajax-target="#inventory-management-root">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
                                                         <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف انبار" data-confirm="این انبار حذف شود؟" @(Can("Inventory.Warehouse.Delete", "Warehouse.Delete") ? null : "disabled")>حذف</button>
@@ -390,6 +390,7 @@
                                         <li class="page-item @(i == Model.WarehousePage ? "active" : null)">
                                             <a class="page-link"
                                                asp-action="Warehouses"
+                                               data-ajax-target="#inventory-management-root"
                                                asp-route-warehouseId="@Model.SelectedWarehouseId"
                                                asp-route-warehouseCode="@Model.WarehouseCodeFilter"
                                                asp-route-warehouseName="@Model.WarehouseNameFilter"
@@ -424,7 +425,7 @@
                             <h5 class="card-title mb-0">لیست لوکیشن‌ها</h5>
                             <span class="text-muted small">@Model.LocationTotalCount رکورد</span>
                         </div>
-                        <form asp-action="Locations" method="get" class="form-row mb-3">
+                        <form asp-action="Locations" method="get" class="form-row mb-3" data-ajax-target="#inventory-management-root">
                             <div class="form-group col-md-3">
                                 <label>انبار</label>
                                 <select name="warehouseId" class="form-control js-search-select">
@@ -512,20 +513,20 @@
                                                     </span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey">ویرایش</a>
-                                                    <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form>
+                                                    <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" data-ajax-target="#inventory-management-root">ویرایش</a>
+                                                    <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                         <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
                                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Location.Activate", "Location.Activate") ? null : "disabled")>فعال</button>
                                                     </form>
-                                                    <form asp-action="DeactivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form>
+                                                    <form asp-action="DeactivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                         <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
                                                         <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Location.Deactivate", "Location.Deactivate") ? null : "disabled")>غیرفعال</button>
                                                     </form>
-                                                    <form asp-action="DeleteLocation" method="post" class="d-inline" data-loading-form>
+                                                    <form asp-action="DeleteLocation" method="post" class="d-inline" data-loading-form data-ajax-target="#inventory-management-root">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                         <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
@@ -547,6 +548,7 @@
                                         <li class="page-item @(i == Model.LocationPage ? "active" : null)">
                                             <a class="page-link"
                                                asp-action="Locations"
+                                               data-ajax-target="#inventory-management-root"
                                                asp-route-warehouseId="@Model.SelectedWarehouseId"
                                                asp-route-warehouseCode="@Model.WarehouseCodeFilter"
                                                asp-route-warehouseName="@Model.WarehouseNameFilter"
@@ -575,51 +577,3 @@
     </div>
 </main>
 
-@section Scripts {
-    <script>
-        (function () {
-            var tabKey = 'inventory-warehouses-active-tab';
-            var tabs = document.querySelectorAll('#warehouse-management-tabs .nav-link');
-            function showTab(href) {
-                if (!href || !window.jQuery) return;
-                var target = document.querySelector('#warehouse-management-tabs .nav-link[href="' + href + '"]');
-                if (target) {
-                    window.jQuery(target).tab('show');
-                }
-            }
-
-            tabs.forEach(function (tab) {
-                tab.addEventListener('shown.bs.tab', function () {
-                    var href = tab.getAttribute('href');
-                    if (href) {
-                        localStorage.setItem(tabKey, href);
-                    }
-                });
-            });
-
-            document.querySelectorAll('[data-section-tabs]').forEach(function (tabList) {
-                var links = tabList.querySelectorAll('[data-section-target]');
-                links.forEach(function (link) {
-                    link.addEventListener('click', function () {
-                        var targetSelector = link.getAttribute('data-section-target');
-                        var target = targetSelector ? document.querySelector(targetSelector) : null;
-                        if (!target) {
-                            return;
-                        }
-
-                        links.forEach(function (item) { item.classList.remove('active'); });
-                        link.classList.add('active');
-
-                        var prefix = targetSelector.indexOf('#location-') === 0 ? 'location-' : 'warehouse-';
-                        document.querySelectorAll('.inventory-section-pane[id^="' + prefix + '"]').forEach(function (pane) {
-                            pane.classList.add('d-none');
-                        });
-                        target.classList.remove('d-none');
-                    });
-                });
-            });
-
-            showTab('@(showLocations ? "#warehouse-tab-location" : "#warehouse-tab-form")');
-        })();
-    </script>
-}
