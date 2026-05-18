@@ -11,6 +11,7 @@ public sealed class ProductVariant : AggregateRoot
     private readonly List<VariantComponent> _components = new();
     private readonly List<VariantAddOn> _addOns = new();
     private readonly List<VariantImage> _images = new();
+    private readonly List<VariantTag> _tags = new();
 
     public Guid ProductRef { get; private set; }
     public string VariantSku { get; private set; } = string.Empty;
@@ -24,6 +25,7 @@ public sealed class ProductVariant : AggregateRoot
     public IReadOnlyCollection<VariantComponent> Components => _components.AsReadOnly();
     public IReadOnlyCollection<VariantAddOn> AddOns => _addOns.AsReadOnly();
     public IReadOnlyCollection<VariantImage> Images => _images.AsReadOnly();
+    public IReadOnlyCollection<VariantTag> Tags => _tags.AsReadOnly();
 
     private ProductVariant()
     {
@@ -224,6 +226,40 @@ public sealed class ProductVariant : AggregateRoot
             return;
 
         Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, addOnVariantRef));
+    }
+
+    public VariantTag AddOrUpdateTag(Guid? variantTagBusinessKey, string tagName, string? tagColor, int displayOrder)
+    {
+        var normalizedTagName = NormalizeRequired(tagName, nameof(tagName));
+        var existing = variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
+            ? _tags.FirstOrDefault(x => x.BusinessKey.Value == variantTagBusinessKey.Value)
+            : _tags.FirstOrDefault(x => string.Equals(x.TagName, normalizedTagName, StringComparison.OrdinalIgnoreCase));
+
+        var tagBusinessKey = existing?.BusinessKey.Value
+            ?? (variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
+                ? variantTagBusinessKey.Value
+                : Guid.NewGuid());
+
+        Apply(new ProductVariantTagUpsertedEvent(
+            BusinessKey,
+            tagBusinessKey,
+            normalizedTagName,
+            NormalizeOptional(tagColor),
+            displayOrder));
+
+        return _tags.First(x => x.BusinessKey.Value == tagBusinessKey);
+    }
+
+    public void RemoveTag(Guid? variantTagBusinessKey, string? tagName)
+    {
+        var existing = variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
+            ? _tags.FirstOrDefault(x => x.BusinessKey.Value == variantTagBusinessKey.Value)
+            : _tags.FirstOrDefault(x => !string.IsNullOrWhiteSpace(tagName) && string.Equals(x.TagName, tagName!.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (existing is null)
+            return;
+
+        Apply(new ProductVariantTagRemovedEvent(BusinessKey, existing.BusinessKey.Value));
     }
 
     public VariantImage AddOrUpdateImage(
@@ -501,6 +537,32 @@ public sealed class ProductVariant : AggregateRoot
             _images.OrderBy(x => x.DisplayOrder).First().SetPrimary(true);
     }
 
+    private void On(ProductVariantTagUpsertedEvent @event)
+    {
+        var existing = _tags.FirstOrDefault(x => x.BusinessKey.Value == @event.VariantTagBusinessKey);
+        if (existing is null)
+        {
+            _tags.Add(VariantTag.Create(
+                BusinessKey.Value,
+                @event.VariantTagBusinessKey,
+                @event.TagName,
+                @event.TagColor,
+                @event.DisplayOrder));
+            return;
+        }
+
+        existing.Update(@event.TagName, @event.TagColor, @event.DisplayOrder);
+    }
+
+    private void On(ProductVariantTagRemovedEvent @event)
+    {
+        var existing = _tags.FirstOrDefault(x => x.BusinessKey.Value == @event.VariantTagBusinessKey);
+        if (existing is null)
+            return;
+
+        _tags.Remove(existing);
+    }
+
     private void SyncAttributeValues(IReadOnlyCollection<ProductVariantAttributeValueSnapshot> values)
     {
         _attributeValues.Clear();
@@ -591,4 +653,5 @@ public sealed class ProductVariant : AggregateRoot
                 x.IsPrimary))
             .ToList();
     }
+
 }

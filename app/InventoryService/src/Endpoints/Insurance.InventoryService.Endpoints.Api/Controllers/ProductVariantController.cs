@@ -8,6 +8,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.DeleteVariant;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.LockVariantInventoryMovement;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantAddOn;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantTag;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantAttributeValue;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantComponent;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.RemoveVariantImage;
@@ -17,6 +18,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantAddOn;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantComponent;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantImage;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantTag;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantUomConversion;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetActiveVariants;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantAddOnsByVariantId;
@@ -33,6 +35,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetFullDetails;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetMissingRequiredAttributes;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetSummary;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetTagsByVariantId;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantCatalogForm;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantCompletionStatus;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantComponentsByVariantId;
@@ -156,6 +159,25 @@ public class ProductVariantController : OysterFxController
                 AddOnVariantRef = addOnVariantRef
             });
 
+    [HttpPut("{productVariantBusinessKey:guid}/tags")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> UpsertTag([FromRoute] Guid productVariantBusinessKey, [FromBody] UpsertVariantTagCommand command)
+    {
+        command.ProductVariantBusinessKey = productVariantBusinessKey;
+        return SendCommand<UpsertVariantTagCommand, UpsertVariantTagCommandResult>(command);
+    }
+
+    [HttpDelete("{productVariantBusinessKey:guid}/tags")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> RemoveTag([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid? variantTagBusinessKey, [FromQuery] string? tagName)
+        => SendCommand<RemoveVariantTagCommand, RemoveVariantTagCommandResult>(
+            new RemoveVariantTagCommand
+            {
+                ProductVariantBusinessKey = productVariantBusinessKey,
+                VariantTagBusinessKey = variantTagBusinessKey,
+                TagName = tagName
+            });
+
     [HttpPut("{productVariantBusinessKey:guid}/images")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
     public Task<IActionResult> UpsertImage([FromRoute] Guid productVariantBusinessKey, [FromBody] UpsertVariantImageCommand command)
@@ -255,6 +277,11 @@ public class ProductVariantController : OysterFxController
     public Task<IActionResult> GetFullDetails([FromRoute] Guid variantId)
         => ExecuteQueryAsync<GetVariantFullDetailsQuery, GetVariantFullDetailsQueryResult>(
             new GetVariantFullDetailsQuery(variantId));
+
+    [HttpGet("{variantId:guid}/tags")]
+    [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]
+    public Task<IActionResult> GetTags([FromRoute] Guid variantId)
+        => ExecuteQueryAsync<GetVariantTagsQuery, GetVariantTagsQueryResult>(new GetVariantTagsQuery(variantId));
 
     [HttpGet("{variantId:guid}/attributes")]
     [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]

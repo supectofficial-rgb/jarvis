@@ -31,6 +31,7 @@ public interface IProductVariantQueryRepository : IQueryRepository
     Task<VariantUomConversionViewItem?> GetUomConversionByPathAsync(Guid variantId, Guid fromUomRef, Guid toUomRef);
     Task<List<VariantComponentViewItem>> GetComponentsByVariantIdAsync(Guid variantId);
     Task<List<VariantAddOnViewItem>> GetAddOnsByVariantIdAsync(Guid variantId);
+    Task<List<VariantTagViewItem>> GetTagsByVariantIdAsync(Guid variantId);
 
     Task<VariantCatalogFormItem?> GetCatalogFormAsync(Guid variantId);
     Task<VariantCompletionStatusItem?> GetCompletionStatusAsync(Guid variantId);

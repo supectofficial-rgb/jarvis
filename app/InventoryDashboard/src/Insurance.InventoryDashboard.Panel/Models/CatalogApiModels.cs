@@ -194,6 +194,7 @@ public sealed class ProductVariantDetailsModel
     public List<VariantComponentModel> Components { get; set; } = new();
     public List<VariantAddOnModel> AddOns { get; set; } = new();
     public List<VariantImageModel> Images { get; set; } = new();
+    public List<VariantTagModel> Tags { get; set; } = new();
 }
 
 public sealed class VariantUomConversionModel
@@ -253,6 +254,23 @@ public sealed class VariantImageModel
     public string ThumbnailUrl { get; set; } = string.Empty;
     public int DisplayOrder { get; set; }
     public bool IsPrimary { get; set; }
+}
+
+public sealed class VariantTagModel
+{
+    public string TagId { get; set; } = string.Empty;
+    public string VariantId { get; set; } = string.Empty;
+    public string TagName { get; set; } = string.Empty;
+    public string? TagColor { get; set; }
+    public int DisplayOrder { get; set; }
+}
+
+public sealed class UpsertVariantTagRequest
+{
+    public string? TagId { get; set; }
+    public string TagName { get; set; } = string.Empty;
+    public string? TagColor { get; set; }
+    public int DisplayOrder { get; set; }
 }
 
 public sealed class StockDetailSearchResultModel

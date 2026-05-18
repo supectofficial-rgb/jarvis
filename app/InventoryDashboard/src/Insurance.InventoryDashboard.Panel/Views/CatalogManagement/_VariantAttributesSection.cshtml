@@ -19,13 +19,12 @@
         return names.Any(permissionSet.Contains);
     }
 }
-<div class="tab-pane fade" id="variant-tab-attributes" role="tabpanel">
+<div class="card mb-4" id="variant-attributes-card">
     @if (hasSelectedProduct && hasSelectedVariant)
     {
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">@UiText["catalog.variants.setVariantAttribute"]</h5>
-                <form asp-action="SetVariantAttributeValue" method="post" id="variant-attribute-form" data-loading-form data-dirty-watch>
+        <div class="card-body">
+            <h5 class="card-title">@UiText["catalog.variants.setVariantAttribute"]</h5>
+            <form asp-action="SetVariantAttributeValue" method="post" id="variant-attribute-form" data-loading-form data-dirty-watch>
                     @Html.AntiForgeryToken()
                     <input asp-for="VariantAttributeForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                     <input asp-for="VariantAttributeForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
@@ -64,18 +63,15 @@
                         <button class="btn btn-outline-primary" type="submit" @(Can("Catalog.VariantAttributeValue.Set", "VariantAttributeValue.Set") ? null : "disabled")>@UiText["catalog.variants.submitValue"]</button>
                     </div>
                 </form>
-            </div>
         </div>
     }
     else
     {
-        <div class="card mb-4">
-            <div class="card-body">
+        <div class="card-body">
                 <div class="alert alert-light mb-0">
                     <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
                     <p class="mb-0 text-muted">@UiText["catalog.variants.noVariantSelectedAttributeHelp"]</p>
                 </div>
-            </div>
         </div>
     }
 </div>

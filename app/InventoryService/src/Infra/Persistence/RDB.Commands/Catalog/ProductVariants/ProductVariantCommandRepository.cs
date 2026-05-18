@@ -21,6 +21,7 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
             .Include(x => x.Components)
             .Include(x => x.AddOns)
             .Include(x => x.Images)
+            .Include(x => x.Tags)
             .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey));
     }
 
@@ -33,6 +34,7 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
             .Include(x => x.Components)
             .Include(x => x.AddOns)
             .Include(x => x.Images)
+            .Include(x => x.Tags)
             .ToListAsync();
     }
 
@@ -113,6 +115,23 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
 
         if (onlyActive)
             query = query.Where(x => x.IsActive);
+
+        return query.AnyAsync();
+    }
+
+    public Task<bool> ExistsByTagNameAsync(Guid productVariantBusinessKey, string tagName, Guid? exceptBusinessKey = null)
+    {
+        if (productVariantBusinessKey == Guid.Empty || string.IsNullOrWhiteSpace(tagName))
+            return Task.FromResult(false);
+
+        var normalized = tagName.Trim();
+        var query = _dbContext.Set<ProductVariant>()
+            .Where(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey))
+            .SelectMany(x => x.Tags)
+            .Where(x => x.TagName == normalized);
+
+        if (exceptBusinessKey.HasValue && exceptBusinessKey.Value != Guid.Empty)
+            query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
     }

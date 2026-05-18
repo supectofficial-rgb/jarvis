@@ -14,4 +14,5 @@ public interface IProductVariantCommandRepository : ICommandRepository<ProductVa
     Task<bool> ExistsAttributeValueByAttributeRefAsync(Guid attributeRef, bool onlyActive = true);
     Task<bool> ExistsAttributeValueByOptionRefAsync(Guid optionRef, bool onlyActive = true);
     Task<bool> ExistsByBusinessKeyAsync(Guid productVariantBusinessKey, bool onlyActive = false);
+    Task<bool> ExistsByTagNameAsync(Guid productVariantBusinessKey, string tagName, Guid? exceptBusinessKey = null);
 }

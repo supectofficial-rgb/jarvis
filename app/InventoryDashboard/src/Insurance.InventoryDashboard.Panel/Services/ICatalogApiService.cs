@@ -71,6 +71,9 @@ public interface ICatalogApiService
     Task<ApiResponse<bool>> UpsertVariantImageAsync(string variantId, UpsertVariantImageRequest request, string token);
     Task<ApiResponse<bool>> RemoveVariantImageAsync(string variantId, string fileKey, string token);
     Task<ApiResponse<List<VariantAddOnModel>>> GetVariantAddOnsByVariantIdAsync(string variantId, string token);
+    Task<ApiResponse<List<VariantTagModel>>> GetVariantTagsByVariantIdAsync(string variantId, string token);
+    Task<ApiResponse<bool>> UpsertVariantTagAsync(string variantId, UpsertVariantTagRequest request, string token);
+    Task<ApiResponse<bool>> RemoveVariantTagAsync(string variantId, string? tagId, string? tagName, string token);
     Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(string productId, string token, bool includeInactive = true);
     Task<ApiResponse<ProductVariantSearchResultModel>> SearchProductVariantsAsync(string token, string? searchTerm = null, string? productId = null, string? categoryId = null, string? attributeOptionIds = null, bool? isActive = null, int page = 1, int pageSize = 10);
     Task<ApiResponse<ProductVariantDetailsModel>> GetProductVariantFullDetailsAsync(string variantId, string token);

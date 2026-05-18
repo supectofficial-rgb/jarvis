@@ -974,6 +974,61 @@ public sealed class ApiService : IApiService
         return new ApiResponse<List<VariantAddOnModel>> { IsSuccess = true, Data = mapped };
     }
 
+    public async Task<ApiResponse<List<VariantTagModel>>> GetVariantTagsByVariantIdAsync(string variantId, string token)
+    {
+        var route = $"{InventoryApiPrefix}/ProductVariant/{variantId}/tags";
+        var result = await GetQueryAsync<VariantTagsQueryResultDto>(route, token, "Loading variant tags failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<VariantTagModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        var mapped = result.Data?.Items.Select(item => new VariantTagModel
+        {
+            TagId = item.VariantTagBusinessKey.ToString("D"),
+            VariantId = item.VariantRef.ToString("D"),
+            TagName = item.TagName,
+            TagColor = item.TagColor,
+            DisplayOrder = item.DisplayOrder
+        }).ToList() ?? new List<VariantTagModel>();
+
+        return new ApiResponse<List<VariantTagModel>> { IsSuccess = true, Data = mapped };
+    }
+
+    public Task<ApiResponse<bool>> UpsertVariantTagAsync(string variantId, UpsertVariantTagRequest request, string token)
+    {
+        var payload = new
+        {
+            VariantTagBusinessKey = ParseNullableGuid(request.TagId),
+            TagName = request.TagName,
+            TagColor = request.TagColor,
+            DisplayOrder = request.DisplayOrder
+        };
+
+        return PutCommandAsync(
+            $"{InventoryApiPrefix}/ProductVariant/{variantId}/tags",
+            payload,
+            token,
+            "Saving variant tag failed.");
+    }
+
+    public Task<ApiResponse<bool>> RemoveVariantTagAsync(string variantId, string? tagId, string? tagName, string token)
+    {
+        var query = new List<string>();
+        if (Guid.TryParse(tagId, out var parsedTagId))
+        {
+            query.Add($"variantTagBusinessKey={Uri.EscapeDataString(parsedTagId.ToString("D"))}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(tagName))
+        {
+            query.Add($"tagName={Uri.EscapeDataString(tagName)}");
+        }
+
+        var suffix = query.Count > 0 ? "?" + string.Join("&", query) : string.Empty;
+        return DeleteCommandAsync($"{InventoryApiPrefix}/ProductVariant/{variantId}/tags{suffix}", token, "Removing variant tag failed.");
+    }
+
     public async Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(
         string productId,
         string token,
@@ -1106,6 +1161,14 @@ public sealed class ApiService : IApiService
                 ThumbnailUrl = image.ThumbnailUrl,
                 DisplayOrder = image.DisplayOrder,
                 IsPrimary = image.IsPrimary
+            }).ToList(),
+            Tags = item.Tags.Select(tag => new VariantTagModel
+            {
+                TagId = tag.VariantTagBusinessKey.ToString("D"),
+                VariantId = tag.VariantRef.ToString("D"),
+                TagName = tag.TagName,
+                TagColor = tag.TagColor,
+                DisplayOrder = tag.DisplayOrder
             }).ToList()
         };
 
@@ -2581,6 +2644,11 @@ public sealed class ApiService : IApiService
         public List<VariantAddOnItemDto> Items { get; set; } = new();
     }
 
+    private sealed class VariantTagsQueryResultDto
+    {
+        public List<VariantTagItemDto> Items { get; set; } = new();
+    }
+
     private sealed class VariantFullDetailsItemDto
     {
         public VariantListItemDto Variant { get; set; } = new();
@@ -2593,6 +2661,7 @@ public sealed class ApiService : IApiService
         public List<VariantComponentItemDto> Components { get; set; } = new();
         public List<VariantAddOnItemDto> AddOns { get; set; } = new();
         public List<VariantImageItemDto> Images { get; set; } = new();
+        public List<VariantTagItemDto> Tags { get; set; } = new();
     }
 
     private sealed class VariantAttributeValueWithDefinitionDto
@@ -2641,6 +2710,15 @@ public sealed class ApiService : IApiService
         public string AddOnSku { get; set; } = string.Empty;
         public string? AddOnBarcode { get; set; }
         public bool AddOnIsActive { get; set; }
+    }
+
+    private sealed class VariantTagItemDto
+    {
+        public Guid VariantTagBusinessKey { get; set; }
+        public Guid VariantRef { get; set; }
+        public string TagName { get; set; } = string.Empty;
+        public string? TagColor { get; set; }
+        public int DisplayOrder { get; set; }
     }
 
     private sealed class VariantImageItemDto

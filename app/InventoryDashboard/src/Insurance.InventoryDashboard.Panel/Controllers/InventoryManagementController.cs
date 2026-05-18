@@ -166,7 +166,7 @@ public sealed partial class InventoryManagementController : Controller
 
         var selectedWarehouseId = ResolveSelectedWarehouseId(warehouseId, warehouses, warehouseLookup);
 
-        var locationsResult = includeLocations
+        var locationsResult = includeLocations && !string.IsNullOrWhiteSpace(selectedWarehouseId)
             ? await _apiService.SearchLocationsAsync(
                 token,
                 selectedWarehouseId,

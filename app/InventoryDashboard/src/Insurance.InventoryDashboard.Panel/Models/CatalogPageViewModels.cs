@@ -110,6 +110,7 @@ public sealed class VariantManagementPageViewModel
     public IReadOnlyList<VariantUomConversionModel> VariantUomConversions { get; set; } = Array.Empty<VariantUomConversionModel>();
     public IReadOnlyList<VariantComponentModel> VariantComponents { get; set; } = Array.Empty<VariantComponentModel>();
     public IReadOnlyList<VariantAddOnModel> VariantAddOns { get; set; } = Array.Empty<VariantAddOnModel>();
+    public IReadOnlyList<VariantTagModel> VariantTags { get; set; } = Array.Empty<VariantTagModel>();
     public IReadOnlyList<StockDetailListItemModel> VariantStockDetails { get; set; } = Array.Empty<StockDetailListItemModel>();
     public IReadOnlyList<InventoryTransactionListItemModel> VariantInventoryTransactions { get; set; } = Array.Empty<InventoryTransactionListItemModel>();
     public IReadOnlyList<WarehouseLookupItemModel> WarehouseLookup { get; set; } = Array.Empty<WarehouseLookupItemModel>();
@@ -145,9 +146,11 @@ public sealed class VariantManagementPageViewModel
     public VariantUomConversionForm VariantUomConversionForm { get; set; } = new();
     public VariantComponentForm VariantComponentForm { get; set; } = new();
     public VariantAddOnForm VariantAddOnForm { get; set; } = new();
+    public VariantTagForm VariantTagForm { get; set; } = new();
     public VariantAssemblyOperationForm VariantAssemblyOperationForm { get; set; } = new();
     public BulkVariantAddOnForm BulkVariantAddOnForm { get; set; } = new();
     public BulkVariantImageForm BulkVariantImageForm { get; set; } = new();
+    public BulkVariantTagForm BulkVariantTagForm { get; set; } = new();
 }
 
 public sealed class CategoryAttributeGroupViewModel
@@ -555,4 +558,30 @@ public sealed class BulkVariantImageForm
     public string? ProductId { get; set; }
     public string? SelectedVariantIds { get; set; }
     public string? ImagesJson { get; set; }
+}
+
+public sealed class VariantTagForm
+{
+    [Required]
+    public string ProductId { get; set; } = string.Empty;
+
+    [Required]
+    public string VariantId { get; set; } = string.Empty;
+
+    public string? TagId { get; set; }
+
+    [Required(ErrorMessage = "نام برچسب الزامی است.")]
+    public string TagName { get; set; } = string.Empty;
+
+    public string? TagColor { get; set; }
+
+    [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
+    public int DisplayOrder { get; set; }
+}
+
+public sealed class BulkVariantTagForm
+{
+    public string? ProductId { get; set; }
+    public string? SelectedVariantIds { get; set; }
+    public string? TagNames { get; set; }
 }

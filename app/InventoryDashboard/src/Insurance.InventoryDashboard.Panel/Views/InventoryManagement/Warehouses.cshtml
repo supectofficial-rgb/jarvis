@@ -313,8 +313,22 @@
                                 <label>وضعیت</label>
                                 <select name="warehouseStatus" class="form-control">
                                     <option value="">همه</option>
-                                    <option value="active" selected="@(Model.WarehouseStatusFilter == "active" ? "selected" : null)">فعال</option>
-                                    <option value="inactive" selected="@(Model.WarehouseStatusFilter == "inactive" ? "selected" : null)">غیرفعال</option>
+                                    @if (Model.WarehouseStatusFilter == "active")
+                                    {
+                                        <option value="active" selected="selected">فعال</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="active">فعال</option>
+                                    }
+                                    @if (Model.WarehouseStatusFilter == "inactive")
+                                    {
+                                        <option value="inactive" selected="selected">غیرفعال</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="inactive">غیرفعال</option>
+                                    }
                                 </select>
                             </div>
                             <div class="form-group col-md-2">
@@ -322,7 +336,14 @@
                                 <select name="warehousePageSize" class="form-control">
                                     @foreach (var size in Model.PageSizeOptions)
                                     {
-                                        <option value="@size" selected="@(Model.WarehousePageSize == size ? "selected" : null)">@size</option>
+                                        @if (Model.WarehousePageSize == size)
+                                        {
+                                            <option value="@size" selected="selected">@size</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@size">@size</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -432,7 +453,14 @@
                                     <option value="">همه انبارها</option>
                                     @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                     {
-                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.SelectedWarehouseId ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                        @if (warehouse.WarehouseBusinessKey == Model.SelectedWarehouseId)
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey" selected="selected">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -464,8 +492,22 @@
                                 <label>وضعیت</label>
                                 <select name="locationStatus" class="form-control">
                                     <option value="">همه</option>
-                                    <option value="active" selected="@(Model.LocationStatusFilter == "active" ? "selected" : null)">فعال</option>
-                                    <option value="inactive" selected="@(Model.LocationStatusFilter == "inactive" ? "selected" : null)">غیرفعال</option>
+                                    @if (Model.LocationStatusFilter == "active")
+                                    {
+                                        <option value="active" selected="selected">فعال</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="active">فعال</option>
+                                    }
+                                    @if (Model.LocationStatusFilter == "inactive")
+                                    {
+                                        <option value="inactive" selected="selected">غیرفعال</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="inactive">غیرفعال</option>
+                                    }
                                 </select>
                             </div>
                             <div class="form-group col-md-1">
@@ -473,7 +515,14 @@
                                 <select name="locationPageSize" class="form-control">
                                     @foreach (var size in Model.PageSizeOptions)
                                     {
-                                        <option value="@size" selected="@(Model.LocationPageSize == size ? "selected" : null)">@size</option>
+                                        @if (Model.LocationPageSize == size)
+                                        {
+                                            <option value="@size" selected="selected">@size</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@size">@size</option>
+                                        }
                                     }
                                 </select>
                             </div>

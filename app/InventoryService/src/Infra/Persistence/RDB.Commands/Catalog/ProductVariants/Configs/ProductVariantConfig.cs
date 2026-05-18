@@ -31,5 +31,9 @@ public sealed class ProductVariantConfig : IEntityTypeConfiguration<ProductVaria
         builder.HasMany(x => x.Images)
             .WithOne()
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.Tags)
+            .WithOne()
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

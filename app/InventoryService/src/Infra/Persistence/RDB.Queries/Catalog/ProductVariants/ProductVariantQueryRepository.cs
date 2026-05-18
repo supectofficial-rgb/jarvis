@@ -59,6 +59,7 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         var components = await GetComponentsByVariantIdAsync(productVariantBusinessKey);
         var addOns = await GetAddOnsByVariantIdAsync(productVariantBusinessKey);
         var images = await GetImagesByVariantIdAsync(productVariantBusinessKey);
+        var tags = await GetTagsByVariantIdAsync(productVariantBusinessKey);
 
         return new GetProductVariantByBusinessKeyQueryResult
         {
@@ -74,7 +75,8 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             UomConversions = conversions,
             Components = components,
             AddOns = addOns,
-            Images = images
+            Images = images,
+            Tags = tags
         };
     }
 
@@ -323,7 +325,8 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             AttributeValues = attrs,
             Components = await GetComponentsByVariantIdAsync(variantId),
             AddOns = await GetAddOnsByVariantIdAsync(variantId),
-            Images = await GetImagesByVariantIdAsync(variantId)
+            Images = await GetImagesByVariantIdAsync(variantId),
+            Tags = await GetTagsByVariantIdAsync(variantId)
         };
     }
 
@@ -447,6 +450,23 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
                 AddOnBarcode = variant.Barcode,
                 AddOnIsActive = variant.IsActive
             }).ToListAsync();
+    }
+
+    public async Task<List<VariantTagViewItem>> GetTagsByVariantIdAsync(Guid variantId)
+    {
+        return await _dbContext.Set<VariantTagReadModel>()
+            .Where(x => x.VariantRef == variantId)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.TagName)
+            .Select(x => new VariantTagViewItem
+            {
+                VariantTagBusinessKey = x.BusinessKey,
+                VariantRef = x.VariantRef,
+                TagName = x.TagName,
+                TagColor = x.TagColor,
+                DisplayOrder = x.DisplayOrder
+            })
+            .ToListAsync();
     }
 
     public async Task<List<VariantImageViewItem>> GetImagesByVariantIdAsync(Guid variantId)
@@ -782,6 +802,16 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             Factor = x.Factor,
             RoundingMode = x.RoundingMode.ToString(),
             IsBasePath = x.IsBasePath
+        };
+
+    private static VariantTagViewItem ToVariantTagItem(VariantTagReadModel x)
+        => new()
+        {
+            VariantTagBusinessKey = x.BusinessKey,
+            VariantRef = x.VariantRef,
+            TagName = x.TagName,
+            TagColor = x.TagColor,
+            DisplayOrder = x.DisplayOrder
         };
 
     private sealed class ResolvedCategoryRule

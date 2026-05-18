@@ -84,6 +84,15 @@ public class VariantImageViewItem
     public bool IsPrimary { get; set; }
 }
 
+public class VariantTagViewItem
+{
+    public Guid VariantTagBusinessKey { get; set; }
+    public Guid VariantRef { get; set; }
+    public string TagName { get; set; } = string.Empty;
+    public string? TagColor { get; set; }
+    public int DisplayOrder { get; set; }
+}
+
 public class MissingRequiredVariantAttributeItem
 {
     public Guid AttributeRef { get; set; }
@@ -132,6 +141,7 @@ public class VariantFullDetailsItem
     public List<VariantComponentViewItem> Components { get; set; } = new();
     public List<VariantAddOnViewItem> AddOns { get; set; } = new();
     public List<VariantImageViewItem> Images { get; set; } = new();
+    public List<VariantTagViewItem> Tags { get; set; } = new();
 }
 
 public class VariantCatalogFormItem

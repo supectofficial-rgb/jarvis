@@ -70,6 +70,12 @@ public sealed class VariantManagementController : CatalogManagementController
             ProductId = model.SelectedProductId ?? string.Empty,
             VariantId = model.SelectedVariantId ?? string.Empty
         };
+        model.VariantTags = model.SelectedVariantDetails?.Tags ?? new List<VariantTagModel>();
+        model.VariantTagForm = new VariantTagForm
+        {
+            ProductId = model.SelectedProductId ?? string.Empty,
+            VariantId = model.SelectedVariantId ?? string.Empty
+        };
         model.VariantAssemblyOperationForm = new VariantAssemblyOperationForm
         {
             ProductId = model.SelectedProductId ?? string.Empty,
@@ -78,6 +84,10 @@ public sealed class VariantManagementController : CatalogManagementController
             Quantity = 1m
         };
         model.BulkVariantAddOnForm = new BulkVariantAddOnForm
+        {
+            ProductId = model.SelectedProductId
+        };
+        model.BulkVariantTagForm = new BulkVariantTagForm
         {
             ProductId = model.SelectedProductId
         };
@@ -325,6 +335,165 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         return RedirectToAction(nameof(Variants), new { productId, variantId });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> VariantTags(string variantId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _apiService.GetVariantTagsByVariantIdAsync(variantId, token);
+        if (!result.IsSuccess)
+        {
+            return Json(new { error = result.ErrorMessage });
+        }
+
+        return Json(result.Data ?? new List<VariantTagModel>());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpsertVariantTag([Bind(Prefix = "VariantTagForm")] VariantTagForm form)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+        }
+
+        var result = await _apiService.UpsertVariantTagAsync(
+            form.VariantId,
+            new UpsertVariantTagRequest
+            {
+                TagId = form.TagId,
+                TagName = form.TagName,
+                TagColor = form.TagColor,
+                DisplayOrder = form.DisplayOrder
+            },
+            token);
+
+        if (!result.IsSuccess)
+        {
+            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت برچسب انجام نشد.";
+        }
+        else
+        {
+            TempData["CatalogSuccess"] = "برچسب با موفقیت ذخیره شد.";
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveVariantTag(string productId, string variantId, string? tagId, string? tagName)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var result = await _apiService.RemoveVariantTagAsync(variantId, tagId, tagName, token);
+        if (!result.IsSuccess)
+        {
+            TempData["CatalogError"] = result.ErrorMessage ?? "حذف برچسب انجام نشد.";
+        }
+        else
+        {
+            TempData["CatalogSuccess"] = "برچسب با موفقیت حذف شد.";
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId, variantId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkAssignVariantTags([Bind(Prefix = "BulkVariantTagForm")] BulkVariantTagForm form)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            TempData["CatalogError"] = ExtractModelError(ModelState);
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
+        }
+
+        var selectedVariantIds = (form.SelectedVariantIds ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var tags = (form.TagNames ?? string.Empty)
+            .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (selectedVariantIds.Count == 0)
+        {
+            TempData["CatalogError"] = "حداقل یک واریانت را برای ثبت برچسب انتخاب کنید.";
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
+        }
+
+        if (tags.Count == 0)
+        {
+            TempData["CatalogError"] = "حداقل یک برچسب وارد کنید.";
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
+        }
+
+        var successCount = 0;
+        var failures = new List<string>();
+        foreach (var variantId in selectedVariantIds)
+        {
+            var failed = false;
+            var order = 0;
+            foreach (var tag in tags)
+            {
+                var result = await _apiService.UpsertVariantTagAsync(
+                    variantId,
+                    new UpsertVariantTagRequest
+                    {
+                        TagName = tag,
+                        DisplayOrder = order++
+                    },
+                    token);
+
+                if (!result.IsSuccess)
+                {
+                    failures.Add(result.ErrorMessage ?? $"ثبت برچسب برای واریانت {variantId} انجام نشد.");
+                    failed = true;
+                    break;
+                }
+            }
+
+            if (!failed)
+            {
+                successCount++;
+            }
+        }
+
+        if (successCount > 0)
+        {
+            TempData["CatalogSuccess"] = $"برچسب برای {successCount} واریانت ثبت شد.";
+        }
+
+        if (failures.Count > 0)
+        {
+            TempData["CatalogError"] = string.Join(" | ", failures.Take(3)) + (failures.Count > 3 ? " | ..." : string.Empty);
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = selectedVariantIds.FirstOrDefault() });
     }
 
     [HttpPost]
