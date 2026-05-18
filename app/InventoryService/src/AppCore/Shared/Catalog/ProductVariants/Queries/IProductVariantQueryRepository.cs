@@ -1,6 +1,7 @@
 ﻿namespace Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries;
 
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.Common;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetTagLookup;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetByBusinessKey;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.SearchVariants;
 using OysterFx.AppCore.Shared.Queries;
@@ -32,6 +33,7 @@ public interface IProductVariantQueryRepository : IQueryRepository
     Task<List<VariantComponentViewItem>> GetComponentsByVariantIdAsync(Guid variantId);
     Task<List<VariantAddOnViewItem>> GetAddOnsByVariantIdAsync(Guid variantId);
     Task<List<VariantTagViewItem>> GetTagsByVariantIdAsync(Guid variantId);
+    Task<List<VariantTagLookupItem>> GetTagLookupAsync(string? term = null, int take = 50);
 
     Task<VariantCatalogFormItem?> GetCatalogFormAsync(Guid variantId);
     Task<VariantCompletionStatusItem?> GetCompletionStatusAsync(Guid variantId);

@@ -110,12 +110,81 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         var result = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: variantRef);
-        if (!result.IsSuccess)
+        var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var qualityStatusLookupResult = await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true);
+
+        if (!result.IsSuccess || !warehouseLookupResult.IsSuccess || !locationLookupResult.IsSuccess || !qualityStatusLookupResult.IsSuccess)
         {
-            return Json(new { error = result.ErrorMessage });
+            var errorMessage = string.Join(" | ", new[]
+            {
+                result.ErrorMessage,
+                warehouseLookupResult.ErrorMessage,
+                locationLookupResult.ErrorMessage,
+                qualityStatusLookupResult.ErrorMessage
+            }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+            return Json(new
+            {
+                error = errorMessage
+            });
         }
 
-        return Json(result.Data?.Items ?? new List<StockDetailBucketModel>());
+        var warehouseLookup = (warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>())
+            .ToDictionary(x => x.WarehouseBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
+        var locationLookup = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
+            .ToDictionary(x => x.LocationBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
+        var qualityStatusLookup = (qualityStatusLookupResult.Data ?? new List<QualityStatusLookupItemModel>())
+            .ToDictionary(x => x.QualityStatusBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
+
+        var items = (result.Data?.Items ?? new List<StockDetailBucketModel>())
+            .OrderBy(x => x.WarehouseRef)
+            .ThenBy(x => x.LocationRef)
+            .ThenBy(x => x.QualityStatusRef)
+            .ThenBy(x => x.LotBatchNo)
+            .Select(x =>
+            {
+                warehouseLookup.TryGetValue(x.WarehouseRef.ToString("D"), out var warehouse);
+                locationLookup.TryGetValue(x.LocationRef.ToString("D"), out var location);
+                qualityStatusLookup.TryGetValue(x.QualityStatusRef.ToString("D"), out var qualityStatus);
+
+                var warehouseLabel = warehouse is null
+                    ? x.WarehouseRef.ToString("D")
+                    : $"{warehouse.Code} - {warehouse.Name}";
+
+                var locationLabel = location is null
+                    ? x.LocationRef.ToString("D")
+                    : string.IsNullOrWhiteSpace(location.LocationType)
+                        ? location.LocationCode
+                        : $"{location.LocationCode} ({location.LocationType})";
+
+                var qualityStatusLabel = qualityStatus is null
+                    ? x.QualityStatusRef.ToString("D")
+                    : $"{qualityStatus.Code} - {qualityStatus.Name}";
+
+                return new
+                {
+                    stockDetailBusinessKey = x.StockDetailBusinessKey.ToString("D"),
+                    variantRef = x.VariantRef.ToString("D"),
+                    warehouseRef = x.WarehouseRef.ToString("D"),
+                    warehouseCode = warehouse?.Code,
+                    warehouseName = warehouse?.Name,
+                    warehouseLabel,
+                    locationRef = x.LocationRef.ToString("D"),
+                    locationCode = location?.LocationCode,
+                    locationType = location?.LocationType,
+                    locationLabel,
+                    qualityStatusRef = x.QualityStatusRef.ToString("D"),
+                    qualityStatusCode = qualityStatus?.Code,
+                    qualityStatusName = qualityStatus?.Name,
+                    qualityStatusLabel,
+                    lotBatchNo = x.LotBatchNo,
+                    quantityOnHand = x.QuantityOnHand
+                };
+            })
+            .ToList();
+
+        return Json(items);
     }
 
     [HttpGet]
@@ -352,6 +421,32 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         return Json(result.Data ?? new List<VariantTagModel>());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> VariantTagLookup(string? term = null, int take = 50)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _apiService.GetVariantTagLookupAsync(token, term, take);
+        if (!result.IsSuccess)
+        {
+            return Json(new { error = result.ErrorMessage });
+        }
+
+        return Json((result.Data ?? new List<VariantTagLookupModel>()).Select(x => new
+        {
+            id = x.TagName,
+            text = string.IsNullOrWhiteSpace(x.TagColor)
+                ? x.TagName
+                : $"{x.TagName} ({x.TagColor})",
+            tagName = x.TagName,
+            tagColor = x.TagColor,
+            usageCount = x.UsageCount
+        }));
     }
 
     [HttpPost]

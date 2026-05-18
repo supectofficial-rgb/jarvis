@@ -995,6 +995,28 @@ public sealed class ApiService : IApiService
         return new ApiResponse<List<VariantTagModel>> { IsSuccess = true, Data = mapped };
     }
 
+    public async Task<ApiResponse<List<VariantTagLookupModel>>> GetVariantTagLookupAsync(string token, string? term = null, int take = 50)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/ProductVariant/tags/lookup",
+            ("Term", term),
+            ("Take", Math.Clamp(take, 1, 200).ToString()));
+        var result = await GetQueryAsync<VariantTagLookupResultDto>(route, token, "Loading tag lookup failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<VariantTagLookupModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        var mapped = result.Data?.Items.Select(item => new VariantTagLookupModel
+        {
+            TagName = item.TagName,
+            TagColor = item.TagColor,
+            UsageCount = item.UsageCount
+        }).ToList() ?? new List<VariantTagLookupModel>();
+
+        return new ApiResponse<List<VariantTagLookupModel>> { IsSuccess = true, Data = mapped };
+    }
+
     public Task<ApiResponse<bool>> UpsertVariantTagAsync(string variantId, UpsertVariantTagRequest request, string token)
     {
         var payload = new
@@ -2649,6 +2671,11 @@ public sealed class ApiService : IApiService
         public List<VariantTagItemDto> Items { get; set; } = new();
     }
 
+    private sealed class VariantTagLookupResultDto
+    {
+        public List<VariantTagLookupItemDto> Items { get; set; } = new();
+    }
+
     private sealed class VariantFullDetailsItemDto
     {
         public VariantListItemDto Variant { get; set; } = new();
@@ -2719,6 +2746,13 @@ public sealed class ApiService : IApiService
         public string TagName { get; set; } = string.Empty;
         public string? TagColor { get; set; }
         public int DisplayOrder { get; set; }
+    }
+
+    private sealed class VariantTagLookupItemDto
+    {
+        public string TagName { get; set; } = string.Empty;
+        public string? TagColor { get; set; }
+        public int UsageCount { get; set; }
     }
 
     private sealed class VariantImageItemDto

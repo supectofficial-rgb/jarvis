@@ -34,6 +34,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetDetailsWithProductContext;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetFullDetails;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetMissingRequiredAttributes;
+using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetTagLookup;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetSummary;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetTagsByVariantId;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantCatalogForm;
@@ -282,6 +283,11 @@ public class ProductVariantController : OysterFxController
     [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]
     public Task<IActionResult> GetTags([FromRoute] Guid variantId)
         => ExecuteQueryAsync<GetVariantTagsQuery, GetVariantTagsQueryResult>(new GetVariantTagsQuery(variantId));
+
+    [HttpGet("tags/lookup")]
+    [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]
+    public Task<IActionResult> GetTagLookup([FromQuery] GetVariantTagLookupQuery query)
+        => ExecuteQueryAsync<GetVariantTagLookupQuery, GetVariantTagLookupQueryResult>(query);
 
     [HttpGet("{variantId:guid}/attributes")]
     [RequirePermission("Inventory.ProductVariant.Read", "Catalog.Variant.View")]

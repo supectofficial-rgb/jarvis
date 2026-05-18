@@ -93,6 +93,13 @@ public class VariantTagViewItem
     public int DisplayOrder { get; set; }
 }
 
+public class VariantTagLookupItem
+{
+    public string TagName { get; set; } = string.Empty;
+    public string? TagColor { get; set; }
+    public int UsageCount { get; set; }
+}
+
 public class MissingRequiredVariantAttributeItem
 {
     public Guid AttributeRef { get; set; }

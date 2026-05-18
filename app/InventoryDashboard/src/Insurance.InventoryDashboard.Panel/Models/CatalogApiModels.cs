@@ -265,6 +265,13 @@ public sealed class VariantTagModel
     public int DisplayOrder { get; set; }
 }
 
+public sealed class VariantTagLookupModel
+{
+    public string TagName { get; set; } = string.Empty;
+    public string? TagColor { get; set; }
+    public int UsageCount { get; set; }
+}
+
 public sealed class UpsertVariantTagRequest
 {
     public string? TagId { get; set; }

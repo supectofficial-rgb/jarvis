@@ -200,6 +200,10 @@
                 return;
             }
 
+            if (select.hasAttribute("data-ajax-url")) {
+                return;
+            }
+
             $(select).select2({
                 theme: "bootstrap",
                 dir: document.documentElement.getAttribute("dir") || "rtl",

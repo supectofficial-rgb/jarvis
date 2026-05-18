@@ -14,7 +14,6 @@
     var isEditMode = !string.IsNullOrWhiteSpace(Model.VariantForm.VariantId);
     var hasSelectedProduct = !string.IsNullOrWhiteSpace(Model.SelectedProductId);
     var hasSelectedVariant = !string.IsNullOrWhiteSpace(Model.SelectedVariantId);
-    var movementLocked = Model.SelectedVariantDetails?.InventoryMovementLocked ?? false;
     var attributeTypeOptions = Model.EffectiveProductAttributes
         .Select(x => x.DataType)
         .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -36,15 +35,6 @@
         return names.Any(permissionSet.Contains);
     }
 
-    var hasRestrictedActions = !Can("Catalog.Variant.Create", "Catalog.Variant.Update", "ProductVariant.Create", "ProductVariant.Update")
-        || !Can("Catalog.Variant.Activate", "ProductVariant.Activate")
-        || !Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate")
-        || !Can("Catalog.Variant.Delete", "ProductVariant.Delete")
-        || !Can("Catalog.Variant.ChangeTrackingPolicy", "ProductVariant.ChangeTrackingPolicy")
-        || !Can("Catalog.Variant.ChangeBaseUom", "ProductVariant.ChangeBaseUom")
-        || !Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement")
-        || !Can("Catalog.VariantAttributeValue.Set", "VariantAttributeValue.Set")
-        || !Can("Catalog.VariantAttributeValue.Remove", "VariantAttributeValue.Remove");
     var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
     var selectedProduct = Model.Products.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedProductId, StringComparison.OrdinalIgnoreCase));
     var selectedVariant = Model.Variants.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedVariantId, StringComparison.OrdinalIgnoreCase));
@@ -58,24 +48,6 @@
 
         return Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase))?.ProductId;
     }
-    var variantValues = (Model.SelectedVariantDetails?.Attributes ?? new List<Insurance.InventoryDashboard.Panel.Models.VariantAttributeValueModel>())
-        .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
-        .ToDictionary(
-            x => x.Key,
-            x =>
-            {
-                var item = x.FirstOrDefault();
-                return item is null ? string.Empty : (!string.IsNullOrWhiteSpace(item.OptionValue) ? item.OptionValue : item.Value) ?? string.Empty;
-            },
-            StringComparer.OrdinalIgnoreCase);
-    var requiredVariantAttributeCount = Model.EffectiveProductAttributes.Count(x => x.IsRequired);
-    var completedRequiredVariantAttributeCount = Model.EffectiveProductAttributes.Count(x =>
-        x.IsRequired &&
-        variantValues.TryGetValue(x.AttributeId, out var value) &&
-        !string.IsNullOrWhiteSpace(value));
-    var variantCompletionPercent = requiredVariantAttributeCount == 0
-        ? 100
-        : (int)Math.Round((completedRequiredVariantAttributeCount * 100.0) / requiredVariantAttributeCount);
     var effectiveVariantAttributeLookup = Model.EffectiveProductAttributes
         .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
@@ -136,12 +108,6 @@
     };
 }
 
-<style>
-    .variant-hidden-panel {
-        display: none;
-    }
-</style>
-
 <main id="variants-page"
       class="catalog-page"
       data-selected-product-id="@Model.SelectedProductId"
@@ -153,8 +119,6 @@
                 <h1>@UiText["catalog.variants.title"]</h1>
                 <p class="text-muted">@UiText["catalog.variants.description"]</p>
                 <div class="mb-3">
-                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.primaryGoal"]</span>
-                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.secondaryOperations"]</span>
                     @if (selectedProduct is not null)
                     {
                         <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.selectedProduct"] @selectedProduct.Name</span>
@@ -163,15 +127,7 @@
                     {
                         <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.selectedVariant"] @selectedVariantName</span>
                     }
-                    <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.requiredCompletion"] @completedRequiredVariantAttributeCount / @requiredVariantAttributeCount</span>
-                    @if (movementLocked)
-                    {
-                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.lockStatusActive"]</span>
-                    }
                 </div>
-                <p class="small text-muted mb-3">
-                    @UiText["catalog.variants.quickGuide"]
-                </p>
             </div>
         </div>
 
@@ -194,185 +150,7 @@
             <div class="row"><div class="col-12"><div class="alert alert-info mb-3">@noticeMessage</div></div></div>
         }
 
-        <div class="variant-permission-panel">
-            @await Html.PartialAsync("~/Views/Shared/_CatalogPermissionNotice.cshtml", hasRestrictedActions)
-        </div>
-
-        <div class="row mb-2 variant-completion-panel">
-            <div class="col-12">
-                @if (Model.SelectedVariantDetails is not null)
-                {
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                <h5 class="card-title mb-1">@UiText["catalog.variants.currentStock"]</h5>
-                                <div>
-                                    <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.totalStock"] @Model.VariantStockTotalQuantity</span>
-                                    <span class="badge badge-pill badge-light">@UiText["catalog.variants.bucketCount"] @Model.VariantStockBucketCount</span>
-                                </div>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-striped mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>@UiText["catalog.variants.warehouse"]</th>
-                                            <th>@UiText["catalog.variants.location"]</th>
-                                            <th>@UiText["catalog.variants.seller"]</th>
-                                            <th>@UiText["catalog.variants.quality"]</th>
-                                            <th>@UiText["catalog.variants.lotBatch"]</th>
-                                            <th>@UiText["catalog.variants.quantity"]</th>
-                                            <th>@UiText["catalog.variants.lastUpdated"]</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if (Model.VariantStockDetails.Count == 0)
-                                        {
-                                            <tr>
-                                                <td colspan="7" class="text-muted">@UiText["catalog.variants.noVisibleStock"]</td>
-                                            </tr>
-                                        }
-                                        else
-                                        {
-                                            foreach (var stock in Model.VariantStockDetails)
-                                            {
-                                                <tr>
-                                                    <td>@WarehouseName(stock.WarehouseRef)</td>
-                                                    <td>@LocationName(stock.LocationRef)</td>
-                                                    <td>@SellerName(stock.SellerRef)</td>
-                                                    <td>@QualityStatusName(stock.QualityStatusRef)</td>
-                                                    <td>@(string.IsNullOrWhiteSpace(stock.LotBatchNo) ? "-" : stock.LotBatchNo)</td>
-                                                    <td>@stock.QuantityOnHand</td>
-                                                    <td>@stock.LastUpdatedAt.ToString("yyyy/MM/dd HH:mm")</td>
-                                                </tr>
-                                            }
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                }
-
-                <div class="card">
-                    <div class="card-body py-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong>@UiText["catalog.variants.completionStatus"]</strong>
-                            <span class="badge badge-pill @(variantCompletionPercent >= 100 ? "badge-primary" : variantCompletionPercent >= 70 ? "badge-outline-primary" : "badge-danger")">
-                                @variantCompletionPercent%
-                            </span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar" role="progressbar" style="width:@variantCompletionPercent%"></div>
-                        </div>
-                        <small class="text-muted d-block mt-2">
-                            @UiText["catalog.variants.completedRequiredFields"] @completedRequiredVariantAttributeCount @UiText["catalog.variants.outOf"] @requiredVariantAttributeCount
-                        </small>
-                    </div>
-                <div class="card mb-4" id="variant-inventory-movements-card">
-                    <div class="card-body">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-1">@UiText["catalog.variants.inventoryMovements"]</h5>
-                            @if (hasSelectedVariant)
-                            {
-                                <span class="text-muted small">@Model.VariantInventoryTransactions.Count @UiText["catalog.variants.transactionCountSuffix"]</span>
-                            }
-                        </div>
-                        @if (hasSelectedProduct && hasSelectedVariant)
-                        {
-                            <div class="table-responsive">
-                                <table class="table table-sm table-striped mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>@UiText["catalog.variants.transactionNo"]</th>
-                                            <th>@UiText["common.type"]</th>
-                                            <th>@UiText["common.status"]</th>
-                                            <th>@UiText["catalog.variants.warehouse"]</th>
-                                            <th>@UiText["catalog.variants.seller"]</th>
-                                            <th>@UiText["catalog.variants.occurredAt"]</th>
-                                            <th>@UiText["catalog.variants.postedAt"]</th>
-                                            <th>@UiText["catalog.variants.reason"]</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if (Model.VariantInventoryTransactions.Count == 0)
-                                        {
-                                            <tr>
-                                                <td colspan="8" class="text-muted">@UiText["catalog.variants.noInventoryMovements"]</td>
-                                            </tr>
-                                        }
-                                        else
-                                        {
-                                            foreach (var tx in Model.VariantInventoryTransactions.OrderByDescending(x => x.OccurredAt))
-                                            {
-                                                <tr>
-                                                    <td class="text-monospace">@tx.TransactionNo</td>
-                                                    <td>@tx.TransactionType</td>
-                                                    <td><span class="badge badge-pill @TransactionStatusClass(tx.Status)">@tx.Status</span></td>
-                                                    <td>@WarehouseName(tx.WarehouseRef)</td>
-                                                    <td>@SellerName(tx.SellerRef)</td>
-                                                    <td>@tx.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
-                                                    <td>@(tx.PostedAt.HasValue ? tx.PostedAt.Value.ToString("yyyy/MM/dd HH:mm") : "-")</td>
-                                                    <td>@(string.IsNullOrWhiteSpace(tx.ReasonCode) ? "-" : tx.ReasonCode)</td>
-                                                </tr>
-                                            }
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-light mb-0">
-                                <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
-                                <p class="mb-0 text-muted">@UiText["catalog.variants.noVariantSelectedInventoryHelp"]</p>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        @if (Model.MissingRequiredVariantAttributes.Count > 0)
-        {
-            <div class="row variant-missing-panel">
-                <div class="col-12">
-                    <div class="alert alert-danger mb-3">
-                        @UiText["catalog.variants.requiredAttributesIncomplete"]
-                        @string.Join("، ", Model.MissingRequiredVariantAttributes.Select(x => x.Name))
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (movementLocked)
-        {
-            <div class="row variant-lock-panel">
-                <div class="col-12">
-                    <div class="alert alert-secondary mb-3">
-                        @UiText["catalog.variants.lockedMovementWarning"]
-                    </div>
-                </div>
-            </div>
-        }
-
         <div class="row mb-3">
-            <div class="col-12 mb-2" id="variant-product-selector-card">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h6 class="card-title">@UiText["catalog.variants.selectProductTitle"]</h6>
-                        <form method="get" asp-action="Variants" id="variant-product-selector-form" data-state-form>
-                            <div class="form-group mb-0">
-                                <select name="productId" class="form-control js-search-select" data-placeholder='@UiText["catalog.variants.selectProduct"]' onchange="this.form.submit()">
-                                    @foreach (var product in Model.Products)
-                                    {
-                                        <option value="@product.Id" selected="@(product.Id == Model.SelectedProductId ? "selected" : null)">@product.Name (@product.BaseSku)</option>
-                                    }
-                                </select>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
             <div class="col-12 mb-2">
                 <div class="card h-100">
                     <div class="card-body">
@@ -389,7 +167,14 @@
                                     <option value="">@UiText["catalog.variants.allCategories"]</option>
                                     @foreach (var category in Model.LeafCategories)
                                     {
-                                        <option value="@category.Id" selected="@(string.Equals(Model.VariantCategoryFilterId, category.Id, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@category.Name</option>
+                                        if (string.Equals(Model.VariantCategoryFilterId, category.Id, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <option value="@category.Id" selected="selected">@category.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@category.Id">@category.Name</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -401,7 +186,14 @@
                                         <optgroup label="@attr.Name">
                                             @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
                                             {
-                                                <option value="@option.Id" selected="@(selectedAttributeOptionIds.Contains(option.Id) ? "selected" : null)">@option.OptionName (@option.OptionValue)</option>
+                                                if (selectedAttributeOptionIds.Contains(option.Id))
+                                                {
+                                                    <option value="@option.Id" selected="selected">@option.OptionName (@option.OptionValue)</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@option.Id">@option.OptionName (@option.OptionValue)</option>
+                                                }
                                             }
                                         </optgroup>
                                     }
@@ -411,17 +203,52 @@
                                 <label class="text-muted small">@UiText["catalog.variants.trackingPolicy"]</label>
                                 <select name="trackingPolicy" class="form-control" data-filter-label='@UiText["catalog.variants.trackingPolicy"]'>
                                     <option value="">@UiText["catalog.variants.all"]</option>
-                                    <option value="None" selected="@(Model.VariantTrackingFilter == "None" ? "selected" : null)">@UiText["catalog.variants.trackingNone"]</option>
-                                    <option value="Batch" selected="@(Model.VariantTrackingFilter == "Batch" ? "selected" : null)">@UiText["catalog.variants.trackingBatch"]</option>
-                                    <option value="Serial" selected="@(Model.VariantTrackingFilter == "Serial" ? "selected" : null)">@UiText["catalog.variants.trackingSerial"]</option>
+                                    @if (Model.VariantTrackingFilter == "None")
+                                    {
+                                        <option value="None" selected="selected">@UiText["catalog.variants.trackingNone"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="None">@UiText["catalog.variants.trackingNone"]</option>
+                                    }
+                                    @if (Model.VariantTrackingFilter == "Batch")
+                                    {
+                                        <option value="Batch" selected="selected">@UiText["catalog.variants.trackingBatch"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="Batch">@UiText["catalog.variants.trackingBatch"]</option>
+                                    }
+                                    @if (Model.VariantTrackingFilter == "Serial")
+                                    {
+                                        <option value="Serial" selected="selected">@UiText["catalog.variants.trackingSerial"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="Serial">@UiText["catalog.variants.trackingSerial"]</option>
+                                    }
                                 </select>
                             </div>
                             <div class="col-md-2 mb-2">
                                 <label class="text-muted small">@UiText["common.status"]</label>
                                 <select name="statusFilter" class="form-control" data-filter-label='@UiText["common.status"]'>
                                     <option value="">@UiText["catalog.variants.none"]</option>
-                                    <option value="active" selected="@(string.Equals(Model.VariantStatusFilter, "active", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["common.active"]</option>
-                                    <option value="inactive" selected="@(string.Equals(Model.VariantStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["common.inactive"]</option>
+                                    @if (string.Equals(Model.VariantStatusFilter, "active", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="active" selected="selected">@UiText["common.active"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="active">@UiText["common.active"]</option>
+                                    }
+                                    @if (string.Equals(Model.VariantStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="inactive" selected="selected">@UiText["common.inactive"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="inactive">@UiText["common.inactive"]</option>
+                                    }
                                 </select>
                             </div>
                             <div class="col-md-2 mb-2">
@@ -430,7 +257,14 @@
                                     <option value="">@UiText["catalog.variants.none"]</option>
                                     @foreach (var type in attributeTypeOptions)
                                     {
-                                        <option value="@type" selected="@(string.Equals(Model.SelectedAttributeTypeFilter, type, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@type</option>
+                                        if (string.Equals(Model.SelectedAttributeTypeFilter, type, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <option value="@type" selected="selected">@type</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@type">@type</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -438,11 +272,46 @@
                                 <label class="text-muted small">@UiText["catalog.variants.sort"]</label>
                                 <select name="sort" class="form-control" data-filter-label='@UiText["catalog.variants.sort"]'>
                                     <option value="">@UiText["catalog.variants.sortSkuAsc"]</option>
-                                    <option value="sku_desc" selected="@(string.Equals(Model.VariantSort, "sku_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.variants.sortSkuDesc"]</option>
-                                    <option value="tracking_asc" selected="@(string.Equals(Model.VariantSort, "tracking_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.variants.sortTrackingAsc"]</option>
-                                    <option value="tracking_desc" selected="@(string.Equals(Model.VariantSort, "tracking_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.variants.sortTrackingDesc"]</option>
-                                    <option value="status_asc" selected="@(string.Equals(Model.VariantSort, "status_asc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.variants.sortStatusAsc"]</option>
-                                    <option value="status_desc" selected="@(string.Equals(Model.VariantSort, "status_desc", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["catalog.variants.sortStatusDesc"]</option>
+                                    @if (string.Equals(Model.VariantSort, "sku_desc", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="sku_desc" selected="selected">@UiText["catalog.variants.sortSkuDesc"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="sku_desc">@UiText["catalog.variants.sortSkuDesc"]</option>
+                                    }
+                                    @if (string.Equals(Model.VariantSort, "tracking_asc", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="tracking_asc" selected="selected">@UiText["catalog.variants.sortTrackingAsc"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="tracking_asc">@UiText["catalog.variants.sortTrackingAsc"]</option>
+                                    }
+                                    @if (string.Equals(Model.VariantSort, "tracking_desc", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="tracking_desc" selected="selected">@UiText["catalog.variants.sortTrackingDesc"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="tracking_desc">@UiText["catalog.variants.sortTrackingDesc"]</option>
+                                    }
+                                    @if (string.Equals(Model.VariantSort, "status_asc", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="status_asc" selected="selected">@UiText["catalog.variants.sortStatusAsc"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="status_asc">@UiText["catalog.variants.sortStatusAsc"]</option>
+                                    }
+                                    @if (string.Equals(Model.VariantSort, "status_desc", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <option value="status_desc" selected="selected">@UiText["catalog.variants.sortStatusDesc"]</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="status_desc">@UiText["catalog.variants.sortStatusDesc"]</option>
+                                    }
                                 </select>
                             </div>
                             <div class="col-md-1 mb-2">
@@ -450,7 +319,14 @@
                                 <select name="pageSize" class="form-control" data-filter-label='@UiText["common.count"]'>
                                     @foreach (var size in Model.VariantPageSizeOptions)
                                     {
-                                        <option value="@size" selected="@(size == Model.VariantPageSize ? "selected" : null)">@size</option>
+                                        if (size == Model.VariantPageSize)
+                                        {
+                                            <option value="@size" selected="selected">@size</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@size">@size</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -465,13 +341,6 @@
 
         <div class="row">
             <div class="col-12 mb-4">
-                @await Html.PartialAsync("~/Views/CatalogManagement/_VariantMainSection.cshtml", Model)
-                @await Html.PartialAsync("~/Views/CatalogManagement/_VariantActionsSection.cshtml", Model)
-                @await Html.PartialAsync("~/Views/CatalogManagement/_VariantAttributesSection.cshtml", Model)
-                @await Html.PartialAsync("~/Views/CatalogManagement/_VariantConversionsSection.cshtml", Model)
-            </div>
-
-            <div class="col-12 mb-4">
                 <div class="card mb-4">
                     <div class="card-body" id="variant-list-scope">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -479,45 +348,29 @@
                             <span class="text-muted small">@Model.VariantTotalCount @UiText["catalog.variants.recordCountSuffix"]</span>
                         </div>
                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                            <div class="text-muted small mb-2">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></div>
                             <div class="btn-group btn-group-sm mb-2">
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
                                         data-toggle="modal"
-                                        data-target="#variant-media-library-modal">
-                                    @UiText["variant.media.label"]
+                                        data-target="#variant-bulk-media-modal"
+                                        data-requires-bulk-selection="true">
+                                    افزودن مدیا
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
                                         data-toggle="modal"
-                                        data-target="#variant-addons-modal">
-                                    @UiText["catalog.variants.addonListTitle"]
+                                        data-target="#variant-bulk-addon-modal"
+                                        data-requires-bulk-selection="true">
+                                    افزودن ادز آن
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
-                                        data-toggle="modal"
-                                        data-target="#variant-components-modal">
-                                    @UiText["catalog.variants.componentsTitle"]
-                                </button>
-                            </div>
-                            <div class="btn-group btn-group-sm mb-2">
-                                <button type="button"
-                                        class="btn btn-outline-info btn-xs"
-                                        data-toggle="modal"
-                                        data-target="#variant-bulk-addon-modal">
-                                    @UiText["catalog.variants.bulkAddonTitle"]
-                                </button>
-                                <button type="button"
-                                        class="btn btn-outline-info btn-xs"
-                                        data-toggle="modal"
-                                        data-target="#variant-bulk-media-modal">
-                                    @UiText["catalog.variants.bulkMediaTitle"]
-                                </button>
-                                <button type="button"
-                                        class="btn btn-outline-info btn-xs"
                                         data-toggle="modal"
                                         data-target="#variant-tags-modal"
-                                        data-tag-mode="bulk">
-                                    افزودن گروهی برچسب
+                                        data-tag-mode="bulk"
+                                        data-requires-bulk-selection="true">
+                                    افزودن متاتگ
                                 </button>
                             </div>
                         </div>
@@ -608,12 +461,9 @@
                                                     <label>@UiText["catalog.variants.addonVariant"]</label>
                                                     <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
                                                             class="form-control js-search-select"
-                                                            data-placeholder='کد یا نام ادزآن را جستجو کنید'>
+                                                            data-placeholder='کد یا نام ادزآن را جستجو کنید'
+                                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
                                                         <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
-                                                        @foreach (var variant in Model.RelatedVariantLookup)
-                                                        {
-                                                            <option value="@variant.Id">@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name) @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
-                                                        }
                                                     </select>
                                                     <div class="small text-muted mt-2">کد یا نام ادزآن را جستجو کنید</div>
                                                     <button type="button"
@@ -751,11 +601,6 @@
                                                                 data-detail-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.pricesTitle"]">
                                                             @UiText["catalog.variants.pricesButton"]
-                                                        </button>
-                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
-                                                                data-detail-url="@Url.Action("VariantDocuments", "VariantManagement", new { variantId = variant.Id })"
-                                                                data-detail-title="@UiText["catalog.variants.documentsAndTransactions"]">
-                                                            @UiText["catalog.variants.documentsButton"]
                                                         </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-secondary btn-xs js-variant-tags"
@@ -1123,10 +968,6 @@
                                                                 data-placeholder='کد یا نام واریانت را جستجو کنید'
                                                                 data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
                                                             <option value="">کد یا نام واریانت را جستجو کنید</option>
-                                                            @foreach (var variant in Model.RelatedVariantLookup.OrderBy(x => x.Sku))
-                                                            {
-                                                                <option value="@variant.Id">@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name) @(string.IsNullOrWhiteSpace(variant.Barcode) ? string.Empty : $" - {variant.Barcode}")</option>
-                                                            }
                                                         </select>
                                                         <small class="text-muted d-block mt-1">کد یا نام واریانت را جستجو کنید</small>
                                                     </div>
@@ -1408,7 +1249,12 @@
                     <input asp-for="BulkVariantTagForm.SelectedVariantIds" type="hidden" id="bulk-tags-selected-ids" />
                     <div class="form-group">
                         <label>برچسب‌ها</label>
-                        <textarea asp-for="BulkVariantTagForm.TagNames" class="form-control" rows="3" placeholder="برچسب‌ها را با ویرگول جدا کنید"></textarea>
+                        <select id="bulk-variant-tag-lookup"
+                                class="form-control js-search-select"
+                                multiple
+                                data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
+                        <input asp-for="BulkVariantTagForm.TagNames" type="hidden" />
+                        <div class="small text-muted mt-2">این فیلد از برچسب‌های ثبت‌شده در سیستم تغذیه می‌شود.</div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">ثبت گروهی برچسب</button>
                 </form>
@@ -1426,11 +1272,10 @@
                     <div class="form-row">
                         <div class="col-md-8 mb-2">
                             <label>نام برچسب</label>
-                            <input asp-for="VariantTagForm.TagName" class="form-control" placeholder="مثلاً جدید، ویژه، پرفروش" />
-                        </div>
-                        <div class="col-md-4 mb-2">
-                            <label>ترتیب</label>
-                            <input asp-for="VariantTagForm.DisplayOrder" type="number" min="0" step="1" class="form-control" />
+                            <select id="single-variant-tag-lookup"
+                                    class="form-control js-search-select"
+                                    data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
+                            <input asp-for="VariantTagForm.TagName" type="hidden" />
                         </div>
                     </div>
                     <div class="form-group">
@@ -1496,13 +1341,15 @@
             var tagsSingleTagId = document.getElementById('VariantTagForm_TagId');
             var tagsSingleTagName = document.getElementById('VariantTagForm_TagName');
             var tagsSingleTagColor = document.getElementById('VariantTagForm_TagColor');
-            var tagsSingleDisplayOrder = document.getElementById('VariantTagForm_DisplayOrder');
+            var bulkTagLookupSelect = document.getElementById('bulk-variant-tag-lookup');
+            var singleTagLookupSelect = document.getElementById('single-variant-tag-lookup');
             var tagsList = document.getElementById('variant-tags-list');
             var tagsCount = document.getElementById('variant-tags-count');
             var bulkTagsSelectedIdsInput = document.getElementById('bulk-tags-selected-ids');
             var tagsBulkWrapper = document.getElementById('variant-tags-bulk-form-wrapper');
             var tagsSingleWrapper = document.getElementById('variant-tags-single-form-wrapper');
             var tagsCurrentWrapper = document.getElementById('variant-tags-current-wrapper');
+            var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
             var stateKey = 'catalog-variants-state-v2';
             var draftStateKey = 'catalog-variants-form-drafts-v1';
             var submittedFormKey = 'catalog-variants-last-submitted-form-v1';
@@ -1528,9 +1375,39 @@
                 });
             }
 
+            function renderStockBucketTable(items) {
+                var columns = [
+                    { key: 'warehouseLabel', title: 'انبار' },
+                    { key: 'locationLabel', title: 'لوکیشن' },
+                    { key: 'qualityStatusLabel', title: 'وضعیت کیفی' },
+                    { key: 'lotBatchNo', title: 'لات / بچ' },
+                    { key: 'quantityOnHand', title: 'موجودی' }
+                ];
+
+                var head = columns.map(function (column) {
+                    return '<th>' + column.title + '</th>';
+                }).join('');
+
+                var rows = items.map(function (item) {
+                    return '<tr>' + columns.map(function (column) {
+                        var value = item ? item[column.key] : null;
+                        return '<td>' + (value === null || value === undefined || value === '' ? '-' : String(value)) + '</td>';
+                    }).join('') + '</tr>';
+                }).join('');
+
+                return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
+            }
+
             function renderDetailTable(items) {
                 if (!Array.isArray(items) || items.length === 0) {
                     return '<div class="text-muted>' + @JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]) + '</div>';
+                }
+
+                var firstItem = items[0] || {};
+                if (Object.prototype.hasOwnProperty.call(firstItem, 'warehouseLabel') ||
+                    Object.prototype.hasOwnProperty.call(firstItem, 'quantityOnHand') ||
+                    Object.prototype.hasOwnProperty.call(firstItem, 'stockDetailBusinessKey')) {
+                    return renderStockBucketTable(items);
                 }
 
                 var keys = Object.keys(items[0] || {});
@@ -1843,8 +1720,99 @@
                     });
 
                     badge.appendChild(removeButton);
-                    tagsList.appendChild(badge);
+                tagsList.appendChild(badge);
                 });
+            }
+
+            function syncBulkTagNamesField() {
+                if (!bulkTagLookupSelect || !tagsBulkForm) {
+                    return;
+                }
+
+                var hiddenInput = tagsBulkForm.querySelector('input[name="BulkVariantTagForm.TagNames"]');
+                if (!hiddenInput) {
+                    return;
+                }
+
+                var selectedNames = Array.from(bulkTagLookupSelect.selectedOptions || [])
+                    .map(function (option) { return (option.value || '').trim(); })
+                    .filter(Boolean);
+                hiddenInput.value = selectedNames.join(',');
+            }
+
+            function syncSingleTagNameField() {
+                if (!singleTagLookupSelect || !tagsSingleForm) {
+                    return;
+                }
+
+                var hiddenInput = tagsSingleForm.querySelector('input[name="VariantTagForm.TagName"]');
+                if (!hiddenInput) {
+                    return;
+                }
+
+                hiddenInput.value = (singleTagLookupSelect.value || '').trim();
+            }
+
+            function ensureTagOption(selectElement, item) {
+                if (!selectElement || !item || !item.tagName) {
+                    return;
+                }
+
+                var existing = Array.prototype.slice.call(selectElement.options || []).some(function (option) {
+                    return (option.value || '').trim() === item.tagName;
+                });
+
+                if (existing) {
+                    return;
+                }
+
+                var label = item.text || item.tagName;
+                var option = new Option(label, item.tagName, true, true);
+                selectElement.appendChild(option);
+            }
+
+            function initTagLookupSelect(selectElement, isMultiple) {
+                if (!selectElement || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || selectElement.dataset.select2Initialized === 'true') {
+                    return;
+                }
+
+                window.jQuery(selectElement).select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: '100%',
+                    dropdownParent: tagsModal,
+                    placeholder: selectElement.getAttribute('data-placeholder') || '',
+                    allowClear: true,
+                    multiple: !!isMultiple,
+                    minimumInputLength: 0,
+                    ajax: {
+                        url: tagLookupUrl,
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                term: params.term || '',
+                                take: 50
+                            };
+                        },
+                        processResults: function (data) {
+                            var items = Array.isArray(data) ? data : [];
+                            return {
+                                results: items.map(function (item) {
+                                    return {
+                                        id: item.tagName || item.TagName || '',
+                                        text: item.text || item.tagName || item.TagName || '',
+                                        tagName: item.tagName || item.TagName || '',
+                                        tagColor: item.tagColor || item.TagColor || '',
+                                        usageCount: item.usageCount || item.UsageCount || 0
+                                    };
+                                }).filter(function (item) { return !!item.id; })
+                            };
+                        }
+                    }
+                });
+
+                selectElement.dataset.select2Initialized = 'true';
             }
 
             function loadVariantTagsForModal(variantId, mode, label) {
@@ -1866,11 +1834,19 @@
                     if (bulkTagsSelectedIdsInput) {
                         bulkTagsSelectedIdsInput.value = variantId || '';
                     }
+                    if (bulkTagLookupSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(bulkTagLookupSelect).val(null).trigger('change');
+                    }
+                    syncBulkTagNamesField();
                     renderTagList([], mode);
                     return;
                 }
 
                 if (!variantId) {
+                    if (singleTagLookupSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(singleTagLookupSelect).val(null).trigger('change');
+                    }
+                    syncSingleTagNameField();
                     renderTagList([], mode);
                     return;
                 }
@@ -1889,9 +1865,9 @@
 
                         renderTagList(payload || [], mode);
                     })
-                    .catch(function () {
-                        renderTagList([], mode);
-                    });
+                .catch(function () {
+                    renderTagList([], mode);
+                });
             }
 
             function removeVariantTagAjax(tag) {
@@ -2368,6 +2344,16 @@
             }
 
             initializeComponentVariantSearch();
+            initTagLookupSelect(bulkTagLookupSelect, true);
+            initTagLookupSelect(singleTagLookupSelect, false);
+
+            if (bulkTagLookupSelect) {
+                bulkTagLookupSelect.addEventListener('change', syncBulkTagNamesField);
+            }
+
+            if (singleTagLookupSelect) {
+                singleTagLookupSelect.addEventListener('change', syncSingleTagNameField);
+            }
 
             if (tagsModal) {
                 tagsModal.on('show.bs.modal', function (event) {
@@ -2393,11 +2379,10 @@
                         tagsSingleVariantId.value = mode === 'bulk' ? '' : (variantId || '');
                     }
                     if (mode === 'bulk') {
-                        if (tagsSingleTagId) { tagsSingleTagId.value = ''; }
-                        if (tagsSingleTagName) { tagsSingleTagName.value = ''; }
-                        if (tagsSingleTagColor) { tagsSingleTagColor.value = ''; }
-                        if (tagsSingleDisplayOrder) { tagsSingleDisplayOrder.value = '0'; }
-                    }
+                if (tagsSingleTagId) { tagsSingleTagId.value = ''; }
+                if (tagsSingleTagName) { tagsSingleTagName.value = ''; }
+                if (tagsSingleTagColor) { tagsSingleTagColor.value = ''; }
+            }
 
                     if (mode === 'bulk' && bulkTagsSelectedIdsInput) {
                         var selectedIdsInput = document.querySelector('#variant-list-scope input[name="selectedIds"][data-bulk-target]');
@@ -2494,14 +2479,8 @@
             var bulkAddonApplyButton = document.getElementById('bulk-addon-apply-selection');
             var bulkAddonPills = document.getElementById('bulk-addon-selection-pills');
             var bulkAddonSummary = document.getElementById('bulk-addon-selection-summary');
-            var bulkAddonLookupItems = @Html.Raw(JsonSerializer.Serialize(
-                Model.RelatedVariantLookup.Select(variant => new
-                {
-                    id = variant.Id,
-                    sku = variant.Sku,
-                    name = variant.Name,
-                    barcode = variant.Barcode
-                }).ToList()));
+            var bulkAddonLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "CatalogManagement") ?? string.Empty));
+            var bulkAddonLookupCache = {};
 
             function formatBulkAddonLabel(item) {
                 if (!item) {
@@ -2524,14 +2503,42 @@
                     return null;
                 }
 
-                return Array.isArray(bulkAddonLookupItems)
-                    ? bulkAddonLookupItems.find(function (item) { return (item && item.id || '').toString().trim() === id; })
-                    : null;
+                return bulkAddonLookupCache[id] || null;
             }
 
             function readBulkAddonSelection() {
                 var rawValue = bulkAddonSelectedIdsInput ? bulkAddonSelectedIdsInput.value : '';
                 return rawValue ? rawValue.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : [];
+            }
+
+            function setBulkAddonSelection(ids) {
+                var nextIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
+                if (bulkAddonSelectedIdsInput) {
+                    bulkAddonSelectedIdsInput.value = nextIds.join(',');
+                }
+
+                if (bulkAddonPrimaryInput) {
+                    bulkAddonPrimaryInput.value = nextIds[0] || '';
+                }
+
+                if (bulkAddonSelect) {
+                    var primaryId = nextIds[0] || '';
+                    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        var existingOption = Array.prototype.slice.call(bulkAddonSelect.options || []).some(function (option) {
+                            return (option.value || '').trim() === primaryId;
+                        });
+                        if (primaryId && !existingOption) {
+                            var item = getBulkAddonLookupItem(primaryId);
+                            var label = item ? formatBulkAddonLabel(item) : primaryId;
+                            bulkAddonSelect.appendChild(new Option(label, primaryId, true, true));
+                        }
+                        window.jQuery(bulkAddonSelect).val(primaryId || null).trigger('change.select2');
+                    } else {
+                        bulkAddonSelect.value = primaryId;
+                    }
+                }
+
+                renderBulkAddonSummary();
             }
 
             function renderBulkAddonSummary() {
@@ -2559,50 +2566,154 @@
                 });
             }
 
+            function getSelectedVariantCount() {
+                var scope = document.getElementById('variant-list-scope');
+                if (!scope) {
+                    return 0;
+                }
+
+                return scope.querySelectorAll("input[type='checkbox'][data-bulk-row]:checked").length;
+            }
+
+            function updateBulkModalTriggers() {
+                var hasSelection = getSelectedVariantCount() > 0;
+                document.querySelectorAll('[data-requires-bulk-selection]').forEach(function (button) {
+                    button.disabled = !hasSelection;
+                });
+            }
+
+            document.querySelectorAll('[data-requires-bulk-selection]').forEach(function (button) {
+                button.addEventListener('click', function (event) {
+                    if (getSelectedVariantCount() > 0) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    window.alert((window.appUi && window.appUi.text && window.appUi.text["bulk.selectAtLeastOne"]) || "حداقل یک ردیف را برای عملیات گروهی انتخاب کنید.");
+                }, true);
+            });
+
             function renderBulkAddonSelector() {
                 if (!bulkAddonSelectorList) {
                     return;
                 }
 
                 var selectedIds = new Set(readBulkAddonSelection());
-                var filterText = (bulkAddonSearchInput && bulkAddonSearchInput.value ? bulkAddonSearchInput.value : '').toLowerCase();
-                bulkAddonSelectorList.innerHTML = '';
+                var filterText = (bulkAddonSearchInput && bulkAddonSearchInput.value ? bulkAddonSearchInput.value : '').trim();
+                bulkAddonSelectorList.innerHTML = '<div class="text-muted small">در حال جستجو...</div>';
 
-                (Array.isArray(bulkAddonLookupItems) ? bulkAddonLookupItems : []).forEach(function (lookupItem) {
-                    if (!lookupItem || !lookupItem.id) {
-                        return;
-                    }
+                if (!bulkAddonLookupUrl) {
+                    bulkAddonSelectorList.innerHTML = '<div class="text-danger small">مسیر جستجو در دسترس نیست.</div>';
+                    return;
+                }
 
-                    var label = formatBulkAddonLabel(lookupItem);
-                    var haystack = [lookupItem.sku, lookupItem.name, lookupItem.barcode, label]
-                        .filter(Boolean)
-                        .join(' ')
-                        .toLowerCase();
+                var url = bulkAddonLookupUrl + '?term=' + encodeURIComponent(filterText || '') + '&take=30';
+                fetch(url, { headers: { 'Accept': 'application/json' } })
+                    .then(function (response) { return response.json(); })
+                    .then(function (payload) {
+                        var items = payload && Array.isArray(payload.items) ? payload.items : [];
+                        bulkAddonSelectorList.innerHTML = '';
 
-                    if (filterText && haystack.indexOf(filterText) < 0) {
-                        return;
-                    }
+                        if (items.length === 0) {
+                            bulkAddonSelectorList.innerHTML = '<div class="text-muted small">موردی یافت نشد.</div>';
+                            return;
+                        }
 
-                    var optionItem = document.createElement('label');
-                    optionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
+                        items.forEach(function (lookupItem) {
+                            if (!lookupItem || !lookupItem.id) {
+                                return;
+                            }
 
-                    var checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.className = 'mr-2';
-                    checkbox.value = lookupItem.id;
-                    checkbox.checked = selectedIds.has(lookupItem.id);
+                            bulkAddonLookupCache[lookupItem.id] = lookupItem;
+                            var label = formatBulkAddonLabel(lookupItem);
 
-                    var text = document.createElement('span');
-                    text.textContent = label;
+                            var optionItem = document.createElement('label');
+                            optionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
 
-                    optionItem.appendChild(checkbox);
-                    optionItem.appendChild(text);
-                    bulkAddonSelectorList.appendChild(optionItem);
-                });
+                            var checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'mr-2';
+                            checkbox.value = lookupItem.id;
+                            checkbox.checked = selectedIds.has(lookupItem.id);
+
+                            var text = document.createElement('span');
+                            text.textContent = label;
+
+                            optionItem.appendChild(checkbox);
+                            optionItem.appendChild(text);
+                            bulkAddonSelectorList.appendChild(optionItem);
+                        });
+                    })
+                    .catch(function () {
+                        bulkAddonSelectorList.innerHTML = '<div class="text-danger small">بارگذاری ادزآن‌ها ناموفق بود.</div>';
+                    });
             }
 
             if (bulkAddonSearchInput) {
                 bulkAddonSearchInput.addEventListener('input', renderBulkAddonSelector);
+            }
+
+                    if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(bulkAddonSelect).select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: '100%',
+                    placeholder: bulkAddonSelect.getAttribute('data-placeholder') || '',
+                    allowClear: true,
+                    minimumInputLength: 0,
+                    ajax: {
+                        url: bulkAddonLookupUrl,
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return { term: params.term || '', take: 20 };
+                        },
+                        processResults: function (data) {
+                            var items = data && Array.isArray(data.items) ? data.items : [];
+                            return {
+                                results: items.map(function (item) {
+                                    var id = item.id || '';
+                                    var label = item.text || formatBulkAddonLabel(item) || id;
+                                    if (id) {
+                                        bulkAddonLookupCache[id] = item;
+                                    }
+                                    return {
+                                        id: id,
+                                        text: label,
+                                        sku: item.sku || '',
+                                        name: item.name || '',
+                                        barcode: item.barcode || ''
+                                    };
+                                }).filter(function (item) { return !!item.id; })
+                            };
+                        }
+                    }
+                });
+            }
+
+            if (bulkAddonSelect) {
+                bulkAddonSelect.addEventListener('change', function () {
+                    var selectedId = (bulkAddonSelect.value || '').trim();
+                    if (!selectedId) {
+                        setBulkAddonSelection([]);
+                        return;
+                    }
+
+                    setBulkAddonSelection([selectedId]);
+                    var item = bulkAddonLookupCache[selectedId];
+                    if (!item && bulkAddonLookupUrl) {
+                        fetch(bulkAddonLookupUrl + '?term=' + encodeURIComponent(selectedId) + '&take=1', { headers: { 'Accept': 'application/json' } })
+                            .then(function (response) { return response.json(); })
+                            .then(function (payload) {
+                                var first = payload && Array.isArray(payload.items) && payload.items.length > 0 ? payload.items[0] : null;
+                                if (first) {
+                                    bulkAddonLookupCache[first.id] = first;
+                                    renderBulkAddonSummary();
+                                }
+                            });
+                    }
+                });
             }
 
             if (bulkAddonApplyButton) {
@@ -2615,19 +2726,25 @@
                         .map(function (input) { return input.value || ''; })
                         .filter(Boolean);
 
-                    bulkAddonSelectedIdsInput.value = selectedIds.join(',');
-                    bulkAddonPrimaryInput.value = selectedIds[0] || '';
-                    bulkAddonSelect.value = selectedIds[0] || '';
-                    renderBulkAddonSummary();
+                    setBulkAddonSelection(selectedIds);
                     $('#bulk-addon-selector-modal').modal('hide');
                 });
             }
+
+            $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
+                setBulkAddonSelection([]);
+            });
 
             $('#bulk-addon-selector-modal').on('show.bs.modal', function () {
                 renderBulkAddonSelector();
             });
 
             renderBulkAddonSummary();
+            updateBulkModalTriggers();
+
+            document.querySelectorAll('#variant-list-scope input[type="checkbox"][data-bulk-row], #variant-list-scope input[type="checkbox"][data-bulk-toggle]').forEach(function (checkbox) {
+                checkbox.addEventListener('change', updateBulkModalTriggers);
+            });
 
             [searchForm, productSelectorForm].forEach(function (formElement) {
                 if (!formElement) {
