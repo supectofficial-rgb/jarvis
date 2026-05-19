@@ -1,5 +1,6 @@
 using Insurance.InventoryDashboard.Panel.Models;
 using Insurance.InventoryDashboard.Panel.Services;
+using Insurance.InventoryDashboard.Panel.Services.Localization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Insurance.InventoryDashboard.Panel.Controllers;
@@ -9,8 +10,9 @@ public sealed class ProductManagementController : CatalogManagementController
     public ProductManagementController(
         ICatalogApiService apiService,
         IDashboardConfigService dashboardConfigService,
+        IUiTextService uiTextService,
         ILogger<CatalogManagementController> logger)
-        : base(apiService, dashboardConfigService, logger)
+        : base(apiService, dashboardConfigService, uiTextService, logger)
     {
     }
 

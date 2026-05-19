@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Insurance.InventoryDashboard.Panel.Models;
 using Insurance.InventoryDashboard.Panel.Services;
+using Insurance.InventoryDashboard.Panel.Services.Localization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Insurance.InventoryDashboard.Panel.Controllers;
@@ -13,8 +14,9 @@ public sealed class VariantManagementController : CatalogManagementController
         IApiService inventoryApiService,
         ICatalogApiService apiService,
         IDashboardConfigService dashboardConfigService,
+        IUiTextService uiTextService,
         ILogger<CatalogManagementController> logger)
-        : base(apiService, dashboardConfigService, logger)
+        : base(apiService, dashboardConfigService, uiTextService, logger)
     {
         _inventoryApiService = inventoryApiService;
     }
@@ -106,7 +108,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (!Guid.TryParse(variantId, out var variantRef))
         {
-            return BadRequest(new { error = "Ã˜Â´Ã™â€ Ã˜Â§Ã˜Â³Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã™â€ Ã›Å’Ã˜Â³Ã˜Âª." });
+            return BadRequest(new { error = _uiText["catalog.variants.images.invalidVariantId"] });
         }
 
         var result = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: variantRef);
@@ -229,7 +231,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (!Guid.TryParse(variantId, out var variantRef))
         {
-            return BadRequest(new { error = "Ã˜Â´Ã™â€ Ã˜Â§Ã˜Â³Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã™â€ Ã›Å’Ã˜Â³Ã˜Âª." });
+            return BadRequest(new { error = _uiText["catalog.variants.images.invalidVariantId"] });
         }
 
         var pricesTask = _inventoryApiService.SearchSellerVariantPricesAsync(token, variantRef: variantRef, pageSize: 100);
@@ -300,6 +302,28 @@ public sealed class VariantManagementController : CatalogManagementController
             isSuccess = true,
             items
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> VariantMediaLibrary(string variantId)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized();
+        }
+
+        if (!Guid.TryParse(variantId, out _))
+        {
+            return BadRequest(_uiText["catalog.variants.images.invalidVariantId"]);
+        }
+
+        var variantResult = await _apiService.GetProductVariantFullDetailsAsync(variantId, token);
+        if (!variantResult.IsSuccess || variantResult.Data is null)
+        {
+            return Content($"<div class=\"alert alert-danger mb-0\">{_uiText["catalog.variants.loadInfoFailed"]}</div>", "text/html");
+        }
+
+        return PartialView("_VariantMediaLibraryBody", variantResult.Data);
     }
 
     [HttpGet]
@@ -897,6 +921,9 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
         var selectedVariantIds = (form.SelectedVariantIds ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -904,7 +931,13 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (selectedVariantIds.Count == 0)
         {
-            TempData["CatalogError"] = "Ã˜Â­Ã˜Â¯Ã˜Â§Ã™â€šÃ™â€ž Ã›Å’ÃšÂ© Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â±Ã˜Â§ Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã˜Â«Ã˜Â¨Ã˜Âª Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ ÃšÂ©Ã™â€ Ã›Å’Ã˜Â¯.";
+            var errorMessage = _uiText["catalog.variants.images.noVariantsSelected"];
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
@@ -918,7 +951,13 @@ public sealed class VariantManagementController : CatalogManagementController
         }
         catch
         {
-            TempData["CatalogError"] = "Ã˜Â³Ã˜Â§Ã˜Â®Ã˜ÂªÃ˜Â§Ã˜Â± Ã˜ÂªÃ˜ÂµÃ˜Â§Ã™Ë†Ã›Å’Ã˜Â± Ã˜Â§Ã˜Â±Ã˜Â³Ã˜Â§Ã™â€žÃ›Å’ Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã™â€ Ã›Å’Ã˜Â³Ã˜Âª.";
+            var errorMessage = _uiText["catalog.variants.images.invalidPayload"];
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
@@ -929,7 +968,13 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (images.Count == 0)
         {
-            TempData["CatalogError"] = "Ã˜Â§Ã˜Â¨Ã˜ÂªÃ˜Â¯Ã˜Â§ Ã˜Â­Ã˜Â¯Ã˜Â§Ã™â€šÃ™â€ž Ã›Å’ÃšÂ© Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã˜Â¢Ã™Â¾Ã™â€žÃ™Ë†Ã˜Â¯ ÃšÂ©Ã™â€ Ã›Å’Ã˜Â¯.";
+            var errorMessage = _uiText["catalog.variants.images.noValidImages"];
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
@@ -961,7 +1006,7 @@ public sealed class VariantManagementController : CatalogManagementController
                     continue;
 
                 variantFailed = true;
-                failures.Add(result.ErrorMessage ?? $"Ã˜Â«Ã˜Â¨Ã˜Âª Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.");
+                failures.Add(result.ErrorMessage ?? string.Format(_uiText["catalog.variants.images.uploadFailedForVariant"], variantId));
                 break;
             }
 
@@ -970,7 +1015,34 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         if (successCount > 0)
-            TempData["CatalogSuccess"] = $"Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ {successCount} Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â«Ã˜Â¨Ã˜Âª Ã˜Â´Ã˜Â¯.";
+        {
+            var successMessage = string.Format(_uiText["catalog.variants.images.uploadSucceeded"], successCount);
+            if (isAjaxRequest)
+            {
+                return Json(new
+                {
+                    isSuccess = failures.Count == 0,
+                    successCount,
+                    message = successMessage,
+                    reloadVariantId = selectedVariantIds.FirstOrDefault(),
+                    errors = failures.Take(3).ToList()
+                });
+            }
+
+            TempData["CatalogSuccess"] = successMessage;
+        }
+
+        if (isAjaxRequest)
+        {
+            return Json(new
+            {
+                isSuccess = failures.Count == 0,
+                successCount,
+                message = successCount > 0 ? string.Format(_uiText["catalog.variants.images.uploadSucceeded"], successCount) : string.Empty,
+                reloadVariantId = selectedVariantIds.FirstOrDefault(),
+                errors = failures.Take(3).ToList()
+            });
+        }
 
         if (failures.Count > 0)
             TempData["CatalogError"] = string.Join(" | ", failures.Take(3)) + (failures.Count > 3 ? " | ..." : string.Empty);

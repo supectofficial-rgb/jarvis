@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Insurance.InventoryDashboard.Panel.Models;
 using Insurance.InventoryDashboard.Panel.Services;
+using Insurance.InventoryDashboard.Panel.Services.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -33,16 +34,19 @@ public abstract partial class CatalogManagementController : Controller
     private static readonly int[] PageSizeOptions = [10, 25, 50];
 
     protected readonly ICatalogApiService _apiService;
+    protected readonly IUiTextService _uiText;
     private readonly IDashboardConfigService _dashboardConfigService;
     private readonly ILogger<CatalogManagementController> _logger;
 
     protected CatalogManagementController(
         ICatalogApiService apiService,
         IDashboardConfigService dashboardConfigService,
+        IUiTextService uiTextService,
         ILogger<CatalogManagementController> logger)
     {
         _apiService = apiService;
         _dashboardConfigService = dashboardConfigService;
+        _uiText = uiTextService;
         _logger = logger;
     }
 
