@@ -840,6 +840,8 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
+        TempData["BulkVariantImagesJson"] = JsonSerializer.Serialize(images);
+
         var failures = new List<string>();
         var successCount = 0;
 
@@ -880,7 +882,7 @@ public sealed class VariantManagementController : CatalogManagementController
         if (failures.Count > 0)
             TempData["CatalogError"] = string.Join(" | ", failures.Take(3)) + (failures.Count > 3 ? " | ..." : string.Empty);
 
-        return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = selectedVariantIds.FirstOrDefault() });
+        return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
     }
 
     [HttpPost]

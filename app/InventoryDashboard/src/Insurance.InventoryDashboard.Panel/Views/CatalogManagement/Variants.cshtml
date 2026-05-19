@@ -39,6 +39,24 @@
     var selectedProduct = Model.Products.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedProductId, StringComparison.OrdinalIgnoreCase));
     var selectedVariant = Model.Variants.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedVariantId, StringComparison.OrdinalIgnoreCase));
     var selectedVariantName = selectedVariant?.Name ?? selectedVariant?.Sku ?? Model.SelectedVariantDetails?.Sku;
+    var bulkMediaUploadedJson = TempData["BulkVariantImagesJson"] as string;
+    var bulkMediaUploadedItems = new List<VariantImageModel>();
+    if (!string.IsNullOrWhiteSpace(bulkMediaUploadedJson))
+    {
+        try
+        {
+            bulkMediaUploadedItems = JsonSerializer.Deserialize<List<VariantImageModel>>(
+                bulkMediaUploadedJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<VariantImageModel>();
+        }
+        catch
+        {
+            bulkMediaUploadedItems = new List<VariantImageModel>();
+        }
+    }
     string? RelatedVariantProductId(string? variantId)
     {
         if (string.IsNullOrWhiteSpace(variantId))
@@ -112,6 +130,7 @@
       class="catalog-page"
       data-selected-product-id="@Model.SelectedProductId"
       data-selected-variant-id="@Model.SelectedVariantId"
+      data-selected-variant-name="@selectedVariantName"
       data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
     <div class="container-fluid">
         <div class="row variant-page-heading">
@@ -352,21 +371,18 @@
                             <div class="btn-group btn-group-sm mb-2">
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
-                                        data-toggle="modal"
                                         data-target="#variant-bulk-media-modal"
                                         data-requires-bulk-selection="true">
                                     افزودن مدیا
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
-                                        data-toggle="modal"
                                         data-target="#variant-bulk-addon-modal"
                                         data-requires-bulk-selection="true">
                                     افزودن ادز آن
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
-                                        data-toggle="modal"
                                         data-target="#variant-tags-modal"
                                         data-tag-mode="bulk"
                                         data-requires-bulk-selection="true">
@@ -374,6 +390,50 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="alert alert-warning d-none py-2 mb-3" id="variant-bulk-selection-warning">یک یا چند مورد از موارد را انتخاب کنید</div>
+                        @if (bulkMediaUploadedItems.Count > 0)
+                        {
+                            <div class="card mb-3" id="variant-bulk-upload-summary">
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h6 class="card-title mb-1">@UiText["catalog.variants.bulkMediaTitle"]</h6>
+                                            <p class="text-muted small mb-0">@UiText["variant.media.bulkHelp"]</p>
+                                        </div>
+                                        <span class="badge badge-pill badge-outline-primary">@bulkMediaUploadedItems.Count</span>
+                                    </div>
+                                    <div class="row">
+                                        @foreach (var media in bulkMediaUploadedItems.OrderBy(x => x.DisplayOrder))
+                                        {
+                                            var isVideo = !string.IsNullOrWhiteSpace(media.ContentType) && media.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
+                                            <div class="col-lg-4 col-md-6 mb-3">
+                                                <div class="card h-100">
+                                                    <div class="card-body">
+                                                        @if (isVideo)
+                                                        {
+                                                            <video src="@media.OriginalUrl" class="w-100 rounded border mb-2" style="max-height:180px;" controls preload="metadata"></video>
+                                                        }
+                                                        else
+                                                        {
+                                                            <img src="@media.ThumbnailUrl" alt="@media.OriginalFileName" class="img-fluid rounded border mb-2" style="max-height:180px;" />
+                                                        }
+                                                        <div class="small text-muted mb-2">@media.OriginalFileName</div>
+                                                        <div class="mb-2">
+                                                            <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.displayOrder"] @media.DisplayOrder</span>
+                                                            @if (media.IsPrimary)
+                                                            {
+                                                                <span class="badge badge-pill badge-primary">@UiText["catalog.variants.primary"]</span>
+                                                            }
+                                                            <span class="badge badge-pill badge-light">@(isVideo ? UiText["catalog.variants.video"] : UiText["catalog.variants.image"])</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
                         <form asp-action="ApplyVariantBulkAction"
                               method="post"
                               class="form-inline mb-3"
@@ -437,57 +497,60 @@
                                         </button>
                                     </div>
                                     <div class="modal-body">
-                                        <form asp-action="BulkAssignVariantAddOn"
-                                              method="post"
-                                              class="bg-light"
-                                              data-loading-form
-                                              data-bulk-form
-                                              data-bulk-scope="#variant-list-scope">
-                                            @Html.AntiForgeryToken()
-                                            <input asp-for="BulkVariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                            <input asp-for="BulkVariantAddOnForm.SelectedVariantIds" type="hidden" data-bulk-target />
-                                            <input asp-for="BulkVariantAddOnForm.SelectedAddOnVariantIds" type="hidden" id="bulk-addon-selected-ids" />
-                                            <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" id="bulk-addon-primary-id" />
-                                            <input type="hidden" data-bulk-action-input />
-                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                                <div>
-                                                    <strong>@UiText["catalog.variants.bulkAddonTitle"]</strong>
-                                                    <div class="small text-muted">@UiText["catalog.variants.bulkAddonHelp"]</div>
+                                        <div class="alert alert-warning d-none" data-bulk-empty>یک یا چند مورد از موارد را انتخاب کنید</div>
+                                        <div data-bulk-content>
+                                            <form asp-action="BulkAssignVariantAddOn"
+                                                  method="post"
+                                                  class="bg-light"
+                                                  data-loading-form
+                                                  data-bulk-form
+                                                  data-bulk-scope="#variant-list-scope">
+                                                @Html.AntiForgeryToken()
+                                                <input asp-for="BulkVariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                                <input asp-for="BulkVariantAddOnForm.SelectedVariantIds" type="hidden" data-bulk-target />
+                                                <input asp-for="BulkVariantAddOnForm.SelectedAddOnVariantIds" type="hidden" id="bulk-addon-selected-ids" />
+                                                <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" id="bulk-addon-primary-id" />
+                                                <input type="hidden" data-bulk-action-input />
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                                    <div>
+                                                        <strong>@UiText["catalog.variants.bulkAddonTitle"]</strong>
+                                                        <div class="small text-muted">@UiText["catalog.variants.bulkAddonHelp"]</div>
+                                                    </div>
+                                                    <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
                                                 </div>
-                                                <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
-                                            </div>
-                                            <div class="form-row align-items-end">
-                                                <div class="col-md-9 mb-2">
-                                                    <label>@UiText["catalog.variants.addonVariant"]</label>
-                                                    <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
-                                                            class="form-control js-search-select"
-                                                            data-placeholder='کد یا نام ادزآن را جستجو کنید'
-                                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
-                                                        <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
-                                                    </select>
-                                                    <div class="small text-muted mt-2">کد یا نام ادزآن را جستجو کنید</div>
-                                                    <button type="button"
-                                                            class="btn btn-outline-secondary btn-block text-left mt-2"
-                                                            data-toggle="modal"
-                                                            data-target="#bulk-addon-selector-modal">
-                                                        @UiText["catalog.variants.selectMultipleAddons"]
-                                                    </button>
-                                                    <div class="small text-muted mt-2">@UiText["catalog.variants.multiAddonSearchHelp"]</div>
-                                                    <div class="border rounded bg-white p-2 mt-2" id="bulk-addon-selection-summary">
-                                                        <span class="text-muted small" data-empty-text>@UiText["catalog.variants.noAddonSelectedYet"]</span>
-                                                        <div class="d-flex flex-wrap" id="bulk-addon-selection-pills"></div>
+                                                <div class="form-row align-items-end">
+                                                    <div class="col-md-9 mb-2">
+                                                        <label>@UiText["catalog.variants.addonVariant"]</label>
+                                                        <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
+                                                                class="form-control js-search-select"
+                                                                data-placeholder='کد یا نام ادزآن را جستجو کنید'
+                                                                data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                                            <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
+                                                        </select>
+                                                        <div class="small text-muted mt-2">کد یا نام ادزآن را جستجو کنید</div>
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-block text-left mt-2"
+                                                                data-toggle="modal"
+                                                                data-target="#bulk-addon-selector-modal">
+                                                            @UiText["catalog.variants.selectMultipleAddons"]
+                                                        </button>
+                                                        <div class="small text-muted mt-2">@UiText["catalog.variants.multiAddonSearchHelp"]</div>
+                                                        <div class="border rounded bg-white p-2 mt-2" id="bulk-addon-selection-summary">
+                                                            <span class="text-muted small" data-empty-text>@UiText["catalog.variants.noAddonSelectedYet"]</span>
+                                                            <div class="d-flex flex-wrap" id="bulk-addon-selection-pills"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3 mb-2">
+                                                        <button type="submit"
+                                                                class="btn btn-outline-primary btn-block"
+                                                                data-bulk-action="assign-addon"
+                                                                data-bulk-permission="allowed">
+                                                            @UiText["catalog.variants.registerForSelections"]
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-3 mb-2">
-                                                    <button type="submit"
-                                                            class="btn btn-outline-primary btn-block"
-                                                            data-bulk-action="assign-addon"
-                                                            data-bulk-permission="allowed">
-                                                        @UiText["catalog.variants.registerForSelections"]
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </form>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -502,44 +565,47 @@
                                         </button>
                                     </div>
                                     <div class="modal-body">
-                                        <form asp-action="BulkAssignVariantImages"
-                                              method="post"
-                                              class="bg-light"
-                                              data-loading-form
-                                              data-bulk-form
-                                              data-bulk-scope="#variant-list-scope">
-                                            @Html.AntiForgeryToken()
-                                            <input asp-for="BulkVariantImageForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                            <input asp-for="BulkVariantImageForm.SelectedVariantIds" type="hidden" data-bulk-target />
-                                            <input asp-for="BulkVariantImageForm.ImagesJson" type="hidden" />
-                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                                <div>
-                                                    <strong>@UiText["catalog.variants.bulkMediaTitle"]</strong>
-                                                    <div class="small text-muted">@UiText["catalog.variants.bulkMediaHelp"]</div>
+                                        <div class="alert alert-warning d-none" data-bulk-empty>یک یا چند مورد از موارد را انتخاب کنید</div>
+                                        <div data-bulk-content>
+                                            <form asp-action="BulkAssignVariantImages"
+                                                  method="post"
+                                                  class="bg-light"
+                                                  data-loading-form
+                                                  data-bulk-form
+                                                  data-bulk-scope="#variant-list-scope">
+                                                @Html.AntiForgeryToken()
+                                                <input asp-for="BulkVariantImageForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                                <input asp-for="BulkVariantImageForm.SelectedVariantIds" type="hidden" data-bulk-target />
+                                                <input asp-for="BulkVariantImageForm.ImagesJson" type="hidden" />
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                                    <div>
+                                                        <strong>@UiText["catalog.variants.bulkMediaTitle"]</strong>
+                                                        <div class="small text-muted">@UiText["catalog.variants.bulkMediaHelp"]</div>
+                                                    </div>
+                                                    <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
                                                 </div>
-                                                <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
-                                            </div>
-                                            <div data-media-manager
-                                                 data-policy="variant-gallery"
-                                                 data-base-url="@Configuration["FileService:BaseUrl"]"
-                                                 data-input-name="BulkVariantImageForm.ImagesJson">
-                                                <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
-                                                <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
-                                                    <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                                                <div data-media-manager
+                                                     data-policy="variant-gallery"
+                                                     data-base-url="@Configuration["FileService:BaseUrl"]"
+                                                     data-input-name="BulkVariantImageForm.ImagesJson">
+                                                    <input type="file" class="form-control-file mb-2" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,.m4v" data-media-file multiple />
+                                                    <div class="progress mb-2 d-none" style="height:8px;" data-media-progress-wrap>
+                                                        <div class="progress-bar" style="width:0%;" data-media-progress></div>
+                                                    </div>
+                                                    <div class="small text-muted mb-2" data-media-status>@UiText["variant.media.bulkHelp"]</div>
+                                                    <div class="row" data-media-items></div>
+                                                    <div class="alert alert-light mb-3" data-media-empty>@UiText["variant.media.bulkEmpty"]</div>
                                                 </div>
-                                                <div class="small text-muted mb-2" data-media-status>@UiText["variant.media.bulkHelp"]</div>
-                                                <div class="row" data-media-items></div>
-                                                <div class="alert alert-light mb-3" data-media-empty>@UiText["variant.media.bulkEmpty"]</div>
-                                            </div>
-                                            <div class="text-right">
-                                                <button type="submit"
-                                                        class="btn btn-outline-primary"
-                                                        data-bulk-action="assign-media"
-                                                        data-bulk-permission="allowed">
-                                                    @UiText["catalog.variants.registerMediaForSelections"]
-                                                </button>
-                                            </div>
-                                        </form>
+                                                <div class="text-right">
+                                                    <button type="submit"
+                                                            class="btn btn-outline-primary"
+                                                            data-bulk-action="assign-media"
+                                                            data-bulk-permission="allowed">
+                                                        @UiText["catalog.variants.registerMediaForSelections"]
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -602,12 +668,15 @@
                                                                 data-detail-title="@UiText["catalog.variants.pricesTitle"]">
                                                             @UiText["catalog.variants.pricesButton"]
                                                         </button>
-                                                        <button type="button"
-                                                                class="btn btn-outline-secondary btn-xs js-variant-tags"
-                                                                data-variant-id="@variant.Id"
-                                                                data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)">
+                                                        <a class="btn btn-outline-secondary btn-xs js-variant-tags"
+                                                           asp-action="Variants"
+                                                           asp-route-productId="@Model.SelectedProductId"
+                                                           asp-route-variantId="@variant.Id"
+                                                           asp-fragment="variant-tags-modal"
+                                                           data-variant-id="@variant.Id"
+                                                           data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)">
                                                             برچسب
-                                                        </button>
+                                                        </a>
                                                         <a class="btn btn-outline-primary btn-xs"
                                                            asp-action="Variants"
                                                            asp-route-productId="@Model.SelectedProductId"
@@ -692,481 +761,6 @@
                     </div>
                 </div>
 
-                <div class="card mb-4" id="variant-details-card">
-                    <div class="card-body">
-                        <h5 class="card-title">@UiText["catalog.variants.detailsTitle"]</h5>
-                        @if (Model.SelectedVariantDetails is null)
-                        {
-                            <div class="alert alert-light mb-0">
-                                <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
-                                <p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantForDetails"]</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <p class="mb-1"><strong>SKU:</strong> <span class="text-monospace">@Model.SelectedVariantDetails.Sku</span></p>
-                            <p class="mb-1"><strong>@UiText["catalog.variants.barcode"]:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedVariantDetails.Barcode) ? "-" : Model.SelectedVariantDetails.Barcode)</p>
-                            <p class="mb-1"><strong>@UiText["catalog.variants.baseUom"]:</strong> @Model.SelectedVariantDetails.BaseUom</p>
-                            <p class="mb-1"><strong>@UiText["catalog.variants.trackingPolicy"]:</strong> @Model.SelectedVariantDetails.TrackingPolicy</p>
-                            <p class="mb-3">
-                                <strong>@UiText["catalog.variants.lockMovementTitle"]:</strong>
-                                <span class="badge badge-pill @(Model.SelectedVariantDetails.InventoryMovementLocked ? "badge-warning" : "badge-primary")">
-                                    @(Model.SelectedVariantDetails.InventoryMovementLocked ? UiText["common.active"] : UiText["common.inactive"])
-                                </span>
-                            </p>
-                            <h6>@UiText["catalog.variants.savedAttributeValues"]</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead><tr><th>@UiText["catalog.variants.attribute"]</th><th>@UiText["catalog.variants.value"]</th><th>@UiText["catalog.variants.metadata"]</th><th></th></tr></thead>
-                                    <tbody>
-                                        @foreach (var attr in Model.SelectedVariantDetails.Attributes)
-                                        {
-                                            effectiveVariantAttributeLookup.TryGetValue(attr.AttributeId, out var attrMeta);
-                                            var currentValue = !string.IsNullOrWhiteSpace(attr.OptionValue)
-                                                ? attr.OptionValue
-                                                : attr.Value;
-                                            var optionDisplayName = !string.IsNullOrWhiteSpace(attr.OptionValue) && attrMeta is not null
-                                                ? attrMeta.Options.FirstOrDefault(o => string.Equals(o.OptionValue, attr.OptionValue, StringComparison.OrdinalIgnoreCase))?.OptionName
-                                                : null;
-                                            var displayValue = !string.IsNullOrWhiteSpace(optionDisplayName)
-                                                ? optionDisplayName
-                                                : currentValue;
-                                            <tr>
-                                                <td>@(attr.AttributeName ?? attr.AttributeId)</td>
-                                                <td>@(string.IsNullOrWhiteSpace(displayValue) ? "-" : displayValue)</td>
-                                                <td>
-                                                    @if (attrMeta is not null)
-                                                    {
-                                                        <span class="badge badge-pill @(attrMeta.IsRequired ? "badge-danger" : "badge-light")">@(attrMeta.IsRequired ? UiText["catalog.variants.required"] : UiText["catalog.variants.optional"])</span>
-                                                        <span class="badge badge-pill @(attrMeta.IsInherited ? "badge-outline-primary" : "badge-outline-secondary")">@(attrMeta.IsInherited ? UiText["catalog.variants.inherited"] : UiText["catalog.variants.direct"])</span>
-                                                    }
-                                                </td>
-                                                <td>
-                                                    <button type="button"
-                                                            class="btn btn-outline-secondary btn-xs variant-attribute-edit-btn"
-                                                            data-attribute-id="@attr.AttributeId"
-                                                            data-current-value="@currentValue"
-                                                            @(Can("Catalog.VariantAttributeValue.Set", "VariantAttributeValue.Set") ? null : "disabled")>
-                                                        @UiText["common.edit"]
-                                                    </button>
-                                                    <form asp-action="RemoveVariantAttributeValue" method="post" class="d-inline" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantDetails.Id" />
-                                                        <input type="hidden" name="attributeId" value="@attr.AttributeId" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="@UiText["catalog.variants.deleteAttributeValueTitle"]" data-confirm="@UiText["catalog.variants.deleteAttributeValueConfirm"]" @(Can("Catalog.VariantAttributeValue.Remove", "VariantAttributeValue.Remove") ? null : "disabled")>@UiText["common.delete"]</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                    </div>
-                </div>
-
-                <div id="variant-media-library-slot"></div>
-                <div class="card mb-4 variant-hidden-panel" id="variant-media-library-card">
-                    <div class="card-body">
-                        <h5 class="card-title">@UiText["catalog.variants.variantMediaTitle"]</h5>
-                        @if (Model.SelectedVariantDetails is null)
-                        {
-                            <div class="alert alert-light mb-0">
-                                <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
-                                <p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantForMedia"]</p>
-                            </div>
-                        }
-                        else if (Model.SelectedVariantDetails.Images.Count == 0)
-                        {
-                            <div class="alert alert-light mb-0">
-                                @UiText["catalog.variants.noMediaRegistered"]
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="row">
-                                @foreach (var media in Model.SelectedVariantDetails.Images.OrderBy(x => x.DisplayOrder))
-                                {
-                                    var isVideo = !string.IsNullOrWhiteSpace(media.ContentType) && media.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
-                                    <div class="col-lg-4 col-md-6 mb-3">
-                                        <div class="card h-100">
-                                            <div class="card-body">
-                                                @if (isVideo)
-                                                {
-                                                    <video src="@media.OriginalUrl" class="w-100 rounded border mb-2" style="max-height:200px;" controls preload="metadata"></video>
-                                                }
-                                                else
-                                                {
-                                                    <img src="@media.ThumbnailUrl" alt="@media.OriginalFileName" class="img-fluid rounded border mb-2" style="max-height:200px;" />
-                                                }
-                                                <div class="small text-muted mb-2">@media.OriginalFileName</div>
-                                                <div class="mb-2">
-                                                    <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.displayOrder"] @media.DisplayOrder</span>
-                                                    @if (media.IsPrimary)
-                                                    {
-                                                        <span class="badge badge-pill badge-primary">@UiText["catalog.variants.primary"]</span>
-                                                    }
-                                                    <span class="badge badge-pill badge-light">@(isVideo ? UiText["catalog.variants.video"] : UiText["catalog.variants.image"])</span>
-                                                </div>
-                                                <div class="btn-group btn-group-sm">
-                                                    <a href="@media.OriginalUrl" target="_blank" rel="noopener" class="btn btn-outline-info btn-xs">@UiText["catalog.variants.view"]</a>
-                                                    <form asp-action="RemoveVariantImage" method="post" class="d-inline" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantDetails.Id" />
-                                                        <input type="hidden" name="fileKey" value="@media.FileKey" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["catalog.variants.removeRelation"]</button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        }
-                    </div>
-                </div>
-
-                <div class="card" id="variant-uom-conversions-card">
-                    <div class="card-body">
-                        <h5 class="card-title">@UiText["catalog.variants.conversionListTitle"]</h5>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped">
-                                <thead><tr><th>@UiText["catalog.variants.fromUnit"]</th><th>@UiText["catalog.variants.toUnit"]</th><th>@UiText["catalog.variants.conversionFactor"]</th><th>@UiText["catalog.variants.roundingMode"]</th><th>@UiText["catalog.variants.basePath"]</th><th></th></tr></thead>
-                                <tbody>
-                                    @if (Model.VariantUomConversions.Count == 0)
-                                    {
-                                        <tr>
-                                            <td colspan="6">
-                                                <div class="alert alert-light my-2">
-                                                    <h6>@UiText["catalog.variants.noConversionPath"]</h6>
-                                                    <p class="mb-0 text-muted">@UiText["catalog.variants.noConversionPathHelp"]</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                    else
-                                    {
-                                        foreach (var conversion in Model.VariantUomConversions)
-                                        {
-                                            var from = Model.UnitOfMeasures.FirstOrDefault(x => string.Equals(x.Id, conversion.FromUomRef, StringComparison.OrdinalIgnoreCase));
-                                            var to = Model.UnitOfMeasures.FirstOrDefault(x => string.Equals(x.Id, conversion.ToUomRef, StringComparison.OrdinalIgnoreCase));
-                                            <tr>
-                                                <td>@(from is null ? conversion.FromUomRef : $"{from.Code} - {from.Name}")</td>
-                                                <td>@(to is null ? conversion.ToUomRef : $"{to.Code} - {to.Name}")</td>
-                                                <td>@conversion.Factor</td>
-                                                <td>@conversion.RoundingMode</td>
-                                                <td>@(conversion.IsBasePath ? UiText["common.yes"] : UiText["common.no"])</td>
-                                                <td>
-                                                    <button type="button"
-                                                            class="btn btn-outline-secondary btn-xs conversion-edit-btn"
-                                                            data-from-uom="@conversion.FromUomRef"
-                                                            data-to-uom="@conversion.ToUomRef"
-                                                            data-factor="@conversion.Factor"
-                                                            data-rounding="@conversion.RoundingMode"
-                                                            data-is-base-path="@(conversion.IsBasePath ? "true" : "false")"
-                                                            @(Can("Catalog.VariantUomConversion.Upsert", "ProductVariantUomConversion.Upsert") ? null : "disabled")>
-                                                        @UiText["common.edit"]
-                                                    </button>
-                                                    <form asp-action="RemoveVariantUomConversion" method="post" class="d-inline" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                        <input type="hidden" name="fromUomRef" value="@conversion.FromUomRef" />
-                                                        <input type="hidden" name="toUomRef" value="@conversion.ToUomRef" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs" data-confirm-title="@UiText["catalog.variants.deleteConversionTitle"]" data-confirm="@UiText["catalog.variants.deleteConversionConfirm"]" @(Can("Catalog.VariantUomConversion.Remove", "ProductVariantUomConversion.Remove") ? null : "disabled")>@UiText["common.delete"]</button>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        }
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 mb-4">
-                <div class="card mb-4" id="variant-assembly-card">
-                    <div class="card-body">
-                        <h5 class="card-title mb-2">@UiText["catalog.variants.assemblyTitle"]</h5>
-                        @if (hasSelectedProduct && hasSelectedVariant)
-                        {
-                            <p class="text-muted small">@UiText["catalog.variants.assemblyHelp"]</p>
-                            <form asp-action="ExecuteVariantAssembly" method="post" id="variant-assembly-form" class="mb-0" data-loading-form data-dirty-watch>
-                                @Html.AntiForgeryToken()
-                                <input asp-for="VariantAssemblyOperationForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                <input asp-for="VariantAssemblyOperationForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
-                                <div class="form-row">
-                                    <div class="col-md-3 mb-2">
-                                        <label>@UiText["catalog.variants.operationType"]</label>
-                                        <select asp-for="VariantAssemblyOperationForm.OperationType" class="form-control js-search-select" data-no-search="true">
-                                            <option value="Assemble">@UiText["catalog.variants.assemble"]</option>
-                                            <option value="Disassemble">@UiText["catalog.variants.disassemble"]</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3 mb-2">
-                                        <label>@UiText["catalog.variants.finalQuantity"]</label>
-                                        <input asp-for="VariantAssemblyOperationForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label>@UiText["catalog.variants.reasonDescription"]</label>
-                                        <input asp-for="VariantAssemblyOperationForm.ReasonCode" class="form-control" placeholder="@UiText["catalog.variants.optional"]" />
-                                    </div>
-                                    <div class="col-md-2 mb-2 d-flex align-items-end">
-                                        <button class="btn btn-primary btn-block" type="submit">@UiText["catalog.variants.submitOperation"]</button>
-                                    </div>
-                                </div>
-                            </form>
-                        }
-                        else
-                        {
-                            <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantForAssembly"]</p></div>
-                        }
-                    </div>
-                </div>
-
-                <div id="variant-components-slot"></div>
-                <div class="card mb-4 variant-hidden-panel" id="variant-components-card">
-                    <div class="card-body">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                            <div>
-                                <h5 class="card-title mb-1">@UiText["catalog.variants.componentsTitle"]</h5>
-                                <p class="text-muted small mb-0">@UiText["catalog.variants.componentsHelp"]</p>
-                            </div>
-                            @if (hasSelectedProduct && hasSelectedVariant)
-                            {
-                                <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="modal" data-target="#variant-component-modal">@UiText["catalog.variants.addOrEditComponent"]</button>
-                            }
-                        </div>
-                        @if (hasSelectedProduct && hasSelectedVariant)
-                        {
-                            <p class="text-muted small">@UiText["catalog.variants.componentsTableHelp"]</p>
-                            <div class="modal fade" id="variant-component-modal" tabindex="-1" role="dialog" aria-hidden="true">
-                                <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">@UiText["catalog.variants.componentsTitle"]</h5>
-                                            <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
-                                                <span aria-hidden="true">&times;</span>
-                                            </button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-loading-form data-dirty-watch>
-                                                @Html.AntiForgeryToken()
-                                                <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                                <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
-                                                <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
-                                                <div class="form-row">
-                                                    <div class="col-md-12 mb-2">
-                                                        <label>@UiText["catalog.variants.componentVariant"]</label>
-                                                        <select asp-for="VariantComponentForm.ComponentVariantId"
-                                                                class="form-control js-search-select"
-                                                                id="VariantComponentForm_ComponentVariantId"
-                                                                data-placeholder='کد یا نام واریانت را جستجو کنید'
-                                                                data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
-                                                            <option value="">کد یا نام واریانت را جستجو کنید</option>
-                                                        </select>
-                                                        <small class="text-muted d-block mt-1">کد یا نام واریانت را جستجو کنید</small>
-                                                    </div>
-                                                </div>
-                                                <div class="border rounded p-3 mb-3 d-none" id="variant-component-stock-panel">
-                                                    <div class="form-row">
-                                                        <div class="col-md-6 mb-2">
-                                                            <label>@UiText["catalog.variants.componentWarehouse"]</label>
-                                                            <select asp-for="VariantComponentForm.WarehouseId" class="form-control" id="VariantComponentForm_WarehouseId">
-                                                                <option value="">@UiText["catalog.variants.selectWarehouse"]</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-6 mb-2">
-                                                            <label>@UiText["catalog.variants.componentLocation"]</label>
-                                                            <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
-                                                                <option value="">@UiText["catalog.variants.selectLocation"]</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                    <div class="small text-muted" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</div>
-                                                </div>
-                                                <div class="form-row">
-                                                    <div class="col-md-4 mb-2">
-                                                        <label>@UiText["common.count"]</label>
-                                                        <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
-                                                    </div>
-                                                </div>
-                                                <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <h6>@UiText["catalog.variants.savedMedia"]</h6>
-                            @if (Model.SelectedVariantDetails!.Images.Count == 0)
-                            {
-                                <div class="alert alert-light">
-                                    @UiText["catalog.variants.noMediaRegistered"]
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="row mb-4">
-                                    @foreach (var media in Model.SelectedVariantDetails.Images.OrderBy(x => x.DisplayOrder))
-                                    {
-                                        var isVideo = !string.IsNullOrWhiteSpace(media.ContentType) && media.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
-                                        <div class="col-lg-4 col-md-6 mb-3">
-                                            <div class="card h-100">
-                                                <div class="card-body">
-                                                    @if (isVideo)
-                                                    {
-                                                        <video src="@media.OriginalUrl" class="w-100 rounded border mb-2" style="max-height:200px;" controls preload="metadata"></video>
-                                                    }
-                                                    else
-                                                    {
-                                                        <img src="@media.ThumbnailUrl" alt="@media.OriginalFileName" class="img-fluid rounded border mb-2" style="max-height:200px;" />
-                                                    }
-                                                    <div class="small text-muted mb-2">@media.OriginalFileName</div>
-                                                    <div class="mb-2">
-                                                        <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.displayOrder"] @media.DisplayOrder</span>
-                                                        @if (media.IsPrimary)
-                                                        {
-                                                            <span class="badge badge-pill badge-primary">@UiText["catalog.variants.primary"]</span>
-                                                        }
-                                                        <span class="badge badge-pill badge-light">@(isVideo ? UiText["catalog.variants.video"] : UiText["catalog.variants.image"])</span>
-                                                    </div>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <a href="@media.OriginalUrl" target="_blank" rel="noopener" class="btn btn-outline-info btn-xs">@UiText["catalog.variants.view"]</a>
-                                                        <form asp-action="RemoveVariantImage" method="post" class="d-inline" data-loading-form>
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                            <input type="hidden" name="variantId" value="@Model.SelectedVariantDetails.Id" />
-                                                            <input type="hidden" name="fileKey" value="@media.FileKey" />
-                                                            <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["catalog.variants.removeRelation"]</button>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            <div class="table-responsive">
-                                <table class="table table-sm table-striped">
-                                    <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th>@UiText["common.count"]</th><th>@UiText["catalog.variants.warehouse"]</th><th>@UiText["catalog.variants.location"]</th><th></th></tr></thead>
-                                    <tbody>
-                                        @if (Model.VariantComponents.Count == 0)
-                                        {
-                                            <tr><td colspan="6" class="text-muted">@UiText["catalog.variants.noComponentRegistered"]</td></tr>
-                                        }
-                                        else
-                                        {
-                                            foreach (var component in Model.VariantComponents)
-                                            {
-                                                <tr>
-                                                    <td class="text-monospace">@component.ComponentSku</td>
-                                                    <td>@(string.IsNullOrWhiteSpace(component.ComponentBarcode) ? "-" : component.ComponentBarcode)</td>
-                                                    <td>@component.Quantity</td>
-                                                    <td>@(string.IsNullOrWhiteSpace(component.WarehouseCode) ? "-" : component.WarehouseCode)</td>
-                                                    <td>@(string.IsNullOrWhiteSpace(component.LocationCode) ? "-" : component.LocationCode)</td>
-                                                    <td>
-                                                        @{
-                                                            var componentProductId = RelatedVariantProductId(component.ComponentVariantId);
-                                                        }
-                                                        <div class="btn-group btn-group-sm">
-                                                        @if (!string.IsNullOrWhiteSpace(componentProductId))
-                                                        {
-                                                            <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@componentProductId" asp-route-variantId="@component.ComponentVariantId">@UiText["catalog.variants.view"]</a>
-                                                        }
-                                                            @{
-                                                                var componentVariantLabel = Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, component.ComponentVariantId, StringComparison.OrdinalIgnoreCase));
-                                                                var componentVariantDisplay = componentVariantLabel is null
-                                                                    ? component.ComponentSku
-                                                                    : $"{componentVariantLabel.Sku} - {(string.IsNullOrWhiteSpace(componentVariantLabel.Name) ? componentVariantLabel.Sku : componentVariantLabel.Name)}";
-                                                                if (!string.IsNullOrWhiteSpace(component.ComponentBarcode))
-                                                                {
-                                                                    componentVariantDisplay = $"{componentVariantDisplay} - {component.ComponentBarcode}";
-                                                                }
-                                                            }
-                                                            <button type="button" class="btn btn-outline-secondary btn-xs js-component-edit" data-component-id="@component.ComponentId" data-component-variant-id="@component.ComponentVariantId" data-component-variant-label="@componentVariantDisplay" data-component-warehouse-id="@component.WarehouseId" data-component-location-id="@component.LocationId" data-component-quantity="@component.Quantity">@UiText["common.edit"]</button>
-                                                            <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-loading-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                                <input type="hidden" name="componentId" value="@component.ComponentId" />
-                                                                <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
-                                                                <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
-                                                            </form>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
-                        }
-                    </div>
-
-                <div id="variant-addons-slot"></div>
-                <div class="card mb-4 variant-hidden-panel" id="variant-addons-card">
-                    <div class="card-body">
-                        <h5 class="card-title mb-1">@UiText["catalog.variants.addonListTitle"]</h5>
-                        @if (hasSelectedProduct && hasSelectedVariant)
-                        {
-                            <p class="text-muted small">@UiText["catalog.variants.addonListHelp"]</p>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-striped">
-                                    <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th></th></tr></thead>
-                                    <tbody>
-                                        @if (Model.VariantAddOns.Count == 0)
-                                        {
-                                            <tr><td colspan="3" class="text-muted">@UiText["catalog.variants.noAddonRegistered"]</td></tr>
-                                        }
-                                        else
-                                        {
-                                            foreach (var addOn in Model.VariantAddOns)
-                                            {
-                                                <tr>
-                                                    <td class="text-monospace">@addOn.AddOnSku</td>
-                                                    <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
-                                                    <td>
-                                                        @{
-                                                            var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
-                                                        }
-                                                        <div class="btn-group btn-group-sm">
-                                                            @if (!string.IsNullOrWhiteSpace(addOnProductId))
-                                                            {
-                                                                <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">@UiText["catalog.variants.view"]</a>
-                                                            }
-                                                            <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-loading-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                                <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
-                                                                <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
-                                                            </form>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </main>
 
 <div class="modal fade" id="variant-detail-modal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -1194,7 +788,63 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="variant-media-library-modal-body"></div>
+            <div class="modal-body" id="variant-media-library-modal-body">
+                @if (Model.SelectedVariantDetails is null)
+                {
+                    <div class="alert alert-light mb-0">
+                        <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
+                        <p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantForMedia"]</p>
+                    </div>
+                }
+                else if (Model.SelectedVariantDetails.Images.Count == 0)
+                {
+                    <div class="alert alert-light mb-0">
+                        @UiText["catalog.variants.noMediaRegistered"]
+                    </div>
+                }
+                else
+                {
+                    <div class="row">
+                        @foreach (var media in Model.SelectedVariantDetails.Images.OrderBy(x => x.DisplayOrder))
+                        {
+                            var isVideo = !string.IsNullOrWhiteSpace(media.ContentType) && media.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
+                            <div class="col-lg-4 col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        @if (isVideo)
+                                        {
+                                            <video src="@media.OriginalUrl" class="w-100 rounded border mb-2" style="max-height:200px;" controls preload="metadata"></video>
+                                        }
+                                        else
+                                        {
+                                            <img src="@media.ThumbnailUrl" alt="@media.OriginalFileName" class="img-fluid rounded border mb-2" style="max-height:200px;" />
+                                        }
+                                        <div class="small text-muted mb-2">@media.OriginalFileName</div>
+                                        <div class="mb-2">
+                                            <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.displayOrder"] @media.DisplayOrder</span>
+                                            @if (media.IsPrimary)
+                                            {
+                                                <span class="badge badge-pill badge-primary">@UiText["catalog.variants.primary"]</span>
+                                            }
+                                            <span class="badge badge-pill badge-light">@(isVideo ? UiText["catalog.variants.video"] : UiText["catalog.variants.image"])</span>
+                                        </div>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="@media.OriginalUrl" target="_blank" rel="noopener" class="btn btn-outline-info btn-xs">@UiText["catalog.variants.view"]</a>
+                                            <form asp-action="RemoveVariantImage" method="post" class="d-inline" data-loading-form>
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                <input type="hidden" name="variantId" value="@Model.SelectedVariantDetails.Id" />
+                                                <input type="hidden" name="fileKey" value="@media.FileKey" />
+                                                <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["catalog.variants.removeRelation"]</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -1208,7 +858,137 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="variant-components-modal-body"></div>
+            <div class="modal-body" id="variant-components-modal-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="card-title mb-1">@UiText["catalog.variants.componentsTitle"]</h5>
+                        <p class="text-muted small mb-0">@UiText["catalog.variants.componentsHelp"]</p>
+                    </div>
+                    @if (hasSelectedProduct && hasSelectedVariant)
+                    {
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="modal" data-target="#variant-component-modal">@UiText["catalog.variants.addOrEditComponent"]</button>
+                    }
+                </div>
+                @if (hasSelectedProduct && hasSelectedVariant)
+                {
+                    <p class="text-muted small">@UiText["catalog.variants.componentsTableHelp"]</p>
+                    <div class="modal fade" id="variant-component-modal" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">@UiText["catalog.variants.componentsTitle"]</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-loading-form data-dirty-watch>
+                                        @Html.AntiForgeryToken()
+                                        <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                                        <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                                        <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
+                                        <div class="form-row">
+                                            <div class="col-md-12 mb-2">
+                                                <label>@UiText["catalog.variants.componentVariant"]</label>
+                                                <select asp-for="VariantComponentForm.ComponentVariantId"
+                                                        class="form-control js-search-select"
+                                                        id="VariantComponentForm_ComponentVariantId"
+                                                        data-placeholder='کد یا نام واریانت را جستجو کنید'
+                                                        data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                                    <option value="">کد یا نام واریانت را جستجو کنید</option>
+                                                </select>
+                                                <small class="text-muted d-block mt-1">کد یا نام واریانت را جستجو کنید</small>
+                                            </div>
+                                        </div>
+                                        <div class="border rounded p-3 mb-3 d-none" id="variant-component-stock-panel">
+                                            <div class="form-row">
+                                                <div class="col-md-6 mb-2">
+                                                    <label>@UiText["catalog.variants.componentWarehouse"]</label>
+                                                    <select asp-for="VariantComponentForm.WarehouseId" class="form-control" id="VariantComponentForm_WarehouseId">
+                                                        <option value="">@UiText["catalog.variants.selectWarehouse"]</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label>@UiText["catalog.variants.componentLocation"]</label>
+                                                    <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
+                                                        <option value="">@UiText["catalog.variants.selectLocation"]</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="small text-muted" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</div>
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="col-md-4 mb-2">
+                                                <label>@UiText["common.count"]</label>
+                                                <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th>@UiText["common.count"]</th><th>@UiText["catalog.variants.warehouse"]</th><th>@UiText["catalog.variants.location"]</th><th></th></tr></thead>
+                            <tbody>
+                                @if (Model.VariantComponents.Count == 0)
+                                {
+                                    <tr><td colspan="6" class="text-muted">@UiText["catalog.variants.noComponentRegistered"]</td></tr>
+                                }
+                                else
+                                {
+                                    foreach (var component in Model.VariantComponents)
+                                    {
+                                        <tr>
+                                            <td class="text-monospace">@component.ComponentSku</td>
+                                            <td>@(string.IsNullOrWhiteSpace(component.ComponentBarcode) ? "-" : component.ComponentBarcode)</td>
+                                            <td>@component.Quantity</td>
+                                            <td>@(string.IsNullOrWhiteSpace(component.WarehouseCode) ? "-" : component.WarehouseCode)</td>
+                                            <td>@(string.IsNullOrWhiteSpace(component.LocationCode) ? "-" : component.LocationCode)</td>
+                                            <td>
+                                                @{
+                                                    var componentProductId = RelatedVariantProductId(component.ComponentVariantId);
+                                                }
+                                                <div class="btn-group btn-group-sm">
+                                                @if (!string.IsNullOrWhiteSpace(componentProductId))
+                                                {
+                                                    <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@componentProductId" asp-route-variantId="@component.ComponentVariantId">@UiText["catalog.variants.view"]</a>
+                                                }
+                                                    @{
+                                                        var componentVariantLabel = Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, component.ComponentVariantId, StringComparison.OrdinalIgnoreCase));
+                                                        var componentVariantDisplay = componentVariantLabel is null
+                                                            ? component.ComponentSku
+                                                            : $"{componentVariantLabel.Sku} - {(string.IsNullOrWhiteSpace(componentVariantLabel.Name) ? componentVariantLabel.Sku : componentVariantLabel.Name)}";
+                                                        if (!string.IsNullOrWhiteSpace(component.ComponentBarcode))
+                                                        {
+                                                            componentVariantDisplay = $"{componentVariantDisplay} - {component.ComponentBarcode}";
+                                                        }
+                                                    }
+                                                    <button type="button" class="btn btn-outline-secondary btn-xs js-component-edit" data-component-id="@component.ComponentId" data-component-variant-id="@component.ComponentVariantId" data-component-variant-label="@componentVariantDisplay" data-component-warehouse-id="@component.WarehouseId" data-component-location-id="@component.LocationId" data-component-quantity="@component.Quantity">@UiText["common.edit"]</button>
+                                                    <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                                        <input type="hidden" name="componentId" value="@component.ComponentId" />
+                                                        <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -1222,7 +1002,55 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="variant-addons-modal-body"></div>
+            <div class="modal-body" id="variant-addons-modal-body">
+                @if (hasSelectedProduct && hasSelectedVariant)
+                {
+                    <p class="text-muted small">@UiText["catalog.variants.addonListHelp"]</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th></th></tr></thead>
+                            <tbody>
+                                @if (Model.VariantAddOns.Count == 0)
+                                {
+                                    <tr><td colspan="3" class="text-muted">@UiText["catalog.variants.noAddonRegistered"]</td></tr>
+                                }
+                                else
+                                {
+                                    foreach (var addOn in Model.VariantAddOns)
+                                    {
+                                        <tr>
+                                            <td class="text-monospace">@addOn.AddOnSku</td>
+                                            <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
+                                            <td>
+                                                @{
+                                                    var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
+                                                }
+                                                <div class="btn-group btn-group-sm">
+                                                    @if (!string.IsNullOrWhiteSpace(addOnProductId))
+                                                    {
+                                                        <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">@UiText["catalog.variants.view"]</a>
+                                                    }
+                                                    <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-loading-form>
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                                        <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
+                                                        <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -1237,6 +1065,7 @@
                 </button>
             </div>
         <div class="modal-body">
+            <div class="alert alert-warning d-none" id="variant-tags-bulk-empty">یک یا چند مورد از موارد را انتخاب کنید</div>
             <div class="alert alert-light" id="variant-tags-modal-summary"></div>
             <div id="variant-tags-bulk-form-wrapper">
                 <form asp-action="BulkAssignVariantTags"
@@ -1345,10 +1174,12 @@
             var singleTagLookupSelect = document.getElementById('single-variant-tag-lookup');
             var tagsList = document.getElementById('variant-tags-list');
             var tagsCount = document.getElementById('variant-tags-count');
+            var tagsBulkEmpty = document.getElementById('variant-tags-bulk-empty');
             var bulkTagsSelectedIdsInput = document.getElementById('bulk-tags-selected-ids');
             var tagsBulkWrapper = document.getElementById('variant-tags-bulk-form-wrapper');
             var tagsSingleWrapper = document.getElementById('variant-tags-single-form-wrapper');
             var tagsCurrentWrapper = document.getElementById('variant-tags-current-wrapper');
+            var bulkSelectionWarning = document.getElementById('variant-bulk-selection-warning');
             var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
             var stateKey = 'catalog-variants-state-v2';
             var draftStateKey = 'catalog-variants-form-drafts-v1';
@@ -1358,9 +1189,7 @@
                 'variant-upsert-form',
                 'variant-tracking-policy-form',
                 'variant-base-uom-form',
-                'variant-uom-conversion-form',
-                'variant-component-form',
-                'variant-assembly-form'
+                'variant-component-form'
             ];
             var watchedForms = watchedFormIds
                 .map(function (formId) { return document.getElementById(formId); })
@@ -1637,6 +1466,49 @@
                 }
             }
 
+            function openModalFromHash(hash) {
+                var modalSelector = (hash || '').trim();
+                if (!modalSelector) {
+                    return;
+                }
+
+                var supportedSelectors = [
+                    '#variant-detail-modal',
+                    '#variant-media-library-modal',
+                    '#variant-components-modal',
+                    '#variant-component-modal',
+                    '#variant-addons-modal',
+                    '#variant-tags-modal'
+                ];
+
+                if (supportedSelectors.indexOf(modalSelector) < 0 || !window.jQuery) {
+                    return;
+                }
+
+                var modal = window.jQuery(modalSelector);
+                if (modal && modal.length && typeof modal.modal === 'function') {
+                    modal.modal('show');
+                }
+            }
+
+            function setBulkModalState(modalSelector, hasSelection) {
+                var modal = document.querySelector(modalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var emptyState = modal.querySelector('[data-bulk-empty]');
+                var content = modal.querySelector('[data-bulk-content]');
+
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', hasSelection);
+                }
+
+                if (content) {
+                    content.classList.toggle('d-none', !hasSelection);
+                }
+            }
+
             function revealPanel(selector) {
                 if (!selector) {
                     return;
@@ -1651,45 +1523,36 @@
                 target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
-            function wireModalCard(modalSelector, bodySelector, slotSelector, cardSelector) {
-                var modal = window.jQuery ? window.jQuery(modalSelector) : null;
-                var modalBody = document.querySelector(bodySelector);
-                var slot = document.querySelector(slotSelector);
-                var card = document.querySelector(cardSelector);
-
-                if (!modal || !modalBody || !slot || !card) {
-                    return;
-                }
-
-                modal.on('show.bs.modal', function () {
-                    card.classList.remove('variant-hidden-panel');
-                    modalBody.appendChild(card);
-                });
-
-                modal.on('hidden.bs.modal', function () {
-                    card.classList.add('variant-hidden-panel');
-                    slot.after(card);
-                });
-            }
-
             function renderTagList(tags, mode) {
                 if (!tagsList || !tagsCount) {
                     return;
                 }
 
                 var isBulkMode = mode === 'bulk';
+                var hasBulkSelection = true;
+                if (isBulkMode && tagsModal && tagsModal.attr('data-bulk-has-selection') === 'false') {
+                    hasBulkSelection = false;
+                }
+
                 if (tagsCurrentWrapper) {
-                    tagsCurrentWrapper.classList.toggle('d-none', isBulkMode);
+                    tagsCurrentWrapper.classList.toggle('d-none', isBulkMode || !hasBulkSelection);
                 }
                 if (tagsSingleWrapper) {
-                    tagsSingleWrapper.classList.toggle('d-none', isBulkMode);
+                    tagsSingleWrapper.classList.toggle('d-none', isBulkMode || !hasBulkSelection);
                 }
                 if (tagsBulkWrapper) {
-                    tagsBulkWrapper.classList.toggle('d-none', !isBulkMode);
+                    tagsBulkWrapper.classList.toggle('d-none', !isBulkMode || !hasBulkSelection);
+                }
+                if (tagsBulkEmpty) {
+                    tagsBulkEmpty.classList.toggle('d-none', !(isBulkMode && !hasBulkSelection));
                 }
 
                 tagsList.innerHTML = '';
                 tagsCount.textContent = Array.isArray(tags) ? tags.length.toString() : '0';
+
+                if (isBulkMode && !hasBulkSelection) {
+                    return;
+                }
 
                 if (isBulkMode) {
                     tagsList.innerHTML = '<div class="alert alert-info mb-0">در ثبت گروهی، لیست برچسب‌های فعلی نمایش داده نمی‌شود.</div>';
@@ -1919,17 +1782,10 @@
             clearSubmittedDraftAfterSuccess();
             restorePageState();
             restoreFormDrafts();
-            wireModalCard('#variant-media-library-modal', '#variant-media-library-modal-body', '#variant-media-library-slot', '#variant-media-library-card');
-            wireModalCard('#variant-components-modal', '#variant-components-modal-body', '#variant-components-slot', '#variant-components-card');
-            wireModalCard('#variant-addons-modal', '#variant-addons-modal-body', '#variant-addons-slot', '#variant-addons-card');
-            document.querySelectorAll('[data-show-panel]').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    revealPanel(button.getAttribute('data-show-panel'));
-                });
+            openModalFromHash(window.location.hash);
+            window.addEventListener('hashchange', function () {
+                openModalFromHash(window.location.hash);
             });
-            if (window.location.hash) {
-                revealPanel(window.location.hash);
-            }
 
             if (attributeSelect && hiddenValue && form) {
                 function parseOptions(optionElement) {
@@ -2114,12 +1970,6 @@
                 }
             }
 
-            var conversionForm = document.getElementById('variant-uom-conversion-form');
-            var conversionFromInput = document.getElementById('VariantUomConversionForm_FromUomRef');
-            var conversionToInput = document.getElementById('VariantUomConversionForm_ToUomRef');
-            var conversionFactorInput = document.getElementById('VariantUomConversionForm_Factor');
-            var conversionRoundingInput = document.getElementById('VariantUomConversionForm_RoundingMode');
-            var conversionBasePathInput = document.getElementById('VariantUomConversionForm_IsBasePath');
             var componentEditor = window.jQuery ? window.jQuery('#variant-component-modal') : null;
             var componentIdInput = document.getElementById('VariantComponentForm_ComponentId');
             var componentVariantInput = document.getElementById('VariantComponentForm_ComponentVariantId');
@@ -2307,36 +2157,6 @@
                     });
             }
 
-            document.querySelectorAll('.conversion-edit-btn').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    if (!conversionForm) {
-                        return;
-                    }
-
-                    revealPanel('#variant-conversions-card');
-                    if (conversionFromInput) {
-                        conversionFromInput.value = button.getAttribute('data-from-uom') || '';
-                        conversionFromInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                    if (conversionToInput) {
-                        conversionToInput.value = button.getAttribute('data-to-uom') || '';
-                        conversionToInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                    if (conversionFactorInput) {
-                        conversionFactorInput.value = button.getAttribute('data-factor') || '1';
-                    }
-                    if (conversionRoundingInput) {
-                        conversionRoundingInput.value = button.getAttribute('data-rounding') || 'None';
-                        conversionRoundingInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                    if (conversionBasePathInput) {
-                        conversionBasePathInput.checked = (button.getAttribute('data-is-base-path') || '').toLowerCase() === 'true';
-                    }
-
-                    conversionForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                });
-            });
-
             if (componentWarehouseInput) {
                 componentWarehouseInput.addEventListener('change', function () {
                     setLocationOptionsForWarehouse(componentWarehouseInput.value || '');
@@ -2358,13 +2178,16 @@
             if (tagsModal) {
                 tagsModal.on('show.bs.modal', function (event) {
                     var trigger = event && event.relatedTarget ? event.relatedTarget : null;
+                    var pageVariantId = pageElement ? (pageElement.getAttribute('data-selected-variant-id') || '') : '';
+                    var pageVariantLabel = pageElement ? (pageElement.getAttribute('data-selected-variant-name') || '') : '';
                     var mode = trigger ? (trigger.getAttribute('data-tag-mode') || 'single') : (tagsModal.attr('data-tag-mode') || 'single');
-                    var variantId = trigger ? (trigger.getAttribute('data-variant-id') || '') : (tagsModal.attr('data-variant-id') || '');
-                    var label = trigger ? (trigger.getAttribute('data-variant-label') || '') : (tagsModal.attr('data-variant-label') || '');
+                    var variantId = trigger ? (trigger.getAttribute('data-variant-id') || '') : (tagsModal.attr('data-variant-id') || pageVariantId);
+                    var label = trigger ? (trigger.getAttribute('data-variant-label') || '') : (tagsModal.attr('data-variant-label') || pageVariantLabel);
 
                     tagsModal.attr('data-tag-mode', mode);
                     tagsModal.attr('data-variant-id', variantId);
                     tagsModal.attr('data-variant-label', label);
+                    tagsModal.attr('data-bulk-has-selection', (mode === 'bulk' && (bulkTagsSelectedIdsInput ? (bulkTagsSelectedIdsInput.value || '').trim() : '').length === 0) ? 'false' : 'true');
                     if (tagsBulkForm) {
                         tagsBulkForm.classList.toggle('d-none', mode !== 'bulk');
                     }
@@ -2379,14 +2202,15 @@
                         tagsSingleVariantId.value = mode === 'bulk' ? '' : (variantId || '');
                     }
                     if (mode === 'bulk') {
-                if (tagsSingleTagId) { tagsSingleTagId.value = ''; }
-                if (tagsSingleTagName) { tagsSingleTagName.value = ''; }
-                if (tagsSingleTagColor) { tagsSingleTagColor.value = ''; }
-            }
+                        if (tagsSingleTagId) { tagsSingleTagId.value = ''; }
+                        if (tagsSingleTagName) { tagsSingleTagName.value = ''; }
+                        if (tagsSingleTagColor) { tagsSingleTagColor.value = ''; }
+                    }
 
                     if (mode === 'bulk' && bulkTagsSelectedIdsInput) {
                         var selectedIdsInput = document.querySelector('#variant-list-scope input[name="selectedIds"][data-bulk-target]');
                         bulkTagsSelectedIdsInput.value = selectedIdsInput ? (selectedIdsInput.value || '') : '';
+                        tagsModal.attr('data-bulk-has-selection', ((selectedIdsInput ? (selectedIdsInput.value || '') : '').trim().length > 0) ? 'true' : 'false');
                     }
 
                     loadVariantTagsForModal(variantId, mode, label);
@@ -2455,19 +2279,6 @@
                                 updateComponentStockSummary('Loading inventory options failed.');
                             });
                     }
-                });
-            });
-
-            document.querySelectorAll('.js-variant-tags').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    if (!tagsModal) {
-                        return;
-                    }
-
-                    tagsModal.attr('data-tag-mode', 'single');
-                    tagsModal.attr('data-variant-id', button.getAttribute('data-variant-id') || '');
-                    tagsModal.attr('data-variant-label', button.getAttribute('data-variant-label') || '');
-                    tagsModal.modal('show');
                 });
             });
 
@@ -2576,22 +2387,75 @@
             }
 
             function updateBulkModalTriggers() {
-                var hasSelection = getSelectedVariantCount() > 0;
-                document.querySelectorAll('[data-requires-bulk-selection]').forEach(function (button) {
-                    button.disabled = !hasSelection;
+                var selectedCount = getSelectedVariantCount();
+
+                document.querySelectorAll('[data-bulk-count]').forEach(function (countElement) {
+                    countElement.textContent = selectedCount.toString();
                 });
+
+                document.querySelectorAll('[data-requires-bulk-selection]').forEach(function (button) {
+                    button.disabled = selectedCount === 0;
+                });
+
+                if (bulkSelectionWarning) {
+                    bulkSelectionWarning.classList.toggle('d-none', selectedCount > 0);
+                }
+            }
+
+            function showModal(selector) {
+                if (!selector || !window.jQuery) {
+                    return;
+                }
+
+                var modal = window.jQuery(selector);
+                if (modal && modal.length && typeof modal.modal === 'function') {
+                    modal.modal('show');
+                }
             }
 
             document.querySelectorAll('[data-requires-bulk-selection]').forEach(function (button) {
                 button.addEventListener('click', function (event) {
-                    if (getSelectedVariantCount() > 0) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    var target = button.getAttribute('data-target') || '';
+                    var hasSelection = getSelectedVariantCount() > 0;
+
+                    if (!hasSelection) {
+                        if (bulkSelectionWarning) {
+                            bulkSelectionWarning.classList.remove('d-none');
+                        }
+
                         return;
                     }
 
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-                    window.alert((window.appUi && window.appUi.text && window.appUi.text["bulk.selectAtLeastOne"]) || "حداقل یک ردیف را برای عملیات گروهی انتخاب کنید.");
+                    if (target === '#variant-tags-modal') {
+                        if (tagsModal) {
+                            tagsModal.attr('data-tag-mode', 'bulk');
+                            tagsModal.attr('data-variant-id', '');
+                            tagsModal.attr('data-variant-label', '');
+                            tagsModal.attr('data-bulk-has-selection', hasSelection ? 'true' : 'false');
+                        }
+
+                        showModal(target);
+                        return;
+                    }
+
+                    setBulkModalState(target, hasSelection);
+                    showModal(target);
                 }, true);
+            });
+
+            $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
+                var hasSelection = getSelectedVariantCount() > 0;
+                setBulkModalState('#variant-bulk-addon-modal', hasSelection);
+                if (hasSelection) {
+                    setBulkAddonSelection([]);
+                }
+            });
+
+            $('#variant-bulk-media-modal').on('show.bs.modal', function () {
+                var hasSelection = getSelectedVariantCount() > 0;
+                setBulkModalState('#variant-bulk-media-modal', hasSelection);
             });
 
             function renderBulkAddonSelector() {
@@ -2730,10 +2594,6 @@
                     $('#bulk-addon-selector-modal').modal('hide');
                 });
             }
-
-            $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
-                setBulkAddonSelection([]);
-            });
 
             $('#bulk-addon-selector-modal').on('show.bs.modal', function () {
                 renderBulkAddonSelector();
@@ -2890,20 +2750,28 @@
                 var itemsWrap = root.querySelector('[data-media-items]');
                 var emptyState = root.querySelector('[data-media-empty]');
                 var form = root.closest('form');
-                var hiddenInput = form && inputName ? form.querySelector('[name="' + inputName + '"]') : null;
+                var hiddenInput = null;
+                if (inputName) {
+                    hiddenInput = root.querySelector('[name="' + inputName + '"]') || (form ? form.querySelector('[name="' + inputName + '"]') : null);
+                }
 
-                if (!baseUrl || !policy || !fileInput || !itemsWrap || !hiddenInput) {
+                if (!baseUrl || !policy || !fileInput || !itemsWrap) {
+                    if (status) {
+                        status.textContent = @Html.Raw(JsonSerializer.Serialize(UiText["variant.media.fileServiceUnavailable"]));
+                    }
                     return;
                 }
 
                 var state = {
-                    items: normalizeItems(parseJson(hiddenInput.value))
+                    items: normalizeItems(parseJson(hiddenInput ? hiddenInput.value : '[]'))
                 };
 
                 function sync() {
                     state.items = normalizeItems(state.items);
-                    hiddenInput.value = JSON.stringify(state.items);
-                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (hiddenInput) {
+                        hiddenInput.value = JSON.stringify(state.items);
+                        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                     if (emptyState) {
                         emptyState.classList.toggle('d-none', state.items.length > 0);
                     }
@@ -2921,15 +2789,15 @@
                                     previewHtml +
                                     '<div class="small text-muted mb-2">' + escapeHtml(item.originalFileName) + '</div>' +
                                     '<div class="mb-2">' +
-                                        '<span class="badge badge-pill badge-outline-primary>' + @JsonSerializer.Serialize(UiText["catalog.variants.displayOrder"]) + ' ' + item.displayOrder + '</span> ' +
-                                        (item.isPrimary ? '<span class="badge badge-pill badge-primary>' + @JsonSerializer.Serialize(UiText["catalog.variants.primary"]) + '</span> ' : '') +
-                                        '<span class="badge badge-pill badge-light>' + (isVideoItem(item) ? @JsonSerializer.Serialize(UiText["catalog.variants.video"]) : @JsonSerializer.Serialize(UiText["catalog.variants.image"])) + '</span>' +
+                                        '<span class="badge badge-pill badge-outline-primary">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.displayOrder"])) + ' ' + item.displayOrder + '</span> ' +
+                                        (item.isPrimary ? '<span class="badge badge-pill badge-primary">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.primary"])) + '</span> ' : '') +
+                                        '<span class="badge badge-pill badge-light">' + (isVideoItem(item) ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.video"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.image"]))) + '</span>' +
                                     '</div>' +
                                     '<div class="btn-group btn-group-sm flex-wrap">' +
-                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-up">' + @JsonSerializer.Serialize(UiText["catalog.variants.moveUp"]) + '</button>' +
-                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-down">' + @JsonSerializer.Serialize(UiText["catalog.variants.moveDown"]) + '</button>' +
-                                        '<button type="button" class="btn btn-outline-primary btn-xs" data-media-action="make-primary">' + @JsonSerializer.Serialize(UiText["catalog.variants.primary"]) + '</button>' +
-                                        '<button type="button" class="btn btn-outline-danger btn-xs" data-media-action="remove">' + @JsonSerializer.Serialize(UiText["common.delete"]) + '</button>' +
+                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-up">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.moveUp"])) + '</button>' +
+                                        '<button type="button" class="btn btn-outline-secondary btn-xs" data-media-action="move-down">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.moveDown"])) + '</button>' +
+                                        '<button type="button" class="btn btn-outline-primary btn-xs" data-media-action="make-primary">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.primary"])) + '</button>' +
+                                        '<button type="button" class="btn btn-outline-danger btn-xs" data-media-action="remove">' + @Html.Raw(JsonSerializer.Serialize(UiText["common.delete"])) + '</button>' +
                                     '</div>' +
                                 '</div></div>' +
                             '</div>';
@@ -3092,7 +2960,3 @@
         })();
     </script>
 }
-
-
-
-
