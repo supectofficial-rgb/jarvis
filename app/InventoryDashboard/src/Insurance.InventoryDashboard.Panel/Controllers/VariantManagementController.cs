@@ -181,10 +181,42 @@ public sealed class VariantManagementController : CatalogManagementController
                     lotBatchNo = x.LotBatchNo,
                     quantityOnHand = x.QuantityOnHand
                 };
-            })
+                })
             .ToList();
 
-        return Json(items);
+        var summary = items
+            .GroupBy(x => x.warehouseRef, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new
+            {
+                warehouseRef = group.Key,
+                warehouseCode = group.First().warehouseCode,
+                warehouseName = group.First().warehouseName,
+                warehouseLabel = group.First().warehouseLabel,
+                quantityOnHand = group.Sum(x => x.quantityOnHand),
+                bucketCount = group.Count(),
+                locations = group
+                    .Select(x => new
+                    {
+                        locationRef = x.locationRef,
+                        locationCode = x.locationCode,
+                        locationType = x.locationType,
+                        locationLabel = x.locationLabel,
+                        qualityStatusLabel = x.qualityStatusLabel,
+                        lotBatchNo = x.lotBatchNo,
+                        quantityOnHand = x.quantityOnHand
+                    })
+                    .OrderBy(x => x.locationLabel)
+                    .ThenBy(x => x.qualityStatusLabel)
+                    .ToList()
+            })
+            .OrderBy(x => x.warehouseLabel)
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            items = summary
+        });
     }
 
     [HttpGet]
@@ -200,13 +232,74 @@ public sealed class VariantManagementController : CatalogManagementController
             return BadRequest(new { error = "Ã˜Â´Ã™â€ Ã˜Â§Ã˜Â³Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã™â€ Ã›Å’Ã˜Â³Ã˜Âª." });
         }
 
-        var result = await _apiService.SearchSellerVariantPricesAsync(token, variantRef: variantRef, pageSize: 100);
-        if (!result.IsSuccess)
+        var pricesTask = _inventoryApiService.SearchSellerVariantPricesAsync(token, variantRef: variantRef, pageSize: 100);
+        var sellersTask = _inventoryApiService.GetSellerLookupAsync(token, includeInactive: true);
+        var priceTypesTask = _inventoryApiService.GetPriceTypeLookupAsync(token, includeInactive: true);
+        var priceChannelsTask = _inventoryApiService.GetPriceChannelLookupAsync(token, includeInactive: true);
+
+        await Task.WhenAll(pricesTask, sellersTask, priceTypesTask, priceChannelsTask);
+
+        if (!pricesTask.Result.IsSuccess || !sellersTask.Result.IsSuccess || !priceTypesTask.Result.IsSuccess || !priceChannelsTask.Result.IsSuccess)
         {
-            return Json(new { error = result.ErrorMessage });
+            return Json(new
+            {
+                isSuccess = false,
+                error = string.Join(" | ", new[]
+                {
+                    pricesTask.Result.ErrorMessage,
+                    sellersTask.Result.ErrorMessage,
+                    priceTypesTask.Result.ErrorMessage,
+                    priceChannelsTask.Result.ErrorMessage
+                }.Where(x => !string.IsNullOrWhiteSpace(x)))
+            });
         }
 
-        return Json(result.Data?.Items ?? new List<SellerVariantPriceModel>());
+        var sellers = (sellersTask.Result.Data ?? new List<SellerLookupItemModel>())
+            .ToDictionary(x => x.SellerBusinessKey, x => x);
+        var priceTypes = (priceTypesTask.Result.Data?.Items ?? new List<PriceTypeLookupModel>())
+            .ToDictionary(x => x.PriceTypeBusinessKey, x => x);
+        var priceChannels = (priceChannelsTask.Result.Data?.Items ?? new List<PriceChannelLookupModel>())
+            .ToDictionary(x => x.PriceChannelBusinessKey, x => x);
+
+        var items = (pricesTask.Result.Data?.Items ?? new List<SellerVariantPriceModel>())
+            .OrderBy(x => x.SellerRef)
+            .ThenBy(x => x.PriceTypeRef)
+            .ThenBy(x => x.PriceChannelRef)
+            .ThenBy(x => x.Priority)
+            .Select(x =>
+            {
+                sellers.TryGetValue(x.SellerRef.ToString("D"), out var seller);
+                priceTypes.TryGetValue(x.PriceTypeRef, out var priceType);
+                priceChannels.TryGetValue(x.PriceChannelRef, out var priceChannel);
+
+                var sellerLabel = seller is null ? x.SellerRef.ToString("D") : $"{seller.Code} - {seller.Name}";
+                var priceTypeLabel = priceType is null ? x.PriceTypeRef.ToString("D") : $"{priceType.Code} - {priceType.Name}";
+                var priceChannelLabel = priceChannel is null ? x.PriceChannelRef.ToString("D") : $"{priceChannel.Code} - {priceChannel.Name}";
+
+                return new
+                {
+                    sellerRef = x.SellerRef.ToString("D"),
+                    sellerLabel,
+                    priceTypeRef = x.PriceTypeRef.ToString("D"),
+                    priceTypeLabel,
+                    priceChannelRef = x.PriceChannelRef.ToString("D"),
+                    priceChannelLabel,
+                    amount = x.Amount,
+                    currency = x.Currency,
+                    minQty = x.MinQty,
+                    priority = x.Priority,
+                    effectiveFrom = x.EffectiveFrom,
+                    effectiveTo = x.EffectiveTo,
+                    isActive = x.IsActive
+                };
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            items
+        });
     }
 
     [HttpGet]

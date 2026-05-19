@@ -958,20 +958,32 @@ public abstract partial class CatalogManagementController : Controller
             })
             .ToList();
 
+        var warehouseById = warehouses.ToDictionary(x => x.warehouseId, x => x, StringComparer.OrdinalIgnoreCase);
+
         var locations = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
             .Where(x => locationIds.Contains(x.LocationBusinessKey))
             .OrderBy(x => x.LocationCode)
             .ThenBy(x => x.LocationType)
-            .Select(x => new
+            .ThenBy(x => x.WarehouseRef)
+            .Select(x =>
             {
-                id = x.LocationBusinessKey,
-                locationId = x.LocationBusinessKey,
-                warehouseId = x.WarehouseRef,
-                text = string.IsNullOrWhiteSpace(x.LocationType)
+                var warehouse = warehouseById.TryGetValue(x.WarehouseRef, out var warehouseItem) ? warehouseItem : null;
+                var warehouseLabel = warehouse is null ? x.WarehouseRef : warehouse.text;
+                var locationLabel = string.IsNullOrWhiteSpace(x.LocationType)
                     ? x.LocationCode
-                    : $"{x.LocationCode} ({x.LocationType})",
-                code = x.LocationCode,
-                type = x.LocationType
+                    : $"{x.LocationCode} ({x.LocationType})";
+
+                return new
+                {
+                    id = x.LocationBusinessKey,
+                    locationId = x.LocationBusinessKey,
+                    warehouseId = x.WarehouseRef,
+                    warehouseText = warehouseLabel,
+                    locationText = locationLabel,
+                    text = $"{warehouseLabel} - {locationLabel}",
+                    code = x.LocationCode,
+                    type = x.LocationType
+                };
             })
             .ToList();
 

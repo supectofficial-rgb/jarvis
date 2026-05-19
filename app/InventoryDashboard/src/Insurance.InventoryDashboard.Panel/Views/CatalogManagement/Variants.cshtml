@@ -39,24 +39,6 @@
     var selectedProduct = Model.Products.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedProductId, StringComparison.OrdinalIgnoreCase));
     var selectedVariant = Model.Variants.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedVariantId, StringComparison.OrdinalIgnoreCase));
     var selectedVariantName = selectedVariant?.Name ?? selectedVariant?.Sku ?? Model.SelectedVariantDetails?.Sku;
-    var bulkMediaUploadedJson = TempData["BulkVariantImagesJson"] as string;
-    var bulkMediaUploadedItems = new List<VariantImageModel>();
-    if (!string.IsNullOrWhiteSpace(bulkMediaUploadedJson))
-    {
-        try
-        {
-            bulkMediaUploadedItems = JsonSerializer.Deserialize<List<VariantImageModel>>(
-                bulkMediaUploadedJson,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? new List<VariantImageModel>();
-        }
-        catch
-        {
-            bulkMediaUploadedItems = new List<VariantImageModel>();
-        }
-    }
     string? RelatedVariantProductId(string? variantId)
     {
         if (string.IsNullOrWhiteSpace(variantId))
@@ -391,49 +373,6 @@
                             </div>
                         </div>
                         <div class="alert alert-warning d-none py-2 mb-3" id="variant-bulk-selection-warning">یک یا چند مورد از موارد را انتخاب کنید</div>
-                        @if (bulkMediaUploadedItems.Count > 0)
-                        {
-                            <div class="card mb-3" id="variant-bulk-upload-summary">
-                                <div class="card-body">
-                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                                        <div>
-                                            <h6 class="card-title mb-1">@UiText["catalog.variants.bulkMediaTitle"]</h6>
-                                            <p class="text-muted small mb-0">@UiText["variant.media.bulkHelp"]</p>
-                                        </div>
-                                        <span class="badge badge-pill badge-outline-primary">@bulkMediaUploadedItems.Count</span>
-                                    </div>
-                                    <div class="row">
-                                        @foreach (var media in bulkMediaUploadedItems.OrderBy(x => x.DisplayOrder))
-                                        {
-                                            var isVideo = !string.IsNullOrWhiteSpace(media.ContentType) && media.ContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
-                                            <div class="col-lg-4 col-md-6 mb-3">
-                                                <div class="card h-100">
-                                                    <div class="card-body">
-                                                        @if (isVideo)
-                                                        {
-                                                            <video src="@media.OriginalUrl" class="w-100 rounded border mb-2" style="max-height:180px;" controls preload="metadata"></video>
-                                                        }
-                                                        else
-                                                        {
-                                                            <img src="@media.ThumbnailUrl" alt="@media.OriginalFileName" class="img-fluid rounded border mb-2" style="max-height:180px;" />
-                                                        }
-                                                        <div class="small text-muted mb-2">@media.OriginalFileName</div>
-                                                        <div class="mb-2">
-                                                            <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.displayOrder"] @media.DisplayOrder</span>
-                                                            @if (media.IsPrimary)
-                                                            {
-                                                                <span class="badge badge-pill badge-primary">@UiText["catalog.variants.primary"]</span>
-                                                            }
-                                                            <span class="badge badge-pill badge-light">@(isVideo ? UiText["catalog.variants.video"] : UiText["catalog.variants.image"])</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        }
                         <form asp-action="ApplyVariantBulkAction"
                               method="post"
                               class="form-inline mb-3"
@@ -508,8 +447,7 @@
                                                 @Html.AntiForgeryToken()
                                                 <input asp-for="BulkVariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                                                 <input asp-for="BulkVariantAddOnForm.SelectedVariantIds" type="hidden" data-bulk-target />
-                                                <input asp-for="BulkVariantAddOnForm.SelectedAddOnVariantIds" type="hidden" id="bulk-addon-selected-ids" />
-                                                <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" id="bulk-addon-primary-id" />
+                                                <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" />
                                                 <input type="hidden" data-bulk-action-input />
                                                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
                                                     <div>
@@ -518,36 +456,23 @@
                                                     </div>
                                                     <span class="badge badge-pill badge-outline-primary">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></span>
                                                 </div>
-                                                <div class="form-row align-items-end">
-                                                    <div class="col-md-9 mb-2">
-                                                        <label>@UiText["catalog.variants.addonVariant"]</label>
-                                                        <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
-                                                                class="form-control js-search-select"
-                                                                data-placeholder='کد یا نام ادزآن را جستجو کنید'
-                                                                data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
-                                                            <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
-                                                        </select>
-                                                        <div class="small text-muted mt-2">کد یا نام ادزآن را جستجو کنید</div>
-                                                        <button type="button"
-                                                                class="btn btn-outline-secondary btn-block text-left mt-2"
-                                                                data-toggle="modal"
-                                                                data-target="#bulk-addon-selector-modal">
-                                                            @UiText["catalog.variants.selectMultipleAddons"]
-                                                        </button>
-                                                        <div class="small text-muted mt-2">@UiText["catalog.variants.multiAddonSearchHelp"]</div>
-                                                        <div class="border rounded bg-white p-2 mt-2" id="bulk-addon-selection-summary">
-                                                            <span class="text-muted small" data-empty-text>@UiText["catalog.variants.noAddonSelectedYet"]</span>
-                                                            <div class="d-flex flex-wrap" id="bulk-addon-selection-pills"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3 mb-2">
-                                                        <button type="submit"
-                                                                class="btn btn-outline-primary btn-block"
-                                                                data-bulk-action="assign-addon"
-                                                                data-bulk-permission="allowed">
-                                                            @UiText["catalog.variants.registerForSelections"]
-                                                        </button>
-                                                    </div>
+                                                <div class="form-group mb-2">
+                                                    <label>@UiText["catalog.variants.addonVariant"]</label>
+                                                    <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
+                                                            class="form-control js-search-select"
+                                                            data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'
+                                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                                        <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
+                                                    </select>
+                                                    <div class="small text-muted mt-2">یک واریانت را از نتایج جستجو انتخاب کن.</div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <button type="submit"
+                                                            class="btn btn-outline-primary"
+                                                            data-bulk-action="assign-addon"
+                                                            data-bulk-permission="allowed">
+                                                        @UiText["catalog.variants.registerForSelections"]
+                                                    </button>
                                                 </div>
                                             </form>
                                         </div>
@@ -658,13 +583,13 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm">
-                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
-                                                                data-detail-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
+                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-stock-details"
+                                                                data-stock-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.inventoryAndWarehouses"]">
                                                             @UiText["catalog.variants.warehousesButton"]
                                                         </button>
-                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-detail"
-                                                                data-detail-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
+                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-prices-details"
+                                                                data-prices-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.pricesTitle"]">
                                                             @UiText["catalog.variants.pricesButton"]
                                                         </button>
@@ -774,6 +699,38 @@
             </div>
             <div class="modal-body">
                 <div id="variant-detail-modal-body" class="table-responsive small text-muted">@UiText["catalog.variants.loading"]</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="variant-stock-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="variant-stock-modal-title">@UiText["catalog.variants.inventoryAndWarehouses"]</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="variant-stock-modal-body" class="table-responsive small text-muted">@UiText["catalog.variants.loading"]</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="variant-prices-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="variant-prices-modal-title">@UiText["catalog.variants.pricesTitle"]</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="variant-prices-modal-body" class="table-responsive small text-muted">@UiText["catalog.variants.loading"]</div>
             </div>
         </div>
     </div>
@@ -902,13 +859,8 @@
                                         </div>
                                         <div class="border rounded p-3 mb-3 d-none" id="variant-component-stock-panel">
                                             <div class="form-row">
-                                                <div class="col-md-6 mb-2">
-                                                    <label>@UiText["catalog.variants.componentWarehouse"]</label>
-                                                    <select asp-for="VariantComponentForm.WarehouseId" class="form-control" id="VariantComponentForm_WarehouseId">
-                                                        <option value="">@UiText["catalog.variants.selectWarehouse"]</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-6 mb-2">
+                                                <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
+                                                <div class="col-md-12 mb-2">
                                                     <label>@UiText["catalog.variants.componentLocation"]</label>
                                                     <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
                                                         <option value="">@UiText["catalog.variants.selectLocation"]</option>
@@ -1060,91 +1012,98 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="variant-tags-modal-title">برچسب واریانت</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
-                    <span aria-hidden="true">&times;</span>
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm ml-auto mr-2 d-none"
+                        id="variant-tags-create-toggle">
+                    +
                 </button>
-            </div>
-        <div class="modal-body">
-            <div class="alert alert-warning d-none" id="variant-tags-bulk-empty">یک یا چند مورد از موارد را انتخاب کنید</div>
-            <div class="alert alert-light" id="variant-tags-modal-summary"></div>
-            <div id="variant-tags-bulk-form-wrapper">
-                <form asp-action="BulkAssignVariantTags"
-                      method="post"
-                      class="mb-3"
-                      id="variant-tags-bulk-form"
-                      data-loading-form>
-                    @Html.AntiForgeryToken()
-                    <input asp-for="BulkVariantTagForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                    <input asp-for="BulkVariantTagForm.SelectedVariantIds" type="hidden" id="bulk-tags-selected-ids" />
-                    <div class="form-group">
-                        <label>برچسب‌ها</label>
-                        <select id="bulk-variant-tag-lookup"
-                                class="form-control js-search-select"
-                                multiple
-                                data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
-                        <input asp-for="BulkVariantTagForm.TagNames" type="hidden" />
-                        <div class="small text-muted mt-2">این فیلد از برچسب‌های ثبت‌شده در سیستم تغذیه می‌شود.</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block">ثبت گروهی برچسب</button>
-                </form>
-            </div>
-
-            <div id="variant-tags-single-form-wrapper">
-                <form asp-action="UpsertVariantTag"
-                      method="post"
-                      id="variant-tag-form"
-                      data-loading-form>
-                    @Html.AntiForgeryToken()
-                    <input asp-for="VariantTagForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                    <input asp-for="VariantTagForm.VariantId" type="hidden" />
-                    <input asp-for="VariantTagForm.TagId" type="hidden" />
-                    <div class="form-row">
-                        <div class="col-md-8 mb-2">
-                            <label>نام برچسب</label>
-                            <select id="single-variant-tag-lookup"
-                                    class="form-control js-search-select"
-                                    data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
-                            <input asp-for="VariantTagForm.TagName" type="hidden" />
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>رنگ برچسب</label>
-                        <input asp-for="VariantTagForm.TagColor" class="form-control" placeholder="#ffcc00" />
-                    </div>
-                    <button type="submit" class="btn btn-outline-primary btn-block">ثبت برچسب</button>
-                </form>
-            </div>
-
-            <div id="variant-tags-current-wrapper">
-                <hr />
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong>برچسب‌های فعلی</strong>
-                    <span class="text-muted small" id="variant-tags-count">0</span>
-                </div>
-                <div id="variant-tags-list" class="d-flex flex-wrap"></div>
-            </div>
-        </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="bulk-addon-selector-modal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">@UiText["catalog.variants.selectAddon"]</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <input type="search" class="form-control mb-3" id="bulk-addon-search" placeholder="@UiText["catalog.variants.searchSkuOrBarcode"]" />
-                <div class="small text-muted mb-2">@UiText["catalog.variants.multiAddonSelectHelp"]</div>
-                <div class="list-group" id="bulk-addon-selector-list" style="max-height:420px; overflow:auto;"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">@UiText["catalog.variants.close"]</button>
-                <button type="button" class="btn btn-primary" id="bulk-addon-apply-selection">@UiText["catalog.variants.applySelection"]</button>
+                <div class="alert alert-warning d-none" id="variant-tags-bulk-empty">یک یا چند مورد از موارد را انتخاب کنید</div>
+                <div class="alert alert-light" id="variant-tags-modal-summary"></div>
+                <div id="variant-tags-create-card" class="card mb-3 d-none">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>ایجاد برچسب جدید</strong>
+                            <button type="button" class="btn btn-link btn-sm p-0" id="variant-tags-create-cancel">بستن</button>
+                        </div>
+                        <form asp-action="UpsertVariantTag"
+                              method="post"
+                              id="variant-tag-create-form"
+                              data-loading-form>
+                            @Html.AntiForgeryToken()
+                            <input name="VariantTagForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                            <input name="VariantTagForm.VariantId" type="hidden" value="" />
+                            <input name="VariantTagForm.TagId" type="hidden" value="" />
+                            <input name="VariantTagForm.TagColor" type="hidden" value="" />
+                            <div class="form-group">
+                                <label>نام برچسب</label>
+                                <input name="VariantTagForm.TagName" class="form-control" placeholder="مثلا ویژه یا تخفیف" />
+                            </div>
+                            <button type="submit" class="btn btn-primary">تایید</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="variant-tags-bulk-form-wrapper">
+                    <form asp-action="BulkAssignVariantTags"
+                          method="post"
+                          class="mb-3"
+                          id="variant-tags-bulk-form"
+                          data-loading-form>
+                        @Html.AntiForgeryToken()
+                        <input asp-for="BulkVariantTagForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                        <input asp-for="BulkVariantTagForm.SelectedVariantIds" type="hidden" id="bulk-tags-selected-ids" />
+                        <div class="form-group">
+                            <label>برچسب‌ها</label>
+                            <select id="bulk-variant-tag-lookup"
+                                    class="form-control js-search-select"
+                                    multiple
+                                    data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
+                            <input asp-for="BulkVariantTagForm.TagNames" type="hidden" />
+                            <div class="small text-muted mt-2">این فیلد از برچسب‌های ثبت‌شده در سیستم تغذیه می‌شود.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">ثبت گروهی برچسب</button>
+                    </form>
+                </div>
+
+                <div id="variant-tags-single-form-wrapper">
+                    <form asp-action="UpsertVariantTag"
+                          method="post"
+                          id="variant-tag-form"
+                          data-loading-form>
+                        @Html.AntiForgeryToken()
+                        <input asp-for="VariantTagForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                        <input asp-for="VariantTagForm.VariantId" type="hidden" />
+                        <input asp-for="VariantTagForm.TagId" type="hidden" />
+                        <div class="form-row">
+                            <div class="col-md-8 mb-2">
+                                <label>نام برچسب</label>
+                                <select id="single-variant-tag-lookup"
+                                        class="form-control js-search-select"
+                                        data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
+                                <input asp-for="VariantTagForm.TagName" type="hidden" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>رنگ برچسب</label>
+                            <input asp-for="VariantTagForm.TagColor" class="form-control" placeholder="#ffcc00" />
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary btn-block">ثبت برچسب</button>
+                    </form>
+                </div>
+
+                <div id="variant-tags-current-wrapper">
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>برچسب‌های فعلی</strong>
+                        <span class="text-muted small" id="variant-tags-count">0</span>
+                    </div>
+                    <div id="variant-tags-list" class="d-flex flex-wrap"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1170,6 +1129,15 @@
             var tagsSingleTagId = document.getElementById('VariantTagForm_TagId');
             var tagsSingleTagName = document.getElementById('VariantTagForm_TagName');
             var tagsSingleTagColor = document.getElementById('VariantTagForm_TagColor');
+            var tagsCreateToggle = document.getElementById('variant-tags-create-toggle');
+            var tagsCreateCard = document.getElementById('variant-tags-create-card');
+            var tagsCreateCancel = document.getElementById('variant-tags-create-cancel');
+            var tagsCreateForm = document.getElementById('variant-tag-create-form');
+            var tagsCreateProductId = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.ProductId"]') : null;
+            var tagsCreateVariantId = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.VariantId"]') : null;
+            var tagsCreateTagId = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagId"]') : null;
+            var tagsCreateTagName = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagName"]') : null;
+            var tagsCreateTagColor = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagColor"]') : null;
             var bulkTagLookupSelect = document.getElementById('bulk-variant-tag-lookup');
             var singleTagLookupSelect = document.getElementById('single-variant-tag-lookup');
             var tagsList = document.getElementById('variant-tags-list');
@@ -1181,6 +1149,9 @@
             var tagsCurrentWrapper = document.getElementById('variant-tags-current-wrapper');
             var bulkSelectionWarning = document.getElementById('variant-bulk-selection-warning');
             var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
+            var tagLookupItems = [];
+            var tagLookupPromise = null;
+            var tagLookupTake = 200;
             var stateKey = 'catalog-variants-state-v2';
             var draftStateKey = 'catalog-variants-form-drafts-v1';
             var submittedFormKey = 'catalog-variants-last-submitted-form-v1';
@@ -1204,79 +1175,132 @@
                 });
             }
 
-            function renderStockBucketTable(items) {
-                var columns = [
-                    { key: 'warehouseLabel', title: 'انبار' },
-                    { key: 'locationLabel', title: 'لوکیشن' },
-                    { key: 'qualityStatusLabel', title: 'وضعیت کیفی' },
-                    { key: 'lotBatchNo', title: 'لات / بچ' },
-                    { key: 'quantityOnHand', title: 'موجودی' }
-                ];
-
-                var head = columns.map(function (column) {
-                    return '<th>' + column.title + '</th>';
-                }).join('');
-
-                var rows = items.map(function (item) {
-                    return '<tr>' + columns.map(function (column) {
-                        var value = item ? item[column.key] : null;
-                        return '<td>' + (value === null || value === undefined || value === '' ? '-' : String(value)) + '</td>';
-                    }).join('') + '</tr>';
-                }).join('');
-
-                return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
+            function escapeHtml(value) {
+                return (value === null || value === undefined ? '' : String(value))
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
             }
 
-            function renderDetailTable(items) {
+            function formatDateTime(value) {
+                if (!value) {
+                    return '-';
+                }
+
+                var date = new Date(value);
+                if (isNaN(date.getTime())) {
+                    return String(value);
+                }
+
+                return date.toLocaleString('fa-IR');
+            }
+
+            function renderWarehouseDetails(items) {
                 if (!Array.isArray(items) || items.length === 0) {
-                    return '<div class="text-muted>' + @JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]) + '</div>';
+                    return '<div class="alert alert-light mb-0">' + @JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]) + '</div>';
                 }
 
-                var firstItem = items[0] || {};
-                if (Object.prototype.hasOwnProperty.call(firstItem, 'warehouseLabel') ||
-                    Object.prototype.hasOwnProperty.call(firstItem, 'quantityOnHand') ||
-                    Object.prototype.hasOwnProperty.call(firstItem, 'stockDetailBusinessKey')) {
-                    return renderStockBucketTable(items);
-                }
-
-                var keys = Object.keys(items[0] || {});
-                var head = keys.map(function (key) { return '<th>' + key + '</th>'; }).join('');
+                var head = '<th>انبار</th><th>موجودی</th><th>تعداد سبد</th>';
                 var rows = items.map(function (item) {
-                    return '<tr>' + keys.map(function (key) {
-                        var value = item[key];
-                        return '<td>' + (value === null || value === undefined || value === '' ? '-' : String(value)) + '</td>';
-                    }).join('') + '</tr>';
+                    var locations = Array.isArray(item.locations) ? item.locations : [];
+                    return '<tr>' +
+                        '<td>' + escapeHtml(item.warehouseLabel || item.warehouseCode || item.warehouseRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.quantityOnHand === null || item.quantityOnHand === undefined ? '-' : item.quantityOnHand) + '</td>' +
+                        '<td>' + escapeHtml(item.bucketCount === null || item.bucketCount === undefined ? locations.length : item.bucketCount) + '</td>' +
+                    '</tr>';
                 }).join('');
 
                 return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
             }
 
-            document.querySelectorAll('.js-variant-detail').forEach(function (button) {
+            function renderPriceDetails(items) {
+                if (!Array.isArray(items) || items.length === 0) {
+                    return '<div class="alert alert-light mb-0">' + @JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]) + '</div>';
+                }
+
+                var head = [
+                    'فروشنده',
+                    'نوع قیمت',
+                    'کانال',
+                    'مبلغ',
+                    'واحد',
+                    'حداقل تعداد',
+                    'اولویت',
+                    'از تاریخ',
+                    'تا تاریخ',
+                    'وضعیت'
+                ].map(function (title) { return '<th>' + title + '</th>'; }).join('');
+
+                var rows = items.map(function (item) {
+                    var isActive = item && item.isActive;
+                    return '<tr>' +
+                        '<td>' + escapeHtml(item.sellerLabel || item.sellerRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.priceTypeLabel || item.priceTypeRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.priceChannelLabel || item.priceChannelRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.amount === null || item.amount === undefined ? '-' : item.amount) + '</td>' +
+                        '<td>' + escapeHtml(item.currency || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.minQty === null || item.minQty === undefined ? '-' : item.minQty) + '</td>' +
+                        '<td>' + escapeHtml(item.priority === null || item.priority === undefined ? '-' : item.priority) + '</td>' +
+                        '<td>' + escapeHtml(formatDateTime(item.effectiveFrom)) + '</td>' +
+                        '<td>' + escapeHtml(formatDateTime(item.effectiveTo)) + '</td>' +
+                        '<td><span class="badge badge-pill ' + (isActive ? 'badge-success' : 'badge-secondary') + '">' + (isActive ? 'فعال' : 'غیرفعال') + '</span></td>' +
+                    '</tr>';
+                }).join('');
+
+                return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
+            }
+
+            function openVariantDataModal(modal, titleElement, bodyElement, url, renderer, titleText) {
+                if (!modal || !bodyElement || !url) {
+                    return;
+                }
+
+                if (titleElement && titleText) {
+                    titleElement.textContent = titleText;
+                }
+
+                bodyElement.innerHTML = '<div class="text-muted">' + @JsonSerializer.Serialize(UiText["catalog.variants.loading"]) + '</div>';
+                modal.modal('show');
+
+                fetch(url, { headers: { 'Accept': 'application/json' } })
+                    .then(function (response) { return response.json(); })
+                    .then(function (payload) {
+                        if (payload && payload.error) {
+                            bodyElement.innerHTML = '<div class="text-danger">' + escapeHtml(payload.error) + '</div>';
+                            return;
+                        }
+
+                        var items = payload && Array.isArray(payload.items) ? payload.items : [];
+                        bodyElement.innerHTML = renderer(items);
+                    })
+                    .catch(function () {
+                        bodyElement.innerHTML = '<div class="text-danger">' + @JsonSerializer.Serialize(UiText["catalog.variants.loadInfoFailed"]) + '</div>';
+                    });
+            }
+
+            document.querySelectorAll('.js-variant-stock-details').forEach(function (button) {
                 button.addEventListener('click', function () {
-                    var url = button.getAttribute('data-detail-url');
-                    if (!url || !detailModalBody) {
-                        return;
-                    }
+                    openVariantDataModal(
+                        $('#variant-stock-modal'),
+                        document.getElementById('variant-stock-modal-title'),
+                        document.getElementById('variant-stock-modal-body'),
+                        button.getAttribute('data-stock-url') || '',
+                        renderWarehouseDetails,
+                        button.getAttribute('data-detail-title') || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.inventoryAndWarehouses"])));
+                });
+            });
 
-                    if (detailModalTitle) {
-                        detailModalTitle.textContent = button.getAttribute('data-detail-title') || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.detailsTitle"]));
-                    }
-                    detailModalBody.innerHTML = '<div class="text-muted>' + @JsonSerializer.Serialize(UiText["catalog.variants.loading"]) + '</div>';
-                    detailModal.modal('show');
-
-                    fetch(url, { headers: { 'Accept': 'application/json' } })
-                        .then(function (response) { return response.json(); })
-                        .then(function (payload) {
-                            if (payload && payload.error) {
-                                detailModalBody.innerHTML = '<div class="text-danger">' + payload.error + '</div>';
-                                return;
-                            }
-
-                            detailModalBody.innerHTML = renderDetailTable(payload);
-                        })
-                        .catch(function () {
-                            detailModalBody.innerHTML = '<div class="text-danger>' + @JsonSerializer.Serialize(UiText["catalog.variants.loadInfoFailed"]) + '</div>';
-                        });
+            document.querySelectorAll('.js-variant-prices-details').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    openVariantDataModal(
+                        $('#variant-prices-modal'),
+                        document.getElementById('variant-prices-modal-title'),
+                        document.getElementById('variant-prices-modal-body'),
+                        button.getAttribute('data-prices-url') || '',
+                        renderPriceDetails,
+                        button.getAttribute('data-detail-title') || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricesTitle"])));
                 });
             });
 
@@ -1474,6 +1498,8 @@
 
                 var supportedSelectors = [
                     '#variant-detail-modal',
+                    '#variant-stock-modal',
+                    '#variant-prices-modal',
                     '#variant-media-library-modal',
                     '#variant-components-modal',
                     '#variant-component-modal',
@@ -1634,11 +1660,48 @@
                 selectElement.appendChild(option);
             }
 
-            function initTagLookupSelect(selectElement, isMultiple) {
-                if (!selectElement || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || selectElement.dataset.select2Initialized === 'true') {
+            function getSelectedProductId() {
+                return pageElement ? (pageElement.getAttribute('data-selected-product-id') || '') : '';
+            }
+
+            function mapTagLookupItem(item) {
+                if (!item) {
+                    return null;
+                }
+
+                var tagName = (item.tagName || item.TagName || '').toString().trim();
+                if (!tagName) {
+                    return null;
+                }
+
+                var tagColor = (item.tagColor || item.TagColor || '').toString().trim();
+                var usageCount = item.usageCount || item.UsageCount || 0;
+                return {
+                    tagName: tagName,
+                    tagColor: tagColor,
+                    usageCount: usageCount,
+                    text: tagColor ? (tagName + ' (' + tagColor + ')') : tagName
+                };
+            }
+
+            function destroyTagLookupSelect(selectElement) {
+                if (!selectElement || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
                     return;
                 }
 
+                var $select = window.jQuery(selectElement);
+                if ($select.data('select2')) {
+                    $select.select2('destroy');
+                }
+                selectElement.dataset.select2Initialized = 'false';
+            }
+
+            function initTagLookupSelect(selectElement) {
+                if (!selectElement || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+
+                destroyTagLookupSelect(selectElement);
                 window.jQuery(selectElement).select2({
                     theme: 'bootstrap',
                     dir: document.documentElement.getAttribute('dir') || 'rtl',
@@ -1646,36 +1709,89 @@
                     dropdownParent: tagsModal,
                     placeholder: selectElement.getAttribute('data-placeholder') || '',
                     allowClear: true,
-                    multiple: !!isMultiple,
                     minimumInputLength: 0,
-                    ajax: {
-                        url: tagLookupUrl,
-                        dataType: 'json',
-                        delay: 250,
-                        data: function (params) {
-                            return {
-                                term: params.term || '',
-                                take: 50
-                            };
-                        },
-                        processResults: function (data) {
-                            var items = Array.isArray(data) ? data : [];
-                            return {
-                                results: items.map(function (item) {
-                                    return {
-                                        id: item.tagName || item.TagName || '',
-                                        text: item.text || item.tagName || item.TagName || '',
-                                        tagName: item.tagName || item.TagName || '',
-                                        tagColor: item.tagColor || item.TagColor || '',
-                                        usageCount: item.usageCount || item.UsageCount || 0
-                                    };
-                                }).filter(function (item) { return !!item.id; })
-                            };
+                    language: {
+                        noResults: function () {
+                            return 'موردی پیدا نشد';
                         }
                     }
                 });
 
                 selectElement.dataset.select2Initialized = 'true';
+            }
+
+            function populateTagLookupSelect(selectElement) {
+                if (!selectElement) {
+                    return;
+                }
+
+                var isMultiple = selectElement.multiple;
+                var currentValues = isMultiple
+                    ? Array.from(selectElement.selectedOptions || []).map(function (option) { return option.value || ''; }).filter(Boolean)
+                    : [(selectElement.value || '').trim()].filter(Boolean);
+
+                destroyTagLookupSelect(selectElement);
+                selectElement.innerHTML = '';
+
+                if (!isMultiple) {
+                    var placeholderOption = document.createElement('option');
+                    placeholderOption.value = '';
+                    placeholderOption.textContent = '';
+                    selectElement.appendChild(placeholderOption);
+                }
+
+                tagLookupItems.forEach(function (item) {
+                    var option = document.createElement('option');
+                    option.value = item.tagName;
+                    option.textContent = item.text;
+                    option.setAttribute('data-tag-color', item.tagColor || '');
+                    option.setAttribute('data-usage-count', String(item.usageCount || 0));
+                    selectElement.appendChild(option);
+                });
+
+                initTagLookupSelect(selectElement);
+
+                if (currentValues.length > 0) {
+                    window.jQuery(selectElement).val(isMultiple ? currentValues : currentValues[0]).trigger('change');
+                }
+            }
+
+            function refreshTagLookupSelects() {
+                populateTagLookupSelect(bulkTagLookupSelect);
+                populateTagLookupSelect(singleTagLookupSelect);
+            }
+
+            function ensureTagLookupOptions() {
+                if (tagLookupPromise) {
+                    return tagLookupPromise;
+                }
+
+                if (!tagLookupUrl) {
+                    tagLookupItems = [];
+                    refreshTagLookupSelects();
+                    tagLookupPromise = Promise.resolve([]);
+                    return tagLookupPromise;
+                }
+
+                tagLookupPromise = fetch(tagLookupUrl + '?take=' + encodeURIComponent(tagLookupTake.toString()), {
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (payload) {
+                        var items = Array.isArray(payload) ? payload : [];
+                        tagLookupItems = items
+                            .map(mapTagLookupItem)
+                            .filter(function (item) { return !!item; });
+                        refreshTagLookupSelects();
+                        return tagLookupItems;
+                    })
+                    .catch(function () {
+                        tagLookupItems = [];
+                        refreshTagLookupSelects();
+                        return [];
+                    });
+
+                return tagLookupPromise;
             }
 
             function loadVariantTagsForModal(variantId, mode, label) {
@@ -1706,12 +1822,40 @@
                 }
 
                 if (!variantId) {
+                    if (tagsCreateToggle) {
+                        tagsCreateToggle.classList.add('d-none');
+                    }
+                    if (tagsCreateCard) {
+                        tagsCreateCard.classList.add('d-none');
+                    }
                     if (singleTagLookupSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(singleTagLookupSelect).val(null).trigger('change');
                     }
                     syncSingleTagNameField();
                     renderTagList([], mode);
                     return;
+                }
+
+                if (tagsCreateToggle) {
+                    tagsCreateToggle.classList.remove('d-none');
+                }
+                if (tagsCreateCard) {
+                    tagsCreateCard.classList.add('d-none');
+                }
+                if (tagsCreateVariantId) {
+                    tagsCreateVariantId.value = variantId || '';
+                }
+                if (tagsCreateProductId) {
+                    tagsCreateProductId.value = getSelectedProductId();
+                }
+                if (tagsCreateTagId) {
+                    tagsCreateTagId.value = '';
+                }
+                if (tagsCreateTagName) {
+                    tagsCreateTagName.value = '';
+                }
+                if (tagsCreateTagColor) {
+                    tagsCreateTagColor.value = '';
                 }
 
                 var url = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTags", "VariantManagement") ?? string.Empty)) + '?variantId=' + encodeURIComponent(variantId);
@@ -1742,7 +1886,7 @@
                 var token = tokenField ? tokenField.value : '';
                 var body = new URLSearchParams();
                 body.append('__RequestVerificationToken', token);
-                body.append('productId', document.getElementById('VariantTagForm_ProductId') ? document.getElementById('VariantTagForm_ProductId').value || '' : '');
+                body.append('productId', getSelectedProductId());
                 body.append('variantId', tagsSingleVariantId.value || '');
                 if (tag.tagId || tag.TagId) {
                     body.append('tagId', tag.tagId || tag.TagId);
@@ -1981,7 +2125,6 @@
             var componentVariantSearchUrl = componentVariantInput ? (componentVariantInput.getAttribute('data-ajax-url') || '') : '';
             var componentStockLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("GetVariantComponentInventoryLookup", "CatalogManagement") ?? string.Empty));
             var componentVariantPlaceholder = componentVariantInput ? (componentVariantInput.getAttribute('data-placeholder') || '') : '';
-            var componentStockWarehouses = [];
             var componentStockLocations = [];
 
             function setSelectOptions(select, items, placeholder, valueKey, textKey) {
@@ -2012,34 +2155,30 @@
                 }
             }
 
-            function setWarehouseOptions(items) {
-                componentStockWarehouses = Array.isArray(items) ? items.slice() : [];
-                setSelectOptions(componentWarehouseInput, componentStockWarehouses, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectWarehouse"])), 'warehouseId', 'text');
-            }
-
-            function setLocationOptionsForWarehouse(warehouseId) {
+            function syncComponentWarehouseFromLocation() {
                 if (!componentLocationInput) {
                     return;
                 }
 
-                var normalizedWarehouseId = (warehouseId || '').trim();
-                var filteredLocations = (Array.isArray(componentStockLocations) ? componentStockLocations : []).filter(function (item) {
-                    if (!item || !item.id) {
-                        return false;
-                    }
-
-                    if (!normalizedWarehouseId) {
-                        return true;
-                    }
-
-                    return (item.warehouseId || '').toString().trim() === normalizedWarehouseId;
-                });
-
-                setSelectOptions(componentLocationInput, filteredLocations, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
-
-                if (filteredLocations.length === 1) {
-                    componentLocationInput.value = filteredLocations[0].locationId || '';
+                if (componentWarehouseInput) {
+                    var selectedOption = componentLocationInput.options[componentLocationInput.selectedIndex];
+                    componentWarehouseInput.value = selectedOption ? (selectedOption.getAttribute('data-warehouse-id') || '') : '';
                 }
+            }
+
+            function setLocationOptions(items) {
+                if (!componentLocationInput) {
+                    return;
+                }
+
+                var currentLocationId = (componentLocationInput.value || '').trim();
+                setSelectOptions(componentLocationInput, items, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
+
+                if (currentLocationId) {
+                    componentLocationInput.value = currentLocationId;
+                }
+
+                syncComponentWarehouseFromLocation();
             }
 
             function setComponentStockPanelVisible(isVisible) {
@@ -2063,8 +2202,7 @@
                     return;
                 }
 
-                var selectedWarehouseId = componentWarehouseInput ? (componentWarehouseInput.value || '') : '';
-                setLocationOptionsForWarehouse(selectedWarehouseId);
+                setLocationOptions(componentStockLocations);
             }
 
             function initializeComponentVariantSearch() {
@@ -2113,10 +2251,11 @@
                 }
 
                 if (!variantId) {
-                    componentStockWarehouses = [];
                     componentStockLocations = [];
-                    setSelectOptions(componentWarehouseInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectWarehouse"])), 'warehouseId', 'text');
                     setSelectOptions(componentLocationInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
+                    if (componentWarehouseInput) {
+                        componentWarehouseInput.value = '';
+                    }
                     setComponentStockPanelVisible(false);
                     updateComponentStockSummary(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectVariantSimple"])));
                     return Promise.resolve();
@@ -2132,40 +2271,35 @@
                         }
 
                         componentStockLocations = Array.isArray(payload.locations) ? payload.locations.slice() : [];
-                        setWarehouseOptions(payload.warehouses || []);
-                        setSelectOptions(componentLocationInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
+                        setLocationOptions(componentStockLocations);
                         setComponentStockPanelVisible(true);
                         updateComponentStockSummary(
-                            (payload.warehouses && payload.warehouses.length ? payload.warehouses.length : 0) + ' انبار و ' +
                             (payload.locations && payload.locations.length ? payload.locations.length : 0) + ' لوکیشن برای این واریانت پیدا شد');
-
-                        var warehouseToSelect = (selectedWarehouseId || '').trim();
-                        if (!warehouseToSelect && componentStockWarehouses.length === 1) {
-                            warehouseToSelect = componentStockWarehouses[0].warehouseId || '';
-                        }
-                        if (componentWarehouseInput) {
-                            componentWarehouseInput.value = warehouseToSelect;
-                        }
-
-                        setLocationOptionsForWarehouse(warehouseToSelect);
 
                         if (selectedLocationId) {
                             componentLocationInput.value = selectedLocationId;
+                            syncComponentWarehouseFromLocation();
                         } else if (componentLocationInput && componentLocationInput.options && componentLocationInput.options.length === 2) {
                             componentLocationInput.value = componentLocationInput.options[1].value || '';
+                            syncComponentWarehouseFromLocation();
                         }
                     });
             }
 
             if (componentWarehouseInput) {
                 componentWarehouseInput.addEventListener('change', function () {
-                    setLocationOptionsForWarehouse(componentWarehouseInput.value || '');
+                    syncComponentWarehouseFromLocation();
+                });
+            }
+
+            if (componentLocationInput) {
+                componentLocationInput.addEventListener('change', function () {
+                    syncComponentWarehouseFromLocation();
                 });
             }
 
             initializeComponentVariantSearch();
-            initTagLookupSelect(bulkTagLookupSelect, true);
-            initTagLookupSelect(singleTagLookupSelect, false);
+            ensureTagLookupOptions();
 
             if (bulkTagLookupSelect) {
                 bulkTagLookupSelect.addEventListener('change', syncBulkTagNamesField);
@@ -2173,6 +2307,48 @@
 
             if (singleTagLookupSelect) {
                 singleTagLookupSelect.addEventListener('change', syncSingleTagNameField);
+            }
+
+            if (tagsCreateToggle) {
+                tagsCreateToggle.addEventListener('click', function () {
+                    if (!tagsCreateCard) {
+                        return;
+                    }
+
+                    tagsCreateCard.classList.toggle('d-none');
+                    if (!tagsCreateCard.classList.contains('d-none') && tagsCreateTagName) {
+                        tagsCreateTagName.focus();
+                    }
+                });
+            }
+
+            if (tagsCreateCancel && tagsCreateCard) {
+                tagsCreateCancel.addEventListener('click', function () {
+                    tagsCreateCard.classList.add('d-none');
+                    if (tagsCreateForm) {
+                        tagsCreateForm.reset();
+                    }
+                    if (tagsCreateVariantId) {
+                        tagsCreateVariantId.value = tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '';
+                    }
+                    if (tagsCreateProductId) {
+                        tagsCreateProductId.value = getSelectedProductId();
+                    }
+                    if (tagsCreateTagColor) {
+                        tagsCreateTagColor.value = '';
+                    }
+                });
+            }
+
+            if (tagsCreateForm) {
+                tagsCreateForm.addEventListener('submit', function () {
+                    if (tagsCreateVariantId) {
+                        tagsCreateVariantId.value = tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '';
+                    }
+                    if (tagsCreateProductId) {
+                        tagsCreateProductId.value = getSelectedProductId();
+                    }
+                });
             }
 
             if (tagsModal) {
@@ -2188,6 +2364,12 @@
                     tagsModal.attr('data-variant-id', variantId);
                     tagsModal.attr('data-variant-label', label);
                     tagsModal.attr('data-bulk-has-selection', (mode === 'bulk' && (bulkTagsSelectedIdsInput ? (bulkTagsSelectedIdsInput.value || '').trim() : '').length === 0) ? 'false' : 'true');
+                    if (tagsCreateToggle) {
+                        tagsCreateToggle.classList.toggle('d-none', mode === 'bulk' || !variantId);
+                    }
+                    if (tagsCreateCard) {
+                        tagsCreateCard.classList.add('d-none');
+                    }
                     if (tagsBulkForm) {
                         tagsBulkForm.classList.toggle('d-none', mode !== 'bulk');
                     }
@@ -2213,7 +2395,18 @@
                         tagsModal.attr('data-bulk-has-selection', ((selectedIdsInput ? (selectedIdsInput.value || '') : '').trim().length > 0) ? 'true' : 'false');
                     }
 
-                    loadVariantTagsForModal(variantId, mode, label);
+                    ensureTagLookupOptions().then(function () {
+                        loadVariantTagsForModal(variantId, mode, label);
+                    });
+                });
+
+                tagsModal.on('hidden.bs.modal', function () {
+                    if (tagsCreateCard) {
+                        tagsCreateCard.classList.add('d-none');
+                    }
+                    if (tagsCreateForm) {
+                        tagsCreateForm.reset();
+                    }
                 });
             }
 
@@ -2254,6 +2447,7 @@
 
                     if (componentLocationInput) {
                         componentLocationInput.value = button.getAttribute('data-component-location-id') || '';
+                        syncComponentWarehouseFromLocation();
                     }
 
                     if (componentQuantityInput) {
@@ -2267,12 +2461,9 @@
                     if (editVariantId) {
                         loadComponentInventoryOptions(editVariantId, editWarehouseId, editLocationId)
                             .then(function () {
-                                if (componentWarehouseInput && editWarehouseId) {
-                                    componentWarehouseInput.value = editWarehouseId;
-                                }
-                                setLocationOptionsForWarehouse(editWarehouseId);
                                 if (componentLocationInput && editLocationId) {
                                     componentLocationInput.value = editLocationId;
+                                    syncComponentWarehouseFromLocation();
                                 }
                             })
                             .catch(function () {
@@ -2283,97 +2474,41 @@
             });
 
             var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
-            var bulkAddonPrimaryInput = document.getElementById('bulk-addon-primary-id');
-            var bulkAddonSelectedIdsInput = document.getElementById('bulk-addon-selected-ids');
-            var bulkAddonSearchInput = document.getElementById('bulk-addon-search');
-            var bulkAddonSelectorList = document.getElementById('bulk-addon-selector-list');
-            var bulkAddonApplyButton = document.getElementById('bulk-addon-apply-selection');
-            var bulkAddonPills = document.getElementById('bulk-addon-selection-pills');
-            var bulkAddonSummary = document.getElementById('bulk-addon-selection-summary');
             var bulkAddonLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "CatalogManagement") ?? string.Empty));
-            var bulkAddonLookupCache = {};
 
-            function formatBulkAddonLabel(item) {
-                if (!item) {
-                    return '';
-                }
-
-                var sku = (item.sku || '').toString().trim();
-                var name = (item.name || '').toString().trim();
-                var barcode = (item.barcode || '').toString().trim();
-                var label = name ? (sku ? (sku + ' - ' + name) : name) : sku;
-                if (barcode) {
-                    label = label ? (label + ' - ' + barcode) : barcode;
-                }
-                return label;
-            }
-
-            function getBulkAddonLookupItem(id) {
-                id = (id || '').toString().trim();
-                if (!id) {
-                    return null;
-                }
-
-                return bulkAddonLookupCache[id] || null;
-            }
-
-            function readBulkAddonSelection() {
-                var rawValue = bulkAddonSelectedIdsInput ? bulkAddonSelectedIdsInput.value : '';
-                return rawValue ? rawValue.split(',').map(function (item) { return item.trim(); }).filter(Boolean) : [];
-            }
-
-            function setBulkAddonSelection(ids) {
-                var nextIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
-                if (bulkAddonSelectedIdsInput) {
-                    bulkAddonSelectedIdsInput.value = nextIds.join(',');
-                }
-
-                if (bulkAddonPrimaryInput) {
-                    bulkAddonPrimaryInput.value = nextIds[0] || '';
-                }
-
-                if (bulkAddonSelect) {
-                    var primaryId = nextIds[0] || '';
-                    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                        var existingOption = Array.prototype.slice.call(bulkAddonSelect.options || []).some(function (option) {
-                            return (option.value || '').trim() === primaryId;
-                        });
-                        if (primaryId && !existingOption) {
-                            var item = getBulkAddonLookupItem(primaryId);
-                            var label = item ? formatBulkAddonLabel(item) : primaryId;
-                            bulkAddonSelect.appendChild(new Option(label, primaryId, true, true));
+            if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                window.jQuery(bulkAddonSelect).select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: '100%',
+                    placeholder: bulkAddonSelect.getAttribute('data-placeholder') || '',
+                    allowClear: true,
+                    minimumInputLength: 0,
+                    ajax: {
+                        url: bulkAddonLookupUrl,
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                term: params.term || '',
+                                take: 20
+                            };
+                        },
+                        processResults: function (data) {
+                            var items = data && Array.isArray(data.items) ? data.items : [];
+                            return {
+                                results: items.map(function (item) {
+                                    return {
+                                        id: item.id || '',
+                                        text: item.text || '',
+                                        sku: item.sku || '',
+                                        name: item.name || '',
+                                        barcode: item.barcode || ''
+                                    };
+                                }).filter(function (item) { return !!item.id; })
+                            };
                         }
-                        window.jQuery(bulkAddonSelect).val(primaryId || null).trigger('change.select2');
-                    } else {
-                        bulkAddonSelect.value = primaryId;
                     }
-                }
-
-                renderBulkAddonSummary();
-            }
-
-            function renderBulkAddonSummary() {
-                if (!bulkAddonPills || !bulkAddonSelect || !bulkAddonSummary) {
-                    return;
-                }
-
-                var selectedIds = readBulkAddonSelection();
-                bulkAddonPills.innerHTML = '';
-                var emptyText = bulkAddonSummary.querySelector('[data-empty-text]');
-                if (emptyText) {
-                    emptyText.classList.toggle('d-none', selectedIds.length > 0);
-                }
-
-                selectedIds.forEach(function (id) {
-                    var item = getBulkAddonLookupItem(id);
-                    if (!item) {
-                        return;
-                    }
-
-                    var badge = document.createElement('span');
-                    badge.className = 'badge badge-light border mr-2 mb-2';
-                    badge.textContent = formatBulkAddonLabel(item) || id;
-                    bulkAddonPills.appendChild(badge);
                 });
             }
 
@@ -2448,8 +2583,8 @@
             $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
                 var hasSelection = getSelectedVariantCount() > 0;
                 setBulkModalState('#variant-bulk-addon-modal', hasSelection);
-                if (hasSelection) {
-                    setBulkAddonSelection([]);
+                if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 }
             });
 
@@ -2458,148 +2593,6 @@
                 setBulkModalState('#variant-bulk-media-modal', hasSelection);
             });
 
-            function renderBulkAddonSelector() {
-                if (!bulkAddonSelectorList) {
-                    return;
-                }
-
-                var selectedIds = new Set(readBulkAddonSelection());
-                var filterText = (bulkAddonSearchInput && bulkAddonSearchInput.value ? bulkAddonSearchInput.value : '').trim();
-                bulkAddonSelectorList.innerHTML = '<div class="text-muted small">در حال جستجو...</div>';
-
-                if (!bulkAddonLookupUrl) {
-                    bulkAddonSelectorList.innerHTML = '<div class="text-danger small">مسیر جستجو در دسترس نیست.</div>';
-                    return;
-                }
-
-                var url = bulkAddonLookupUrl + '?term=' + encodeURIComponent(filterText || '') + '&take=30';
-                fetch(url, { headers: { 'Accept': 'application/json' } })
-                    .then(function (response) { return response.json(); })
-                    .then(function (payload) {
-                        var items = payload && Array.isArray(payload.items) ? payload.items : [];
-                        bulkAddonSelectorList.innerHTML = '';
-
-                        if (items.length === 0) {
-                            bulkAddonSelectorList.innerHTML = '<div class="text-muted small">موردی یافت نشد.</div>';
-                            return;
-                        }
-
-                        items.forEach(function (lookupItem) {
-                            if (!lookupItem || !lookupItem.id) {
-                                return;
-                            }
-
-                            bulkAddonLookupCache[lookupItem.id] = lookupItem;
-                            var label = formatBulkAddonLabel(lookupItem);
-
-                            var optionItem = document.createElement('label');
-                            optionItem.className = 'list-group-item list-group-item-action d-flex align-items-center';
-
-                            var checkbox = document.createElement('input');
-                            checkbox.type = 'checkbox';
-                            checkbox.className = 'mr-2';
-                            checkbox.value = lookupItem.id;
-                            checkbox.checked = selectedIds.has(lookupItem.id);
-
-                            var text = document.createElement('span');
-                            text.textContent = label;
-
-                            optionItem.appendChild(checkbox);
-                            optionItem.appendChild(text);
-                            bulkAddonSelectorList.appendChild(optionItem);
-                        });
-                    })
-                    .catch(function () {
-                        bulkAddonSelectorList.innerHTML = '<div class="text-danger small">بارگذاری ادزآن‌ها ناموفق بود.</div>';
-                    });
-            }
-
-            if (bulkAddonSearchInput) {
-                bulkAddonSearchInput.addEventListener('input', renderBulkAddonSelector);
-            }
-
-                    if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                        window.jQuery(bulkAddonSelect).select2({
-                    theme: 'bootstrap',
-                    dir: document.documentElement.getAttribute('dir') || 'rtl',
-                    width: '100%',
-                    placeholder: bulkAddonSelect.getAttribute('data-placeholder') || '',
-                    allowClear: true,
-                    minimumInputLength: 0,
-                    ajax: {
-                        url: bulkAddonLookupUrl,
-                        dataType: 'json',
-                        delay: 250,
-                        data: function (params) {
-                            return { term: params.term || '', take: 20 };
-                        },
-                        processResults: function (data) {
-                            var items = data && Array.isArray(data.items) ? data.items : [];
-                            return {
-                                results: items.map(function (item) {
-                                    var id = item.id || '';
-                                    var label = item.text || formatBulkAddonLabel(item) || id;
-                                    if (id) {
-                                        bulkAddonLookupCache[id] = item;
-                                    }
-                                    return {
-                                        id: id,
-                                        text: label,
-                                        sku: item.sku || '',
-                                        name: item.name || '',
-                                        barcode: item.barcode || ''
-                                    };
-                                }).filter(function (item) { return !!item.id; })
-                            };
-                        }
-                    }
-                });
-            }
-
-            if (bulkAddonSelect) {
-                bulkAddonSelect.addEventListener('change', function () {
-                    var selectedId = (bulkAddonSelect.value || '').trim();
-                    if (!selectedId) {
-                        setBulkAddonSelection([]);
-                        return;
-                    }
-
-                    setBulkAddonSelection([selectedId]);
-                    var item = bulkAddonLookupCache[selectedId];
-                    if (!item && bulkAddonLookupUrl) {
-                        fetch(bulkAddonLookupUrl + '?term=' + encodeURIComponent(selectedId) + '&take=1', { headers: { 'Accept': 'application/json' } })
-                            .then(function (response) { return response.json(); })
-                            .then(function (payload) {
-                                var first = payload && Array.isArray(payload.items) && payload.items.length > 0 ? payload.items[0] : null;
-                                if (first) {
-                                    bulkAddonLookupCache[first.id] = first;
-                                    renderBulkAddonSummary();
-                                }
-                            });
-                    }
-                });
-            }
-
-            if (bulkAddonApplyButton) {
-                bulkAddonApplyButton.addEventListener('click', function () {
-                    if (!bulkAddonSelectorList || !bulkAddonSelectedIdsInput || !bulkAddonPrimaryInput || !bulkAddonSelect) {
-                        return;
-                    }
-
-                    var selectedIds = Array.from(bulkAddonSelectorList.querySelectorAll('input[type="checkbox"]:checked'))
-                        .map(function (input) { return input.value || ''; })
-                        .filter(Boolean);
-
-                    setBulkAddonSelection(selectedIds);
-                    $('#bulk-addon-selector-modal').modal('hide');
-                });
-            }
-
-            $('#bulk-addon-selector-modal').on('show.bs.modal', function () {
-                renderBulkAddonSelector();
-            });
-
-            renderBulkAddonSummary();
             updateBulkModalTriggers();
 
             document.querySelectorAll('#variant-list-scope input[type="checkbox"][data-bulk-row], #variant-list-scope input[type="checkbox"][data-bulk-toggle]').forEach(function (checkbox) {
