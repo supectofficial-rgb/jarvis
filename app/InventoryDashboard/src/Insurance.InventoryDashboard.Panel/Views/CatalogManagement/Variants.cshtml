@@ -600,35 +600,30 @@
                                                                 data-detail-title="@UiText["catalog.variants.pricesTitle"]">
                                                             @UiText["catalog.variants.pricesButton"]
                                                         </button>
-                                                        <a class="btn btn-outline-secondary btn-xs js-variant-tags"
-                                                           asp-action="Variants"
-                                                           asp-route-productId="@Model.SelectedProductId"
-                                                           asp-route-variantId="@variant.Id"
-                                                           asp-fragment="variant-tags-modal"
-                                                           data-variant-id="@variant.Id"
-                                                           data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)">
+                                                        <button type="button"
+                                                                class="btn btn-outline-secondary btn-xs js-variant-tags"
+                                                                data-variant-id="@variant.Id"
+                                                                data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)">
                                                             برچسب
-                                                        </a>
+                                                        </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-media-details"
                                                                 data-media-url="@Url.Action("VariantMediaLibrary", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.variantMediaTitle"]">
                                                             @UiText["variant.media.label"]
                                                         </button>
-                                                        <a class="btn btn-outline-primary btn-xs"
-                                                           asp-action="Variants"
-                                                           asp-route-productId="@Model.SelectedProductId"
-                                                           asp-route-variantId="@variant.Id"
-                                                           asp-fragment="variant-addons-modal">
+                                                        <button type="button"
+                                                                class="btn btn-outline-primary btn-xs js-variant-addon-details"
+                                                                data-variant-url="@Url.Action("Variants", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
+                                                                data-detail-title="@UiText["catalog.variants.addonListTitle"]">
                                                             @UiText["catalog.variants.addonListTitle"]
-                                                        </a>
-                                                        <a class="btn btn-outline-primary btn-xs"
-                                                           asp-action="Variants"
-                                                           asp-route-productId="@Model.SelectedProductId"
-                                                           asp-route-variantId="@variant.Id"
-                                                           asp-fragment="variant-components-modal">
+                                                        </button>
+                                                        <button type="button"
+                                                                class="btn btn-outline-primary btn-xs js-variant-components-details"
+                                                                data-variant-url="@Url.Action("Variants", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
+                                                                data-detail-title="@UiText["catalog.variants.componentsTitle"]">
                                                             @UiText["catalog.variants.componentsTitle"]
-                                                        </a>
+                                                        </button>
                                                         <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                             <span class="sr-only">@UiText["common.operations"]</span>
                                                         </button>
@@ -910,7 +905,31 @@
                 @if (hasSelectedProduct && hasSelectedVariant)
                 {
                     <p class="text-muted small">@UiText["catalog.variants.addonListHelp"]</p>
-                    <div class="table-responsive">
+                    <form asp-action="UpsertVariantAddOn"
+                          method="post"
+                          class="bg-light border rounded p-3 mb-3"
+                          id="variant-addon-form"
+                          data-ajax-submit="variant-addons"
+                          data-loading-form>
+                        @Html.AntiForgeryToken()
+                        <input asp-for="VariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                        <input asp-for="VariantAddOnForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                        <div class="form-group mb-2">
+                            <label>@UiText["catalog.variants.addonVariant"]</label>
+                            <select asp-for="VariantAddOnForm.AddOnVariantId"
+                                    class="form-control js-search-select"
+                                    id="VariantAddOnForm_AddOnVariantId"
+                                    data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'
+                                    data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                <option value="">کد، نام یا بارکد ادزآن را جستجو کنید</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">از لیست بازشونده یک واریانت را انتخاب کن و ثبت بزن.</small>
+                        </div>
+                        <div class="text-right">
+                            <button type="submit" class="btn btn-outline-primary">@UiText["catalog.variants.registerAddOn"]</button>
+                        </div>
+                    </form>
+                    <div id="variant-addons-list-container" class="table-responsive">
                         <table class="table table-sm table-striped">
                             <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th></th></tr></thead>
                             <tbody>
@@ -982,7 +1001,7 @@
                             <strong>ایجاد برچسب جدید</strong>
                             <button type="button" class="btn btn-link btn-sm p-0" id="variant-tags-create-cancel">بستن</button>
                         </div>
-                            <form asp-action="UpsertVariantTag"
+                        <form asp-action="UpsertVariantTag"
                               method="post"
                               id="variant-tag-create-form"
                               data-ajax-submit="variant-tags"
@@ -1094,8 +1113,10 @@
             var tagsCreateTagName = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagName"]') : null;
             var tagsCreateTagColor = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagColor"]') : null;
             var bulkMediaForm = document.getElementById('variant-bulk-media-form');
+            var addonVariantInput = document.getElementById('VariantAddOnForm_AddOnVariantId');
             var bulkTagLookupSelect = document.getElementById('bulk-variant-tag-lookup');
             var singleTagLookupSelect = document.getElementById('single-variant-tag-lookup');
+            var pendingCreatedTagName = '';
             var tagsList = document.getElementById('variant-tags-list');
             var tagsCount = document.getElementById('variant-tags-count');
             var tagsBulkEmpty = document.getElementById('variant-tags-bulk-empty');
@@ -1105,6 +1126,9 @@
             var tagsCurrentWrapper = document.getElementById('variant-tags-current-wrapper');
             var bulkSelectionWarning = document.getElementById('variant-bulk-selection-warning');
             var componentListContainer = document.getElementById('variant-components-list-container');
+            var addonListContainer = document.getElementById('variant-addons-list-container');
+            var componentModalBody = document.getElementById('variant-components-modal-body');
+            var mediaModalBody = document.getElementById('variant-media-library-modal-body');
             var tagsModalBody = document.getElementById('variant-tags-modal-body');
             var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
             var tagLookupItems = [];
@@ -1260,30 +1284,8 @@
                     });
             }
 
-            function openVariantHtmlModal(modal, titleElement, bodyElement, url, titleText) {
-                if (!modal || !bodyElement || !url) {
-                    return;
-                }
-
-                if (titleElement && titleText) {
-                    titleElement.textContent = titleText;
-                }
-
-                bodyElement.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
-                modal.modal('show');
-
-                fetch(url, { headers: { 'Accept': 'text/html' } })
-                    .then(function (response) { return response.text(); })
-                    .then(function (html) {
-                        bodyElement.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
-                    })
-                    .catch(function () {
-                        bodyElement.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
-                    });
-            }
-
-            function fetchCurrentPageFragment(selector) {
-                return fetch(window.location.href, { headers: { 'Accept': 'text/html' } })
+            function fetchPageFragment(url, selector) {
+                return fetch(url, { headers: { 'Accept': 'text/html' } })
                     .then(function (response) { return response.text(); })
                     .then(function (html) {
                         var parser = new DOMParser();
@@ -1300,26 +1302,91 @@
                 }
             }
 
-            function refreshComponentList() {
-                if (!componentListContainer) {
+            function openVariantFragmentModal(modal, titleElement, bodyElement, url, fragmentSelector, titleText) {
+                if (!modal || !bodyElement || !url || !fragmentSelector) {
                     return Promise.resolve();
                 }
 
-                return fetchCurrentPageFragment('#variant-components-list-container').then(function (html) {
-                    replaceFragment('#variant-components-list-container', html);
-                });
+                if (titleElement && titleText) {
+                    titleElement.textContent = titleText;
+                }
+
+                bodyElement.setAttribute('data-source-url', url);
+                bodyElement.setAttribute('data-source-selector', fragmentSelector);
+                bodyElement.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                modal.modal('show');
+
+                return fetchPageFragment(url, fragmentSelector)
+                    .then(function (html) {
+                        bodyElement.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                    })
+                    .catch(function () {
+                        bodyElement.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                    });
             }
 
-            function refreshAddonList() {
-                return fetchCurrentPageFragment('#variant-addons-modal-body').then(function (html) {
-                    replaceFragment('#variant-addons-modal-body', html);
+            function openVariantHtmlModal(modal, titleElement, bodyElement, url, titleText) {
+                if (!modal || !bodyElement || !url) {
+                    return Promise.resolve();
+                }
+
+                if (titleElement && titleText) {
+                    titleElement.textContent = titleText;
+                }
+
+                bodyElement.setAttribute('data-source-url', url);
+                bodyElement.removeAttribute('data-source-selector');
+                bodyElement.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                modal.modal('show');
+
+                return fetch(url, { headers: { 'Accept': 'text/html' } })
+                    .then(function (response) { return response.text(); })
+                    .then(function (html) {
+                        bodyElement.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                    })
+                    .catch(function () {
+                        bodyElement.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                    });
+            }
+
+            function refreshFragmentBody(bodyElement) {
+                if (!bodyElement) {
+                    return Promise.resolve();
+                }
+
+                var url = bodyElement.getAttribute('data-source-url') || '';
+                var selector = bodyElement.getAttribute('data-source-selector') || '';
+                if (!url) {
+                    return Promise.resolve();
+                }
+
+                if (!selector) {
+                    bodyElement.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                    return fetch(url, { headers: { 'Accept': 'text/html' } })
+                        .then(function (response) { return response.text(); })
+                        .then(function (html) {
+                            bodyElement.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                        })
+                        .catch(function () {
+                            bodyElement.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                        });
+                }
+
+                return fetchPageFragment(url, selector).then(function (html) {
+                    bodyElement.innerHTML = html || bodyElement.innerHTML;
                 });
             }
 
             function refreshMediaLibrary() {
-                return fetchCurrentPageFragment('#variant-media-library-modal-body').then(function (html) {
-                    replaceFragment('#variant-media-library-modal-body', html);
-                });
+                return refreshFragmentBody(mediaModalBody);
+            }
+
+            function refreshAddonList() {
+                return refreshFragmentBody(addonListContainer);
+            }
+
+            function refreshComponentList() {
+                return refreshFragmentBody(componentModalBody);
             }
 
             document.querySelectorAll('.js-variant-stock-details').forEach(function (button) {
@@ -1346,15 +1413,64 @@
                 });
             });
 
-            document.querySelectorAll('.js-variant-media-details').forEach(function (button) {
-                button.addEventListener('click', function () {
+            document.addEventListener('click', function (event) {
+                var mediaButton = event.target.closest ? event.target.closest('.js-variant-media-details') : null;
+                if (mediaButton) {
+                    event.preventDefault();
                     openVariantHtmlModal(
                         $('#variant-media-library-modal'),
                         document.getElementById('variant-media-library-modal-title'),
                         document.getElementById('variant-media-library-modal-body'),
-                        button.getAttribute('data-media-url') || '',
-                        button.getAttribute('data-detail-title') || variantMediaTitleText);
-                });
+                        mediaButton.getAttribute('data-media-url') || '',
+                        mediaButton.getAttribute('data-detail-title') || variantMediaTitleText);
+                    return;
+                }
+
+                var addonButton = event.target.closest ? event.target.closest('.js-variant-addon-details') : null;
+                if (addonButton) {
+                    event.preventDefault();
+                    openVariantFragmentModal(
+                        $('#variant-addons-modal'),
+                        document.getElementById('variant-addons-modal').querySelector('.modal-title'),
+                        document.getElementById('variant-addons-list-container'),
+                        addonButton.getAttribute('data-variant-url') || '',
+                        '#variant-addons-list-container',
+                        addonButton.getAttribute('data-detail-title') || '');
+                    return;
+                }
+
+                var componentButton = event.target.closest ? event.target.closest('.js-variant-components-details') : null;
+                if (componentButton) {
+                    event.preventDefault();
+                    openVariantFragmentModal(
+                        $('#variant-components-modal'),
+                        document.getElementById('variant-components-modal').querySelector('.modal-title'),
+                        document.getElementById('variant-components-modal-body'),
+                        componentButton.getAttribute('data-variant-url') || '',
+                        '#variant-components-modal-body',
+                        componentButton.getAttribute('data-detail-title') || '');
+                    return;
+                }
+
+                var tagButton = event.target.closest ? event.target.closest('.js-variant-tags') : null;
+                if (tagButton) {
+                    event.preventDefault();
+                    var variantId = tagButton.getAttribute('data-variant-id') || '';
+                    var label = tagButton.getAttribute('data-variant-label') || '';
+                    if (tagsModal) {
+                        tagsModal.attr('data-tag-mode', 'single');
+                        tagsModal.attr('data-variant-id', variantId);
+                        tagsModal.attr('data-variant-label', label);
+                        tagsModal.attr('data-bulk-has-selection', 'false');
+                    }
+
+                    ensureTagLookupOptions().then(function () {
+                        loadVariantTagsForModal(variantId, 'single', label);
+                        if (tagsModal && tagsModal.modal) {
+                            tagsModal.modal('show');
+                        }
+                    });
+                }
             });
 
             function readState() {
@@ -1847,6 +1963,13 @@
                 return tagLookupPromise;
             }
 
+            function reloadTagLookupOptions() {
+                tagLookupPromise = null;
+                tagLookupItems = [];
+                refreshTagLookupSelects();
+                return ensureTagLookupOptions();
+            }
+
             function loadVariantTagsForModal(variantId, mode, label) {
                 if (tagsModalTitle) {
                     tagsModalTitle.textContent = mode === 'bulk' ? 'ثبت گروهی برچسب' : (label || 'برچسب واریانت');
@@ -2175,9 +2298,11 @@
             var componentQuantityInput = document.getElementById('VariantComponentForm_Quantity');
             var componentStockPanel = document.getElementById('variant-component-stock-panel');
             var componentStockSummary = document.getElementById('variant-component-stock-summary');
+            var addonModal = window.jQuery ? window.jQuery('#variant-addons-modal') : null;
             var componentVariantSearchUrl = componentVariantInput ? (componentVariantInput.getAttribute('data-ajax-url') || '') : '';
             var componentStockLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("GetVariantComponentInventoryLookup", "CatalogManagement") ?? string.Empty));
             var componentVariantPlaceholder = componentVariantInput ? (componentVariantInput.getAttribute('data-placeholder') || '') : '';
+            var addonVariantSearchUrl = addonVariantInput ? (addonVariantInput.getAttribute('data-ajax-url') || '') : '';
             var componentStockLocations = [];
 
             function setSelectOptions(select, items, placeholder, valueKey, textKey) {
@@ -2298,6 +2423,46 @@
                 componentVariantInput.dataset.select2Initialized = 'true';
             }
 
+            function initializeAddonVariantSearch() {
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !addonVariantInput || addonVariantInput.dataset.select2Initialized === 'true') {
+                    return;
+                }
+
+                window.jQuery(addonVariantInput).select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: '100%',
+                    dropdownParent: addonModal,
+                    placeholder: addonVariantInput.getAttribute('data-placeholder') || '',
+                    allowClear: true,
+                    minimumInputLength: 0,
+                    ajax: {
+                        url: addonVariantSearchUrl,
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return { term: params.term || '' };
+                        },
+                        processResults: function (data) {
+                            var items = data && data.items ? data.items : [];
+                            return {
+                                results: items.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.text || item.sku || '',
+                                        sku: item.sku || '',
+                                        name: item.name || '',
+                                        barcode: item.barcode || ''
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+
+                addonVariantInput.dataset.select2Initialized = 'true';
+            }
+
             function loadComponentInventoryOptions(variantId, selectedWarehouseId, selectedLocationId) {
                 if (!componentStockLookupUrl) {
                     return Promise.resolve();
@@ -2352,6 +2517,7 @@
             }
 
             initializeComponentVariantSearch();
+            initializeAddonVariantSearch();
             ensureTagLookupOptions();
 
             if (bulkTagLookupSelect) {
@@ -2395,6 +2561,7 @@
 
             if (tagsCreateForm) {
                 tagsCreateForm.addEventListener('submit', function () {
+                    pendingCreatedTagName = tagsCreateTagName ? (tagsCreateTagName.value || '').trim() : '';
                     if (tagsCreateVariantId) {
                         tagsCreateVariantId.value = tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '';
                     }
@@ -2460,6 +2627,7 @@
                     if (tagsCreateForm) {
                         tagsCreateForm.reset();
                     }
+                    pendingCreatedTagName = '';
                 });
             }
 
@@ -2564,6 +2732,14 @@
                                 }).filter(function (item) { return !!item.id; })
                             };
                         }
+                    }
+                });
+            }
+
+            if (addonModal) {
+                addonModal.on('show.bs.modal', function () {
+                    if (addonVariantInput && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(addonVariantInput).val(null).trigger('change');
                     }
                 });
             }
@@ -2699,10 +2875,25 @@
                             });
                         }
 
-                        return response.text();
-                    })
-                    .then(function () {
                         var mode = ajaxForm.getAttribute('data-ajax-submit') || '';
+                        if (mode === 'bulk-media') {
+                            return response.json().then(function (payload) {
+                                return {
+                                    mode: mode,
+                                    payload: payload || {}
+                                };
+                            });
+                        }
+
+                        return response.text().then(function (text) {
+                            return {
+                                mode: mode,
+                                text: text
+                            };
+                        });
+                    })
+                    .then(function (result) {
+                        var mode = result && result.mode ? result.mode : (ajaxForm.getAttribute('data-ajax-submit') || '');
                         if (mode === 'variant-components') {
                             return refreshComponentList().then(function () {
                                 var editor = window.jQuery ? window.jQuery('#variant-component-modal') : null;
@@ -2721,14 +2912,28 @@
                         }
 
                         if (mode === 'variant-tags') {
-                            return loadVariantTagsForModal(tagsSingleVariantId && tagsSingleVariantId.value ? tagsSingleVariantId.value : (tagsCreateVariantId ? tagsCreateVariantId.value : ''), tagsModal ? (tagsModal.attr('data-tag-mode') || 'single') : 'single', tagsModalTitle ? tagsModalTitle.textContent : '');
+                            return reloadTagLookupOptions().then(function () {
+                                var currentMode = tagsModal ? (tagsModal.attr('data-tag-mode') || 'single') : 'single';
+                                var currentVariantId = tagsSingleVariantId && tagsSingleVariantId.value ? tagsSingleVariantId.value : (tagsCreateVariantId ? tagsCreateVariantId.value : '');
+                                if (currentMode === 'single' && pendingCreatedTagName && singleTagLookupSelect) {
+                                    var matchingOption = Array.prototype.slice.call(singleTagLookupSelect.options || []).find(function (option) {
+                                        return (option.value || '').trim() === pendingCreatedTagName;
+                                    });
+                                    if (matchingOption) {
+                                        window.jQuery(singleTagLookupSelect).val(pendingCreatedTagName).trigger('change');
+                                    }
+                                }
+                                pendingCreatedTagName = '';
+                                return loadVariantTagsForModal(currentVariantId, currentMode, tagsModalTitle ? tagsModalTitle.textContent : '');
+                            });
                         }
 
                         if (mode === 'bulk-media') {
                             if (bulkMediaForm) {
                                 var mediaStatus = bulkMediaForm.querySelector('[data-media-status]');
                                 if (mediaStatus) {
-                                    mediaStatus.textContent = result.payload && result.payload.message ? result.payload.message : mediaStatus.textContent;
+                                    var payload = result && result.payload ? result.payload : {};
+                                    mediaStatus.textContent = payload.message || mediaStatus.textContent;
                                 }
                             }
                             return Promise.resolve();
