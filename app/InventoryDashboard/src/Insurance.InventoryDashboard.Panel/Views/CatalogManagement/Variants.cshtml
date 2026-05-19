@@ -584,11 +584,15 @@
                                                 <td>
                                                     <div class="btn-group btn-group-sm">
                                                         <button type="button" class="btn btn-outline-info btn-xs js-variant-stock-details"
+                                                                data-toggle="modal"
+                                                                data-target="#variant-stock-modal"
                                                                 data-stock-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.inventoryAndWarehouses"]">
                                                             @UiText["catalog.variants.warehousesButton"]
                                                         </button>
                                                         <button type="button" class="btn btn-outline-info btn-xs js-variant-prices-details"
+                                                                data-toggle="modal"
+                                                                data-target="#variant-prices-modal"
                                                                 data-prices-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.pricesTitle"]">
                                                             @UiText["catalog.variants.pricesButton"]
@@ -1152,6 +1156,27 @@
             var tagLookupItems = [];
             var tagLookupPromise = null;
             var tagLookupTake = 200;
+            var noDisplayDataText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]));
+            var loadingText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.loading"]));
+            var loadInfoFailedText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.loadInfoFailed"]));
+            var selectOptionText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectOption"]));
+            var inventoryAndWarehousesTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.inventoryAndWarehouses"]));
+            var pricesTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricesTitle"]));
+            var warehouseText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.warehouse"]));
+            var quantityText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.quantity"]));
+            var bucketCountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.bucketCount"]));
+            var sellerText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.seller"]));
+            var priceTypeText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceType"]));
+            var priceChannelText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceChannel"]));
+            var amountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.amount"]));
+            var currencyText = @Html.Raw(JsonSerializer.Serialize(UiText["pricing.currency"]));
+            var minQuantityText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.minQuantity"]));
+            var priorityText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priority"]));
+            var effectiveFromText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.effectiveFrom"]));
+            var effectiveToText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.effectiveTo"]));
+            var statusText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.status"]));
+            var activeText = @Html.Raw(JsonSerializer.Serialize(UiText["common.active"]));
+            var inactiveText = @Html.Raw(JsonSerializer.Serialize(UiText["common.inactive"]));
             var stateKey = 'catalog-variants-state-v2';
             var draftStateKey = 'catalog-variants-form-drafts-v1';
             var submittedFormKey = 'catalog-variants-last-submitted-form-v1';
@@ -1199,10 +1224,10 @@
 
             function renderWarehouseDetails(items) {
                 if (!Array.isArray(items) || items.length === 0) {
-                    return '<div class="alert alert-light mb-0">' + @JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]) + '</div>';
+                    return '<div class="alert alert-light mb-0">' + noDisplayDataText + '</div>';
                 }
 
-                var head = '<th>انبار</th><th>موجودی</th><th>تعداد سبد</th>';
+                var head = '<th>' + warehouseText + '</th><th>' + quantityText + '</th><th>' + bucketCountText + '</th>';
                 var rows = items.map(function (item) {
                     var locations = Array.isArray(item.locations) ? item.locations : [];
                     return '<tr>' +
@@ -1217,20 +1242,20 @@
 
             function renderPriceDetails(items) {
                 if (!Array.isArray(items) || items.length === 0) {
-                    return '<div class="alert alert-light mb-0">' + @JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]) + '</div>';
+                    return '<div class="alert alert-light mb-0">' + noDisplayDataText + '</div>';
                 }
 
                 var head = [
-                    'فروشنده',
-                    'نوع قیمت',
-                    'کانال',
-                    'مبلغ',
-                    'واحد',
-                    'حداقل تعداد',
-                    'اولویت',
-                    'از تاریخ',
-                    'تا تاریخ',
-                    'وضعیت'
+                    sellerText,
+                    priceTypeText,
+                    priceChannelText,
+                    amountText,
+                    currencyText,
+                    minQuantityText,
+                    priorityText,
+                    effectiveFromText,
+                    effectiveToText,
+                    statusText
                 ].map(function (title) { return '<th>' + title + '</th>'; }).join('');
 
                 var rows = items.map(function (item) {
@@ -1245,7 +1270,7 @@
                         '<td>' + escapeHtml(item.priority === null || item.priority === undefined ? '-' : item.priority) + '</td>' +
                         '<td>' + escapeHtml(formatDateTime(item.effectiveFrom)) + '</td>' +
                         '<td>' + escapeHtml(formatDateTime(item.effectiveTo)) + '</td>' +
-                        '<td><span class="badge badge-pill ' + (isActive ? 'badge-success' : 'badge-secondary') + '">' + (isActive ? 'فعال' : 'غیرفعال') + '</span></td>' +
+                        '<td><span class="badge badge-pill ' + (isActive ? 'badge-success' : 'badge-secondary') + '">' + (isActive ? activeText : inactiveText) + '</span></td>' +
                     '</tr>';
                 }).join('');
 
@@ -1261,7 +1286,7 @@
                     titleElement.textContent = titleText;
                 }
 
-                bodyElement.innerHTML = '<div class="text-muted">' + @JsonSerializer.Serialize(UiText["catalog.variants.loading"]) + '</div>';
+                bodyElement.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
                 modal.modal('show');
 
                 fetch(url, { headers: { 'Accept': 'application/json' } })
@@ -1276,7 +1301,7 @@
                         bodyElement.innerHTML = renderer(items);
                     })
                     .catch(function () {
-                        bodyElement.innerHTML = '<div class="text-danger">' + @JsonSerializer.Serialize(UiText["catalog.variants.loadInfoFailed"]) + '</div>';
+                        bodyElement.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
                     });
             }
 
@@ -1288,7 +1313,7 @@
                         document.getElementById('variant-stock-modal-body'),
                         button.getAttribute('data-stock-url') || '',
                         renderWarehouseDetails,
-                        button.getAttribute('data-detail-title') || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.inventoryAndWarehouses"])));
+                        button.getAttribute('data-detail-title') || inventoryAndWarehousesTitleText);
                 });
             });
 
@@ -1300,7 +1325,7 @@
                         document.getElementById('variant-prices-modal-body'),
                         button.getAttribute('data-prices-url') || '',
                         renderPriceDetails,
-                        button.getAttribute('data-detail-title') || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricesTitle"])));
+                        button.getAttribute('data-detail-title') || pricesTitleText);
                 });
             });
 
@@ -1995,7 +2020,7 @@
                     var options = parseOptions(selectedOption);
                     if (options.length > 0) {
                         optionGroup.classList.remove('d-none');
-                        optionSelect.innerHTML = '<option value="">' + @JsonSerializer.Serialize(UiText["catalog.variants.selectOption"]) + '</option>';
+                        optionSelect.innerHTML = '<option value="">' + selectOptionText + '</option>';
                         options.forEach(function (item) {
                             var optionElement = document.createElement('option');
                             optionElement.value = item.value;
