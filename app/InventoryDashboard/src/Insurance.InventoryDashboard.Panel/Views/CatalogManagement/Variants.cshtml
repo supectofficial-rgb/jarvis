@@ -608,7 +608,7 @@
                                                         </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-media-details"
-                                                                data-media-url="@Url.Action("VariantMediaLibrary", "VariantManagement", new { variantId = variant.Id })"
+                                                                data-variant-url="@Url.Action("Variants", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.variantMediaTitle"]">
                                                             @UiText["variant.media.label"]
                                                         </button>
@@ -1417,11 +1417,12 @@
                 var mediaButton = event.target.closest ? event.target.closest('.js-variant-media-details') : null;
                 if (mediaButton) {
                     event.preventDefault();
-                    openVariantHtmlModal(
+                    openVariantFragmentModal(
                         $('#variant-media-library-modal'),
                         document.getElementById('variant-media-library-modal-title'),
                         document.getElementById('variant-media-library-modal-body'),
-                        mediaButton.getAttribute('data-media-url') || '',
+                        mediaButton.getAttribute('data-variant-url') || '',
+                        '#variant-media-library-modal-body',
                         mediaButton.getAttribute('data-detail-title') || variantMediaTitleText);
                     return;
                 }
@@ -1968,6 +1969,15 @@
                 tagLookupItems = [];
                 refreshTagLookupSelects();
                 return ensureTagLookupOptions();
+            }
+
+            function syncTagCreateFormContext(variantId) {
+                if (tagsCreateVariantId) {
+                    tagsCreateVariantId.value = variantId || '';
+                }
+                if (tagsCreateProductId) {
+                    tagsCreateProductId.value = getSelectedProductId();
+                }
             }
 
             function loadVariantTagsForModal(variantId, mode, label) {
@@ -2559,17 +2569,12 @@
                 });
             }
 
-            if (tagsCreateForm) {
-                tagsCreateForm.addEventListener('submit', function () {
-                    pendingCreatedTagName = tagsCreateTagName ? (tagsCreateTagName.value || '').trim() : '';
-                    if (tagsCreateVariantId) {
-                        tagsCreateVariantId.value = tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '';
-                    }
-                    if (tagsCreateProductId) {
-                        tagsCreateProductId.value = getSelectedProductId();
-                    }
-                });
-            }
+                if (tagsCreateForm) {
+                    tagsCreateForm.addEventListener('submit', function () {
+                        pendingCreatedTagName = tagsCreateTagName ? (tagsCreateTagName.value || '').trim() : '';
+                        syncTagCreateFormContext(tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '');
+                    });
+                }
 
             if (tagsModal) {
                 tagsModal.on('show.bs.modal', function (event) {
@@ -2590,6 +2595,7 @@
                     if (tagsCreateCard) {
                         tagsCreateCard.classList.add('d-none');
                     }
+                    syncTagCreateFormContext(mode === 'bulk' ? '' : (variantId || ''));
                     if (tagsBulkForm) {
                         tagsBulkForm.classList.toggle('d-none', mode !== 'bulk');
                     }
@@ -2854,6 +2860,10 @@
 
                 event.preventDefault();
                 savePageState();
+                if (ajaxForm === tagsCreateForm) {
+                    pendingCreatedTagName = tagsCreateTagName ? (tagsCreateTagName.value || '').trim() : '';
+                    syncTagCreateFormContext(tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '');
+                }
 
                 var submitButtons = ajaxForm.querySelectorAll('button[type="submit"]');
                 submitButtons.forEach(function (button) {

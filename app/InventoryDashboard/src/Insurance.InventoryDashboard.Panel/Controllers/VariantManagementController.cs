@@ -320,7 +320,11 @@ public sealed class VariantManagementController : CatalogManagementController
         var variantResult = await _apiService.GetProductVariantFullDetailsAsync(variantId, token);
         if (!variantResult.IsSuccess || variantResult.Data is null)
         {
-            return Content($"<div class=\"alert alert-danger mb-0\">{_uiText["catalog.variants.loadInfoFailed"]}</div>", "text/html");
+            return PartialView("_VariantMediaLibraryBody", new ProductVariantDetailsModel
+            {
+                Id = variantId,
+                Images = new List<VariantImageModel>()
+            });
         }
 
         return PartialView("_VariantMediaLibraryBody", variantResult.Data);
