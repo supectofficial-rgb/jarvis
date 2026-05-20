@@ -450,7 +450,6 @@
                                                 @Html.AntiForgeryToken()
                                                 <input asp-for="BulkVariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                                                 <input asp-for="BulkVariantAddOnForm.SelectedVariantIds" type="hidden" data-bulk-target />
-                                                <input asp-for="BulkVariantAddOnForm.AddOnVariantId" type="hidden" />
                                                 <input type="hidden" data-bulk-action-input />
                                                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
                                                     <div>
@@ -462,9 +461,9 @@
                                                 <div class="form-group mb-2">
                                                     <label>@UiText["catalog.variants.addonVariant"]</label>
                                                     <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
-                                                            class="form-control js-search-select"
-                                                            data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'
-                                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
+                                                            class="form-control"
+                                                            id="BulkVariantAddOnForm_AddOnVariantId"
+                                                            data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'>
                                                         <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
                                                     </select>
                                                     <div class="small text-muted mt-2">یک واریانت را از نتایج جستجو انتخاب کن.</div>
@@ -833,7 +832,7 @@
                                         <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
                                         <div class="form-row">
                                             <div class="col-md-12 mb-2">
-                                                <label>@UiText["catalog.variants.componentVariant"]</label>
+                                                <label class="font-weight-bold">@UiText["catalog.variants.componentVariant"]</label>
                                                 <select asp-for="VariantComponentForm.ComponentVariantId"
                                                         class="form-control js-search-select"
                                                         id="VariantComponentForm_ComponentVariantId"
@@ -841,28 +840,36 @@
                                                         data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
                                                     <option value="">کد یا نام واریانت را جستجو کنید</option>
                                                 </select>
-                                                <small class="text-muted d-block mt-1">کد یا نام واریانت را جستجو کنید</small>
+                                                <small class="text-muted d-block mt-1">بعد از انتخاب واریانت، لوکیشن‌های مرتبط همان کالا بارگذاری می‌شوند.</small>
                                             </div>
                                         </div>
-                                        <div class="border rounded p-3 mb-3 d-none" id="variant-component-stock-panel">
+                                        <div class="border rounded bg-light p-3 mb-3 d-none" id="variant-component-stock-panel">
+                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                                <div>
+                                                    <strong>@UiText["catalog.variants.inventoryAndWarehouses"]</strong>
+                                                    <div class="small text-muted">لوکیشن دقیق را از بین گزینه‌های این واریانت انتخاب کن.</div>
+                                                </div>
+                                                <span class="badge badge-pill badge-outline-info" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</span>
+                                            </div>
                                             <div class="form-row">
                                                 <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
                                                 <div class="col-md-12 mb-2">
-                                                    <label>@UiText["catalog.variants.componentLocation"]</label>
+                                                    <label class="font-weight-bold">@UiText["catalog.variants.componentLocation"]</label>
                                                     <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
                                                         <option value="">@UiText["catalog.variants.selectLocation"]</option>
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div class="small text-muted" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</div>
                                         </div>
                                         <div class="form-row">
                                             <div class="col-md-4 mb-2">
-                                                <label>@UiText["common.count"]</label>
+                                                <label class="font-weight-bold">@UiText["common.count"]</label>
                                                 <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
                                             </div>
                                         </div>
-                                        <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
+                                        <div class="text-right">
+                                            <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
+                                        </div>
                                     </form>
                                 </div>
                             </div>
@@ -1067,7 +1074,7 @@
             var tagsCreateTagName = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagName"]') : null;
             var tagsCreateTagColor = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagColor"]') : null;
             var bulkMediaForm = document.getElementById('variant-bulk-media-form');
-            var addonVariantInput = document.getElementById('VariantAddOnForm_AddOnVariantId');
+            var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
             var mediaModal = $('#variant-bulk-media-modal');
             var mediaModalTitle = document.querySelector('#variant-bulk-media-modal .modal-title');
             var mediaModalBody = document.getElementById('variant-media-library-modal-body');
@@ -1088,6 +1095,7 @@
             var tagsModalBody = document.getElementById('variant-tags-modal-body');
             var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
             var tagLookupItems = [];
+            var addonVariantSearchUrl = bulkAddonSelect ? (bulkAddonSelect.getAttribute('data-ajax-url') || @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "VariantManagement") ?? string.Empty))) : '';
             var tagLookupPromise = null;
             var tagLookupTake = 200;
             var noDisplayDataText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]));
@@ -1342,10 +1350,10 @@
             }
 
             function clearAddonSelection() {
-                if (addonVariantInput && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                    window.jQuery(addonVariantInput).val(null).trigger('change');
-                } else if (addonVariantInput) {
-                    addonVariantInput.value = '';
+                if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(bulkAddonSelect).val(null).trigger('change');
+                } else if (bulkAddonSelect) {
+                    bulkAddonSelect.value = '';
                 }
             }
 
@@ -1424,9 +1432,6 @@
                 var normalizedMode = mode === 'bulk' ? 'bulk' : 'single';
                 var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
                 if (normalizedMode === 'bulk') {
-                    if (addonVariantInput && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                        window.jQuery(addonVariantInput).val(null).trigger('change');
-                    }
                     if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkAddonSelect).val(null).trigger('change');
                     }
@@ -2409,7 +2414,6 @@
             var componentVariantSearchUrl = componentVariantInput ? (componentVariantInput.getAttribute('data-ajax-url') || '') : '';
             var componentStockLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("GetVariantComponentInventoryLookup", "CatalogManagement") ?? string.Empty));
             var componentVariantPlaceholder = componentVariantInput ? (componentVariantInput.getAttribute('data-placeholder') || '') : '';
-            var addonVariantSearchUrl = addonVariantInput ? (addonVariantInput.getAttribute('data-ajax-url') || '') : '';
             var componentStockLocations = [];
 
             function setSelectOptions(select, items, placeholder, valueKey, textKey) {
@@ -2531,16 +2535,16 @@
             }
 
             function initializeAddonVariantSearch() {
-                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !addonVariantInput || addonVariantInput.dataset.select2Initialized === 'true') {
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !bulkAddonSelect || bulkAddonSelect.dataset.select2Initialized === 'true') {
                     return;
                 }
 
-                window.jQuery(addonVariantInput).select2({
+                window.jQuery(bulkAddonSelect).select2({
                     theme: 'bootstrap',
                     dir: document.documentElement.getAttribute('dir') || 'rtl',
                     width: '100%',
                     dropdownParent: addonModal,
-                    placeholder: addonVariantInput.getAttribute('data-placeholder') || '',
+                    placeholder: bulkAddonSelect.getAttribute('data-placeholder') || '',
                     allowClear: true,
                     minimumInputLength: 0,
                     ajax: {
@@ -2567,7 +2571,7 @@
                     }
                 });
 
-                addonVariantInput.dataset.select2Initialized = 'true';
+                bulkAddonSelect.dataset.select2Initialized = 'true';
             }
 
             function loadComponentInventoryOptions(variantId, selectedWarehouseId, selectedLocationId) {
@@ -2800,49 +2804,10 @@
                 }
             });
 
-            var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
-            var bulkAddonLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "VariantManagement") ?? string.Empty));
-
-            if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                window.jQuery(bulkAddonSelect).select2({
-                    theme: 'bootstrap',
-                    dir: document.documentElement.getAttribute('dir') || 'rtl',
-                    width: '100%',
-                    placeholder: bulkAddonSelect.getAttribute('data-placeholder') || '',
-                    allowClear: true,
-                    minimumInputLength: 0,
-                    ajax: {
-                        url: bulkAddonLookupUrl,
-                        dataType: 'json',
-                        delay: 250,
-                        data: function (params) {
-                            return {
-                                term: params.term || '',
-                                take: 20
-                            };
-                        },
-                        processResults: function (data) {
-                            var items = data && Array.isArray(data.items) ? data.items : [];
-                            return {
-                                results: items.map(function (item) {
-                                    return {
-                                        id: item.id || '',
-                                        text: item.text || '',
-                                        sku: item.sku || '',
-                                        name: item.name || '',
-                                        barcode: item.barcode || ''
-                                    };
-                                }).filter(function (item) { return !!item.id; })
-                            };
-                        }
-                    }
-                });
-            }
-
             if (addonModal) {
                 addonModal.on('show.bs.modal', function () {
-                    if (addonVariantInput && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                        window.jQuery(addonVariantInput).val(null).trigger('change');
+                    if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(bulkAddonSelect).val(null).trigger('change');
                     }
                 });
             }

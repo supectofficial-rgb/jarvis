@@ -2647,18 +2647,12 @@ public abstract partial class CatalogManagementController : Controller
     {
         var sku = (variant.Sku ?? string.Empty).Trim();
         var name = (variant.Name ?? string.Empty).Trim();
-        var barcode = (variant.Barcode ?? string.Empty).Trim();
 
         var label = string.IsNullOrWhiteSpace(name)
             ? sku
             : string.IsNullOrWhiteSpace(sku)
                 ? name
                 : $"{sku} - {name}";
-
-        if (!string.IsNullOrWhiteSpace(barcode))
-        {
-            label = string.IsNullOrWhiteSpace(label) ? barcode : $"{label} - {barcode}";
-        }
 
         return string.IsNullOrWhiteSpace(label) ? sku : label;
     }
