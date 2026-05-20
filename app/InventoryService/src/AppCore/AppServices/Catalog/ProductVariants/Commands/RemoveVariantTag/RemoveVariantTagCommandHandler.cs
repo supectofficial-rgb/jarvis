@@ -23,7 +23,7 @@ public class RemoveVariantTagCommandHandler : CommandHandler<RemoveVariantTagCom
         if (variant is null)
             return Fail("Product variant was not found.");
 
-        variant.RemoveTag(command.VariantTagBusinessKey, command.TagName);
+        variant.RemoveTag(command.VariantTagBusinessKey, null);
         await _variantRepository.CommitAsync();
 
         return Ok(new RemoveVariantTagCommandResult

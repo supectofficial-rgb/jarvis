@@ -267,6 +267,7 @@ public sealed class VariantTagModel
 
 public sealed class VariantTagLookupModel
 {
+    public string TagId { get; set; } = string.Empty;
     public string TagName { get; set; } = string.Empty;
     public string? TagColor { get; set; }
     public int UsageCount { get; set; }
@@ -275,9 +276,20 @@ public sealed class VariantTagLookupModel
 public sealed class UpsertVariantTagRequest
 {
     public string? TagId { get; set; }
+    public int DisplayOrder { get; set; }
+}
+
+public sealed class CreateTagDefinitionRequest
+{
     public string TagName { get; set; } = string.Empty;
     public string? TagColor { get; set; }
-    public int DisplayOrder { get; set; }
+}
+
+public sealed class TagDefinitionModel
+{
+    public string TagId { get; set; } = string.Empty;
+    public string TagName { get; set; } = string.Empty;
+    public string? TagColor { get; set; }
 }
 
 public sealed class StockDetailSearchResultModel

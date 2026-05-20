@@ -1009,6 +1009,7 @@ public sealed class ApiService : IApiService
 
         var mapped = result.Data?.Items.Select(item => new VariantTagLookupModel
         {
+            TagId = item.TagId.ToString("D"),
             TagName = item.TagName,
             TagColor = item.TagColor,
             UsageCount = item.UsageCount
@@ -1021,9 +1022,7 @@ public sealed class ApiService : IApiService
     {
         var payload = new
         {
-            VariantTagBusinessKey = ParseNullableGuid(request.TagId),
-            TagName = request.TagName,
-            TagColor = request.TagColor,
+            TagBusinessKey = ParseNullableGuid(request.TagId),
             DisplayOrder = request.DisplayOrder
         };
 
@@ -1032,6 +1031,41 @@ public sealed class ApiService : IApiService
             payload,
             token,
             "Saving variant tag failed.");
+    }
+
+    public async Task<ApiResponse<TagDefinitionModel>> CreateTagDefinitionAsync(CreateTagDefinitionRequest request, string token)
+    {
+        var payload = new
+        {
+            TagName = request.TagName.Trim(),
+            TagColor = NormalizeOptional(request.TagColor)
+        };
+
+        var result = await PostCommandWithDataAsync<CreateTagDefinitionCommandResultDto>(
+            $"{InventoryApiPrefix}/ProductVariant/tags",
+            payload,
+            token,
+            "Saving tag definition failed.");
+
+        if (!result.IsSuccess || result.Data is null)
+        {
+            return new ApiResponse<TagDefinitionModel>
+            {
+                IsSuccess = false,
+                ErrorMessage = result.ErrorMessage ?? "Saving tag definition failed."
+            };
+        }
+
+        return new ApiResponse<TagDefinitionModel>
+        {
+            IsSuccess = true,
+            Data = new TagDefinitionModel
+            {
+                TagId = result.Data.TagBusinessKey.ToString("D"),
+                TagName = result.Data.TagName,
+                TagColor = result.Data.TagColor
+            }
+        };
     }
 
     public Task<ApiResponse<bool>> RemoveVariantTagAsync(string variantId, string? tagId, string? tagName, string token)
@@ -2420,6 +2454,13 @@ public sealed class ApiService : IApiService
         public Guid AttributeDefinitionBusinessKey { get; set; }
     }
 
+    private sealed class CreateTagDefinitionCommandResultDto
+    {
+        public Guid TagBusinessKey { get; set; }
+        public string TagName { get; set; } = string.Empty;
+        public string? TagColor { get; set; }
+    }
+
     private sealed class CreateProductCommandResultDto
     {
         public Guid ProductBusinessKey { get; set; }
@@ -2750,6 +2791,7 @@ public sealed class ApiService : IApiService
 
     private sealed class VariantTagLookupItemDto
     {
+        public Guid TagId { get; set; }
         public string TagName { get; set; } = string.Empty;
         public string? TagColor { get; set; }
         public int UsageCount { get; set; }

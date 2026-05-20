@@ -8,6 +8,8 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Products.
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Products.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.ProductVariants.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.ProductVariants.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Tags.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Tags.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.UnitOfMeasures.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.UnitOfMeasures.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.VariantNameFormulas.Configs;
@@ -65,6 +67,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     public DbSet<ProductReadModel> Products => Set<ProductReadModel>();
     public DbSet<ProductAttributeValueReadModel> ProductAttributeValues => Set<ProductAttributeValueReadModel>();
     public DbSet<ProductVariantReadModel> ProductVariants => Set<ProductVariantReadModel>();
+    public DbSet<TagReadModel> Tags => Set<TagReadModel>();
     public DbSet<VariantAttributeValueReadModel> VariantAttributeValues => Set<VariantAttributeValueReadModel>();
     public DbSet<VariantUomConversionReadModel> VariantUomConversions => Set<VariantUomConversionReadModel>();
     public DbSet<VariantComponentReadModel> VariantComponents => Set<VariantComponentReadModel>();
@@ -108,6 +111,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
         modelBuilder.ApplyConfiguration(new ProductReadModelConfig());
         modelBuilder.ApplyConfiguration(new ProductAttributeValueReadModelConfig());
         modelBuilder.ApplyConfiguration(new ProductVariantReadModelConfig());
+        modelBuilder.ApplyConfiguration(new TagReadModelConfig());
         modelBuilder.ApplyConfiguration(new VariantAttributeValueReadModelConfig());
         modelBuilder.ApplyConfiguration(new VariantUomConversionReadModelConfig());
         modelBuilder.ApplyConfiguration(new VariantComponentReadModelConfig());

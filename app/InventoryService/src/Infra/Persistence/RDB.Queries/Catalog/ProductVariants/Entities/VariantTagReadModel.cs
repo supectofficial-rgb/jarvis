@@ -5,6 +5,7 @@ public class VariantTagReadModel
     public long Id { get; set; }
     public Guid BusinessKey { get; set; }
     public Guid VariantRef { get; set; }
+    public Guid TagRef { get; set; }
     public string TagName { get; set; } = string.Empty;
     public string? TagColor { get; set; }
     public int DisplayOrder { get; set; }

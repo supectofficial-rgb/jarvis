@@ -14,6 +14,7 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Attribut
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Categories.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Products.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.ProductVariants.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Tags.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.UnitOfMeasures.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.VariantNameFormulas.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Commands.InventoryDocuments.Configs;
@@ -50,6 +51,7 @@ public class InventoryServiceCommandDbContext : CommandDbContext
     public DbSet<CategorySchemaVersion> CategorySchemaVersions => Set<CategorySchemaVersion>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<VariantComponent> VariantComponents => Set<VariantComponent>();
     public DbSet<VariantAddOn> VariantAddOns => Set<VariantAddOn>();
     public DbSet<VariantImage> VariantImages => Set<VariantImage>();
@@ -88,6 +90,7 @@ public class InventoryServiceCommandDbContext : CommandDbContext
         modelBuilder.ApplyConfiguration(new ProductConfig());
         modelBuilder.ApplyConfiguration(new ProductAttributeValueConfig());
         modelBuilder.ApplyConfiguration(new ProductVariantConfig());
+        modelBuilder.ApplyConfiguration(new TagConfig());
         modelBuilder.ApplyConfiguration(new VariantAttributeValueConfig());
         modelBuilder.ApplyConfiguration(new VariantUomConversionConfig());
         modelBuilder.ApplyConfiguration(new VariantComponentConfig());

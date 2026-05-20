@@ -147,6 +147,7 @@ public sealed class VariantManagementPageViewModel
     public VariantComponentForm VariantComponentForm { get; set; } = new();
     public VariantAddOnForm VariantAddOnForm { get; set; } = new();
     public VariantTagForm VariantTagForm { get; set; } = new();
+    public TagDefinitionForm TagDefinitionForm { get; set; } = new();
     public VariantAssemblyOperationForm VariantAssemblyOperationForm { get; set; } = new();
     public BulkVariantAddOnForm BulkVariantAddOnForm { get; set; } = new();
     public BulkVariantImageForm BulkVariantImageForm { get; set; } = new();
@@ -567,20 +568,28 @@ public sealed class VariantTagForm
     [Required]
     public string VariantId { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "انتخاب برچسب الزامی است.")]
+    public string TagId { get; set; } = string.Empty;
+
+    [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
+    public int DisplayOrder { get; set; }
+}
+
+public sealed class TagDefinitionForm
+{
     public string? TagId { get; set; }
 
     [Required(ErrorMessage = "نام برچسب الزامی است.")]
     public string TagName { get; set; } = string.Empty;
 
-    public string? TagColor { get; set; }
-
-    [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
-    public int DisplayOrder { get; set; }
+    [Required(ErrorMessage = "رنگ برچسب الزامی است.")]
+    public string TagColor { get; set; } = string.Empty;
 }
 
 public sealed class BulkVariantTagForm
 {
     public string? ProductId { get; set; }
     public string? SelectedVariantIds { get; set; }
-    public string? TagNames { get; set; }
+    [Required(ErrorMessage = "حداقل یک برچسب را انتخاب کنید.")]
+    public string? TagIds { get; set; }
 }

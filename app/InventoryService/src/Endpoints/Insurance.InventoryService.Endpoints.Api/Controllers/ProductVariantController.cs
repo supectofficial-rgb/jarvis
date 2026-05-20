@@ -20,6 +20,7 @@ using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantImage;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantTag;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Commands.UpsertVariantUomConversion;
+using Insurance.InventoryService.AppCore.Shared.Catalog.Tags.Commands.CreateTagDefinition;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetActiveVariants;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetVariantAddOnsByVariantId;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetAttributeValueById;
@@ -167,6 +168,11 @@ public class ProductVariantController : OysterFxController
         command.ProductVariantBusinessKey = productVariantBusinessKey;
         return SendCommand<UpsertVariantTagCommand, UpsertVariantTagCommandResult>(command);
     }
+
+    [HttpPost("tags")]
+    [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    public Task<IActionResult> CreateTag([FromBody] CreateTagDefinitionCommand command)
+        => SendCommand<CreateTagDefinitionCommand, CreateTagDefinitionCommandResult>(command);
 
     [HttpDelete("{productVariantBusinessKey:guid}/tags")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]

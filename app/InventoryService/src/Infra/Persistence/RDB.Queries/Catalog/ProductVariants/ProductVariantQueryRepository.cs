@@ -8,6 +8,7 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Attribute
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Categories.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Products.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.ProductVariants.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Tags.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Locations.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Warehouses.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -454,24 +455,25 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
 
     public async Task<List<VariantTagViewItem>> GetTagsByVariantIdAsync(Guid variantId)
     {
-        return await _dbContext.Set<VariantTagReadModel>()
-            .Where(x => x.VariantRef == variantId)
-            .OrderBy(x => x.DisplayOrder)
-            .ThenBy(x => x.TagName)
-            .Select(x => new VariantTagViewItem
+        return await (
+            from variantTag in _dbContext.Set<VariantTagReadModel>()
+            join tag in _dbContext.Set<TagReadModel>() on variantTag.TagRef equals tag.BusinessKey
+            where variantTag.VariantRef == variantId
+            orderby variantTag.DisplayOrder, tag.TagName
+            select new VariantTagViewItem
             {
-                VariantTagBusinessKey = x.BusinessKey,
-                VariantRef = x.VariantRef,
-                TagName = x.TagName,
-                TagColor = x.TagColor,
-                DisplayOrder = x.DisplayOrder
-            })
-            .ToListAsync();
+                VariantTagBusinessKey = variantTag.BusinessKey,
+                VariantRef = variantTag.VariantRef,
+                TagRef = tag.BusinessKey,
+                TagName = tag.TagName,
+                TagColor = tag.TagColor,
+                DisplayOrder = variantTag.DisplayOrder
+            }).ToListAsync();
     }
 
     public async Task<List<VariantTagLookupItem>> GetTagLookupAsync(string? term = null, int take = 50)
     {
-        var query = _dbContext.Set<VariantTagReadModel>().AsNoTracking();
+        var query = _dbContext.Set<TagReadModel>().AsNoTracking();
         if (!string.IsNullOrWhiteSpace(term))
         {
             var normalized = term.Trim();
@@ -479,15 +481,17 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         }
 
         return await query
-            .GroupBy(x => x.TagName)
-            .Select(x => new VariantTagLookupItem
-            {
-                TagName = x.Key,
-                TagColor = x.Where(item => item.TagColor != null && item.TagColor != string.Empty)
-                    .Select(item => item.TagColor)
-                    .FirstOrDefault(),
-                UsageCount = x.Count()
-            })
+            .GroupJoin(
+                _dbContext.Set<VariantTagReadModel>().AsNoTracking(),
+                tag => tag.BusinessKey,
+                variantTag => variantTag.TagRef,
+                (tag, variantTags) => new VariantTagLookupItem
+                {
+                    TagId = tag.BusinessKey,
+                    TagName = tag.TagName,
+                    TagColor = tag.TagColor,
+                    UsageCount = variantTags.Count()
+                })
             .OrderByDescending(x => x.UsageCount)
             .ThenBy(x => x.TagName)
             .Take(Math.Clamp(take, 1, 200))
@@ -834,6 +838,7 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         {
             VariantTagBusinessKey = x.BusinessKey,
             VariantRef = x.VariantRef,
+            TagRef = x.TagRef,
             TagName = x.TagName,
             TagColor = x.TagColor,
             DisplayOrder = x.DisplayOrder

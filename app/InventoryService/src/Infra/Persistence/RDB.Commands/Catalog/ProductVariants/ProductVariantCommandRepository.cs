@@ -119,16 +119,15 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
         return query.AnyAsync();
     }
 
-    public Task<bool> ExistsByTagNameAsync(Guid productVariantBusinessKey, string tagName, Guid? exceptBusinessKey = null)
+    public Task<bool> ExistsByTagRefAsync(Guid productVariantBusinessKey, Guid tagRef, Guid? exceptBusinessKey = null)
     {
-        if (productVariantBusinessKey == Guid.Empty || string.IsNullOrWhiteSpace(tagName))
+        if (productVariantBusinessKey == Guid.Empty || tagRef == Guid.Empty)
             return Task.FromResult(false);
 
-        var normalized = tagName.Trim();
         var query = _dbContext.Set<ProductVariant>()
             .Where(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey))
             .SelectMany(x => x.Tags)
-            .Where(x => x.TagName == normalized);
+            .Where(x => x.TagRef == tagRef);
 
         if (exceptBusinessKey.HasValue && exceptBusinessKey.Value != Guid.Empty)
             query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));

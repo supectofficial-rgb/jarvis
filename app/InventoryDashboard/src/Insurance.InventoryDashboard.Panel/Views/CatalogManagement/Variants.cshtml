@@ -669,15 +669,15 @@
                                                         <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-addon-details"
                                                                 data-variant-id="@variant.Id"
+                                                                data-product-id="@Model.SelectedProductId"
                                                                 data-mode="single"
                                                                 data-detail-title="@UiText["catalog.variants.addonListTitle"]">
                                                             @UiText["catalog.variants.addonListTitle"]
                                                         </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-components-details"
-                                                                data-product-id="@Model.SelectedProductId"
+                                                                data-product-id="@variant.ProductId"
                                                                 data-variant-id="@variant.Id"
-                                                                data-variant-url="@Url.Action("Variants", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.componentsTitle"]">
                                                             @UiText["catalog.variants.componentsTitle"]
                                                         </button>
@@ -964,19 +964,20 @@
                             <strong>ایجاد برچسب جدید</strong>
                             <button type="button" class="btn btn-link btn-sm p-0" id="variant-tags-create-cancel">بستن</button>
                         </div>
-                        <form asp-action="UpsertVariantTag"
+                        <form asp-action="CreateTagDefinition"
                               method="post"
                               id="variant-tag-create-form"
                               data-ajax-submit="variant-tags"
                               data-loading-form>
                             @Html.AntiForgeryToken()
-                            <input name="VariantTagForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                            <input name="VariantTagForm.VariantId" type="hidden" value="" />
-                            <input name="VariantTagForm.TagId" type="hidden" value="" />
-                            <input name="VariantTagForm.TagColor" type="hidden" value="" />
                             <div class="form-group">
                                 <label>نام برچسب</label>
-                                <input name="VariantTagForm.TagName" class="form-control" placeholder="مثلا ویژه یا تخفیف" />
+                                <input name="TagDefinitionForm.TagName" class="form-control" placeholder="مثلا ویژه یا تخفیف" />
+                            </div>
+                            <div class="form-group">
+                                <label>رنگ برچسب</label>
+                                <input type="color" name="TagDefinitionForm.TagColor" class="form-control form-control-color" value="#64748b" style="max-width: 96px;" />
+                                <div class="small text-muted mt-2">رنگ را با انتخاب‌گر سیستم مشخص کن، نه از لیست ثابت.</div>
                             </div>
                             <button type="submit" class="btn btn-primary">تایید</button>
                         </form>
@@ -999,7 +1000,7 @@
                                     class="form-control js-search-select"
                                     multiple
                                     data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
-                            <input asp-for="BulkVariantTagForm.TagNames" type="hidden" />
+                            <input asp-for="BulkVariantTagForm.TagIds" type="hidden" />
                             <div class="small text-muted mt-2">این فیلد از برچسب‌های ثبت‌شده در سیستم تغذیه می‌شود.</div>
                         </div>
                         <button type="submit" class="btn btn-primary btn-block">ثبت گروهی برچسب</button>
@@ -1018,16 +1019,11 @@
                         <input asp-for="VariantTagForm.TagId" type="hidden" />
                         <div class="form-row">
                             <div class="col-md-8 mb-2">
-                                <label>نام برچسب</label>
+                                <label>برچسب</label>
                                 <select id="single-variant-tag-lookup"
                                         class="form-control js-search-select"
                                         data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
-                                <input asp-for="VariantTagForm.TagName" type="hidden" />
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label>رنگ برچسب</label>
-                            <input asp-for="VariantTagForm.TagColor" class="form-control" placeholder="#ffcc00" />
                         </div>
                         <button type="submit" class="btn btn-outline-primary btn-block">ثبت برچسب</button>
                     </form>
@@ -1064,17 +1060,10 @@
             var tagsSingleForm = document.getElementById('variant-tag-form');
             var tagsSingleVariantId = document.getElementById('VariantTagForm_VariantId');
             var tagsSingleTagId = document.getElementById('VariantTagForm_TagId');
-            var tagsSingleTagName = document.getElementById('VariantTagForm_TagName');
-            var tagsSingleTagColor = document.getElementById('VariantTagForm_TagColor');
             var tagsCreateToggle = document.getElementById('variant-tags-create-toggle');
             var tagsCreateCard = document.getElementById('variant-tags-create-card');
             var tagsCreateCancel = document.getElementById('variant-tags-create-cancel');
             var tagsCreateForm = document.getElementById('variant-tag-create-form');
-            var tagsCreateProductId = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.ProductId"]') : null;
-            var tagsCreateVariantId = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.VariantId"]') : null;
-            var tagsCreateTagId = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagId"]') : null;
-            var tagsCreateTagName = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagName"]') : null;
-            var tagsCreateTagColor = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagColor"]') : null;
             var bulkMediaForm = document.getElementById('variant-bulk-media-form');
             var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
             var mediaModal = $('#variant-bulk-media-modal');
@@ -1082,6 +1071,7 @@
             var mediaModalBody = document.getElementById('variant-media-library-modal-body');
             var bulkTagLookupSelect = document.getElementById('bulk-variant-tag-lookup');
             var singleTagLookupSelect = document.getElementById('single-variant-tag-lookup');
+            var pendingCreatedTagId = '';
             var pendingCreatedTagName = '';
             var tagsList = document.getElementById('variant-tags-list');
             var tagsCount = document.getElementById('variant-tags-count');
@@ -1513,7 +1503,7 @@
                     });
             }
 
-            function loadVariantAddOnsForModal(variantId, mode, label) {
+            function loadVariantAddOnsForModal(variantId, mode, label, productId) {
                 var normalizedMode = mode === 'bulk' ? 'bulk' : 'single';
                 var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
                 if (normalizedMode === 'bulk') {
@@ -1536,10 +1526,16 @@
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 }
                 ensureVariantSelectedForBulk(variantId);
+                var activeProductId = (productId || getSelectedProductId() || '').trim();
                 if (addonModalTitle) {
                     addonModalTitle.textContent = label || 'Add-on';
                 }
                 if (addonListContainer) {
+                    var addonUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Variants", "VariantManagement") ?? string.Empty)) +
+                        '?productId=' + encodeURIComponent(activeProductId) +
+                        '&variantId=' + encodeURIComponent(variantId || '');
+                    addonListContainer.setAttribute('data-source-url', addonUrl);
+                    addonListContainer.setAttribute('data-source-selector', '#variant-addons-list-container');
                     addonListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
                 }
 
@@ -1547,7 +1543,6 @@
                     addonModal.modal('show');
                 }
 
-                var addonUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Variants", "VariantManagement") ?? string.Empty)) + '?productId=' + encodeURIComponent(getSelectedProductId()) + '&variantId=' + encodeURIComponent(variantId || '');
                 fetchPageFragment(addonUrl, '#variant-addons-list-container')
                     .then(function (html) {
                         if (addonListContainer) {
@@ -1605,19 +1600,25 @@
                     event.preventDefault();
                     var addonVariantId = addonButton.getAttribute('data-variant-id') || '';
                     var addonLabel = addonButton.getAttribute('data-detail-title') || '';
+                    var addonProductId = addonButton.getAttribute('data-product-id') || '';
                     ensureVariantSelectedForBulk(addonVariantId);
                     loadVariantAddOnsForModal(
                         addonVariantId,
                         addonButton.getAttribute('data-mode') || 'single',
-                        addonLabel);
+                        addonLabel,
+                        addonProductId);
                     return;
                 }
 
                 var componentButton = event.target.closest ? event.target.closest('.js-variant-components-details') : null;
                 if (componentButton) {
                     event.preventDefault();
-                    var componentProductId = getSelectedProductId() || (componentButton.getAttribute('data-product-id') || '');
+                    var componentProductId = (componentButton.getAttribute('data-product-id') || getSelectedProductId() || '').trim();
                     var componentVariantId = componentButton.getAttribute('data-variant-id') || '';
+                    if (!componentProductId || !componentVariantId) {
+                        alert(loadInfoFailedText);
+                        return;
+                    }
                     var componentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Variants", "VariantManagement") ?? string.Empty)) +
                         '?productId=' + encodeURIComponent(componentProductId) +
                         '&variantId=' + encodeURIComponent(componentVariantId);
@@ -1960,42 +1961,38 @@
                 });
             }
 
-            function syncBulkTagNamesField() {
+            function syncBulkTagIdsField() {
                 if (!bulkTagLookupSelect || !tagsBulkForm) {
                     return;
                 }
 
-                var hiddenInput = tagsBulkForm.querySelector('input[name="BulkVariantTagForm.TagNames"]');
+                var hiddenInput = tagsBulkForm.querySelector('input[name="BulkVariantTagForm.TagIds"]');
                 if (!hiddenInput) {
                     return;
                 }
 
-                var selectedNames = Array.from(bulkTagLookupSelect.selectedOptions || [])
+                var selectedIds = Array.from(bulkTagLookupSelect.selectedOptions || [])
                     .map(function (option) { return (option.value || '').trim(); })
                     .filter(Boolean);
-                hiddenInput.value = selectedNames.join(',');
+                hiddenInput.value = selectedIds.join(',');
             }
 
-            function syncSingleTagNameField() {
+            function syncSingleTagIdField() {
                 if (!singleTagLookupSelect || !tagsSingleForm) {
                     return;
                 }
-
-                var hiddenInput = tagsSingleForm.querySelector('input[name="VariantTagForm.TagName"]');
-                if (!hiddenInput) {
-                    return;
+                if (tagsSingleTagId) {
+                    tagsSingleTagId.value = (singleTagLookupSelect.value || '').trim();
                 }
-
-                hiddenInput.value = (singleTagLookupSelect.value || '').trim();
             }
 
             function ensureTagOption(selectElement, item) {
-                if (!selectElement || !item || !item.tagName) {
+                if (!selectElement || !item || !item.tagId) {
                     return;
                 }
 
                 var existing = Array.prototype.slice.call(selectElement.options || []).some(function (option) {
-                    return (option.value || '').trim() === item.tagName;
+                    return (option.value || '').trim() === item.tagId;
                 });
 
                 if (existing) {
@@ -2003,7 +2000,7 @@
                 }
 
                 var label = item.text || item.tagName;
-                var option = new Option(label, item.tagName, true, true);
+                var option = new Option(label, item.tagId, true, true);
                 selectElement.appendChild(option);
             }
 
@@ -2021,9 +2018,15 @@
                     return null;
                 }
 
+                var tagId = (item.tagId || item.TagId || '').toString().trim();
+                if (!tagId) {
+                    return null;
+                }
+
                 var tagColor = (item.tagColor || item.TagColor || '').toString().trim();
                 var usageCount = item.usageCount || item.UsageCount || 0;
                 return {
+                    tagId: tagId,
                     tagName: tagName,
                     tagColor: tagColor,
                     usageCount: usageCount,
@@ -2089,7 +2092,7 @@
 
                 tagLookupItems.forEach(function (item) {
                     var option = document.createElement('option');
-                    option.value = item.tagName;
+                    option.value = item.tagId;
                     option.textContent = item.text;
                     option.setAttribute('data-tag-color', item.tagColor || '');
                     option.setAttribute('data-usage-count', String(item.usageCount || 0));
@@ -2141,26 +2144,27 @@
                 return tagLookupPromise;
             }
 
-            function reloadTagLookupOptions(preserveTagName) {
+            function reloadTagLookupOptions(preserveTagId) {
                 tagLookupPromise = null;
                 tagLookupItems = [];
                 refreshTagLookupSelects();
                 return ensureTagLookupOptions().then(function () {
-                    var normalizedPreserveTagName = (preserveTagName || '').trim();
-                    if (!normalizedPreserveTagName) {
+                    var normalizedPreserveTagId = (preserveTagId || '').trim();
+                    if (!normalizedPreserveTagId) {
                         return tagLookupItems;
                     }
 
                     var exists = tagLookupItems.some(function (item) {
-                        return (item.tagName || '').trim().toLowerCase() === normalizedPreserveTagName.toLowerCase();
+                        return (item.tagId || '').trim().toLowerCase() === normalizedPreserveTagId.toLowerCase();
                     });
 
                     if (!exists) {
                         tagLookupItems.unshift({
-                            tagName: normalizedPreserveTagName,
+                            tagId: normalizedPreserveTagId,
+                            tagName: normalizedPreserveTagId,
                             tagColor: '',
                             usageCount: 1,
-                            text: normalizedPreserveTagName
+                            text: normalizedPreserveTagId
                         });
                         refreshTagLookupSelects();
                     }
@@ -2169,12 +2173,9 @@
                 });
             }
 
-            function syncTagCreateFormContext(variantId) {
-                if (tagsCreateVariantId) {
-                    tagsCreateVariantId.value = variantId || '';
-                }
-                if (tagsCreateProductId) {
-                    tagsCreateProductId.value = getSelectedProductId();
+            function resetTagCreateForm() {
+                if (tagsCreateForm) {
+                    tagsCreateForm.reset();
                 }
             }
 
@@ -2200,22 +2201,18 @@
                     if (bulkTagLookupSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkTagLookupSelect).val(null).trigger('change');
                     }
-                    syncBulkTagNamesField();
+                    syncBulkTagIdsField();
                     renderTagList([], mode);
                     return;
                 }
 
                 if (!variantId) {
-                    if (tagsCreateToggle) {
-                        tagsCreateToggle.classList.add('d-none');
-                    }
-                    if (tagsCreateCard) {
-                        tagsCreateCard.classList.add('d-none');
-                    }
                     if (singleTagLookupSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(singleTagLookupSelect).val(null).trigger('change');
                     }
-                    syncSingleTagNameField();
+                    if (tagsSingleTagId) {
+                        tagsSingleTagId.value = '';
+                    }
                     renderTagList([], mode);
                     return;
                 }
@@ -2226,21 +2223,7 @@
                 if (tagsCreateCard) {
                     tagsCreateCard.classList.add('d-none');
                 }
-                if (tagsCreateVariantId) {
-                    tagsCreateVariantId.value = variantId || '';
-                }
-                if (tagsCreateProductId) {
-                    tagsCreateProductId.value = getSelectedProductId();
-                }
-                if (tagsCreateTagId) {
-                    tagsCreateTagId.value = '';
-                }
-                if (tagsCreateTagName) {
-                    tagsCreateTagName.value = '';
-                }
-                if (tagsCreateTagColor) {
-                    tagsCreateTagColor.value = '';
-                }
+                resetTagCreateForm();
 
                 var url = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTags", "VariantManagement") ?? string.Empty)) + '?variantId=' + encodeURIComponent(variantId);
                 fetch(url, { headers: { 'Accept': 'application/json' } })
@@ -2274,9 +2257,6 @@
                 body.append('variantId', tagsSingleVariantId.value || '');
                 if (tag.tagId || tag.TagId) {
                     body.append('tagId', tag.tagId || tag.TagId);
-                }
-                if (tag.tagName || tag.TagName) {
-                    body.append('tagName', tag.tagName || tag.TagName);
                 }
 
                 fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("RemoveVariantTag", "VariantManagement") ?? string.Empty)), {
@@ -2737,11 +2717,11 @@
             ensureTagLookupOptions();
 
             if (bulkTagLookupSelect) {
-                bulkTagLookupSelect.addEventListener('change', syncBulkTagNamesField);
+                bulkTagLookupSelect.addEventListener('change', syncBulkTagIdsField);
             }
 
             if (singleTagLookupSelect) {
-                singleTagLookupSelect.addEventListener('change', syncSingleTagNameField);
+                singleTagLookupSelect.addEventListener('change', syncSingleTagIdField);
             }
 
             if (tagsCreateToggle) {
@@ -2751,8 +2731,11 @@
                     }
 
                     tagsCreateCard.classList.toggle('d-none');
-                    if (!tagsCreateCard.classList.contains('d-none') && tagsCreateTagName) {
-                        tagsCreateTagName.focus();
+                    if (!tagsCreateCard.classList.contains('d-none')) {
+                        var firstInput = tagsCreateCard.querySelector('input[name="TagDefinitionForm.TagName"]');
+                        if (firstInput) {
+                            firstInput.focus();
+                        }
                     }
                 });
             }
@@ -2763,24 +2746,16 @@
                     if (tagsCreateForm) {
                         tagsCreateForm.reset();
                     }
-                    if (tagsCreateVariantId) {
-                        tagsCreateVariantId.value = tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '';
-                    }
-                    if (tagsCreateProductId) {
-                        tagsCreateProductId.value = getSelectedProductId();
-                    }
-                    if (tagsCreateTagColor) {
-                        tagsCreateTagColor.value = '';
-                    }
                 });
             }
 
-                if (tagsCreateForm) {
-                    tagsCreateForm.addEventListener('submit', function () {
-                        pendingCreatedTagName = tagsCreateTagName ? (tagsCreateTagName.value || '').trim() : '';
-                        syncTagCreateFormContext(tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '');
-                    });
-                }
+            if (tagsCreateForm) {
+                tagsCreateForm.addEventListener('submit', function () {
+                    var tagNameInput = tagsCreateForm.querySelector('input[name="TagDefinitionForm.TagName"]');
+                    pendingCreatedTagId = '';
+                    pendingCreatedTagName = tagNameInput ? (tagNameInput.value || '').trim() : '';
+                });
+            }
 
             if (tagsModal) {
                 tagsModal.on('show.bs.modal', function (event) {
@@ -2796,12 +2771,11 @@
                     tagsModal.attr('data-variant-label', label);
                     tagsModal.attr('data-bulk-has-selection', (mode === 'bulk' && (bulkTagsSelectedIdsInput ? (bulkTagsSelectedIdsInput.value || '').trim() : '').length === 0) ? 'false' : 'true');
                     if (tagsCreateToggle) {
-                        tagsCreateToggle.classList.toggle('d-none', mode === 'bulk' || !variantId);
+                        tagsCreateToggle.classList.remove('d-none');
                     }
                     if (tagsCreateCard) {
                         tagsCreateCard.classList.add('d-none');
                     }
-                    syncTagCreateFormContext(mode === 'bulk' ? '' : (variantId || ''));
                     if (tagsBulkForm) {
                         tagsBulkForm.classList.toggle('d-none', mode !== 'bulk');
                     }
@@ -2817,8 +2791,6 @@
                     }
                     if (mode === 'bulk') {
                         if (tagsSingleTagId) { tagsSingleTagId.value = ''; }
-                        if (tagsSingleTagName) { tagsSingleTagName.value = ''; }
-                        if (tagsSingleTagColor) { tagsSingleTagColor.value = ''; }
                     }
 
                     if (mode === 'bulk' && bulkTagsSelectedIdsInput) {
@@ -2840,6 +2812,7 @@
                         tagsCreateForm.reset();
                     }
                     pendingCreatedTagName = '';
+                    pendingCreatedTagId = '';
                 });
             }
 
@@ -3047,8 +3020,8 @@
                 event.preventDefault();
                 savePageState();
                 if (ajaxForm === tagsCreateForm) {
-                    pendingCreatedTagName = tagsCreateTagName ? (tagsCreateTagName.value || '').trim() : '';
-                    syncTagCreateFormContext(tagsSingleVariantId ? (tagsSingleVariantId.value || '') : '');
+                    var pendingTagNameInput = tagsCreateForm ? tagsCreateForm.querySelector('input[name="TagDefinitionForm.TagName"]') : null;
+                    pendingCreatedTagName = pendingTagNameInput ? (pendingTagNameInput.value || '').trim() : '';
                 }
 
                 var submitButtons = ajaxForm.querySelectorAll('button[type="submit"]');
@@ -3072,7 +3045,17 @@
                         }
 
                         var mode = ajaxForm.getAttribute('data-ajax-submit') || '';
-                        if (mode === 'bulk-media') {
+                        if (mode === 'bulk-media' || mode === 'bulk-addon') {
+                            return response.json().then(function (payload) {
+                                return {
+                                    mode: mode,
+                                    ok: response.ok,
+                                    payload: payload || {}
+                                };
+                            });
+                        }
+
+                        if (mode === 'variant-tags' && ajaxForm === tagsCreateForm) {
                             return response.json().then(function (payload) {
                                 return {
                                     mode: mode,
@@ -3110,18 +3093,24 @@
                         }
 
                         if (mode === 'variant-tags') {
-                            return reloadTagLookupOptions(pendingCreatedTagName).then(function () {
-                                var currentMode = tagsModal ? (tagsModal.attr('data-tag-mode') || 'single') : 'single';
-                                var currentVariantId = tagsSingleVariantId && tagsSingleVariantId.value ? tagsSingleVariantId.value : (tagsCreateVariantId ? tagsCreateVariantId.value : '');
-                                if (currentMode === 'single' && pendingCreatedTagName && singleTagLookupSelect) {
-                                    var matchingOption = Array.prototype.slice.call(singleTagLookupSelect.options || []).find(function (option) {
-                                        return (option.value || '').trim() === pendingCreatedTagName;
-                                    });
-                                    if (matchingOption) {
-                                        window.jQuery(singleTagLookupSelect).val(pendingCreatedTagName).trigger('change');
+                            if (ajaxForm === tagsCreateForm) {
+                                var payload = result && result.payload ? result.payload : {};
+                                pendingCreatedTagId = (payload && payload.tagId) ? payload.tagId : '';
+                                return reloadTagLookupOptions(pendingCreatedTagId).then(function () {
+                                    var currentMode = tagsModal ? (tagsModal.attr('data-tag-mode') || 'single') : 'single';
+                                    if (currentMode === 'single' && pendingCreatedTagId && singleTagLookupSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                                        window.jQuery(singleTagLookupSelect).val(pendingCreatedTagId).trigger('change');
                                     }
-                                }
-                                pendingCreatedTagName = '';
+                                    pendingCreatedTagName = '';
+                                    pendingCreatedTagId = '';
+                                    var currentVariantId = tagsSingleVariantId && tagsSingleVariantId.value ? tagsSingleVariantId.value : '';
+                                    return loadVariantTagsForModal(currentVariantId, currentMode, tagsModalTitle ? tagsModalTitle.textContent : '');
+                                });
+                            }
+
+                            return reloadTagLookupOptions().then(function () {
+                                var currentMode = tagsModal ? (tagsModal.attr('data-tag-mode') || 'single') : 'single';
+                                var currentVariantId = tagsSingleVariantId && tagsSingleVariantId.value ? tagsSingleVariantId.value : '';
                                 return loadVariantTagsForModal(currentVariantId, currentMode, tagsModalTitle ? tagsModalTitle.textContent : '');
                             });
                         }
@@ -3137,18 +3126,30 @@
                             return Promise.resolve();
                         }
 
-                        if (mode === 'bulk-tags') {
-                            if (tagsModal) {
-                                tagsModal.modal('hide');
-                            }
-                            return Promise.resolve();
-                        }
-
                         if (mode === 'bulk-addon') {
+                            var addonPayload = result && result.payload ? result.payload : {};
+                            var addonMode = addonModal ? (addonModal.attr('data-addon-mode') || 'bulk') : 'bulk';
+                            if (!result.ok || !addonPayload.isSuccess) {
+                                throw new Error(addonPayload.error || addonPayload.message || loadInfoFailedText);
+                            }
+
+                            if (addonMode === 'single') {
+                                return refreshAddonList().then(function () {
+                                    clearAddonSelection();
+                                });
+                            }
+
                             clearBulkAddonSelection();
                             var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
                             if (bulkAddonModal && bulkAddonModal.modal) {
                                 bulkAddonModal.modal('hide');
+                            }
+                            return Promise.resolve();
+                        }
+
+                        if (mode === 'bulk-tags') {
+                            if (tagsModal) {
+                                tagsModal.modal('hide');
                             }
                             return Promise.resolve();
                         }

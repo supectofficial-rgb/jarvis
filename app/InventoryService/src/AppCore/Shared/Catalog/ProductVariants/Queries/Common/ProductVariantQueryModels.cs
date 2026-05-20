@@ -88,6 +88,7 @@ public class VariantTagViewItem
 {
     public Guid VariantTagBusinessKey { get; set; }
     public Guid VariantRef { get; set; }
+    public Guid TagRef { get; set; }
     public string TagName { get; set; } = string.Empty;
     public string? TagColor { get; set; }
     public int DisplayOrder { get; set; }
@@ -95,6 +96,7 @@ public class VariantTagViewItem
 
 public class VariantTagLookupItem
 {
+    public Guid TagId { get; set; }
     public string TagName { get; set; } = string.Empty;
     public string? TagColor { get; set; }
     public int UsageCount { get; set; }

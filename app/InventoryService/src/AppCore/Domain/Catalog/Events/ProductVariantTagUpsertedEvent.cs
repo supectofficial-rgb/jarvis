@@ -6,6 +6,7 @@ using OysterFx.AppCore.Domain.ValueObjects;
 public sealed record ProductVariantTagUpsertedEvent(
     BusinessKey ProductVariantBusinessKey,
     Guid VariantTagBusinessKey,
+    Guid TagBusinessKey,
     string TagName,
     string? TagColor,
     int DisplayOrder) : IDomainEvent

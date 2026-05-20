@@ -78,6 +78,7 @@ public sealed class VariantManagementController : CatalogManagementController
             ProductId = model.SelectedProductId ?? string.Empty,
             VariantId = model.SelectedVariantId ?? string.Empty
         };
+        model.TagDefinitionForm = new TagDefinitionForm();
         model.VariantAssemblyOperationForm = new VariantAssemblyOperationForm
         {
             ProductId = model.SelectedProductId ?? string.Empty,
@@ -560,10 +561,11 @@ public sealed class VariantManagementController : CatalogManagementController
 
         return Json((result.Data ?? new List<VariantTagLookupModel>()).Select(x => new
         {
-            id = x.TagName,
+            id = x.TagId,
             text = string.IsNullOrWhiteSpace(x.TagColor)
                 ? x.TagName
                 : $"{x.TagName} ({x.TagColor})",
+            tagId = x.TagId,
             tagName = x.TagName,
             tagColor = x.TagColor,
             usageCount = x.UsageCount
@@ -608,8 +610,6 @@ public sealed class VariantManagementController : CatalogManagementController
             new UpsertVariantTagRequest
             {
                 TagId = form.TagId,
-                TagName = form.TagName,
-                TagColor = form.TagColor,
                 DisplayOrder = form.DisplayOrder
             },
             token);
@@ -633,8 +633,7 @@ public sealed class VariantManagementController : CatalogManagementController
                     message = "برچسب با موفقیت ذخیره شد.",
                     variantId = form.VariantId,
                     productId = form.ProductId,
-                    tagName = form.TagName,
-                    tagColor = form.TagColor
+                    tagId = form.TagId
                 });
             }
 
@@ -642,6 +641,70 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateTagDefinition([Bind(Prefix = "TagDefinitionForm")] TagDefinitionForm form)
+    {
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
+        if (!TryGetToken(out var token))
+        {
+            if (isAjaxRequest)
+            {
+                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+            }
+
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            var errorMessage = ExtractModelError(ModelState);
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
+            return RedirectToAction(nameof(Variants), new { productId = string.Empty, variantId = string.Empty });
+        }
+
+        var result = await _inventoryApiService.CreateTagDefinitionAsync(new CreateTagDefinitionRequest
+        {
+            TagName = form.TagName,
+            TagColor = form.TagColor
+        }, token);
+
+        if (!result.IsSuccess)
+        {
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "ثبت برچسب انجام نشد." });
+            }
+
+            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت برچسب انجام نشد.";
+        }
+        else
+        {
+            if (isAjaxRequest)
+            {
+                return Json(new
+                {
+                    isSuccess = true,
+                    message = "برچسب با موفقیت ایجاد شد.",
+                    tagId = result.Data?.TagId,
+                    tagName = result.Data?.TagName,
+                    tagColor = result.Data?.TagColor
+                });
+            }
+
+            TempData["CatalogSuccess"] = "برچسب با موفقیت ایجاد شد.";
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId = string.Empty, variantId = string.Empty });
     }
 
     [HttpPost]
@@ -726,7 +789,7 @@ public sealed class VariantManagementController : CatalogManagementController
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var tags = (form.TagNames ?? string.Empty)
+        var tags = (form.TagIds ?? string.Empty)
             .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -768,7 +831,7 @@ public sealed class VariantManagementController : CatalogManagementController
                     variantId,
                     new UpsertVariantTagRequest
                     {
-                        TagName = tag,
+                        TagId = tag,
                         DisplayOrder = order++
                     },
                     token);
@@ -915,14 +978,28 @@ public sealed class VariantManagementController : CatalogManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> BulkAssignVariantAddOn([Bind(Prefix = "BulkVariantAddOnForm")] BulkVariantAddOnForm form)
     {
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
         if (!TryGetToken(out var token))
         {
+            if (isAjaxRequest)
+            {
+                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+            }
+
             return RedirectToAction("Login", "Auth");
         }
 
         if (!TryValidateModel(form))
         {
-            TempData["CatalogError"] = ExtractModelError(ModelState);
+            var errorMessage = ExtractModelError(ModelState);
+            if (isAjaxRequest)
+            {
+                return Json(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
@@ -941,13 +1018,25 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (selectedVariantIds.Count == 0)
         {
-            TempData["CatalogError"] = "Ã˜Â­Ã˜Â¯Ã˜Â§Ã™â€šÃ™â€ž Ã›Å’ÃšÂ© Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â±Ã˜Â§ Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ ÃšÂ©Ã™â€ Ã›Å’Ã˜Â¯.";
+            var errorMessage = "حداقل یک واریانت را برای ثبت Add-on انتخاب کنید.";
+            if (isAjaxRequest)
+            {
+                return Json(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
         if (selectedAddOnIds.Count == 0)
         {
-            TempData["CatalogError"] = "Ã˜Â­Ã˜Â¯Ã˜Â§Ã™â€šÃ™â€ž Ã›Å’ÃšÂ© Add-on Ã˜Â±Ã˜Â§ Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â³Ã˜Â§Ã˜Â¨ Ã˜Â§Ã™â€ Ã˜ÂªÃ˜Â®Ã˜Â§Ã˜Â¨ ÃšÂ©Ã™â€ Ã›Å’Ã˜Â¯.";
+            var errorMessage = "حداقل یک Add-on را برای انتساب انتخاب کنید.";
+            if (isAjaxRequest)
+            {
+                return Json(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
@@ -1015,6 +1104,20 @@ public sealed class VariantManagementController : CatalogManagementController
         if (successCount > 0)
         {
             TempData["CatalogSuccess"] = $"Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ {successCount} Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â«Ã˜Â¨Ã˜Âª Ã˜Â´Ã˜Â¯.";
+        }
+
+        if (isAjaxRequest)
+        {
+            return Json(new
+            {
+                isSuccess = failures.Count == 0,
+                successCount,
+                message = successCount > 0
+                    ? $"Add-on برای {successCount} واریانت ثبت شد."
+                    : (failures.Count > 0 ? string.Join(" | ", failures.Take(3)) : string.Empty),
+                reloadVariantId = selectedVariantIds.FirstOrDefault(),
+                errors = failures.Take(3).ToList()
+            });
         }
 
         if (failures.Count > 0)

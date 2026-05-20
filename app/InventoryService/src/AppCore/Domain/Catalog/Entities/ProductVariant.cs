@@ -228,12 +228,12 @@ public sealed class ProductVariant : AggregateRoot
         Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, addOnVariantRef));
     }
 
-    public VariantTag AddOrUpdateTag(Guid? variantTagBusinessKey, string tagName, string? tagColor, int displayOrder)
+    public VariantTag AddOrUpdateTag(Guid? variantTagBusinessKey, Guid tagRef, string tagName, string? tagColor, int displayOrder)
     {
         var normalizedTagName = NormalizeRequired(tagName, nameof(tagName));
         var existing = variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
             ? _tags.FirstOrDefault(x => x.BusinessKey.Value == variantTagBusinessKey.Value)
-            : _tags.FirstOrDefault(x => string.Equals(x.TagName, normalizedTagName, StringComparison.OrdinalIgnoreCase));
+            : _tags.FirstOrDefault(x => x.TagRef == tagRef);
 
         var tagBusinessKey = existing?.BusinessKey.Value
             ?? (variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
@@ -243,6 +243,7 @@ public sealed class ProductVariant : AggregateRoot
         Apply(new ProductVariantTagUpsertedEvent(
             BusinessKey,
             tagBusinessKey,
+            tagRef,
             normalizedTagName,
             NormalizeOptional(tagColor),
             displayOrder));
@@ -250,11 +251,13 @@ public sealed class ProductVariant : AggregateRoot
         return _tags.First(x => x.BusinessKey.Value == tagBusinessKey);
     }
 
-    public void RemoveTag(Guid? variantTagBusinessKey, string? tagName)
+    public void RemoveTag(Guid? variantTagBusinessKey, Guid? tagRef)
     {
         var existing = variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
             ? _tags.FirstOrDefault(x => x.BusinessKey.Value == variantTagBusinessKey.Value)
-            : _tags.FirstOrDefault(x => !string.IsNullOrWhiteSpace(tagName) && string.Equals(x.TagName, tagName!.Trim(), StringComparison.OrdinalIgnoreCase));
+            : (tagRef.HasValue && tagRef.Value != Guid.Empty
+                ? _tags.FirstOrDefault(x => x.TagRef == tagRef.Value)
+                : null);
 
         if (existing is null)
             return;
@@ -545,13 +548,14 @@ public sealed class ProductVariant : AggregateRoot
             _tags.Add(VariantTag.Create(
                 BusinessKey.Value,
                 @event.VariantTagBusinessKey,
+                @event.TagBusinessKey,
                 @event.TagName,
                 @event.TagColor,
                 @event.DisplayOrder));
             return;
         }
 
-        existing.Update(@event.TagName, @event.TagColor, @event.DisplayOrder);
+        existing.Update(@event.TagBusinessKey, @event.TagName, @event.TagColor, @event.DisplayOrder);
     }
 
     private void On(ProductVariantTagRemovedEvent @event)
