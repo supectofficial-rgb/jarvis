@@ -173,14 +173,14 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # - name: Upload changed images manifest
-      #   if: env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true'
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: changed-images-manifest
-      #     path: workflow-metadata/changed-images.json
-      #     if-no-files-found: error
-      #     retention-days: 7
+      - name: Upload changed images manifest
+        if: env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: changed-images-manifest
+          path: workflow-metadata/changed-images.json
+          if-no-files-found: error
+          retention-days: 7
 
   export-image:
     name: Export ${{ matrix.artifact }}
@@ -241,14 +241,14 @@ jobs:
           test -s "docker-image/${{ matrix.artifact }}.tar.gz"
           ls -lh docker-image
 
-      # - name: Upload image artifact
-      #   if: env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true'
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: docker-image-${{ matrix.artifact }}
-      #     path: docker-image/
-      #     if-no-files-found: error
-      #     retention-days: 1
+      - name: Upload image artifact
+        if: env.UPLOAD_IMAGE_ARTIFACTS_ON_PUSH == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ matrix.artifact }}
+          path: docker-image/
+          if-no-files-found: error
+          retention-days: 1
 
   nothing-to-build:
     name: Nothing to build
