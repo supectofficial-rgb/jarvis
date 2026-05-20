@@ -100,7 +100,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        /*
         modelBuilder.ApplyConfiguration(new AttributeDefinitionReadModelConfig());
         modelBuilder.ApplyConfiguration(new AttributeOptionReadModelConfig());
         modelBuilder.ApplyConfiguration(new CategoryReadModelConfig());
@@ -142,5 +142,6 @@ public class InventoryServiceQueryDbContext : QueryDbContext
         modelBuilder.ApplyConfiguration(new QualityStatusReadModelConfig());
 
         AddOrganizationShadowProperties(modelBuilder);
+        */
     }
 }

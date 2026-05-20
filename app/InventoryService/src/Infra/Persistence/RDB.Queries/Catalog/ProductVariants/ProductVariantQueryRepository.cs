@@ -1,5 +1,7 @@
 ﻿namespace Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.ProductVariants;
 
+using System.Data.Common;
+using System.Globalization;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.Common;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetByBusinessKey;
@@ -485,7 +487,7 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
                 add_on."VariantRef" AS "VariantRef",
                 add_on."AddOnVariantRef" AS "AddOnVariantRef",
                 variant."VariantSku"::text AS "AddOnSku",
-                variant."Barcode" AS "AddOnBarcode",
+                variant."Barcode"::text AS "AddOnBarcode",
                 variant."IsActive" AS "AddOnIsActive"
             FROM "VariantAddOns" AS add_on
             INNER JOIN "ProductVariants" AS variant
@@ -494,9 +496,116 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             ORDER BY variant."VariantSku"
             """;
 
-        return await _dbContext.Database
-            .SqlQueryRaw<VariantAddOnViewItem>(sql, variantId)
-            .ToListAsync();
+        var addOns = new List<VariantAddOnViewItem>();
+
+        var connection = _dbContext.Database.GetDbConnection();
+        var shouldCloseConnection = connection.State != System.Data.ConnectionState.Open;
+
+        try
+        {
+            if (shouldCloseConnection)
+            {
+                await connection.OpenAsync();
+            }
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql.Replace("{0}", "@p_variantId", StringComparison.Ordinal);
+
+            var variantIdParameter = command.CreateParameter();
+            variantIdParameter.ParameterName = "p_variantId";
+            variantIdParameter.Value = variantId;
+            command.Parameters.Add(variantIdParameter);
+
+            await using var reader = await command.ExecuteReaderAsync();
+            var schema = reader.GetColumnSchema();
+
+            _logger.LogInformation(
+                "Variant add-on query schema for {VariantId}: {Schema}",
+                variantId,
+                string.Join(" | ", schema.Select(column =>
+                    $"{column.ColumnOrdinal}:{column.ColumnName}:{column.DataTypeName}:{column.DataType?.FullName ?? "null"}")));
+
+            while (await reader.ReadAsync())
+            {
+                addOns.Add(new VariantAddOnViewItem
+                {
+                    VariantAddOnBusinessKey = ReadGuid(reader, "VariantAddOnBusinessKey"),
+                    VariantRef = ReadGuid(reader, "VariantRef"),
+                    AddOnVariantRef = ReadGuid(reader, "AddOnVariantRef"),
+                    AddOnSku = ReadString(reader, "AddOnSku", variantId),
+                    AddOnBarcode = ReadNullableString(reader, "AddOnBarcode", variantId),
+                    AddOnIsActive = ReadBoolean(reader, "AddOnIsActive")
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load variant add-ons for variant {VariantId}.", variantId);
+            throw;
+        }
+        finally
+        {
+            if (shouldCloseConnection && connection.State != System.Data.ConnectionState.Closed)
+            {
+                await connection.CloseAsync();
+            }
+        }
+
+        return addOns;
+    }
+
+    private string ReadString(DbDataReader reader, string columnName, Guid variantId)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        if (reader.IsDBNull(ordinal))
+            return string.Empty;
+
+        var value = reader.GetValue(ordinal);
+        if (value is string stringValue)
+            return stringValue;
+
+        _logger.LogWarning(
+            "Variant add-on column {ColumnName} for variant {VariantId} returned {ActualType} instead of string. DataTypeName={DataTypeName}, Value={Value}",
+            columnName,
+            variantId,
+            value.GetType().FullName,
+            reader.GetDataTypeName(ordinal),
+            value);
+
+        return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private string? ReadNullableString(DbDataReader reader, string columnName, Guid variantId)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        if (reader.IsDBNull(ordinal))
+            return null;
+
+        var value = reader.GetValue(ordinal);
+        if (value is string stringValue)
+            return stringValue;
+
+        _logger.LogWarning(
+            "Variant add-on column {ColumnName} for variant {VariantId} returned {ActualType} instead of string. DataTypeName={DataTypeName}, Value={Value}",
+            columnName,
+            variantId,
+            value.GetType().FullName,
+            reader.GetDataTypeName(ordinal),
+            value);
+
+        return Convert.ToString(value, CultureInfo.InvariantCulture);
+    }
+
+    private static Guid ReadGuid(DbDataReader reader, string columnName)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        return reader.IsDBNull(ordinal) ? Guid.Empty : reader.GetFieldValue<Guid>(ordinal);
+    }
+
+    private static bool ReadBoolean(DbDataReader reader, string columnName)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        return !reader.IsDBNull(ordinal) && reader.GetFieldValue<bool>(ordinal);
     }
 
     public async Task<List<VariantTagViewItem>> GetTagsByVariantIdAsync(Guid variantId)
