@@ -195,6 +195,7 @@ public sealed class ProductVariantDetailsModel
     public List<VariantAddOnModel> AddOns { get; set; } = new();
     public List<VariantImageModel> Images { get; set; } = new();
     public List<VariantTagModel> Tags { get; set; } = new();
+    public string? ErrorMessage { get; set; }
 }
 
 public sealed class VariantUomConversionModel

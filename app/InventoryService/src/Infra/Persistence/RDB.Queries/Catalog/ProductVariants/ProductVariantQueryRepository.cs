@@ -12,13 +12,19 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Tags.Enti
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Locations.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Warehouses.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OysterFx.Infra.Persistence.RDB.Queries;
 
 public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQueryDbContext>, IProductVariantQueryRepository
 {
-    public ProductVariantQueryRepository(InventoryServiceQueryDbContext dbContext)
+    private readonly ILogger<ProductVariantQueryRepository> _logger;
+
+    public ProductVariantQueryRepository(
+        InventoryServiceQueryDbContext dbContext,
+        ILogger<ProductVariantQueryRepository> logger)
         : base(dbContext)
     {
+        _logger = logger;
     }
 
     public Task<GetProductVariantByBusinessKeyQueryResult?> GetByIdAsync(Guid variantId)
@@ -312,7 +318,42 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         if (context is null)
             return null;
 
-        var attrs = await GetAttributeValuesWithDefinitionByVariantIdAsync(variantId);
+        var sectionErrors = new List<VariantSectionLoadErrorItem>();
+
+        var attrs = await LoadOptionalSectionAsync(
+            variantId,
+            "attribute-values-with-definition",
+            () => GetAttributeValuesWithDefinitionByVariantIdAsync(variantId),
+            new List<VariantAttributeValueWithDefinitionItem>(),
+            sectionErrors);
+
+        var components = await LoadOptionalSectionAsync(
+            variantId,
+            "components",
+            () => GetComponentsByVariantIdAsync(variantId),
+            new List<VariantComponentViewItem>(),
+            sectionErrors);
+
+        var addOns = await LoadOptionalSectionAsync(
+            variantId,
+            "addons",
+            () => GetAddOnsByVariantIdAsync(variantId),
+            new List<VariantAddOnViewItem>(),
+            sectionErrors);
+
+        var images = await LoadOptionalSectionAsync(
+            variantId,
+            "images",
+            () => GetImagesByVariantIdAsync(variantId),
+            new List<VariantImageViewItem>(),
+            sectionErrors);
+
+        var tags = await LoadOptionalSectionAsync(
+            variantId,
+            "tags",
+            () => GetTagsByVariantIdAsync(variantId),
+            new List<VariantTagViewItem>(),
+            sectionErrors);
 
         return new VariantFullDetailsItem
         {
@@ -324,10 +365,11 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             CategoryCode = context.CategoryCode,
             CategoryName = context.CategoryName,
             AttributeValues = attrs,
-            Components = await GetComponentsByVariantIdAsync(variantId),
-            AddOns = await GetAddOnsByVariantIdAsync(variantId),
-            Images = await GetImagesByVariantIdAsync(variantId),
-            Tags = await GetTagsByVariantIdAsync(variantId)
+            Components = components,
+            AddOns = addOns,
+            Images = images,
+            Tags = tags,
+            SectionErrors = sectionErrors
         };
     }
 
@@ -663,6 +705,34 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             CategoryRef = product.CategoryRef,
             CategorySchemaVersionRef = product.CategorySchemaVersionRef
         };
+    }
+
+    private async Task<T> LoadOptionalSectionAsync<T>(
+        Guid variantId,
+        string sectionName,
+        Func<Task<T>> loader,
+        T fallbackValue,
+        List<VariantSectionLoadErrorItem> sectionErrors)
+    {
+        try
+        {
+            return await loader();
+        }
+        catch (Exception ex)
+        {
+            sectionErrors.Add(new VariantSectionLoadErrorItem
+            {
+                SectionName = sectionName,
+                Message = ex.Message
+            });
+
+            _logger.LogError(
+                ex,
+                "Failed to load product variant full details section {SectionName} for variant {VariantId}. Returning fallback value.",
+                sectionName,
+                variantId);
+            return fallbackValue;
+        }
     }
 
     private async Task<List<ResolvedCategoryRule>> GetEffectiveCategoryRulesAsync(

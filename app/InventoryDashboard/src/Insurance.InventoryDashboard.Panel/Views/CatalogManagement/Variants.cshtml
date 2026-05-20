@@ -830,7 +830,7 @@
                                 <div class="col-md-12 mb-2">
                                     <label class="font-weight-bold">@UiText["catalog.variants.componentVariant"]</label>
                                     <select asp-for="VariantComponentForm.ComponentVariantId"
-                                            class="form-control js-search-select"
+                                            class="form-control js-component-variant-search"
                                             id="VariantComponentForm_ComponentVariantId"
                                             data-placeholder='کد یا نام واریانت را جستجو کنید'
                                             data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
@@ -840,16 +840,13 @@
                                 </div>
                             </div>
                             <div class="form-row">
-                                <div class="col-md-6 mb-2">
-                                    <label class="font-weight-bold">@UiText["catalog.variants.warehouse"]</label>
-                                    <input type="text" class="form-control" id="VariantComponentForm_WarehouseLabel" readonly value="" placeholder="بعد از انتخاب واریانت پر می‌شود" />
-                                    <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
-                                </div>
-                                <div class="col-md-6 mb-2">
+                                <div class="col-md-12 mb-2">
                                     <label class="font-weight-bold">@UiText["catalog.variants.componentLocation"]</label>
                                     <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
                                         <option value="">@UiText["catalog.variants.selectLocation"]</option>
                                     </select>
+                                    <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
+                                    <small class="text-muted d-block mt-1">هر گزینه، انبار و لوکیشن را با هم نشان می‌دهد؛ با انتخاب آن، انبار هم پشت‌صحنه پر می‌شود.</small>
                                 </div>
                             </div>
                             <div class="form-row">
@@ -1492,6 +1489,8 @@
             function loadVariantAddOnsForModal(variantId, mode, label, productId) {
                 var normalizedMode = mode === 'bulk' ? 'bulk' : 'single';
                 var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
+                var activeProductId = (productId || getSelectedProductId() || '').trim();
+
                 if (normalizedMode === 'bulk') {
                     if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkAddonSelect).val(null).trigger('change');
@@ -1513,7 +1512,6 @@
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 }
                 ensureVariantSelectedForBulk(variantId);
-                var activeProductId = (productId || getSelectedProductId() || '').trim();
                 if (addonModalTitle) {
                     addonModalTitle.textContent = label || 'Add-on';
                 }
@@ -1888,6 +1886,9 @@
                     return;
                 }
 
+                var normalizedTags = Array.isArray(tags)
+                    ? tags.map(normalizeVariantTagItem).filter(function (item) { return !!item; })
+                    : [];
                 var isBulkMode = mode === 'bulk';
                 var hasBulkSelection = true;
                 if (isBulkMode && tagsModal && tagsModal.attr('data-bulk-has-selection') === 'false') {
@@ -1908,7 +1909,7 @@
                 }
 
                 tagsList.innerHTML = '';
-                tagsCount.textContent = Array.isArray(tags) ? tags.length.toString() : '0';
+                tagsCount.textContent = normalizedTags.length.toString();
 
                 if (isBulkMode && !hasBulkSelection) {
                     return;
@@ -1919,12 +1920,12 @@
                     return;
                 }
 
-                if (!Array.isArray(tags) || tags.length === 0) {
+                if (normalizedTags.length === 0) {
                     tagsList.innerHTML = '<div class="alert alert-light mb-0">هیچ برچسبی ثبت نشده است.</div>';
                     return;
                 }
 
-                tags.forEach(function (tag) {
+                normalizedTags.forEach(function (tag) {
                     if (!tag) {
                         return;
                     }
@@ -1938,13 +1939,45 @@
                     removeButton.type = 'button';
                     removeButton.className = 'btn btn-link btn-sm p-0 text-danger';
                     removeButton.textContent = '×';
+                    removeButton.setAttribute('data-tag-id', tag.tagId || '');
+                    removeButton.setAttribute('data-tag-ref', tag.tagRef || '');
+                    removeButton.setAttribute('data-tag-name', tag.tagName || '');
                     removeButton.addEventListener('click', function () {
-                        removeVariantTagAjax(tag);
+                        removeVariantTagAjax({
+                            tagId: removeButton.getAttribute('data-tag-id') || '',
+                            tagRef: removeButton.getAttribute('data-tag-ref') || '',
+                            tagName: removeButton.getAttribute('data-tag-name') || ''
+                        });
                     });
 
                     badge.appendChild(removeButton);
                 tagsList.appendChild(badge);
                 });
+            }
+
+            function normalizeVariantTagItem(item) {
+                if (!item) {
+                    return null;
+                }
+
+                var tagId = (item.tagId || item.TagId || item.variantTagBusinessKey || item.VariantTagBusinessKey || '').toString().trim();
+                var tagRef = (item.tagRef || item.TagRef || '').toString().trim();
+                var tagName = (item.tagName || item.TagName || '').toString().trim();
+                var tagColor = (item.tagColor || item.TagColor || '').toString().trim();
+                var displayOrder = item.displayOrder || item.DisplayOrder || 0;
+
+                if (!tagId && !tagRef && !tagName) {
+                    return null;
+                }
+
+                return {
+                    tagId: tagId,
+                    tagRef: tagRef,
+                    tagName: tagName,
+                    tagColor: tagColor,
+                    displayOrder: displayOrder,
+                    text: item.text || item.Text || (tagColor ? (tagName + ' (' + tagColor + ')') : tagName)
+                };
             }
 
             function syncBulkTagIdsField() {
@@ -2486,7 +2519,6 @@
             var componentEditor = window.jQuery ? window.jQuery('#variant-components-modal') : null;
             var componentIdInput = document.getElementById('VariantComponentForm_ComponentId');
             var componentVariantInput = document.getElementById('VariantComponentForm_ComponentVariantId');
-            var componentWarehouseLabelInput = document.getElementById('VariantComponentForm_WarehouseLabel');
             var componentWarehouseInput = document.getElementById('VariantComponentForm_WarehouseId');
             var componentLocationInput = document.getElementById('VariantComponentForm_LocationId');
             var componentQuantityInput = document.getElementById('VariantComponentForm_Quantity');
@@ -2525,6 +2557,12 @@
                     if (item && item.locationText) {
                         option.setAttribute('data-location-text', item.locationText);
                     }
+                    if (item && item.warehouseText) {
+                        option.setAttribute('data-warehouse-text', item.warehouseText);
+                    }
+                    if (item && item.locationText) {
+                        option.setAttribute('data-location-text', item.locationText);
+                    }
                     select.appendChild(option);
                 });
 
@@ -2540,24 +2578,19 @@
 
                 var selectedOption = componentLocationInput.options[componentLocationInput.selectedIndex];
                 var warehouseId = selectedOption ? (selectedOption.getAttribute('data-warehouse-id') || '') : '';
-                var warehouseLabel = selectedOption ? (selectedOption.getAttribute('data-warehouse-text') || '') : '';
 
                 if (componentWarehouseInput) {
                     componentWarehouseInput.value = warehouseId;
                 }
-
-                if (componentWarehouseLabelInput) {
-                    componentWarehouseLabelInput.value = warehouseLabel || (selectedOption ? (selectedOption.textContent || '') : '');
-                }
             }
 
-            function setLocationOptions(items) {
+            function setLocationOptions(items, selectedLocationId) {
                 if (!componentLocationInput) {
                     return;
                 }
 
-                var currentLocationId = (componentLocationInput.value || '').trim();
-                setSelectOptions(componentLocationInput, items, @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
+                var currentLocationId = (selectedLocationId || componentLocationInput.value || '').trim();
+                setSelectOptions(componentLocationInput, Array.isArray(items) ? items : [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
 
                 if (currentLocationId) {
                     componentLocationInput.value = currentLocationId;
@@ -2587,12 +2620,17 @@
                     return;
                 }
 
-                setLocationOptions(componentStockLocations);
+                setLocationOptions(componentStockLocations, componentLocationInput.value || '');
             }
 
             function initializeComponentVariantSearch() {
-                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !componentVariantInput || componentVariantInput.dataset.select2Initialized === 'true') {
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !componentVariantInput) {
                     return;
+                }
+
+                var $select = window.jQuery(componentVariantInput);
+                if ($select.data('select2')) {
+                    $select.select2('destroy');
                 }
 
                 window.jQuery(componentVariantInput).select2({
@@ -2627,7 +2665,7 @@
                     }
                 });
 
-                componentVariantInput.dataset.select2Initialized = 'true';
+                componentVariantInput.dataset.componentSelect2Initialized = 'true';
             }
 
             function initializeAddonVariantSearch() {
@@ -2681,9 +2719,6 @@
                     if (componentWarehouseInput) {
                         componentWarehouseInput.value = '';
                     }
-                    if (componentWarehouseLabelInput) {
-                        componentWarehouseLabelInput.value = '';
-                    }
                     setComponentStockPanelVisible(false);
                     updateComponentStockSummary(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectVariantSimple"])));
                     return Promise.resolve();
@@ -2699,7 +2734,7 @@
                         }
 
                         componentStockLocations = Array.isArray(payload.locations) ? payload.locations.slice() : [];
-                        setLocationOptions(componentStockLocations);
+                        setLocationOptions(componentStockLocations, selectedLocationId);
                         setComponentStockPanelVisible(true);
                         updateComponentStockSummary(
                             (payload.locations && payload.locations.length ? payload.locations.length : 0) + ' لوکیشن برای این واریانت پیدا شد');
@@ -2712,12 +2747,6 @@
                             syncComponentWarehouseFromLocation();
                         }
                     });
-            }
-
-            if (componentWarehouseInput) {
-                componentWarehouseInput.addEventListener('change', function () {
-                    syncComponentWarehouseFromLocation();
-                });
             }
 
             if (componentLocationInput) {
@@ -2836,6 +2865,12 @@
                     loadComponentInventoryOptions(selectedVariantId, '', '').catch(function () {
                         updateComponentStockSummary('Loading inventory options failed.');
                     });
+                });
+            }
+
+            if (componentEditor && componentEditor.on) {
+                componentEditor.on('shown.bs.modal', function () {
+                    initializeComponentVariantSearch();
                 });
             }
 

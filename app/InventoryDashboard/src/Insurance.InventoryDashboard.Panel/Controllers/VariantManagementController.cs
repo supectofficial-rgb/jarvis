@@ -60,7 +60,13 @@ public sealed class VariantManagementController : CatalogManagementController
 
         model.RelatedVariantLookup = relatedVariants;
         model.VariantComponents = model.SelectedVariantDetails?.Components ?? new List<VariantComponentModel>();
-        model.VariantAddOns = model.SelectedVariantDetails?.AddOns ?? new List<VariantAddOnModel>();
+        var addOnsResult = !string.IsNullOrWhiteSpace(model.SelectedVariantId)
+            ? await _apiService.GetVariantAddOnsByVariantIdAsync(model.SelectedVariantId, token)
+            : new ApiResponse<List<VariantAddOnModel>> { IsSuccess = true, Data = new List<VariantAddOnModel>() };
+
+        model.VariantAddOns = addOnsResult.IsSuccess
+            ? addOnsResult.Data ?? new List<VariantAddOnModel>()
+            : model.SelectedVariantDetails?.AddOns ?? new List<VariantAddOnModel>();
         model.VariantComponentForm = new VariantComponentForm
         {
             ProductId = model.SelectedProductId ?? string.Empty,
@@ -95,6 +101,12 @@ public sealed class VariantManagementController : CatalogManagementController
             ProductId = model.SelectedProductId
         };
         model.ErrorMessage = string.Join(" | ", new[] { model.ErrorMessage, relatedVariantsResult.ErrorMessage }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        model.ErrorMessage = string.Join(" | ", new[]
+        {
+            model.ErrorMessage,
+            model.SelectedVariantDetails?.ErrorMessage,
+            addOnsResult.ErrorMessage
+        }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
         return viewResult;
     }

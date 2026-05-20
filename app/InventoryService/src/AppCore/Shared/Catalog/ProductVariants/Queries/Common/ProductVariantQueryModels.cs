@@ -94,6 +94,12 @@ public class VariantTagViewItem
     public int DisplayOrder { get; set; }
 }
 
+public class VariantSectionLoadErrorItem
+{
+    public string SectionName { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}
+
 public class VariantTagLookupItem
 {
     public Guid TagId { get; set; }
@@ -151,6 +157,7 @@ public class VariantFullDetailsItem
     public List<VariantAddOnViewItem> AddOns { get; set; } = new();
     public List<VariantImageViewItem> Images { get; set; } = new();
     public List<VariantTagViewItem> Tags { get; set; } = new();
+    public List<VariantSectionLoadErrorItem> SectionErrors { get; set; } = new();
 }
 
 public class VariantCatalogFormItem

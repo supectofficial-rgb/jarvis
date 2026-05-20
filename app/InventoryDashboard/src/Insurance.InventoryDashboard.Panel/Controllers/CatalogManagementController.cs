@@ -1530,15 +1530,34 @@ public abstract partial class CatalogManagementController : Controller
 
         var isVariantCreateMode = createNew;
         var selectedVariantId = isVariantCreateMode ? null : variantId;
+        var selectedVariantSummary = !string.IsNullOrWhiteSpace(selectedVariantId)
+            ? variantsSearchResult.Data?.Items.FirstOrDefault(x => string.Equals(x.Id, selectedVariantId, StringComparison.OrdinalIgnoreCase))
+            : null;
 
         var variantDetailsResult = !string.IsNullOrWhiteSpace(selectedVariantId)
             ? await _apiService.GetProductVariantFullDetailsAsync(selectedVariantId, token)
             : new ApiResponse<ProductVariantDetailsModel> { IsSuccess = true };
 
-        if (variantDetailsResult.Data is not null &&
-            uomById.TryGetValue(variantDetailsResult.Data.BaseUomRef, out var detailUom))
+        var variantDetails = variantDetailsResult.Data;
+        if (variantDetails is null && !string.IsNullOrWhiteSpace(selectedVariantId))
         {
-            variantDetailsResult.Data.BaseUom = $"{detailUom.Code} - {detailUom.Name}";
+            variantDetails = new ProductVariantDetailsModel
+            {
+                Id = selectedVariantId,
+                ProductId = selectedProductId ?? selectedVariantSummary?.ProductId ?? string.Empty,
+                Sku = selectedVariantSummary?.Sku ?? string.Empty,
+                Barcode = selectedVariantSummary?.Barcode,
+                BaseUomRef = selectedVariantSummary?.BaseUomRef ?? string.Empty,
+                TrackingPolicy = selectedVariantSummary?.TrackingPolicy,
+                IsActive = selectedVariantSummary?.IsActive ?? true,
+                InventoryMovementLocked = selectedVariantSummary?.InventoryMovementLocked ?? false
+            };
+        }
+
+        if (variantDetails is not null &&
+            uomById.TryGetValue(variantDetails.BaseUomRef, out var detailUom))
+        {
+            variantDetails.BaseUom = $"{detailUom.Code} - {detailUom.Name}";
         }
 
         var variantConversionsResult = !string.IsNullOrWhiteSpace(selectedVariantId)
@@ -1569,7 +1588,7 @@ public abstract partial class CatalogManagementController : Controller
             ? await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true)
             : new ApiResponse<List<QualityStatusLookupItemModel>> { IsSuccess = true, Data = new List<QualityStatusLookupItemModel>() };
 
-        var selectedProductCategoryId = variantDetailsResult.Data?.CategoryId ?? selectedCategoryId;
+        var selectedProductCategoryId = variantDetails?.CategoryId ?? selectedCategoryId;
 
         var (attributeGroups, effectiveAttributes, attributesError) =
             await LoadEffectiveCategoryAttributesAsync(selectedProductCategoryId, flatCategories, token);
@@ -1579,7 +1598,7 @@ public abstract partial class CatalogManagementController : Controller
         var missingRequired = !string.IsNullOrWhiteSpace(selectedVariantId)
             ? FindMissingRequiredAttributes(
                 effectiveVariantAttributes,
-                variantDetailsResult.Data?.Attributes?.ToDictionary(
+                variantDetails?.Attributes?.ToDictionary(
                     x => x.AttributeId,
                     x => x.Value,
                     StringComparer.OrdinalIgnoreCase)
@@ -1604,7 +1623,7 @@ public abstract partial class CatalogManagementController : Controller
             FlatCategories = flatCategories,
             LeafCategories = leafCategories,
             Variants = pagedVariants,
-            SelectedVariantDetails = variantDetailsResult.Data,
+            SelectedVariantDetails = variantDetails,
             UnitOfMeasures = unitOfMeasures,
             VariantUomConversions = variantConversionsResult.Data ?? new List<VariantUomConversionModel>(),
             VariantStockDetails = stockDetailsResult.Data?.Items ?? new List<StockDetailListItemModel>(),
@@ -1648,13 +1667,13 @@ public abstract partial class CatalogManagementController : Controller
             VariantForm = new VariantUpsertForm
             {
                 ProductId = selectedProductId ?? string.Empty,
-                VariantId = variantDetailsResult.Data?.Id,
-                Sku = variantDetailsResult.Data?.Sku ?? string.Empty,
-                Barcode = variantDetailsResult.Data?.Barcode,
-                BaseUomRef = variantDetailsResult.Data?.BaseUomRef ?? string.Empty,
-                TrackingPolicy = variantDetailsResult.Data?.TrackingPolicy ?? "None",
-                IsActive = variantDetailsResult.Data?.IsActive ?? true,
-                SelectedImagesJson = JsonSerializer.Serialize(variantDetailsResult.Data?.Images ?? new List<VariantImageModel>())
+                VariantId = variantDetails?.Id,
+                Sku = variantDetails?.Sku ?? string.Empty,
+                Barcode = variantDetails?.Barcode,
+                BaseUomRef = variantDetails?.BaseUomRef ?? string.Empty,
+                TrackingPolicy = variantDetails?.TrackingPolicy ?? "None",
+                IsActive = variantDetails?.IsActive ?? true,
+                SelectedImagesJson = JsonSerializer.Serialize(variantDetails?.Images ?? new List<VariantImageModel>())
             },
             VariantAttributeForm = new VariantAttributeValueForm
             {

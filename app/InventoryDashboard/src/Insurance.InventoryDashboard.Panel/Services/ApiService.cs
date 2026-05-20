@@ -1165,6 +1165,12 @@ public sealed class ApiService : IApiService
         }
 
         var item = result.Data.Item;
+        var sectionErrors = item.SectionErrors
+            .Where(sectionError => !string.IsNullOrWhiteSpace(sectionError.SectionName) || !string.IsNullOrWhiteSpace(sectionError.Message))
+            .Select(sectionError => $"{sectionError.SectionName}: {sectionError.Message}".Trim())
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .ToList();
+
         var mapped = new ProductVariantDetailsModel
         {
             Id = item.Variant.VariantBusinessKey.ToString("D"),
@@ -1231,7 +1237,10 @@ public sealed class ApiService : IApiService
                 TagName = tag.TagName,
                 TagColor = tag.TagColor,
                 DisplayOrder = tag.DisplayOrder
-            }).ToList()
+            }).ToList(),
+            ErrorMessage = sectionErrors.Count > 0
+                ? "Some full-details sections failed: " + string.Join(" | ", sectionErrors)
+                : null
         };
 
         return new ApiResponse<ProductVariantDetailsModel> { IsSuccess = true, Data = mapped };
@@ -2736,6 +2745,13 @@ public sealed class ApiService : IApiService
         public List<VariantAddOnItemDto> AddOns { get; set; } = new();
         public List<VariantImageItemDto> Images { get; set; } = new();
         public List<VariantTagItemDto> Tags { get; set; } = new();
+        public List<VariantSectionLoadErrorItemDto> SectionErrors { get; set; } = new();
+    }
+
+    private sealed class VariantSectionLoadErrorItemDto
+    {
+        public string SectionName { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
     }
 
     private sealed class VariantAttributeValueWithDefinitionDto
