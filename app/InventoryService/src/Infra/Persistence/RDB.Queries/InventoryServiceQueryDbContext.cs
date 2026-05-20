@@ -100,7 +100,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryServiceQueryDbContext).Assembly);
         AddOrganizationShadowProperties(modelBuilder);
     }
 }
