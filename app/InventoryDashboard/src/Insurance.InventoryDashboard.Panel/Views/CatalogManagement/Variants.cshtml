@@ -462,7 +462,7 @@
                                                     <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
                                                             class="form-control js-search-select"
                                                             data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'
-                                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
                                                         <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
                                                     </select>
                                                     <div class="small text-muted mt-2">یک واریانت را از نتایج جستجو انتخاب کن.</div>
@@ -606,9 +606,9 @@
                                                                 data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)">
                                                             برچسب
                                                         </button>
-                                                        <button type="button"
+                                                            <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-media-details"
-                                                                data-variant-url="@Url.Action("Variants", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
+                                                                data-variant-url="@Url.Action("VariantMediaLibrary", "VariantManagement", new { variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.variantMediaTitle"]">
                                                             @UiText["variant.media.label"]
                                                         </button>
@@ -798,7 +798,7 @@
                                                         class="form-control js-search-select"
                                                         id="VariantComponentForm_ComponentVariantId"
                                                         data-placeholder='کد یا نام واریانت را جستجو کنید'
-                                                        data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                                        data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
                                                     <option value="">کد یا نام واریانت را جستجو کنید</option>
                                                 </select>
                                                 <small class="text-muted d-block mt-1">کد یا نام واریانت را جستجو کنید</small>
@@ -920,7 +920,7 @@
                                     class="form-control js-search-select"
                                     id="VariantAddOnForm_AddOnVariantId"
                                     data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'
-                                    data-ajax-url='@Url.Action("SearchVariantComponentLookup", "CatalogManagement")'>
+                                    data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
                                 <option value="">کد، نام یا بارکد ادزآن را جستجو کنید</option>
                             </select>
                             <small class="text-muted d-block mt-1">از لیست بازشونده یک واریانت را انتخاب کن و ثبت بزن.</small>
@@ -1385,6 +1385,22 @@
                 return refreshFragmentBody(addonListContainer);
             }
 
+            function clearAddonSelection() {
+                if (addonVariantInput && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(addonVariantInput).val(null).trigger('change');
+                } else if (addonVariantInput) {
+                    addonVariantInput.value = '';
+                }
+            }
+
+            function clearBulkAddonSelection() {
+                if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(bulkAddonSelect).val(null).trigger('change');
+                } else if (bulkAddonSelect) {
+                    bulkAddonSelect.value = '';
+                }
+            }
+
             function refreshComponentList() {
                 return refreshFragmentBody(componentModalBody);
             }
@@ -1417,12 +1433,11 @@
                 var mediaButton = event.target.closest ? event.target.closest('.js-variant-media-details') : null;
                 if (mediaButton) {
                     event.preventDefault();
-                    openVariantFragmentModal(
+                    openVariantHtmlModal(
                         $('#variant-media-library-modal'),
                         document.getElementById('variant-media-library-modal-title'),
                         document.getElementById('variant-media-library-modal-body'),
                         mediaButton.getAttribute('data-variant-url') || '',
-                        '#variant-media-library-modal-body',
                         mediaButton.getAttribute('data-detail-title') || variantMediaTitleText);
                     return;
                 }
@@ -1964,11 +1979,32 @@
                 return tagLookupPromise;
             }
 
-            function reloadTagLookupOptions() {
+            function reloadTagLookupOptions(preserveTagName) {
                 tagLookupPromise = null;
                 tagLookupItems = [];
                 refreshTagLookupSelects();
-                return ensureTagLookupOptions();
+                return ensureTagLookupOptions().then(function () {
+                    var normalizedPreserveTagName = (preserveTagName || '').trim();
+                    if (!normalizedPreserveTagName) {
+                        return tagLookupItems;
+                    }
+
+                    var exists = tagLookupItems.some(function (item) {
+                        return (item.tagName || '').trim().toLowerCase() === normalizedPreserveTagName.toLowerCase();
+                    });
+
+                    if (!exists) {
+                        tagLookupItems.unshift({
+                            tagName: normalizedPreserveTagName,
+                            tagColor: '',
+                            usageCount: 1,
+                            text: normalizedPreserveTagName
+                        });
+                        refreshTagLookupSelects();
+                    }
+
+                    return tagLookupItems;
+                });
             }
 
             function syncTagCreateFormContext(variantId) {
@@ -2704,7 +2740,7 @@
             });
 
             var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
-            var bulkAddonLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "CatalogManagement") ?? string.Empty));
+            var bulkAddonLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "VariantManagement") ?? string.Empty));
 
             if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                 window.jQuery(bulkAddonSelect).select2({
@@ -2918,11 +2954,13 @@
                         }
 
                         if (mode === 'variant-addons') {
-                            return refreshAddonList();
+                            return refreshAddonList().then(function () {
+                                clearAddonSelection();
+                            });
                         }
 
                         if (mode === 'variant-tags') {
-                            return reloadTagLookupOptions().then(function () {
+                            return reloadTagLookupOptions(pendingCreatedTagName).then(function () {
                                 var currentMode = tagsModal ? (tagsModal.attr('data-tag-mode') || 'single') : 'single';
                                 var currentVariantId = tagsSingleVariantId && tagsSingleVariantId.value ? tagsSingleVariantId.value : (tagsCreateVariantId ? tagsCreateVariantId.value : '');
                                 if (currentMode === 'single' && pendingCreatedTagName && singleTagLookupSelect) {
@@ -2957,6 +2995,7 @@
                         }
 
                         if (mode === 'bulk-addon') {
+                            clearBulkAddonSelection();
                             var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
                             if (bulkAddonModal && bulkAddonModal.modal) {
                                 bulkAddonModal.modal('hide');

@@ -570,6 +570,10 @@ public sealed class VariantManagementController : CatalogManagementController
         }));
     }
 
+    [HttpGet]
+    public async Task<IActionResult> SearchVariantComponentLookup(string? term, CancellationToken cancellationToken = default)
+        => await base.SearchVariantComponentLookup(term, cancellationToken);
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpsertVariantTag([Bind(Prefix = "VariantTagForm")] VariantTagForm form)
