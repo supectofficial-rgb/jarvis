@@ -675,6 +675,8 @@
                                                         </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-components-details"
+                                                                data-product-id="@Model.SelectedProductId"
+                                                                data-variant-id="@variant.Id"
                                                                 data-variant-url="@Url.Action("Variants", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
                                                                 data-detail-title="@UiText["catalog.variants.componentsTitle"]">
                                                             @UiText["catalog.variants.componentsTitle"]
@@ -1349,6 +1351,62 @@
                 return refreshFragmentBody(addonListContainer);
             }
 
+            function getSelectedVariantIds() {
+                var scope = document.getElementById('variant-list-scope');
+                if (!scope) {
+                    return [];
+                }
+
+                return Array.prototype.slice.call(scope.querySelectorAll("input[type='checkbox'][data-bulk-row]:checked"))
+                    .map(function (checkbox) {
+                        return (checkbox.value || '').trim();
+                    })
+                    .filter(function (value) {
+                        return !!value;
+                    });
+            }
+
+            function syncBulkSelectionInputs() {
+                var selectedIds = getSelectedVariantIds();
+                var selectedValue = selectedIds.join(',');
+
+                document.querySelectorAll('input[data-bulk-target]').forEach(function (input) {
+                    if (input) {
+                        input.value = selectedValue;
+                    }
+                });
+
+                if (bulkTagsSelectedIdsInput) {
+                    bulkTagsSelectedIdsInput.value = selectedValue;
+                }
+
+                return selectedIds;
+            }
+
+            function ensureVariantSelectedForBulk(variantId) {
+                var normalizedVariantId = (variantId || '').trim();
+                if (!normalizedVariantId) {
+                    return syncBulkSelectionInputs();
+                }
+
+                var scope = document.getElementById('variant-list-scope');
+                if (!scope) {
+                    return syncBulkSelectionInputs();
+                }
+
+                var checkbox = Array.prototype.slice.call(scope.querySelectorAll("input[type='checkbox'][data-bulk-row]")).find(function (item) {
+                    return (item.value || '').trim() === normalizedVariantId;
+                });
+
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                }
+
+                var selectedIds = syncBulkSelectionInputs();
+                updateBulkModalTriggers();
+                return selectedIds;
+            }
+
             function clearAddonSelection() {
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
@@ -1369,21 +1427,48 @@
                 return refreshFragmentBody(componentModalBody);
             }
 
-            function loadVariantMediaForModal(variantId, mode, label) {
+            function loadVariantMediaForModal(variantId, mode, label, seedSelectionVariantId) {
                 var normalizedMode = mode === 'bulk' ? 'bulk' : 'single';
                 if (mediaModal && mediaModal.attr) {
                     mediaModal.attr('data-media-mode', normalizedMode);
-                    mediaModal.attr('data-variant-id', normalizedMode === 'bulk' ? '' : (variantId || ''));
+                    mediaModal.attr('data-variant-id', normalizedMode === 'bulk' ? (seedSelectionVariantId || variantId || '') : (variantId || ''));
                     mediaModal.attr('data-variant-label', label || '');
                 }
 
                 if (normalizedMode === 'bulk') {
                     var bulkMediaModal = window.jQuery ? window.jQuery('#variant-bulk-media-modal') : null;
                     if (bulkMediaModal && bulkMediaModal.modal) {
+                        var selectedIds = seedSelectionVariantId ? ensureVariantSelectedForBulk(seedSelectionVariantId) : syncBulkSelectionInputs();
+                        var variantToLoad = (seedSelectionVariantId || (selectedIds.length === 1 ? selectedIds[0] : '') || '').trim();
                         if (mediaModalBody) {
-                            mediaModalBody.innerHTML = @Html.Raw(JsonSerializer.Serialize(Model.SelectedVariantDetails is null ? "<div class=\"alert alert-light mb-0\">در حالت گروهی، لیست مدیا برای واریانت انتخاب‌شده نمایش داده می‌شود.</div>" : ""));
+                            if (variantToLoad) {
+                                mediaModalBody.setAttribute('data-source-url', @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantMediaLibrary", "VariantManagement") ?? string.Empty)) + '?variantId=' + encodeURIComponent(variantToLoad));
+                                mediaModalBody.removeAttribute('data-source-selector');
+                                mediaModalBody.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                            } else {
+                                mediaModalBody.removeAttribute('data-source-url');
+                                mediaModalBody.removeAttribute('data-source-selector');
+                                mediaModalBody.innerHTML = @Html.Raw(JsonSerializer.Serialize(Model.SelectedVariantDetails is null ? "<div class=\"alert alert-light mb-0\">در حالت گروهی، لیست مدیا برای واریانت انتخاب‌شده نمایش داده می‌شود.</div>" : ""));
+                            }
                         }
                         bulkMediaModal.modal('show');
+
+                        if (variantToLoad) {
+                            fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("VariantMediaLibrary", "VariantManagement") ?? string.Empty)) + '?variantId=' + encodeURIComponent(variantToLoad), {
+                                headers: { 'Accept': 'text/html' }
+                            })
+                                .then(function (response) { return response.text(); })
+                                .then(function (html) {
+                                    if (mediaModalBody) {
+                                        mediaModalBody.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                                    }
+                                })
+                                .catch(function () {
+                                    if (mediaModalBody) {
+                                        mediaModalBody.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                                    }
+                                });
+                        }
                     }
                     return;
                 }
@@ -1450,9 +1535,7 @@
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 }
-                if (bulkTagsSelectedIdsInput) {
-                    bulkTagsSelectedIdsInput.value = variantId || '';
-                }
+                ensureVariantSelectedForBulk(variantId);
                 if (addonModalTitle) {
                     addonModalTitle.textContent = label || 'Add-on';
                 }
@@ -1506,31 +1589,43 @@
                 var mediaButton = event.target.closest ? event.target.closest('.js-variant-media-details') : null;
                 if (mediaButton) {
                     event.preventDefault();
+                    var mediaVariantId = mediaButton.getAttribute('data-variant-id') || '';
+                    var mediaVariantLabel = mediaButton.getAttribute('data-detail-title') || variantMediaTitleText;
+                    ensureVariantSelectedForBulk(mediaVariantId);
                     loadVariantMediaForModal(
-                        mediaButton.getAttribute('data-variant-id') || '',
-                        mediaButton.getAttribute('data-mode') || 'single',
-                        mediaButton.getAttribute('data-detail-title') || variantMediaTitleText);
+                        mediaVariantId,
+                        'bulk',
+                        mediaVariantLabel,
+                        mediaVariantId);
                     return;
                 }
 
                 var addonButton = event.target.closest ? event.target.closest('.js-variant-addon-details') : null;
                 if (addonButton) {
                     event.preventDefault();
+                    var addonVariantId = addonButton.getAttribute('data-variant-id') || '';
+                    var addonLabel = addonButton.getAttribute('data-detail-title') || '';
+                    ensureVariantSelectedForBulk(addonVariantId);
                     loadVariantAddOnsForModal(
-                        addonButton.getAttribute('data-variant-id') || '',
+                        addonVariantId,
                         addonButton.getAttribute('data-mode') || 'single',
-                        addonButton.getAttribute('data-detail-title') || '');
+                        addonLabel);
                     return;
                 }
 
                 var componentButton = event.target.closest ? event.target.closest('.js-variant-components-details') : null;
                 if (componentButton) {
                     event.preventDefault();
+                    var componentProductId = getSelectedProductId() || (componentButton.getAttribute('data-product-id') || '');
+                    var componentVariantId = componentButton.getAttribute('data-variant-id') || '';
+                    var componentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Variants", "VariantManagement") ?? string.Empty)) +
+                        '?productId=' + encodeURIComponent(componentProductId) +
+                        '&variantId=' + encodeURIComponent(componentVariantId);
                     openVariantFragmentModal(
                         $('#variant-components-modal'),
                         document.getElementById('variant-components-modal').querySelector('.modal-title'),
                         document.getElementById('variant-components-modal-body'),
-                        componentButton.getAttribute('data-variant-url') || '',
+                        componentUrl,
                         '#variant-components-modal-body',
                         componentButton.getAttribute('data-detail-title') || '');
                     return;
@@ -1541,6 +1636,7 @@
                     event.preventDefault();
                     var variantId = tagButton.getAttribute('data-variant-id') || '';
                     var label = tagButton.getAttribute('data-variant-label') || '';
+                    ensureVariantSelectedForBulk(variantId);
                     if (tagsModal) {
                         tagsModal.attr('data-tag-mode', 'single');
                         tagsModal.attr('data-variant-id', variantId);
@@ -2186,11 +2282,19 @@
                 fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("RemoveVariantTag", "VariantManagement") ?? string.Empty)), {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
                     },
                     body: body.toString()
                 })
-                    .then(function () {
+                    .then(function (response) {
+                        if (!response.ok) {
+                            return response.text().then(function (text) {
+                                throw new Error(text || loadInfoFailedText);
+                            });
+                        }
+
                         loadVariantTagsForModal(tagsSingleVariantId.value || '', 'single', tagsModalTitle ? tagsModalTitle.textContent : '');
                     });
             }
@@ -2411,6 +2515,7 @@
             var componentStockPanel = document.getElementById('variant-component-stock-panel');
             var componentStockSummary = document.getElementById('variant-component-stock-summary');
             var addonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
+            var addonModalTitle = document.querySelector('#variant-bulk-addon-modal .modal-title');
             var componentVariantSearchUrl = componentVariantInput ? (componentVariantInput.getAttribute('data-ajax-url') || '') : '';
             var componentStockLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("GetVariantComponentInventoryLookup", "CatalogManagement") ?? string.Empty));
             var componentVariantPlaceholder = componentVariantInput ? (componentVariantInput.getAttribute('data-placeholder') || '') : '';
@@ -2823,6 +2928,7 @@
 
             function updateBulkModalTriggers() {
                 var selectedCount = getSelectedVariantCount();
+                syncBulkSelectionInputs();
 
                 document.querySelectorAll('[data-bulk-count]').forEach(function (countElement) {
                     countElement.textContent = selectedCount.toString();

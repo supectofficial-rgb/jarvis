@@ -562,8 +562,7 @@ public sealed class BulkVariantImageForm
 
 public sealed class VariantTagForm
 {
-    [Required]
-    public string ProductId { get; set; } = string.Empty;
+    public string? ProductId { get; set; }
 
     [Required]
     public string VariantId { get; set; } = string.Empty;
