@@ -2,6 +2,7 @@ using Elastic.Apm.NetCoreAll;
 using Insurance.InventoryDashboard.Panel.Options;
 using Insurance.InventoryDashboard.Panel.Services;
 using Insurance.InventoryDashboard.Panel.Services.Localization;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,16 @@ builder.Logging.AddDebug();
 builder.Services.AddAllElasticApm();
 builder.Services.AddControllersWithViews();
 builder.Services.Configure<UiLocalizationOptions>(builder.Configuration.GetSection(UiLocalizationOptions.SectionName));
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Insurance Inventory Dashboard",
+        Version = "v1",
+        Description = "Swagger for the inventory dashboard MVC endpoints."
+    });
+});
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -42,6 +53,12 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Insurance Inventory Dashboard v1");
+    options.RoutePrefix = "swagger";
+});
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();

@@ -354,12 +354,14 @@
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
                                         data-target="#variant-bulk-media-modal"
+                                        data-mode="bulk"
                                         data-requires-bulk-selection="true">
                                     افزودن مدیا
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
                                         data-target="#variant-bulk-addon-modal"
+                                        data-mode="bulk"
                                         data-requires-bulk-selection="true">
                                     افزودن ادز آن
                                 </button>
@@ -435,7 +437,7 @@
                                             <span aria-hidden="true">&times;</span>
                                         </button>
                                     </div>
-                                    <div class="modal-body">
+                                    <div class="modal-body" id="variant-bulk-addon-modal-body">
                                         <div class="alert alert-warning d-none" data-bulk-empty>یک یا چند مورد از موارد را انتخاب کنید</div>
                                         <div data-bulk-content>
                                             <form asp-action="BulkAssignVariantAddOn"
@@ -477,6 +479,54 @@
                                                 </div>
                                             </form>
                                         </div>
+                                        <hr class="my-4" />
+                                        <p class="text-muted small">@UiText["catalog.variants.addonListHelp"]</p>
+                                        <div id="variant-addons-list-container" class="table-responsive">
+                                            @if (hasSelectedProduct && hasSelectedVariant)
+                                            {
+                                                <table class="table table-sm table-striped">
+                                                    <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th></th></tr></thead>
+                                                    <tbody>
+                                                        @if (Model.VariantAddOns.Count == 0)
+                                                        {
+                                                            <tr><td colspan="3" class="text-muted">@UiText["catalog.variants.noAddonRegistered"]</td></tr>
+                                                        }
+                                                        else
+                                                        {
+                                                            foreach (var addOn in Model.VariantAddOns)
+                                                            {
+                                                                <tr>
+                                                                    <td class="text-monospace">@addOn.AddOnSku</td>
+                                                                    <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
+                                                                    <td>
+                                                                        @{
+                                                                            var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
+                                                                        }
+                                                                        <div class="btn-group btn-group-sm">
+                                                                            @if (!string.IsNullOrWhiteSpace(addOnProductId))
+                                                                            {
+                                                                                <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">@UiText["catalog.variants.view"]</a>
+                                                                            }
+                                                                            <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-ajax-submit="variant-addons" data-loading-form>
+                                                                                @Html.AntiForgeryToken()
+                                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                                                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                                                                <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
+                                                                                <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
+                                                                            </form>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            }
+                                            else
+                                            {
+                                                <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -490,7 +540,7 @@
                                             <span aria-hidden="true">&times;</span>
                                         </button>
                                     </div>
-                                    <div class="modal-body">
+                                    <div class="modal-body" id="variant-bulk-media-modal-body">
                                         <div class="alert alert-warning d-none" data-bulk-empty>یک یا چند مورد از موارد را انتخاب کنید</div>
                                         <div data-bulk-content>
                                             <form asp-action="BulkAssignVariantImages"
@@ -533,6 +583,10 @@
                                                     </button>
                                                 </div>
                                             </form>
+                                        </div>
+                                        <hr class="my-4" />
+                                        <div id="variant-media-library-modal-body">
+                                            @await Html.PartialAsync("~/Views/Shared/_VariantMediaLibraryBody.cshtml", Model.SelectedVariantDetails)
                                         </div>
                                     </div>
                                 </div>
@@ -606,15 +660,17 @@
                                                                 data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)">
                                                             برچسب
                                                         </button>
-                                                            <button type="button"
+                                                        <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-media-details"
-                                                                data-variant-url="@Url.Action("VariantMediaLibrary", "VariantManagement", new { variantId = variant.Id })"
+                                                                data-variant-id="@variant.Id"
+                                                                data-mode="single"
                                                                 data-detail-title="@UiText["catalog.variants.variantMediaTitle"]">
                                                             @UiText["variant.media.label"]
                                                         </button>
                                                         <button type="button"
                                                                 class="btn btn-outline-primary btn-xs js-variant-addon-details"
-                                                                data-variant-url="@Url.Action("Variants", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
+                                                                data-variant-id="@variant.Id"
+                                                                data-mode="single"
                                                                 data-detail-title="@UiText["catalog.variants.addonListTitle"]">
                                                             @UiText["catalog.variants.addonListTitle"]
                                                         </button>
@@ -732,22 +788,6 @@
             </div>
             <div class="modal-body">
                 <div id="variant-prices-modal-body" class="table-responsive small text-muted">@UiText["catalog.variants.loading"]</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="variant-media-library-modal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="variant-media-library-modal-title">@UiText["catalog.variants.variantMediaTitle"]</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" id="variant-media-library-modal-body">
-                @await Html.PartialAsync("~/Views/Shared/_VariantMediaLibraryBody.cshtml", Model.SelectedVariantDetails)
             </div>
         </div>
     </div>
@@ -872,92 +912,6 @@
                                                         <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
                                                         <input type="hidden" name="componentId" value="@component.ComponentId" />
                                                         <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
-                }
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="variant-addons-modal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">@UiText["catalog.variants.addonListTitle"]</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" id="variant-addons-modal-body">
-                @if (hasSelectedProduct && hasSelectedVariant)
-                {
-                    <p class="text-muted small">@UiText["catalog.variants.addonListHelp"]</p>
-                    <form asp-action="UpsertVariantAddOn"
-                          method="post"
-                          class="bg-light border rounded p-3 mb-3"
-                          id="variant-addon-form"
-                          data-ajax-submit="variant-addons"
-                          data-loading-form>
-                        @Html.AntiForgeryToken()
-                        <input asp-for="VariantAddOnForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                        <input asp-for="VariantAddOnForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
-                        <div class="form-group mb-2">
-                            <label>@UiText["catalog.variants.addonVariant"]</label>
-                            <select asp-for="VariantAddOnForm.AddOnVariantId"
-                                    class="form-control js-search-select"
-                                    id="VariantAddOnForm_AddOnVariantId"
-                                    data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'
-                                    data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
-                                <option value="">کد، نام یا بارکد ادزآن را جستجو کنید</option>
-                            </select>
-                            <small class="text-muted d-block mt-1">از لیست بازشونده یک واریانت را انتخاب کن و ثبت بزن.</small>
-                        </div>
-                        <div class="text-right">
-                            <button type="submit" class="btn btn-outline-primary">@UiText["catalog.variants.registerAddOn"]</button>
-                        </div>
-                    </form>
-                    <div id="variant-addons-list-container" class="table-responsive">
-                        <table class="table table-sm table-striped">
-                            <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th></th></tr></thead>
-                            <tbody>
-                                @if (Model.VariantAddOns.Count == 0)
-                                {
-                                    <tr><td colspan="3" class="text-muted">@UiText["catalog.variants.noAddonRegistered"]</td></tr>
-                                }
-                                else
-                                {
-                                    foreach (var addOn in Model.VariantAddOns)
-                                    {
-                                        <tr>
-                                            <td class="text-monospace">@addOn.AddOnSku</td>
-                                            <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
-                                            <td>
-                                                @{
-                                                    var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
-                                                }
-                                                <div class="btn-group btn-group-sm">
-                                                    @if (!string.IsNullOrWhiteSpace(addOnProductId))
-                                                    {
-                                                        <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">@UiText["catalog.variants.view"]</a>
-                                                    }
-                                                    <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-ajax-submit="variant-addons" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                        <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
                                                         <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
                                                     </form>
                                                 </div>
@@ -1114,6 +1068,9 @@
             var tagsCreateTagColor = tagsCreateForm ? tagsCreateForm.querySelector('[name="VariantTagForm.TagColor"]') : null;
             var bulkMediaForm = document.getElementById('variant-bulk-media-form');
             var addonVariantInput = document.getElementById('VariantAddOnForm_AddOnVariantId');
+            var mediaModal = $('#variant-bulk-media-modal');
+            var mediaModalTitle = document.querySelector('#variant-bulk-media-modal .modal-title');
+            var mediaModalBody = document.getElementById('variant-media-library-modal-body');
             var bulkTagLookupSelect = document.getElementById('bulk-variant-tag-lookup');
             var singleTagLookupSelect = document.getElementById('single-variant-tag-lookup');
             var pendingCreatedTagName = '';
@@ -1128,7 +1085,6 @@
             var componentListContainer = document.getElementById('variant-components-list-container');
             var addonListContainer = document.getElementById('variant-addons-list-container');
             var componentModalBody = document.getElementById('variant-components-modal-body');
-            var mediaModalBody = document.getElementById('variant-media-library-modal-body');
             var tagsModalBody = document.getElementById('variant-tags-modal-body');
             var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
             var tagLookupItems = [];
@@ -1405,6 +1361,118 @@
                 return refreshFragmentBody(componentModalBody);
             }
 
+            function loadVariantMediaForModal(variantId, mode, label) {
+                var normalizedMode = mode === 'bulk' ? 'bulk' : 'single';
+                if (mediaModal && mediaModal.attr) {
+                    mediaModal.attr('data-media-mode', normalizedMode);
+                    mediaModal.attr('data-variant-id', normalizedMode === 'bulk' ? '' : (variantId || ''));
+                    mediaModal.attr('data-variant-label', label || '');
+                }
+
+                if (normalizedMode === 'bulk') {
+                    var bulkMediaModal = window.jQuery ? window.jQuery('#variant-bulk-media-modal') : null;
+                    if (bulkMediaModal && bulkMediaModal.modal) {
+                        if (mediaModalBody) {
+                            mediaModalBody.innerHTML = @Html.Raw(JsonSerializer.Serialize(Model.SelectedVariantDetails is null ? "<div class=\"alert alert-light mb-0\">در حالت گروهی، لیست مدیا برای واریانت انتخاب‌شده نمایش داده می‌شود.</div>" : ""));
+                        }
+                        bulkMediaModal.modal('show');
+                    }
+                    return;
+                }
+
+                if (mediaModalTitle) {
+                    mediaModalTitle.textContent = label || variantMediaTitleText;
+                }
+
+                if (!variantId) {
+                    if (mediaModalBody) {
+                        mediaModalBody.innerHTML = '<div class="alert alert-light mb-0">' + noDisplayDataText + '</div>';
+                    }
+                    if (mediaModal && mediaModal.modal) {
+                        mediaModal.modal('show');
+                    }
+                    return;
+                }
+
+                if (mediaModalBody) {
+                    mediaModalBody.setAttribute('data-source-url', @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantMediaLibrary", "VariantManagement") ?? string.Empty)) + '?variantId=' + encodeURIComponent(variantId));
+                    mediaModalBody.removeAttribute('data-source-selector');
+                    mediaModalBody.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                }
+
+                if (mediaModal && mediaModal.modal) {
+                    mediaModal.modal('show');
+                }
+
+                fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("VariantMediaLibrary", "VariantManagement") ?? string.Empty)) + '?variantId=' + encodeURIComponent(variantId), {
+                    headers: { 'Accept': 'text/html' }
+                })
+                    .then(function (response) { return response.text(); })
+                    .then(function (html) {
+                        if (mediaModalBody) {
+                            mediaModalBody.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                        }
+                    })
+                    .catch(function () {
+                        if (mediaModalBody) {
+                            mediaModalBody.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                        }
+                    });
+            }
+
+            function loadVariantAddOnsForModal(variantId, mode, label) {
+                var normalizedMode = mode === 'bulk' ? 'bulk' : 'single';
+                var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
+                if (normalizedMode === 'bulk') {
+                    if (addonVariantInput && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(addonVariantInput).val(null).trigger('change');
+                    }
+                    if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(bulkAddonSelect).val(null).trigger('change');
+                    }
+                    if (bulkAddonModal && bulkAddonModal.modal) {
+                        bulkAddonModal.modal('show');
+                    }
+                    return;
+                }
+
+                if (addonModal && addonModal.attr) {
+                    addonModal.attr('data-addon-mode', 'single');
+                    addonModal.attr('data-variant-id', variantId || '');
+                    addonModal.attr('data-variant-label', label || '');
+                }
+
+                if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(bulkAddonSelect).val(null).trigger('change');
+                }
+                if (bulkTagsSelectedIdsInput) {
+                    bulkTagsSelectedIdsInput.value = variantId || '';
+                }
+                if (addonModalTitle) {
+                    addonModalTitle.textContent = label || 'Add-on';
+                }
+                if (addonListContainer) {
+                    addonListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                }
+
+                if (addonModal && addonModal.modal) {
+                    addonModal.modal('show');
+                }
+
+                var addonUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Variants", "VariantManagement") ?? string.Empty)) + '?productId=' + encodeURIComponent(getSelectedProductId()) + '&variantId=' + encodeURIComponent(variantId || '');
+                fetchPageFragment(addonUrl, '#variant-addons-list-container')
+                    .then(function (html) {
+                        if (addonListContainer) {
+                            addonListContainer.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                        }
+                    })
+                    .catch(function () {
+                        if (addonListContainer) {
+                            addonListContainer.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                        }
+                    });
+            }
+
             document.querySelectorAll('.js-variant-stock-details').forEach(function (button) {
                 button.addEventListener('click', function () {
                     openVariantDataModal(
@@ -1433,11 +1501,9 @@
                 var mediaButton = event.target.closest ? event.target.closest('.js-variant-media-details') : null;
                 if (mediaButton) {
                     event.preventDefault();
-                    openVariantHtmlModal(
-                        $('#variant-media-library-modal'),
-                        document.getElementById('variant-media-library-modal-title'),
-                        document.getElementById('variant-media-library-modal-body'),
-                        mediaButton.getAttribute('data-variant-url') || '',
+                    loadVariantMediaForModal(
+                        mediaButton.getAttribute('data-variant-id') || '',
+                        mediaButton.getAttribute('data-mode') || 'single',
                         mediaButton.getAttribute('data-detail-title') || variantMediaTitleText);
                     return;
                 }
@@ -1445,12 +1511,9 @@
                 var addonButton = event.target.closest ? event.target.closest('.js-variant-addon-details') : null;
                 if (addonButton) {
                     event.preventDefault();
-                    openVariantFragmentModal(
-                        $('#variant-addons-modal'),
-                        document.getElementById('variant-addons-modal').querySelector('.modal-title'),
-                        document.getElementById('variant-addons-list-container'),
-                        addonButton.getAttribute('data-variant-url') || '',
-                        '#variant-addons-list-container',
+                    loadVariantAddOnsForModal(
+                        addonButton.getAttribute('data-variant-id') || '',
+                        addonButton.getAttribute('data-mode') || 'single',
                         addonButton.getAttribute('data-detail-title') || '');
                     return;
                 }
@@ -1685,10 +1748,8 @@
                     '#variant-detail-modal',
                     '#variant-stock-modal',
                     '#variant-prices-modal',
-                    '#variant-media-library-modal',
                     '#variant-components-modal',
                     '#variant-component-modal',
-                    '#variant-addons-modal',
                     '#variant-tags-modal'
                 ];
 
@@ -2344,7 +2405,7 @@
             var componentQuantityInput = document.getElementById('VariantComponentForm_Quantity');
             var componentStockPanel = document.getElementById('variant-component-stock-panel');
             var componentStockSummary = document.getElementById('variant-component-stock-summary');
-            var addonModal = window.jQuery ? window.jQuery('#variant-addons-modal') : null;
+            var addonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
             var componentVariantSearchUrl = componentVariantInput ? (componentVariantInput.getAttribute('data-ajax-url') || '') : '';
             var componentStockLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("GetVariantComponentInventoryLookup", "CatalogManagement") ?? string.Empty));
             var componentVariantPlaceholder = componentVariantInput ? (componentVariantInput.getAttribute('data-placeholder') || '') : '';
@@ -2849,6 +2910,18 @@
                         return;
                     }
 
+                    if (target === '#variant-bulk-media-modal' && mediaModal && mediaModal.attr) {
+                        mediaModal.attr('data-media-mode', 'bulk');
+                        mediaModal.attr('data-variant-id', '');
+                        mediaModal.attr('data-variant-label', '');
+                    }
+
+                    if (target === '#variant-bulk-addon-modal' && addonModal && addonModal.attr) {
+                        addonModal.attr('data-addon-mode', 'bulk');
+                        addonModal.attr('data-variant-id', '');
+                        addonModal.attr('data-variant-label', '');
+                    }
+
                     setBulkModalState(target, hasSelection);
                     showModal(target);
                 }, true);
@@ -2856,6 +2929,9 @@
 
             $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
                 var hasSelection = getSelectedVariantCount() > 0;
+                if (addonModal && addonModal.attr) {
+                    addonModal.attr('data-addon-mode', 'bulk');
+                }
                 setBulkModalState('#variant-bulk-addon-modal', hasSelection);
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
@@ -2864,6 +2940,9 @@
 
             $('#variant-bulk-media-modal').on('show.bs.modal', function () {
                 var hasSelection = getSelectedVariantCount() > 0;
+                if (mediaModal && mediaModal.attr) {
+                    mediaModal.attr('data-media-mode', 'bulk');
+                }
                 setBulkModalState('#variant-bulk-media-modal', hasSelection);
             });
 
