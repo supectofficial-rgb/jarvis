@@ -1224,7 +1224,7 @@
             }
 
             function fetchPageFragment(url, selector) {
-                return fetch(url, { headers: { 'Accept': 'text/html' } })
+                return fetch(url, { cache: 'no-store', headers: { 'Accept': 'text/html' } })
                     .then(function (response) { return response.text(); })
                     .then(function (html) {
                         var parser = new DOMParser();

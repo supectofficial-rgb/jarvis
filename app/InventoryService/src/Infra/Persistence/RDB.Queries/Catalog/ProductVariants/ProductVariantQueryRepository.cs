@@ -479,20 +479,24 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
 
     public async Task<List<VariantAddOnViewItem>> GetAddOnsByVariantIdAsync(Guid variantId)
     {
-        return await (
-            from addOn in _dbContext.Set<VariantAddOnReadModel>()
-            join variant in _dbContext.Set<ProductVariantReadModel>() on addOn.AddOnVariantRef equals variant.BusinessKey
-            where addOn.VariantRef == variantId
-            orderby variant.VariantSku
-            select new VariantAddOnViewItem
-            {
-                VariantAddOnBusinessKey = addOn.BusinessKey,
-                VariantRef = addOn.VariantRef,
-                AddOnVariantRef = addOn.AddOnVariantRef,
-                AddOnSku = variant.VariantSku,
-                AddOnBarcode = variant.Barcode,
-                AddOnIsActive = variant.IsActive
-            }).ToListAsync();
+        const string sql = """
+            SELECT
+                add_on."BusinessKey" AS "VariantAddOnBusinessKey",
+                add_on."VariantRef" AS "VariantRef",
+                add_on."AddOnVariantRef" AS "AddOnVariantRef",
+                variant."VariantSku"::text AS "AddOnSku",
+                variant."Barcode" AS "AddOnBarcode",
+                variant."IsActive" AS "AddOnIsActive"
+            FROM "VariantAddOns" AS add_on
+            INNER JOIN "ProductVariants" AS variant
+                ON add_on."AddOnVariantRef" = variant."BusinessKey"
+            WHERE add_on."VariantRef" = {0}
+            ORDER BY variant."VariantSku"
+            """;
+
+        return await _dbContext.Database
+            .SqlQueryRaw<VariantAddOnViewItem>(sql, variantId)
+            .ToListAsync();
     }
 
     public async Task<List<VariantTagViewItem>> GetTagsByVariantIdAsync(Guid variantId)
