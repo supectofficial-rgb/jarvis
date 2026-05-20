@@ -100,48 +100,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        /*
-        modelBuilder.ApplyConfiguration(new AttributeDefinitionReadModelConfig());
-        modelBuilder.ApplyConfiguration(new AttributeOptionReadModelConfig());
-        modelBuilder.ApplyConfiguration(new CategoryReadModelConfig());
-        modelBuilder.ApplyConfiguration(new CategorySchemaVersionReadModelConfig());
-        modelBuilder.ApplyConfiguration(new CategoryAttributeRuleReadModelConfig());
-        modelBuilder.ApplyConfiguration(new CategoryVariantNameFormulaReadModelConfig());
-        modelBuilder.ApplyConfiguration(new CategoryVariantNameFormulaPartReadModelConfig());
-        modelBuilder.ApplyConfiguration(new ProductReadModelConfig());
-        modelBuilder.ApplyConfiguration(new ProductAttributeValueReadModelConfig());
-        modelBuilder.ApplyConfiguration(new ProductVariantReadModelConfig());
-        modelBuilder.ApplyConfiguration(new TagReadModelConfig());
-        modelBuilder.ApplyConfiguration(new VariantAttributeValueReadModelConfig());
-        modelBuilder.ApplyConfiguration(new VariantUomConversionReadModelConfig());
-        modelBuilder.ApplyConfiguration(new VariantComponentReadModelConfig());
-        modelBuilder.ApplyConfiguration(new VariantAddOnReadModelConfig());
-        modelBuilder.ApplyConfiguration(new VariantImageReadModelConfig());
-        modelBuilder.ApplyConfiguration(new VariantTagReadModelConfig());
-        modelBuilder.ApplyConfiguration(new UnitOfMeasureReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventoryDocumentReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventoryDocumentLineReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventoryTransactionReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventoryTransactionLineReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventoryReservationReadModelConfig());
-        modelBuilder.ApplyConfiguration(new ReservationAllocationReadModelConfig());
-        modelBuilder.ApplyConfiguration(new FulfillmentReadModelConfig());
-        modelBuilder.ApplyConfiguration(new ReturnRequestReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventorySourceBalanceReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventorySourceAllocationReadModelConfig());
-        modelBuilder.ApplyConfiguration(new InventorySourceConsumptionReadModelConfig());
-        modelBuilder.ApplyConfiguration(new StockDetailReadModelConfig());
-        modelBuilder.ApplyConfiguration(new SerialItemReadModelConfig());
-        modelBuilder.ApplyConfiguration(new SellerReadModelConfig());
-        modelBuilder.ApplyConfiguration(new PriceTypeReadModelConfig());
-        modelBuilder.ApplyConfiguration(new PriceChannelReadModelConfig());
-        modelBuilder.ApplyConfiguration(new SellerVariantPriceReadModelConfig());
-        modelBuilder.ApplyConfiguration(new OfferReadModelConfig());
-        modelBuilder.ApplyConfiguration(new WarehouseReadModelConfig());
-        modelBuilder.ApplyConfiguration(new LocationReadModelConfig());
-        modelBuilder.ApplyConfiguration(new QualityStatusReadModelConfig());
-
+        
         AddOrganizationShadowProperties(modelBuilder);
-        */
     }
 }

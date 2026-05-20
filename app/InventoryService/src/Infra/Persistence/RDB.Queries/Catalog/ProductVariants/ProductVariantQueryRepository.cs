@@ -626,33 +626,6 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             }).ToListAsync();
     }
 
-    public async Task<List<VariantTagLookupItem>> GetTagLookupAsync(string? term = null, int take = 50)
-    {
-        var query = _dbContext.Set<TagReadModel>().AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(term))
-        {
-            var normalized = term.Trim();
-            query = query.Where(x => EF.Functions.ILike(x.TagName, $"%{normalized}%"));
-        }
-
-        return await query
-            .GroupJoin(
-                _dbContext.Set<VariantTagReadModel>().AsNoTracking(),
-                tag => tag.BusinessKey,
-                variantTag => variantTag.TagRef,
-                (tag, variantTags) => new VariantTagLookupItem
-                {
-                    TagId = tag.BusinessKey,
-                    TagName = tag.TagName,
-                    TagColor = tag.TagColor,
-                    UsageCount = variantTags.Count()
-                })
-            .OrderByDescending(x => x.UsageCount)
-            .ThenBy(x => x.TagName)
-            .Take(Math.Clamp(take, 1, 200))
-            .ToListAsync();
-    }
-
     public async Task<List<VariantImageViewItem>> GetImagesByVariantIdAsync(Guid variantId)
     {
         return await _dbContext.Set<VariantImageReadModel>()
