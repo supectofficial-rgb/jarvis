@@ -809,73 +809,59 @@
                         <h5 class="card-title mb-1">@UiText["catalog.variants.componentsTitle"]</h5>
                         <p class="text-muted small mb-0">@UiText["catalog.variants.componentsHelp"]</p>
                     </div>
-                    @if (hasSelectedProduct && hasSelectedVariant)
-                    {
-                        <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="modal" data-target="#variant-component-modal">@UiText["catalog.variants.addOrEditComponent"]</button>
-                    }
                 </div>
                 @if (hasSelectedProduct && hasSelectedVariant)
                 {
                     <p class="text-muted small">@UiText["catalog.variants.componentsTableHelp"]</p>
-                    <div class="modal fade" id="variant-component-modal" tabindex="-1" role="dialog" aria-hidden="true">
-                        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">@UiText["catalog.variants.componentsTitle"]</h5>
-                                    <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
-                                </div>
-                                <div class="modal-body">
-                                    <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-ajax-submit="variant-components" data-loading-form data-dirty-watch>
-                                        @Html.AntiForgeryToken()
-                                        <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                                        <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
-                                        <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
-                                        <div class="form-row">
-                                            <div class="col-md-12 mb-2">
-                                                <label class="font-weight-bold">@UiText["catalog.variants.componentVariant"]</label>
-                                                <select asp-for="VariantComponentForm.ComponentVariantId"
-                                                        class="form-control js-search-select"
-                                                        id="VariantComponentForm_ComponentVariantId"
-                                                        data-placeholder='کد یا نام واریانت را جستجو کنید'
-                                                        data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
-                                                    <option value="">کد یا نام واریانت را جستجو کنید</option>
-                                                </select>
-                                                <small class="text-muted d-block mt-1">بعد از انتخاب واریانت، لوکیشن‌های مرتبط همان کالا بارگذاری می‌شوند.</small>
-                                            </div>
-                                        </div>
-                                        <div class="border rounded bg-light p-3 mb-3 d-none" id="variant-component-stock-panel">
-                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
-                                                <div>
-                                                    <strong>@UiText["catalog.variants.inventoryAndWarehouses"]</strong>
-                                                    <div class="small text-muted">لوکیشن دقیق را از بین گزینه‌های این واریانت انتخاب کن.</div>
-                                                </div>
-                                                <span class="badge badge-pill badge-outline-info" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</span>
-                                            </div>
-                                            <div class="form-row">
-                                                <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
-                                                <div class="col-md-12 mb-2">
-                                                    <label class="font-weight-bold">@UiText["catalog.variants.componentLocation"]</label>
-                                                    <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
-                                                        <option value="">@UiText["catalog.variants.selectLocation"]</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="form-row">
-                                            <div class="col-md-4 mb-2">
-                                                <label class="font-weight-bold">@UiText["common.count"]</label>
-                                                <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
-                                            </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
-                                        </div>
-                                    </form>
+                    <div class="border rounded bg-light p-3 mb-3" id="variant-component-form-panel">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="card-title mb-1">@UiText["catalog.variants.addOrEditComponent"]</h6>
+                                <p class="text-muted small mb-0">واریانت، انبار و لوکیشن را همین‌جا انتخاب کن و سپس ثبت بزن.</p>
+                            </div>
+                            <span class="badge badge-pill badge-outline-info" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</span>
+                        </div>
+                        <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-ajax-submit="variant-components" data-loading-form data-dirty-watch>
+                            @Html.AntiForgeryToken()
+                            <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
+                            <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
+                            <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
+                            <div class="form-row">
+                                <div class="col-md-12 mb-2">
+                                    <label class="font-weight-bold">@UiText["catalog.variants.componentVariant"]</label>
+                                    <select asp-for="VariantComponentForm.ComponentVariantId"
+                                            class="form-control js-search-select"
+                                            id="VariantComponentForm_ComponentVariantId"
+                                            data-placeholder='کد یا نام واریانت را جستجو کنید'
+                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
+                                        <option value="">کد یا نام واریانت را جستجو کنید</option>
+                                    </select>
+                                    <small class="text-muted d-block mt-1">بعد از انتخاب واریانت، انبار و لوکیشن‌های مرتبط همان کالا بارگذاری می‌شوند.</small>
                                 </div>
                             </div>
-                        </div>
+                            <div class="form-row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="font-weight-bold">@UiText["catalog.variants.warehouse"]</label>
+                                    <input type="text" class="form-control" id="VariantComponentForm_WarehouseLabel" readonly value="" placeholder="بعد از انتخاب واریانت پر می‌شود" />
+                                    <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="font-weight-bold">@UiText["catalog.variants.componentLocation"]</label>
+                                    <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
+                                        <option value="">@UiText["catalog.variants.selectLocation"]</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="col-md-4 mb-2">
+                                    <label class="font-weight-bold">@UiText["common.count"]</label>
+                                    <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
+                            </div>
+                        </form>
                     </div>
                     <div id="variant-components-list-container" class="table-responsive">
                         <table class="table table-sm table-striped">
@@ -1520,6 +1506,7 @@
                     addonModal.attr('data-addon-mode', 'single');
                     addonModal.attr('data-variant-id', variantId || '');
                     addonModal.attr('data-variant-label', label || '');
+                    addonModal.attr('data-product-id', activeProductId || '');
                 }
 
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
@@ -1851,7 +1838,6 @@
                     '#variant-stock-modal',
                     '#variant-prices-modal',
                     '#variant-components-modal',
-                    '#variant-component-modal',
                     '#variant-tags-modal'
                 ];
 
@@ -1971,9 +1957,15 @@
                     return;
                 }
 
-                var selectedIds = Array.from(bulkTagLookupSelect.selectedOptions || [])
-                    .map(function (option) { return (option.value || '').trim(); })
-                    .filter(Boolean);
+                var selectedIds = [];
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    selectedIds = (window.jQuery(bulkTagLookupSelect).val() || []);
+                } else {
+                    selectedIds = Array.from(bulkTagLookupSelect.selectedOptions || [])
+                        .map(function (option) { return (option.value || '').trim(); })
+                        .filter(Boolean);
+                }
+
                 hiddenInput.value = selectedIds.join(',');
             }
 
@@ -2258,8 +2250,11 @@
                 if (tag.tagId || tag.TagId) {
                     body.append('tagId', tag.tagId || tag.TagId);
                 }
+                if (tag.tagRef || tag.TagRef) {
+                    body.append('tagRef', tag.tagRef || tag.TagRef);
+                }
 
-                fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("RemoveVariantTag", "VariantManagement") ?? string.Empty)), {
+                return fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("RemoveVariantTag", "VariantManagement") ?? string.Empty)), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -2275,7 +2270,9 @@
                             });
                         }
 
-                        loadVariantTagsForModal(tagsSingleVariantId.value || '', 'single', tagsModalTitle ? tagsModalTitle.textContent : '');
+                        return response.json().then(function () {
+                            return loadVariantTagsForModal(tagsSingleVariantId.value || '', 'single', tagsModalTitle ? tagsModalTitle.textContent : '');
+                        });
                     });
             }
 
@@ -2486,13 +2483,14 @@
                 }
             }
 
-            var componentEditor = window.jQuery ? window.jQuery('#variant-component-modal') : null;
+            var componentEditor = window.jQuery ? window.jQuery('#variant-components-modal') : null;
             var componentIdInput = document.getElementById('VariantComponentForm_ComponentId');
             var componentVariantInput = document.getElementById('VariantComponentForm_ComponentVariantId');
+            var componentWarehouseLabelInput = document.getElementById('VariantComponentForm_WarehouseLabel');
             var componentWarehouseInput = document.getElementById('VariantComponentForm_WarehouseId');
             var componentLocationInput = document.getElementById('VariantComponentForm_LocationId');
             var componentQuantityInput = document.getElementById('VariantComponentForm_Quantity');
-            var componentStockPanel = document.getElementById('variant-component-stock-panel');
+            var componentStockPanel = document.getElementById('variant-component-form-panel');
             var componentStockSummary = document.getElementById('variant-component-stock-summary');
             var addonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
             var addonModalTitle = document.querySelector('#variant-bulk-addon-modal .modal-title');
@@ -2521,6 +2519,12 @@
                     if (item && item.warehouseId) {
                         option.setAttribute('data-warehouse-id', item.warehouseId);
                     }
+                    if (item && item.warehouseText) {
+                        option.setAttribute('data-warehouse-text', item.warehouseText);
+                    }
+                    if (item && item.locationText) {
+                        option.setAttribute('data-location-text', item.locationText);
+                    }
                     select.appendChild(option);
                 });
 
@@ -2534,9 +2538,16 @@
                     return;
                 }
 
+                var selectedOption = componentLocationInput.options[componentLocationInput.selectedIndex];
+                var warehouseId = selectedOption ? (selectedOption.getAttribute('data-warehouse-id') || '') : '';
+                var warehouseLabel = selectedOption ? (selectedOption.getAttribute('data-warehouse-text') || '') : '';
+
                 if (componentWarehouseInput) {
-                    var selectedOption = componentLocationInput.options[componentLocationInput.selectedIndex];
-                    componentWarehouseInput.value = selectedOption ? (selectedOption.getAttribute('data-warehouse-id') || '') : '';
+                    componentWarehouseInput.value = warehouseId;
+                }
+
+                if (componentWarehouseLabelInput) {
+                    componentWarehouseLabelInput.value = warehouseLabel || (selectedOption ? (selectedOption.textContent || '') : '');
                 }
             }
 
@@ -2669,6 +2680,9 @@
                     setSelectOptions(componentLocationInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
                     if (componentWarehouseInput) {
                         componentWarehouseInput.value = '';
+                    }
+                    if (componentWarehouseLabelInput) {
+                        componentWarehouseLabelInput.value = '';
                     }
                     setComponentStockPanelVisible(false);
                     updateComponentStockSummary(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectVariantSimple"])));
@@ -2868,18 +2882,21 @@
                 var editVariantId = (button.getAttribute('data-component-variant-id') || '').trim();
                 var editWarehouseId = (button.getAttribute('data-component-warehouse-id') || '').trim();
                 var editLocationId = (button.getAttribute('data-component-location-id') || '').trim();
-                if (editVariantId) {
-                    loadComponentInventoryOptions(editVariantId, editWarehouseId, editLocationId)
-                        .then(function () {
-                            if (componentLocationInput && editLocationId) {
-                                componentLocationInput.value = editLocationId;
-                                syncComponentWarehouseFromLocation();
-                            }
-                        })
-                        .catch(function () {
-                            updateComponentStockSummary('Loading inventory options failed.');
-                        });
-                }
+                    if (editVariantId) {
+                        loadComponentInventoryOptions(editVariantId, editWarehouseId, editLocationId)
+                            .then(function () {
+                                if (componentLocationInput && editLocationId) {
+                                    componentLocationInput.value = editLocationId;
+                                    syncComponentWarehouseFromLocation();
+                                }
+                                if (componentStockPanel) {
+                                    componentStockPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }
+                            })
+                            .catch(function () {
+                                updateComponentStockSummary('Loading inventory options failed.');
+                            });
+                    }
             });
 
             if (addonModal) {
@@ -2973,8 +2990,9 @@
 
             $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
                 var hasSelection = getSelectedVariantCount() > 0;
+                var currentMode = addonModal && addonModal.attr ? (addonModal.attr('data-addon-mode') || 'bulk') : 'bulk';
                 if (addonModal && addonModal.attr) {
-                    addonModal.attr('data-addon-mode', 'bulk');
+                    addonModal.attr('data-addon-mode', currentMode);
                 }
                 setBulkModalState('#variant-bulk-addon-modal', hasSelection);
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
@@ -3017,12 +3035,18 @@
                     return;
                 }
 
-                event.preventDefault();
-                savePageState();
-                if (ajaxForm === tagsCreateForm) {
-                    var pendingTagNameInput = tagsCreateForm ? tagsCreateForm.querySelector('input[name="TagDefinitionForm.TagName"]') : null;
-                    pendingCreatedTagName = pendingTagNameInput ? (pendingTagNameInput.value || '').trim() : '';
-                }
+                    event.preventDefault();
+                    savePageState();
+                    if (ajaxForm === tagsBulkForm) {
+                        syncBulkTagIdsField();
+                    }
+                    if (ajaxForm === tagsSingleForm) {
+                        syncSingleTagIdField();
+                    }
+                    if (ajaxForm === tagsCreateForm) {
+                        var pendingTagNameInput = tagsCreateForm ? tagsCreateForm.querySelector('input[name="TagDefinitionForm.TagName"]') : null;
+                        pendingCreatedTagName = pendingTagNameInput ? (pendingTagNameInput.value || '').trim() : '';
+                    }
 
                 var submitButtons = ajaxForm.querySelectorAll('button[type="submit"]');
                 submitButtons.forEach(function (button) {
@@ -3075,9 +3099,8 @@
                         var mode = result && result.mode ? result.mode : (ajaxForm.getAttribute('data-ajax-submit') || '');
                         if (mode === 'variant-components') {
                             return refreshComponentList().then(function () {
-                                var editor = window.jQuery ? window.jQuery('#variant-component-modal') : null;
-                                if (editor && editor.modal) {
-                                    editor.modal('hide');
+                                if (componentStockPanel) {
+                                    componentStockPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                 }
                             });
                         }
@@ -3129,22 +3152,27 @@
                         if (mode === 'bulk-addon') {
                             var addonPayload = result && result.payload ? result.payload : {};
                             var addonMode = addonModal ? (addonModal.attr('data-addon-mode') || 'bulk') : 'bulk';
+                            var currentAddonVariantId = addonModal ? (addonModal.attr('data-variant-id') || '') : '';
+                            var currentAddonLabel = addonModal ? (addonModal.attr('data-variant-label') || '') : '';
+                            var currentAddonProductId = addonModal ? (addonModal.attr('data-product-id') || getSelectedProductId() || '') : getSelectedProductId();
                             if (!result.ok || !addonPayload.isSuccess) {
                                 throw new Error(addonPayload.error || addonPayload.message || loadInfoFailedText);
                             }
 
                             if (addonMode === 'single') {
-                                return refreshAddonList().then(function () {
+                                return loadVariantAddOnsForModal(
+                                    currentAddonVariantId,
+                                    'single',
+                                    currentAddonLabel,
+                                    currentAddonProductId
+                                ).then(function () {
                                     clearAddonSelection();
                                 });
                             }
 
-                            clearBulkAddonSelection();
-                            var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
-                            if (bulkAddonModal && bulkAddonModal.modal) {
-                                bulkAddonModal.modal('hide');
-                            }
-                            return Promise.resolve();
+                            return refreshAddonList().then(function () {
+                                clearBulkAddonSelection();
+                            });
                         }
 
                         if (mode === 'bulk-tags') {

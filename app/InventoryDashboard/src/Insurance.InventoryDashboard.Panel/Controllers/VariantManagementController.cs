@@ -709,7 +709,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveVariantTag(string productId, string variantId, string? tagId, string? tagName)
+    public async Task<IActionResult> RemoveVariantTag(string productId, string variantId, string? tagId, string? tagRef, string? tagName)
     {
         var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
                             Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
@@ -724,7 +724,7 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        var result = await _apiService.RemoveVariantTagAsync(variantId, tagId, tagName, token);
+        var result = await _apiService.RemoveVariantTagAsync(variantId, tagId, tagRef, tagName, token);
         if (!result.IsSuccess)
         {
             if (isAjaxRequest)
@@ -745,6 +745,7 @@ public sealed class VariantManagementController : CatalogManagementController
                     variantId,
                     productId,
                     tagId,
+                    tagRef,
                     tagName
                 });
             }
