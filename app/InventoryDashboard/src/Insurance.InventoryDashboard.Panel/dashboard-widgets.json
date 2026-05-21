@@ -167,7 +167,7 @@
             "InventoryManager"
           ],
           "description": "تعریف لوکیشن‌های مختلف برای هر انبار",
-          "route": "/InventoryManagement/Locations"
+          "route": "/InventoryManagement/Locations?tab=create"
         }
       ]
     },

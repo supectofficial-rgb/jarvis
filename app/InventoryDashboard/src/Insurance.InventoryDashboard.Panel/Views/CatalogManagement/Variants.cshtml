@@ -481,6 +481,7 @@
                                                 <div class="text-right">
                                                     <button type="submit"
                                                             class="btn btn-outline-primary"
+                                                            id="variant-addon-submit-button"
                                                             data-bulk-action="assign-addon"
                                                             data-bulk-permission="allowed">
                                                         @UiText["catalog.variants.registerForSelections"]
@@ -934,6 +935,7 @@
             var tagsCreateForm = document.getElementById('variant-tag-create-form');
             var bulkMediaForm = document.getElementById('variant-bulk-media-form');
             var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
+            var addonSubmitButton = document.getElementById('variant-addon-submit-button');
             var mediaModal = $('#variant-bulk-media-modal');
             var mediaModalTitle = document.querySelector('#variant-bulk-media-modal .modal-title');
             var mediaModalBody = document.getElementById('variant-media-library-modal-body');
@@ -1485,6 +1487,7 @@
                 } else if (bulkAddonSelect) {
                     bulkAddonSelect.value = '';
                 }
+                updateAddonSubmitState();
             }
 
             function clearBulkAddonSelection() {
@@ -1493,6 +1496,26 @@
                 } else if (bulkAddonSelect) {
                     bulkAddonSelect.value = '';
                 }
+                updateAddonSubmitState();
+            }
+
+            function updateAddonSubmitState() {
+                if (!addonSubmitButton) {
+                    return;
+                }
+
+                var hasVariantSelection = getSelectedVariantCount() > 0;
+                var selectedAddOnId = '';
+
+                if (bulkAddonSelect) {
+                    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        selectedAddOnId = (window.jQuery(bulkAddonSelect).val() || '').toString().trim();
+                    } else {
+                        selectedAddOnId = (bulkAddonSelect.value || '').trim();
+                    }
+                }
+
+                addonSubmitButton.disabled = !hasVariantSelection || !selectedAddOnId;
             }
 
             function refreshComponentList() {
@@ -1636,6 +1659,7 @@
                     if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkAddonSelect).val(null).trigger('change');
                     }
+                    updateAddonSubmitState();
                     if (bulkAddonModal && bulkAddonModal.modal) {
                         bulkAddonModal.modal('show');
                     }
@@ -1653,6 +1677,7 @@
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 }
                 ensureVariantSelectedForBulk(variantId);
+                updateAddonSubmitState();
                 if (addonModalTitle) {
                     addonModalTitle.textContent = label || 'Add-on';
                 }
@@ -2887,6 +2912,10 @@
             initializeAddonVariantSearch();
             ensureTagLookupOptions();
 
+            if (bulkAddonSelect) {
+                bulkAddonSelect.addEventListener('change', updateAddonSubmitState);
+            }
+
             if (searchForm) {
                 searchForm.addEventListener('submit', function (event) {
                     event.preventDefault();
@@ -3089,6 +3118,7 @@
                     if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkAddonSelect).val(null).trigger('change');
                     }
+                    updateAddonSubmitState();
                 });
             }
 
@@ -3199,6 +3229,7 @@
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 }
+                updateAddonSubmitState();
             });
 
             $('#variant-bulk-media-modal').on('show.bs.modal', function () {
@@ -3378,11 +3409,13 @@
                                     currentAddonProductId
                                 ).then(function () {
                                     clearAddonSelection();
+                                    updateAddonSubmitState();
                                 });
                             }
 
                             return refreshAddonList().then(function () {
                                 clearBulkAddonSelection();
+                                updateAddonSubmitState();
                             });
                         }
 

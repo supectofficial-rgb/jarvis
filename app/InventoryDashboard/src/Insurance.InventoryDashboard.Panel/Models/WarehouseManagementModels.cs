@@ -13,6 +13,7 @@ public sealed class WarehouseManagementPageViewModel
 
     public string? SelectedWarehouseId { get; set; }
     public string? SelectedLocationId { get; set; }
+    public string? LocationTab { get; set; }
     public string? ErrorMessage { get; set; }
 
     public IReadOnlyList<WarehouseListItemModel> Warehouses { get; set; } = Array.Empty<WarehouseListItemModel>();

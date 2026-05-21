@@ -36,6 +36,7 @@ public sealed partial class InventoryManagementController : Controller
         string? locationShelf,
         string? locationBin,
         string? locationStatus,
+        string? tab,
         int warehousePage = 1,
         int warehousePageSize = 10,
         int locationPage = 1,
@@ -61,6 +62,7 @@ public sealed partial class InventoryManagementController : Controller
             warehousePageSize,
             locationPage,
             locationPageSize,
+            tab,
             cancellationToken);
 
     [HttpGet]
@@ -82,6 +84,7 @@ public sealed partial class InventoryManagementController : Controller
         int warehousePageSize = 10,
         int locationPage = 1,
         int locationPageSize = 10,
+        string? tab = null,
         CancellationToken cancellationToken = default)
         => BuildInventoryManagementPageAsync(
             warehouseId,
@@ -103,6 +106,7 @@ public sealed partial class InventoryManagementController : Controller
             warehousePageSize,
             locationPage,
             locationPageSize,
+            tab,
             cancellationToken);
 
     private async Task<IActionResult> BuildInventoryManagementPageAsync(
@@ -125,6 +129,7 @@ public sealed partial class InventoryManagementController : Controller
         int warehousePageSize,
         int locationPage,
         int locationPageSize,
+        string? tab,
         CancellationToken cancellationToken)
     {
         if (!TryGetToken(out var token))
@@ -214,6 +219,7 @@ public sealed partial class InventoryManagementController : Controller
 
             SelectedWarehouseId = selectedWarehouseId,
             SelectedLocationId = selectedLocationId,
+            LocationTab = tab,
             Warehouses = warehouses,
             WarehouseLookup = warehouseLookup,
             Locations = locations,
@@ -329,19 +335,19 @@ public sealed partial class InventoryManagementController : Controller
         if (!IsAuthorizedFor(token, "Inventory.Location.Create", "Inventory.Location.Update", "Location.Create", "Location.Update"))
         {
             TempData["CatalogError"] = "شما دسترسی ذخیره لوکیشن را ندارید.";
-            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
+            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId, tab = "create" });
         }
 
         if (!TryValidateModel(form))
         {
             TempData["CatalogError"] = ExtractModelError(ModelState);
-            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
+            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId, tab = "create" });
         }
 
         if (!Guid.TryParse(form.WarehouseId, out _))
         {
             TempData["CatalogError"] = "انبار انتخاب شده معتبر نیست.";
-            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
+            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId, tab = "create" });
         }
 
         var request = new UpsertLocationRequest
@@ -365,10 +371,10 @@ public sealed partial class InventoryManagementController : Controller
 
         if (string.IsNullOrWhiteSpace(form.LocationId))
         {
-            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId });
+            return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, tab = "create" });
         }
 
-        return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId });
+        return RedirectToAction(nameof(Locations), new { warehouseId = form.WarehouseId, locationId = form.LocationId, tab = "create" });
     }
 
     [HttpPost]
@@ -493,7 +499,7 @@ public sealed partial class InventoryManagementController : Controller
 
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "وضعیت انبار تغییر کرد." : result.ErrorMessage ?? "تغییر وضعیت انبار با خطا مواجه شد.";
-        return RedirectToAction(nameof(Locations), new { warehouseId, locationId, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus });
+        return RedirectToAction(nameof(Locations), new { warehouseId, locationId, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus, tab = "list" });
     }
 
     private async Task<IActionResult> ChangeWarehouseStatus(string warehouseId, bool activate)
@@ -569,7 +575,7 @@ public sealed partial class InventoryManagementController : Controller
         if (!IsAuthorizedFor(token, permission))
         {
             TempData["CatalogError"] = "شما دسترسی تغییر وضعیت لوکیشن را ندارید.";
-            return RedirectToAction(nameof(Locations), new { warehouseId, locationId });
+            return RedirectToAction(nameof(Locations), new { warehouseId, locationId, tab = "list" });
         }
 
         var result = activate
@@ -578,7 +584,7 @@ public sealed partial class InventoryManagementController : Controller
 
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "وضعیت لوکیشن تغییر کرد." : result.ErrorMessage ?? "تغییر وضعیت لوکیشن با خطا مواجه شد.";
-        return RedirectToAction(nameof(Locations), new { warehouseId, locationId });
+        return RedirectToAction(nameof(Locations), new { warehouseId, locationId, tab = "list" });
     }
 
     private static string? ResolveSelectedWarehouseId(

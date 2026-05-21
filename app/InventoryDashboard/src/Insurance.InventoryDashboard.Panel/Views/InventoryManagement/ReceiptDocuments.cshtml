@@ -167,9 +167,6 @@
             <div class="col-12">
                 <div class="mb-4">
                     <h1>@UiText["inventory.documents.title"]</h1>
-                    <div class="mb-2">
-                        <span class="badge badge-pill badge-primary">@TypeLabel(currentDocumentType)</span>
-                    </div>
                     <p class="text-muted">@UiText["inventory.documents.description"]</p>
                     <div>
                         <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.documents.summary.documents"] @Model.DocumentTotalCount</span>
@@ -245,16 +242,7 @@
                                         }
                                     </select>
                                 </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.seller"]</label>
-                                    <select asp-for="CreateForm.SellerRef" class="form-control" required>
-                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
-                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@seller.SellerBusinessKey">@seller.Code - @seller.Name</option>
-                                        }
-                                    </select>
-                                </div>
+                                <input asp-for="CreateForm.SellerRef" type="hidden" />
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
                                     <input asp-for="CreateForm.OccurredAt" type="datetime-local" class="form-control" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
@@ -494,7 +482,7 @@
                                                 <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@document.DocumentBusinessKey" asp-route-documentNo="@Model.DocumentNoFilter" asp-route-documentType="@Model.DocumentTypeFilter" asp-route-status="@Model.DocumentStatusFilter" asp-route-warehouseId="@Model.WarehouseFilter" asp-route-sellerId="@Model.SellerFilter" asp-route-occurredFrom="@Model.OccurredFromFilter" asp-route-occurredTo="@Model.OccurredToFilter" asp-route-page="@Model.DocumentPage" asp-route-pageSize="@Model.DocumentPageSize" data-ajax-target="#documents-page-root">جزئیات</a>
+                                                    <button type="button" class="btn btn-outline-primary btn-xs js-receipt-document-details" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">جزئیات</button>
                                                 </td>
                                             </tr>
                                         }
@@ -533,7 +521,7 @@
                 </div>
             </div>
 
-            <div class="col-xl-4 mb-4">
+            <div class="col-xl-4 mb-4 d-none">
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title">جزئیات سند</h5>
@@ -819,6 +807,25 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="receipt-document-details-modal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="receipt-document-details-modal-title">جزئیات سند رسید</h5>
+                        <div class="small text-muted" id="receipt-document-details-modal-subtitle"></div>
+                    </div>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="receipt-document-details-modal-body">
+                    <div class="text-muted">در حال بارگذاری...</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
 
 @section Scripts {
@@ -1087,12 +1094,6 @@
                     return false;
                 }
 
-                var sellerField = createForm.querySelector('[name="CreateForm.SellerRef"]');
-                if (sellerField && !sellerField.value) {
-                    showValidation('انتخاب فروشنده برای سند الزامی است.', sellerField);
-                    return false;
-                }
-
                 var config = selectedConfig();
                 var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
                 if (lines.length === 0) {
@@ -1244,6 +1245,186 @@
             toggleTypeFields();
             syncLocationsToWarehouse();
             setLinesPanelVisible(false);
+        })();
+    </script>
+    <script data-ajax-reinit="receipt-documents">
+        (function () {
+            var modalSelector = '#receipt-document-details-modal';
+            var modalBodySelector = '#receipt-document-details-modal-body';
+            var modalTitleSelector = '#receipt-document-details-modal-title';
+            var modalSubtitleSelector = '#receipt-document-details-modal-subtitle';
+            var detailsUrl = '@Url.Action("ReceiptDocumentDetails", "InventoryManagement")';
+
+            function showModal() {
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.modal) {
+                    return;
+                }
+
+                window.jQuery(modalSelector).modal('show');
+            }
+
+            function initModalWidgets(root) {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(root);
+                }
+            }
+
+            async function loadReceiptDetails(documentId, documentNo) {
+                var url = new URL(detailsUrl, window.location.origin);
+                url.searchParams.set('documentId', documentId || '');
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+
+                var html = await response.text();
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var nextBody = doc.querySelector(modalBodySelector);
+                var currentBody = document.querySelector(modalBodySelector);
+                if (!nextBody || !currentBody) {
+                    throw new Error('Receipt details modal body could not be loaded.');
+                }
+
+                currentBody.replaceWith(nextBody);
+                initModalWidgets(nextBody);
+
+                var titleElement = document.querySelector(modalTitleSelector);
+                var subtitleElement = document.querySelector(modalSubtitleSelector);
+                if (titleElement) {
+                    titleElement.textContent = documentNo ? ('جزئیات سند ' + documentNo) : 'جزئیات سند رسید';
+                }
+                if (subtitleElement) {
+                    subtitleElement.textContent = documentId || '';
+                }
+
+                showModal();
+            }
+
+            function fillReceiptLineForm(trigger) {
+                if (!trigger) {
+                    return;
+                }
+
+                var modal = document.querySelector(modalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
+                var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
+                var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var destinationInput = modal.querySelector('input[name="LineForm.DestinationLocationRef"]');
+                var submitButton = modal.querySelector('.js-receipt-line-submit');
+                var cancelButton = modal.querySelector('.js-receipt-line-cancel');
+                var modalBody = modal.querySelector(modalBodySelector);
+                var defaultDestination = modalBody ? (modalBody.getAttribute('data-default-destination-location-id') || '') : '';
+
+                if (lineIdInput) {
+                    lineIdInput.value = trigger.getAttribute('data-line-id') || '';
+                }
+
+                if (variantSelect) {
+                    variantSelect.value = trigger.getAttribute('data-variant-id') || '';
+                    if (window.jQuery) {
+                        window.jQuery(variantSelect).trigger('change');
+                    }
+                }
+
+                if (qtyInput) {
+                    qtyInput.value = trigger.getAttribute('data-qty') || '1';
+                }
+
+                if (destinationInput) {
+                    destinationInput.value = trigger.getAttribute('data-destination-location-id') || defaultDestination;
+                }
+
+                if (submitButton) {
+                    submitButton.textContent = 'ذخیره تغییرات';
+                }
+
+                if (cancelButton) {
+                    cancelButton.classList.remove('d-none');
+                }
+            }
+
+            function resetReceiptLineForm() {
+                var modal = document.querySelector(modalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
+                var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
+                var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var destinationInput = modal.querySelector('input[name="LineForm.DestinationLocationRef"]');
+                var submitButton = modal.querySelector('.js-receipt-line-submit');
+                var cancelButton = modal.querySelector('.js-receipt-line-cancel');
+                var modalBody = modal.querySelector(modalBodySelector);
+                var defaultDestination = modalBody ? (modalBody.getAttribute('data-default-destination-location-id') || '') : '';
+
+                if (lineIdInput) {
+                    lineIdInput.value = '';
+                }
+                if (variantSelect) {
+                    variantSelect.value = '';
+                    if (window.jQuery) {
+                        window.jQuery(variantSelect).trigger('change');
+                    }
+                }
+                if (qtyInput) {
+                    qtyInput.value = '1';
+                }
+                if (destinationInput) {
+                    destinationInput.value = defaultDestination;
+                }
+                if (submitButton) {
+                    submitButton.textContent = 'افزودن آیتم';
+                }
+                if (cancelButton) {
+                    cancelButton.classList.add('d-none');
+                }
+            }
+
+            if (!window.__receiptDocumentsModalBound) {
+                window.__receiptDocumentsModalBound = true;
+
+                document.addEventListener('click', function (event) {
+                    var trigger = event.target && event.target.closest ? event.target.closest('.js-receipt-document-details') : null;
+                    if (trigger) {
+                        event.preventDefault();
+                        var documentId = trigger.getAttribute('data-document-id') || '';
+                        var documentNo = trigger.getAttribute('data-document-no') || '';
+                        loadReceiptDetails(documentId, documentNo).catch(function (error) {
+                            console.error(error);
+                        });
+                        return;
+                    }
+
+                    var editButton = event.target && event.target.closest ? event.target.closest('.js-receipt-line-edit') : null;
+                    if (editButton) {
+                        event.preventDefault();
+                        fillReceiptLineForm(editButton);
+                        return;
+                    }
+
+                    var cancelButton = event.target && event.target.closest ? event.target.closest('.js-receipt-line-cancel') : null;
+                    if (cancelButton) {
+                        event.preventDefault();
+                        resetReceiptLineForm();
+                    }
+                }, true);
+            }
+
+            var modalElement = document.querySelector(modalSelector);
+            if (modalElement) {
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    resetReceiptLineForm();
+                });
+            }
         })();
     </script>
 }

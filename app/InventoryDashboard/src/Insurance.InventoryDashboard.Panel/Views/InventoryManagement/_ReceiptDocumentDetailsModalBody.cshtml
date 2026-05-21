@@ -1,0 +1,260 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
+@{
+    var document = Model.SelectedDocumentDetails;
+    var currentDocumentType = document?.DocumentType ?? "Receipt";
+    var canEditLines = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+
+    string TypeLabel(string? type) => type switch
+    {
+        "Receipt" => UiText["inventory.documents.type.receipt"],
+        "Issue" => UiText["inventory.documents.type.issue"],
+        "Transfer" => UiText["inventory.documents.type.transfer"],
+        "Adjustment" => UiText["inventory.documents.type.adjustment"],
+        "Return" => UiText["inventory.documents.type.return"],
+        "QualityChange" => UiText["inventory.documents.type.qualityChange"],
+        "Conversion" => UiText["inventory.documents.type.conversion"],
+        _ => type ?? "-"
+    };
+
+    string StatusLabel(string? status) => status switch
+    {
+        "Draft" => UiText["inventory.documents.status.draft"],
+        "Approved" => UiText["inventory.documents.status.approved"],
+        "Rejected" => UiText["inventory.documents.status.rejected"],
+        "Cancelled" => UiText["inventory.documents.status.cancelled"],
+        "Posted" => UiText["inventory.documents.status.posted"],
+        _ => status ?? "-"
+    };
+
+    string StatusClass(string? status) => status switch
+    {
+        "Draft" => "badge-outline-secondary",
+        "Approved" => "badge-info",
+        "Rejected" => "badge-danger",
+        "Cancelled" => "badge-warning",
+        "Posted" => "badge-success",
+        _ => "badge-secondary"
+    };
+
+    string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
+    {
+        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
+        return string.IsNullOrWhiteSpace(productName)
+            ? variant.Sku
+            : $"{variant.Sku} - {productName}";
+    }
+
+    string VariantName(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return "-";
+        }
+
+        var variant = Model.VariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase));
+        return variant is null ? variantId : VariantLabel(variant);
+    }
+
+    string UomName(string? uomId)
+    {
+        if (string.IsNullOrWhiteSpace(uomId))
+        {
+            return "-";
+        }
+
+        var uom = Model.UnitOfMeasureLookup.FirstOrDefault(x => string.Equals(x.Id, uomId, StringComparison.OrdinalIgnoreCase));
+        return uom is null ? uomId : $"{uom.Code} - {uom.Name}";
+    }
+
+    string LocationName(string? locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            return "-";
+        }
+
+        var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
+        return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
+    }
+
+    string WarehouseName(string? warehouseId)
+    {
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return "-";
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
+        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
+    }
+
+    string SellerName(string? sellerId)
+    {
+        if (string.IsNullOrWhiteSpace(sellerId))
+        {
+            return "-";
+        }
+
+        var seller = Model.SellerLookup.FirstOrDefault(x => string.Equals(x.SellerBusinessKey, sellerId, StringComparison.OrdinalIgnoreCase));
+        return seller is null ? sellerId : $"{seller.Code} - {seller.Name}";
+    }
+}
+
+<div id="receipt-document-details-modal-body"
+     class="modal-body receipt-document-details-modal"
+     data-default-destination-location-id="@Model.LineForm.DestinationLocationRef">
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning">@Model.ErrorMessage</div>
+    }
+
+    @if (document is null)
+    {
+        <div class="alert alert-light mb-0">سندی برای نمایش پیدا نشد.</div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <div class="text-monospace h5 mb-1">@document.DocumentNo</div>
+                <div class="text-muted small">@TypeLabel(currentDocumentType)</div>
+            </div>
+            <span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">انبار</div>
+                <div>@WarehouseName(document.WarehouseRef)</div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">فروشنده</div>
+                <div>@SellerName(document.SellerRef)</div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">تاریخ وقوع</div>
+                <div>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">مرجع</div>
+                <div>@(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</div>
+            </div>
+        </div>
+
+        @if (canEditLines)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ویرایش آیتم")</h6>
+                        <button type="button" class="btn btn-outline-secondary btn-xs js-receipt-line-cancel d-none">لغو ویرایش</button>
+                    </div>
+                    <form asp-action="SaveReceiptDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#receipt-document-details-modal-body" class="mb-0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
+                        <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
+                        <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
+                        <input type="hidden" asp-for="LineForm.DestinationLocationRef" value="@Model.LineForm.DestinationLocationRef" />
+                        <div class="form-row">
+                            <div class="form-group col-md-7">
+                                <label>واریانت</label>
+                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" required>
+                                    <option value="">انتخاب واریانت</option>
+                                    @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+                                    {
+                                        <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>تعداد</label>
+                                <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
+                            </div>
+                            <div class="form-group col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary btn-block js-receipt-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-light border mb-3">این سند در وضعیت پیش‌نویس نیست و آیتم‌ها قابل ویرایش نیستند.</div>
+        }
+
+        <div class="border-top pt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">آیتم های سند</h6>
+                <span class="text-muted small">@document.Lines.Count ردیف</span>
+            </div>
+
+            @if (document.Lines.Count == 0)
+            {
+                <div class="alert alert-light mb-0">ردیفی برای این سند ثبت نشده است.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>واریانت</th>
+                                <th>تعداد</th>
+                                <th>واحد</th>
+                                <th>مقصد</th>
+                                <th class="text-right">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var line in document.Lines)
+                            {
+                                <tr>
+                                    <td>@VariantName(line.VariantRef)</td>
+                                    <td>@line.Qty.ToString("0.####")</td>
+                                    <td>@UomName(line.UomRef)</td>
+                                    <td>@LocationName(line.DestinationLocationRef)</td>
+                                    <td class="text-right">
+                                        @if (canEditLines)
+                                        {
+                                            <button type="button"
+                                                    class="btn btn-outline-primary btn-xs js-receipt-line-edit"
+                                                    data-line-id="@line.LineBusinessKey"
+                                                    data-variant-id="@line.VariantRef"
+                                                    data-qty="@line.Qty.ToString("0.####")"
+                                                    data-destination-location-id="@line.DestinationLocationRef">ویرایش</button>
+                                            <form asp-action="DeleteReceiptDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#receipt-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
+                                                <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
+                                                <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">غیر قابل ویرایش</span>
+                                        }
+                                    </td>
+                                </tr>
+                                @if (line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase) || !string.IsNullOrWhiteSpace(line.LotBatchNo))
+                                {
+                                    <tr>
+                                        <td colspan="5" class="text-muted small">
+                                            Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
+                                            @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
+                                            {
+                                                <span> | لات/بچ: @line.LotBatchNo</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+</div>

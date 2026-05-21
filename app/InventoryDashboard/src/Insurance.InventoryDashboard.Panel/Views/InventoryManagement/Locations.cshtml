@@ -22,7 +22,7 @@
     }
 
     var isLocationEditMode = !string.IsNullOrWhiteSpace(Model.LocationForm.LocationId);
-    var activeTab = isLocationEditMode ? "create" : "list";
+    var activeTab = string.Equals(Model.LocationTab, "create", StringComparison.OrdinalIgnoreCase) || isLocationEditMode ? "create" : "list";
     var selectedWarehouseName = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, Model.SelectedWarehouseId, StringComparison.OrdinalIgnoreCase))?.Name;
     var locationTypeOptions = new[] { "Bulk", "Pick", "Return", "Damage", "Quarantine" };
 
@@ -93,7 +93,7 @@
                                     <h5 class="card-title mb-0">@(isLocationEditMode ? UiText["inventory.warehouses.editLocation"] : UiText["inventory.warehouses.createLocationTitle"])</h5>
                                     @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
                                     {
-                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-secondary btn-xs" data-ajax-target="#inventory-management-root">جدید</a>
+                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" asp-route-tab="create" class="btn btn-outline-secondary btn-xs" data-ajax-target="#inventory-management-root">جدید</a>
                                     }
                                 </div>
                                 <form asp-action="SaveLocation" method="post" data-loading-form data-dirty-watch data-ajax-target="#inventory-management-root">
@@ -173,9 +173,10 @@
                                 }
 
                                 <form asp-action="Locations" method="get" class="form-row mb-3" data-ajax-target="#inventory-management-root">
+                                    <input type="hidden" name="tab" value="list" />
                                     <div class="form-group col-md-3">
                                         <label>انبار</label>
-                                        <select name="warehouseId" class="form-control js-search-select" data-auto-submit>
+                                        <select name="warehouseId" class="form-control js-search-select">
                                             <option value="">همه انبارها</option>
                                             @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                             {
@@ -303,7 +304,7 @@
                                                             </span>
                                                         </td>
                                                         <td class="text-right">
-                                                            <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" asp-route-locationTypes="@Model.LocationTypesFilter" asp-route-locationCode="@Model.LocationCodeFilter" asp-route-locationAisle="@Model.LocationAisleFilter" asp-route-locationRack="@Model.LocationRackFilter" asp-route-locationShelf="@Model.LocationShelfFilter" asp-route-locationBin="@Model.LocationBinFilter" asp-route-locationStatus="@Model.LocationStatusFilter" data-ajax-target="#inventory-management-root">ویرایش</a>
+                                                            <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" asp-route-locationTypes="@Model.LocationTypesFilter" asp-route-locationCode="@Model.LocationCodeFilter" asp-route-locationAisle="@Model.LocationAisleFilter" asp-route-locationRack="@Model.LocationRackFilter" asp-route-locationShelf="@Model.LocationShelfFilter" asp-route-locationBin="@Model.LocationBinFilter" asp-route-locationStatus="@Model.LocationStatusFilter" asp-route-tab="create" data-ajax-target="#inventory-management-root">ویرایش</a>
                                                             <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
@@ -381,6 +382,7 @@
                                                        asp-route-locationShelf="@Model.LocationShelfFilter"
                                                        asp-route-locationBin="@Model.LocationBinFilter"
                                                        asp-route-locationStatus="@Model.LocationStatusFilter"
+                                                       asp-route-tab="list"
                                                        asp-route-warehousePage="@Model.WarehousePage"
                                                        asp-route-warehousePageSize="@Model.WarehousePageSize"
                                                        asp-route-locationPage="@i"
