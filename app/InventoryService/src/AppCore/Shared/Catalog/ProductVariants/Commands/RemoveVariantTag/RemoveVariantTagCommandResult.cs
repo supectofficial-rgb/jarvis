@@ -4,6 +4,5 @@ public class RemoveVariantTagCommandResult
 {
     public Guid ProductVariantBusinessKey { get; set; }
     public Guid? VariantTagBusinessKey { get; set; }
-    public Guid? TagRef { get; set; }
     public string? TagName { get; set; }
 }

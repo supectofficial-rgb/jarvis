@@ -251,13 +251,11 @@ public sealed class ProductVariant : AggregateRoot
         return _tags.First(x => x.BusinessKey.Value == tagBusinessKey);
     }
 
-    public void RemoveTag(Guid? variantTagBusinessKey, Guid? tagRef)
+    public void RemoveTag(Guid? variantTagBusinessKey)
     {
         var existing = variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
             ? _tags.FirstOrDefault(x => x.BusinessKey.Value == variantTagBusinessKey.Value)
-            : (tagRef.HasValue && tagRef.Value != Guid.Empty
-                ? _tags.FirstOrDefault(x => x.TagRef == tagRef.Value)
-                : null);
+            : null;
 
         if (existing is null)
             return;

@@ -176,13 +176,12 @@ public class ProductVariantController : OysterFxController
 
     [HttpDelete("{productVariantBusinessKey:guid}/tags")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
-    public Task<IActionResult> RemoveTag([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid? variantTagBusinessKey, [FromQuery] Guid? tagRef, [FromQuery] string? tagName)
+    public Task<IActionResult> RemoveTag([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid? variantTagBusinessKey, [FromQuery] string? tagName)
         => SendCommand<RemoveVariantTagCommand, RemoveVariantTagCommandResult>(
             new RemoveVariantTagCommand
             {
                 ProductVariantBusinessKey = productVariantBusinessKey,
                 VariantTagBusinessKey = variantTagBusinessKey,
-                TagRef = tagRef,
                 TagName = tagName
             });
 

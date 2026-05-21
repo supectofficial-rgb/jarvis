@@ -985,6 +985,7 @@ public sealed class ApiService : IApiService
 
         var mapped = result.Data?.Items.Select(item => new VariantTagModel
         {
+            VariantTagBusinessKey = item.VariantTagBusinessKey.ToString("D"),
             TagId = item.VariantTagBusinessKey.ToString("D"),
             TagRef = item.TagRef.ToString("D"),
             VariantId = item.VariantRef.ToString("D"),
@@ -1069,17 +1070,12 @@ public sealed class ApiService : IApiService
         };
     }
 
-    public Task<ApiResponse<bool>> RemoveVariantTagAsync(string variantId, string? tagId, string? tagRef, string? tagName, string token)
+    public Task<ApiResponse<bool>> RemoveVariantTagAsync(string variantId, string? variantTagBusinessKey, string? tagName, string token)
     {
         var query = new List<string>();
-        if (Guid.TryParse(tagId, out var parsedTagId))
+        if (Guid.TryParse(variantTagBusinessKey, out var parsedTagId))
         {
             query.Add($"variantTagBusinessKey={Uri.EscapeDataString(parsedTagId.ToString("D"))}");
-        }
-
-        if (Guid.TryParse(tagRef, out var parsedTagRef))
-        {
-            query.Add($"tagRef={Uri.EscapeDataString(parsedTagRef.ToString("D"))}");
         }
 
         if (!string.IsNullOrWhiteSpace(tagName))

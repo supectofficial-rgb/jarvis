@@ -1787,13 +1787,11 @@
                     removeButton.type = 'button';
                     removeButton.className = 'btn btn-link btn-sm p-0 text-danger';
                     removeButton.textContent = '×';
-                    removeButton.setAttribute('data-tag-id', tag.tagId || '');
-                    removeButton.setAttribute('data-tag-ref', tag.tagRef || '');
+                    removeButton.setAttribute('data-variant-tag-business-key', tag.variantTagBusinessKey || tag.tagId || tag.VariantTagBusinessKey || tag.TagId || '');
                     removeButton.setAttribute('data-tag-name', tag.tagName || '');
                     removeButton.addEventListener('click', function () {
                         removeVariantTagAjax({
-                            tagId: removeButton.getAttribute('data-tag-id') || '',
-                            tagRef: removeButton.getAttribute('data-tag-ref') || '',
+                            variantTagBusinessKey: removeButton.getAttribute('data-variant-tag-business-key') || '',
                             tagName: removeButton.getAttribute('data-tag-name') || ''
                         });
                     });
@@ -1808,19 +1806,18 @@
                     return null;
                 }
 
-                var tagId = (item.tagId || item.TagId || item.variantTagBusinessKey || item.VariantTagBusinessKey || '').toString().trim();
-                var tagRef = (item.tagRef || item.TagRef || '').toString().trim();
+                var variantTagBusinessKey = (item.variantTagBusinessKey || item.VariantTagBusinessKey || item.tagId || item.TagId || '').toString().trim();
                 var tagName = (item.tagName || item.TagName || '').toString().trim();
                 var tagColor = (item.tagColor || item.TagColor || '').toString().trim();
                 var displayOrder = item.displayOrder || item.DisplayOrder || 0;
 
-                if (!tagId && !tagRef && !tagName) {
+                if (!variantTagBusinessKey && !tagName) {
                     return null;
                 }
 
                 return {
-                    tagId: tagId,
-                    tagRef: tagRef,
+                    variantTagBusinessKey: variantTagBusinessKey,
+                    tagId: variantTagBusinessKey,
                     tagName: tagName,
                     tagColor: tagColor,
                     displayOrder: displayOrder,
@@ -2128,11 +2125,12 @@
                 body.append('__RequestVerificationToken', token);
                 body.append('productId', getSelectedProductId());
                 body.append('variantId', tagsSingleVariantId.value || '');
-                if (tag.tagId || tag.TagId) {
-                    body.append('tagId', tag.tagId || tag.TagId);
+                var variantTagBusinessKey = (tag.variantTagBusinessKey || tag.VariantTagBusinessKey || tag.tagId || tag.TagId || '').toString().trim();
+                if (variantTagBusinessKey) {
+                    body.append('variantTagBusinessKey', variantTagBusinessKey);
                 }
-                if (tag.tagRef || tag.TagRef) {
-                    body.append('tagRef', tag.tagRef || tag.TagRef);
+                if (tag.tagName || tag.TagName) {
+                    body.append('tagName', tag.tagName || tag.TagName);
                 }
 
                 return fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("RemoveVariantTag", "VariantManagement") ?? string.Empty)), {

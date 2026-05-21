@@ -775,15 +775,51 @@ public sealed class VariantManagementController : CatalogManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveVariantAddOn(string productId, string variantId, string addOnVariantId)
     {
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
         if (!TryGetToken(out var token))
         {
+            if (isAjaxRequest)
+            {
+                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+            }
+
             return RedirectToAction("Login", "Auth");
+        }
+
+        if (string.IsNullOrWhiteSpace(variantId) || string.IsNullOrWhiteSpace(addOnVariantId))
+        {
+            var errorMessage = "شناسه واریانت یا ادزآن معتبر نیست.";
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
+            return RedirectToAction(nameof(Variants), new { productId, variantId });
         }
 
         var result = await _apiService.RemoveVariantAddOnAsync(variantId, addOnVariantId, token);
         if (!result.IsSuccess)
         {
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف Add-on انجام نشد." });
+            }
+
             TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â­Ã˜Â°Ã™Â Add-on Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+        }
+        else if (isAjaxRequest)
+        {
+            return Json(new
+            {
+                isSuccess = true,
+                message = "Add-on با موفقیت حذف شد.",
+                productId,
+                variantId,
+                addOnVariantId
+            });
         }
 
         return RedirectToAction(nameof(Variants), new { productId, variantId });
@@ -1098,7 +1134,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveVariantTag(string productId, string variantId, string? tagId, string? tagRef, string? tagName)
+    public async Task<IActionResult> RemoveVariantTag(string productId, string variantId, string? variantTagBusinessKey, string? tagId, string? tagName)
     {
         var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
                             Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
@@ -1113,7 +1149,11 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        var result = await _apiService.RemoveVariantTagAsync(variantId, tagId, tagRef, tagName, token);
+        var resolvedVariantTagBusinessKey = !string.IsNullOrWhiteSpace(variantTagBusinessKey)
+            ? variantTagBusinessKey
+            : tagId;
+
+        var result = await _apiService.RemoveVariantTagAsync(variantId, resolvedVariantTagBusinessKey, tagName, token);
         if (!result.IsSuccess)
         {
             if (isAjaxRequest)
@@ -1133,8 +1173,7 @@ public sealed class VariantManagementController : CatalogManagementController
                     message = "برچسب با موفقیت حذف شد.",
                     variantId,
                     productId,
-                    tagId,
-                    tagRef,
+                    variantTagBusinessKey = resolvedVariantTagBusinessKey,
                     tagName
                 });
             }
@@ -1660,22 +1699,56 @@ public sealed class VariantManagementController : CatalogManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveVariantImage(string productId, string variantId, string fileKey)
     {
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
         if (!TryGetToken(out var token))
         {
+            if (isAjaxRequest)
+            {
+                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+            }
+
             return RedirectToAction("Login", "Auth");
         }
 
         if (string.IsNullOrWhiteSpace(variantId) || string.IsNullOrWhiteSpace(fileKey))
         {
+            var errorMessage = "شناسه واریانت یا فایل تصویر معتبر نیست.";
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
             TempData["CatalogError"] = "Ã˜Â´Ã™â€ Ã˜Â§Ã˜Â³Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã›Å’Ã˜Â§ Ã™ÂÃ˜Â§Ã›Å’Ã™â€ž Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã™â€ Ã›Å’Ã˜Â³Ã˜Âª.";
             return RedirectToAction(nameof(Variants), new { productId, variantId });
         }
 
         var result = await _apiService.RemoveVariantImageAsync(variantId, fileKey, token);
         if (!result.IsSuccess)
+        {
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف تصویر واریانت انجام نشد." });
+            }
+
             TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â­Ã˜Â°Ã™Â Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+        }
+        else if (isAjaxRequest)
+        {
+            return Json(new
+            {
+                isSuccess = true,
+                message = "تصویر واریانت حذف شد.",
+                productId,
+                variantId,
+                fileKey
+            });
+        }
         else
+        {
             TempData["CatalogSuccess"] = "Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â­Ã˜Â°Ã™Â Ã˜Â´Ã˜Â¯.";
+        }
 
         return RedirectToAction(nameof(Variants), new { productId, variantId });
     }

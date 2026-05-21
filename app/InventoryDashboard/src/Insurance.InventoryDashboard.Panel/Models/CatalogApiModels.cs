@@ -259,6 +259,7 @@ public sealed class VariantImageModel
 
 public sealed class VariantTagModel
 {
+    public string VariantTagBusinessKey { get; set; } = string.Empty;
     public string TagId { get; set; } = string.Empty;
     public string? TagRef { get; set; }
     public string VariantId { get; set; } = string.Empty;
