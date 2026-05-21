@@ -695,7 +695,11 @@ public sealed partial class InventoryManagementController
         {
             form.Lines.Clear();
         }
-        else if (!isReceiptDocument)
+        else if (isReceiptDocument)
+        {
+            form.Lines = new List<CreateInventoryDocumentLineForm>();
+        }
+        else
         {
             form.Lines = form.Lines
                 .Where(line =>
