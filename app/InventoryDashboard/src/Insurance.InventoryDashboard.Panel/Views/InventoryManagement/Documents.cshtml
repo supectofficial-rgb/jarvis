@@ -1,5 +1,6 @@
 @using System
 @using System.Linq
+@using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
     ViewData["Title"] = UiText["inventory.documents.title"];
@@ -159,6 +160,14 @@
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
+    var documentPageUrl = Url.Action(documentAction, "InventoryManagement") ?? string.Empty;
+    var documentListUrl = Url.Action("DocumentList", "InventoryManagement") ?? string.Empty;
+    var warehouseLabelMap = Model.WarehouseLookup
+        .OrderBy(x => x.Code)
+        .ToDictionary(x => x.WarehouseBusinessKey, x => $"{x.Code} - {x.Name}", StringComparer.OrdinalIgnoreCase);
+    var sellerLabelMap = Model.SellerLookup
+        .OrderBy(x => x.Code)
+        .ToDictionary(x => x.SellerBusinessKey, x => $"{x.Code} - {x.Name}", StringComparer.OrdinalIgnoreCase);
 }
 
 <main id="documents-page-root" class="catalog-page">
@@ -172,7 +181,7 @@
                     </div>
                     <p class="text-muted">@UiText["inventory.documents.description"]</p>
                     <div>
-                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.documents.summary.documents"] @Model.DocumentTotalCount</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.documents.summary.documents"] <span data-document-total-count>@Model.DocumentTotalCount</span></span>
                         @if (!string.IsNullOrWhiteSpace(Model.SelectedDocumentId))
                         {
                             <span class="badge badge-pill badge-outline-secondary mb-1">@UiText["inventory.documents.summary.selectedDocument"] @(Model.SelectedDocumentDetails?.DocumentNo ?? Model.SelectedDocumentId)</span>
@@ -404,9 +413,10 @@
                             <h5 class="card-title mb-0">لیست اسناد</h5>
                             <span class="text-muted small">@Model.DocumentTotalCount رکورد</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-document-list-form data-document-list-url="@documentListUrl">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
+                            <input type="hidden" name="page" value="@Model.DocumentPage" data-document-page-input />
                             <div class="form-group col-md-2">
                                 <label>شماره</label>
                                 <input name="documentNo" value="@Model.DocumentNoFilter" class="form-control text-monospace" />
@@ -452,7 +462,7 @@
                             </div>
                             <div class="form-group col-md-2">
                                 <label>تعداد</label>
-                                <select name="pageSize" class="form-control">
+                                <select name="pageSize" class="form-control" data-document-page-size>
                                     @foreach (var size in Model.PageSizeOptions)
                                     {
                                         <option value="@size" selected="@(Model.DocumentPageSize == size ? "selected" : null)">@size</option>
@@ -477,7 +487,7 @@
                                         <th class="text-right">عملیات</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody data-document-list-body>
                                     @if (Model.Documents.Count == 0)
                                     {
                                         <tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>
@@ -503,9 +513,9 @@
                             </table>
                         </div>
 
-                        @if (Model.DocumentTotalPages > 1)
-                        {
-                            <nav class="mt-3">
+                        <nav class="mt-3" data-document-pagination @(Model.DocumentTotalPages > 1 ? null : "hidden")>
+                            @if (Model.DocumentTotalPages > 1)
+                            {
                                 <ul class="pagination pagination-sm mb-0">
                                     @for (var i = 1; i <= Model.DocumentTotalPages; i++)
                                     {
@@ -513,7 +523,6 @@
                                             <a class="page-link"
                                                asp-action="@documentAction"
                                                asp-controller="InventoryManagement"
-                                               asp-route-documentId="@Model.SelectedDocumentId"
                                                asp-route-documentNo="@Model.DocumentNoFilter"
                                                asp-route-documentType="@Model.DocumentTypeFilter"
                                                asp-route-status="@Model.DocumentStatusFilter"
@@ -523,12 +532,13 @@
                                                asp-route-occurredTo="@Model.OccurredToFilter"
                                                asp-route-page="@i"
                                                asp-route-pageSize="@Model.DocumentPageSize"
-                                               data-ajax-target="#documents-page-root">@i</a>
+                                               data-document-page-link
+                                               data-document-page="@i">@i</a>
                                         </li>
                                     }
                                 </ul>
-                            </nav>
-                        }
+                            }
+                        </nav>
                     </div>
                 </div>
             </div>
@@ -822,6 +832,229 @@
 </main>
 
 @section Scripts {
+    <script>
+        (function () {
+            var listForm = document.querySelector('[data-document-list-form]');
+            var listBody = document.querySelector('[data-document-list-body]');
+            var pagination = document.querySelector('[data-document-pagination]');
+            var totalCountEl = document.querySelector('[data-document-total-count]');
+            var pageInput = document.querySelector('[data-document-page-input]');
+            var documentListUrl = @Html.Raw(JsonSerializer.Serialize(documentListUrl));
+            var documentPageUrl = @Html.Raw(JsonSerializer.Serialize(documentPageUrl));
+            var currentDocumentType = @Html.Raw(JsonSerializer.Serialize(currentDocumentType));
+            var warehouseLabelMap = @Html.Raw(JsonSerializer.Serialize(warehouseLabelMap));
+            var sellerLabelMap = @Html.Raw(JsonSerializer.Serialize(sellerLabelMap));
+
+            function escapeHtml(value) {
+                return String(value ?? '').replace(/[&<>"']/g, function (character) {
+                    switch (character) {
+                        case '&': return '&amp;';
+                        case '<': return '&lt;';
+                        case '>': return '&gt;';
+                        case '"': return '&quot;';
+                        case '\'': return '&#39;';
+                        default: return character;
+                    }
+                });
+            }
+
+            function getFormValue(name) {
+                if (!listForm) {
+                    return '';
+                }
+
+                var field = listForm.querySelector('[name="' + name + '"]');
+                return field ? field.value : '';
+            }
+
+            function getSelectedText(map, key) {
+                if (!key) {
+                    return '-';
+                }
+
+                return map[key] || key;
+            }
+
+            function formatDate(value) {
+                if (!value) {
+                    return '-';
+                }
+
+                var date = new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return value;
+                }
+
+                function pad(input) {
+                    return String(input).padStart(2, '0');
+                }
+
+                return [
+                    date.getFullYear(),
+                    pad(date.getMonth() + 1),
+                    pad(date.getDate())
+                ].join('/') + ' ' + [pad(date.getHours()), pad(date.getMinutes())].join(':');
+            }
+
+            function statusLabel(status) {
+                switch (status) {
+                    case 'Draft': return 'پیش نویس';
+                    case 'Approved': return 'تایید شده';
+                    case 'Rejected': return 'رد شده';
+                    case 'Cancelled': return 'لغو شده';
+                    case 'Posted': return 'پست شده';
+                    default: return status || '-';
+                }
+            }
+
+            function statusClass(status) {
+                switch (status) {
+                    case 'Draft': return 'badge-outline-secondary';
+                    case 'Approved': return 'badge-info';
+                    case 'Rejected': return 'badge-danger';
+                    case 'Cancelled': return 'badge-warning';
+                    case 'Posted': return 'badge-success';
+                    default: return 'badge-secondary';
+                }
+            }
+
+            function typeLabel(type) {
+                switch (type) {
+                    case 'Receipt': return 'رسید';
+                    case 'Issue': return 'حواله';
+                    case 'Transfer': return 'انتقال';
+                    case 'Adjustment': return 'تعدیل';
+                    case 'Return': return 'برگشت';
+                    case 'QualityChange': return 'تغییر کیفیت';
+                    case 'Conversion': return 'تبدیل';
+                    default: return type || '-';
+                }
+            }
+
+            function buildDetailsUrl(item) {
+                var url = new URL(documentPageUrl, window.location.origin);
+                url.searchParams.set('documentId', item.documentBusinessKey || '');
+                url.searchParams.set('documentNo', getFormValue('documentNo'));
+                url.searchParams.set('documentType', getFormValue('documentType') || currentDocumentType);
+                url.searchParams.set('status', getFormValue('status'));
+                url.searchParams.set('warehouseId', getFormValue('warehouseId'));
+                url.searchParams.set('sellerId', getFormValue('sellerId'));
+                url.searchParams.set('occurredFrom', getFormValue('occurredFrom'));
+                url.searchParams.set('occurredTo', getFormValue('occurredTo'));
+                url.searchParams.set('page', getFormValue('page') || '1');
+                url.searchParams.set('pageSize', getFormValue('pageSize') || '10');
+                return url.pathname + url.search;
+            }
+
+            function renderRows(items) {
+                if (!items || !items.length) {
+                    return '<tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>';
+                }
+
+                return items.map(function (item) {
+                    return [
+                        '<tr>',
+                        '<td><span class="text-monospace">', escapeHtml(item.documentNo || '-'), '</span></td>',
+                        '<td>', escapeHtml(typeLabel(item.documentType)), '</td>',
+                        '<td>', escapeHtml(getSelectedText(warehouseLabelMap, item.warehouseRef)), '</td>',
+                        '<td>', escapeHtml(getSelectedText(sellerLabelMap, item.sellerRef)), '</td>',
+                        '<td>', escapeHtml(formatDate(item.occurredAt)), '</td>',
+                        '<td><span class="badge badge-pill ', statusClass(item.status), '">', escapeHtml(statusLabel(item.status)), '</span></td>',
+                        '<td class="text-right">',
+                        '<a class="btn btn-outline-primary btn-xs" href="', escapeHtml(buildDetailsUrl(item)), '" data-ajax-target="#documents-page-root">جزئیات</a>',
+                        '</td>',
+                        '</tr>'
+                    ].join('');
+                }).join('');
+            }
+
+            function renderPagination(meta) {
+                if (!pagination) {
+                    return;
+                }
+
+                var totalPages = meta && meta.totalPages ? meta.totalPages : 1;
+                var currentPage = meta && meta.page ? meta.page : 1;
+
+                if (totalPages <= 1) {
+                    pagination.hidden = true;
+                    pagination.innerHTML = '';
+                    return;
+                }
+
+                var html = ['<ul class="pagination pagination-sm mb-0">'];
+                for (var i = 1; i <= totalPages; i++) {
+                    html.push('<li class="page-item' + (i === currentPage ? ' active' : '') + '">');
+                    html.push('<a class="page-link" href="#" data-document-page-link data-document-page="' + i + '">' + i + '</a>');
+                    html.push('</li>');
+                }
+                html.push('</ul>');
+                pagination.innerHTML = html.join('');
+                pagination.hidden = false;
+            }
+
+            async function loadDocumentList(page) {
+                if (!listForm || !listBody) {
+                    return;
+                }
+
+                var data = new FormData(listForm);
+                data.set('page', String(page || 1));
+                data.set('documentType', getFormValue('documentType') || currentDocumentType);
+                if (pageInput) {
+                    pageInput.value = String(page || 1);
+                }
+
+                var response = await fetch(documentListUrl + '?' + new URLSearchParams(data).toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-store'
+                });
+
+                var payload = null;
+                try {
+                    payload = await response.json();
+                } catch (error) {
+                    payload = null;
+                }
+
+                if (!response.ok) {
+                    throw new Error((payload && payload.errorMessage) || 'خطا در بارگذاری لیست اسناد.');
+                }
+
+                listBody.innerHTML = renderRows(payload.items || []);
+                renderPagination(payload);
+                if (totalCountEl) {
+                    totalCountEl.textContent = payload.totalCount != null ? payload.totalCount : 0;
+                }
+            }
+
+            if (listForm) {
+                listForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    loadDocumentList(1).catch(function (error) {
+                        window.alert(error.message || 'خطا در بارگذاری لیست اسناد.');
+                    });
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                var pageLink = event.target && event.target.closest ? event.target.closest('[data-document-page-link]') : null;
+                if (!pageLink) {
+                    return;
+                }
+
+                event.preventDefault();
+                var page = Number(pageLink.getAttribute('data-document-page') || '1');
+                loadDocumentList(page).catch(function (error) {
+                    window.alert(error.message || 'خطا در بارگذاری لیست اسناد.');
+                });
+            }, true);
+        })();
+    </script>
+
     <script data-ajax-reinit="documents">
         (function () {
             var lineContainer = document.getElementById('document-lines');

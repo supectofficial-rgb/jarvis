@@ -1492,6 +1492,30 @@ public sealed class ApiService : IApiService
         };
     }
 
+    public async Task<ApiResponse<bool>> UpdateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token)
+    {
+        var payload = new
+        {
+            DocumentNo = NormalizeOptional(form.DocumentNo),
+            DocumentType = form.DocumentType.Trim(),
+            ReferenceType = NormalizeOptional(form.ReferenceType),
+            ReferenceBusinessId = ParseNullableGuid(form.ReferenceBusinessId),
+            WarehouseRef = ParseGuidOrEmpty(form.WarehouseRef),
+            SellerRef = ParseGuidOrEmpty(form.SellerRef),
+            OccurredAt = form.OccurredAt,
+            ReasonCode = NormalizeOptional(form.ReasonCode)
+        };
+
+        return await PutCommandAsync(
+            $"{InventoryApiPrefix}/InventoryDocument/{form.DocumentId}",
+            payload,
+            token,
+            "Updating inventory document failed.");
+    }
+
+    public Task<ApiResponse<bool>> DeleteInventoryDocumentAsync(string documentId, string token) =>
+        DeleteCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}", token, "Deleting inventory document failed.");
+
     public Task<ApiResponse<bool>> AddInventoryDocumentLineAsync(string documentId, InventoryDocumentLineForm line, string token)
     {
         var payload = new

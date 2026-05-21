@@ -112,6 +112,8 @@ public interface IApiService
     Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(string token, string? documentNo = null, string? documentType = null, string? status = null, string? warehouseId = null, string? sellerId = null, DateTime? occurredFrom = null, DateTime? occurredTo = null, int page = 1, int pageSize = 20);
     Task<ApiResponse<InventoryDocumentDetailsModel>> GetInventoryDocumentByBusinessKeyAsync(string documentId, string token);
     Task<ApiResponse<CreateInventoryDocumentResultModel>> CreateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);
+    Task<ApiResponse<bool>> UpdateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);
+    Task<ApiResponse<bool>> DeleteInventoryDocumentAsync(string documentId, string token);
     Task<ApiResponse<bool>> ApproveInventoryDocumentAsync(string documentId, string approvedBy, string token);
     Task<ApiResponse<bool>> RejectInventoryDocumentAsync(string documentId, string? reasonCode, string token);
     Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token);

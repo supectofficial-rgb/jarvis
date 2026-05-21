@@ -24,6 +24,7 @@ public sealed partial class InventoryManagementController
             "Documents",
             documentId,
             editingLineId,
+            null,
             documentNo,
             documentType,
             status,
@@ -35,10 +36,66 @@ public sealed partial class InventoryManagementController
             pageSize,
             cancellationToken);
 
+    [HttpGet("/InventoryManagement/Documents/List")]
+    public async Task<IActionResult> DocumentList(
+        string? documentNo,
+        string? documentType,
+        string? status,
+        string? warehouseId,
+        string? sellerId,
+        string? occurredFrom,
+        string? occurredTo,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return StatusCode(403, new { isSuccess = false, errorMessage = "شما دسترسی مشاهده اسناد را ندارید." });
+        }
+
+        pageSize = NormalizePageSize(pageSize);
+        var resolvedDocumentType = NormalizeDocumentType(documentType);
+        var searchResult = await _apiService.SearchInventoryDocumentsAsync(
+            token,
+            documentNo,
+            resolvedDocumentType,
+            status,
+            warehouseId,
+            sellerId,
+            ParseDate(occurredFrom),
+            ParseDateEndOfDay(occurredTo),
+            Math.Max(page, 1),
+            pageSize);
+
+        var data = searchResult.Data ?? new InventoryDocumentSearchResultModel
+        {
+            Page = Math.Max(page, 1),
+            PageSize = pageSize,
+            TotalCount = 0,
+            Items = new List<InventoryDocumentListItemModel>()
+        };
+
+        return Json(new
+        {
+            data.Items,
+            data.Page,
+            data.PageSize,
+            data.TotalCount,
+            TotalPages = CalculateTotalPages(data.TotalCount, data.PageSize)
+        });
+    }
+
     [HttpGet("/InventoryManagement/Documents/Receipt")]
     public Task<IActionResult> ReceiptDocuments(
         string? documentId,
         string? editingLineId,
+        string? tab,
         string? documentNo,
         string? status,
         string? warehouseId,
@@ -52,6 +109,7 @@ public sealed partial class InventoryManagementController
             "ReceiptDocuments",
             documentId,
             editingLineId,
+            tab,
             documentNo,
             "Receipt",
             status,
@@ -80,6 +138,153 @@ public sealed partial class InventoryManagementController
 
         var model = await BuildReceiptDocumentDetailsModalModelAsync(documentId, token, cancellationToken);
         return PartialView("~/Views/InventoryManagement/_ReceiptDocumentDetailsModalBody.cshtml", model);
+    }
+
+    [HttpGet("/InventoryManagement/Documents/Receipt/VariantLookup")]
+    public async Task<IActionResult> SearchReceiptVariantLookup(string? term, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی جستجوی واریانت را ندارید."
+            });
+        }
+
+        var result = await _apiService.SearchProductVariantsAsync(
+            token,
+            searchTerm: term,
+            isActive: true,
+            page: 1,
+            pageSize: 20);
+
+        if (!result.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = result.ErrorMessage
+            });
+        }
+
+        return Json(new
+        {
+            isSuccess = true,
+            items = (result.Data?.Items ?? new List<ProductVariantSummaryModel>())
+                .Select(x => new
+                {
+                    id = x.Id,
+                    text = BuildVariantLookupLabel(x),
+                    sku = x.Sku,
+                    name = x.Name,
+                    barcode = x.Barcode
+                })
+                .ToList()
+        });
+    }
+
+    [HttpGet("/InventoryManagement/Documents/Receipt/VariantInventoryLookup")]
+    public async Task<IActionResult> SearchReceiptVariantInventoryLookup(string variantId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!Guid.TryParse(variantId, out _))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "واریانت انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده انبارهای واریانت را ندارید."
+            });
+        }
+
+        var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+
+        if (!warehouseLookupResult.IsSuccess || !locationLookupResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = JoinErrors(
+                    warehouseLookupResult.ErrorMessage,
+                    locationLookupResult.ErrorMessage)
+            });
+        }
+
+        var warehouses = (warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>())
+            .OrderBy(x => x.Code)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                id = x.WarehouseBusinessKey,
+                warehouseId = x.WarehouseBusinessKey,
+                text = $"{x.Code} - {x.Name}",
+                code = x.Code,
+                name = x.Name
+            })
+            .ToList();
+
+        var warehouseMap = warehouses.ToDictionary(x => x.warehouseId, x => x, StringComparer.OrdinalIgnoreCase);
+
+        var locations = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
+            .OrderBy(x => x.WarehouseRef)
+            .ThenBy(x => x.LocationCode)
+            .ThenBy(x => x.LocationType)
+            .ThenBy(x => x.WarehouseRef)
+            .Select(x =>
+            {
+                var warehouse = warehouseMap.TryGetValue(x.WarehouseRef, out var warehouseItem) ? warehouseItem : null;
+                var warehouseLabel = warehouse is null ? x.WarehouseRef : warehouse.text;
+                var locationLabel = string.IsNullOrWhiteSpace(x.LocationType)
+                    ? x.LocationCode
+                    : $"{x.LocationCode} ({x.LocationType})";
+
+                return new
+                {
+                    id = x.LocationBusinessKey,
+                    locationId = x.LocationBusinessKey,
+                    warehouseId = x.WarehouseRef,
+                    warehouseText = warehouseLabel,
+                    locationText = locationLabel,
+                    text = $"{warehouseLabel} - {locationLabel}",
+                    code = x.LocationCode,
+                    type = x.LocationType
+                };
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            warehouses,
+            locations
+        });
     }
 
     [HttpPost]
@@ -186,6 +391,7 @@ public sealed partial class InventoryManagementController
             "IssueDocuments",
             documentId,
             editingLineId,
+            null,
             documentNo,
             "Issue",
             status,
@@ -214,6 +420,7 @@ public sealed partial class InventoryManagementController
             "TransferDocuments",
             documentId,
             editingLineId,
+            null,
             documentNo,
             "Transfer",
             status,
@@ -242,6 +449,7 @@ public sealed partial class InventoryManagementController
             "AdjustmentDocuments",
             documentId,
             editingLineId,
+            null,
             documentNo,
             "Adjustment",
             status,
@@ -270,6 +478,7 @@ public sealed partial class InventoryManagementController
             "ReturnDocuments",
             documentId,
             editingLineId,
+            null,
             documentNo,
             "Return",
             status,
@@ -298,6 +507,7 @@ public sealed partial class InventoryManagementController
             "QualityChangeDocuments",
             documentId,
             editingLineId,
+            null,
             documentNo,
             "QualityChange",
             status,
@@ -326,6 +536,7 @@ public sealed partial class InventoryManagementController
             "ConversionDocuments",
             documentId,
             editingLineId,
+            null,
             documentNo,
             "Conversion",
             status,
@@ -341,6 +552,7 @@ public sealed partial class InventoryManagementController
         string documentAction,
         string? documentId,
         string? editingLineId,
+        string? tab,
         string? documentNo,
         string? documentType,
         string? status,
@@ -396,9 +608,6 @@ public sealed partial class InventoryManagementController
         var productLookupResult = await _apiService.SearchProductsAsync(token, page: 1, pageSize: 2000);
         var variantLookupResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
         var unitOfMeasureLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
-        var ownerSellerResult = string.Equals(resolvedDocumentType, "Receipt", StringComparison.OrdinalIgnoreCase)
-            ? await ResolveOwnerSellerAsync(token)
-            : new ApiResponse<SellerSearchItemModel?> { IsSuccess = true };
 
         var documents = searchResult.Data?.Items ?? new List<InventoryDocumentListItemModel>();
         var selectedDocumentId = ResolveSelectedDocumentId(documentId, documents);
@@ -417,6 +626,7 @@ public sealed partial class InventoryManagementController
             ActiveItem = menu.Item,
             SelectedDocumentId = selectedDocumentId,
             EditingLineId = editingLineId,
+            SelectedTab = tab,
             SelectedDocumentDetails = selectedDocumentResult.Data,
             Documents = documents,
             WarehouseLookup = warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>(),
@@ -447,14 +657,13 @@ public sealed partial class InventoryManagementController
                 productLookupResult.ErrorMessage,
                 variantLookupResult.ErrorMessage,
                 unitOfMeasureLookupResult.ErrorMessage,
-                string.Equals(resolvedDocumentType, "Receipt", StringComparison.OrdinalIgnoreCase) ? ownerSellerResult.ErrorMessage : null,
                 selectedDocumentResult.ErrorMessage),
             CreateForm = BuildCreateForm(
+                selectedDocumentResult.Data,
                 warehouseId,
-                string.Equals(resolvedDocumentType, "Receipt", StringComparison.OrdinalIgnoreCase)
-                    ? ownerSellerResult.Data?.SellerBusinessKey.ToString("D")
-                    : sellerId,
-                resolvedDocumentType),
+                sellerId,
+                resolvedDocumentType,
+                tab),
             LineForm = BuildLineForm(selectedDocumentResult.Data, selectedDocumentId, editingLineId, resolvedDocumentType)
         };
 
@@ -478,84 +687,85 @@ public sealed partial class InventoryManagementController
             return RedirectToAction(nameof(Documents));
         }
 
-        if (string.Equals(form.DocumentType, "Receipt", StringComparison.OrdinalIgnoreCase))
-        {
-            var ownerSeller = await ResolveOwnerSellerAsync(token);
-            if (ownerSeller.Data is null)
-            {
-                TempData["CatalogError"] = ownerSeller.ErrorMessage ?? "Seller Owner فعال در سیستم پیدا نشد.";
-                return RedirectToAction(nameof(Documents));
-            }
-
-            form.SellerRef = ownerSeller.Data.SellerBusinessKey.ToString("D");
-        }
-
+        var isUpdate = !string.IsNullOrWhiteSpace(form.DocumentId);
         form.Lines ??= new List<CreateInventoryDocumentLineForm>();
-        form.Lines = form.Lines
-            .Where(line =>
-                !string.IsNullOrWhiteSpace(line.VariantId) ||
-                line.Qty > 0 ||
-                !string.IsNullOrWhiteSpace(line.SourceLocationRef) ||
-                !string.IsNullOrWhiteSpace(line.DestinationLocationRef))
-            .ToList();
+
+        if (isUpdate)
+        {
+            form.Lines.Clear();
+        }
+        else
+        {
+            form.Lines = form.Lines
+                .Where(line =>
+                    !string.IsNullOrWhiteSpace(line.VariantId) ||
+                    line.Qty > 0 ||
+                    !string.IsNullOrWhiteSpace(line.SourceLocationRef) ||
+                    !string.IsNullOrWhiteSpace(line.DestinationLocationRef))
+                .ToList();
+
+            if (form.Lines.Count == 0)
+            {
+                TempData["CatalogError"] = "حداقل یک ردیف برای سند لازم است.";
+                return RedirectToAction(
+                    ResolveDocumentRouteActionName(form.DocumentType),
+                    new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
+            }
+        }
 
         if (!TryValidateModel(form))
         {
             TempData["CatalogError"] = ExtractModelError(ModelState);
             return RedirectToAction(
                 ResolveDocumentRouteActionName(form.DocumentType),
-                new { documentType = form.DocumentType, warehouseId = form.WarehouseRef });
+                new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, documentId = form.DocumentId, tab = "create" });
         }
 
-        if (form.Lines.Count == 0)
+        if (!isUpdate)
         {
-            TempData["CatalogError"] = "حداقل یک ردیف برای سند لازم است.";
-            return RedirectToAction(
-                ResolveDocumentRouteActionName(form.DocumentType),
-                new { documentType = form.DocumentType, warehouseId = form.WarehouseRef });
-        }
-
-        var ruleError = ValidateDocumentFormAgainstBackendRules(form);
-        if (!string.IsNullOrWhiteSpace(ruleError))
-        {
-            TempData["CatalogError"] = ruleError;
-            return RedirectToAction(
-                ResolveDocumentRouteActionName(form.DocumentType),
-                new { documentType = form.DocumentType, warehouseId = form.WarehouseRef });
-        }
-
-        var variantLookupResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
-        var variants = variantLookupResult.Data ?? new List<ProductVariantSummaryModel>();
-
-        foreach (var line in form.Lines)
-        {
-            var variant = variants.FirstOrDefault(x => string.Equals(x.Id, line.VariantId, StringComparison.OrdinalIgnoreCase));
-            if (variant is null)
+            var ruleError = ValidateDocumentFormAgainstBackendRules(form);
+            if (!string.IsNullOrWhiteSpace(ruleError))
             {
-                TempData["CatalogError"] = "واریانت انتخاب شده معتبر نیست.";
+                TempData["CatalogError"] = ruleError;
                 return RedirectToAction(
                     ResolveDocumentRouteActionName(form.DocumentType),
-                    new { documentType = form.DocumentType, warehouseId = form.WarehouseRef });
+                    new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
             }
 
-            line.UomRef = variant.BaseUomRef;
-            line.BaseUomRef = variant.BaseUomRef;
-        }
+            var variantLookupResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+            var variants = variantLookupResult.Data ?? new List<ProductVariantSummaryModel>();
 
-        var result = await _apiService.CreateInventoryDocumentAsync(form, token);
-        TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
-            result.IsSuccess ? "سند موجودی با موفقیت ایجاد شد." : result.ErrorMessage ?? "ایجاد سند انجام نشد.";
+            foreach (var line in form.Lines)
+            {
+                var variant = variants.FirstOrDefault(x => string.Equals(x.Id, line.VariantId, StringComparison.OrdinalIgnoreCase));
+                if (variant is null)
+                {
+                    TempData["CatalogError"] = "واریانت انتخاب شده معتبر نیست.";
+                    return RedirectToAction(
+                        ResolveDocumentRouteActionName(form.DocumentType),
+                        new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
+                }
 
-        if (!result.IsSuccess || result.Data is null)
-        {
+                line.UomRef = variant.BaseUomRef;
+                line.BaseUomRef = variant.BaseUomRef;
+            }
+
+            var result = await _apiService.CreateInventoryDocumentAsync(form, token);
+            TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
+                result.IsSuccess ? "سند موجودی با موفقیت ایجاد شد." : result.ErrorMessage ?? "ایجاد سند انجام نشد.";
+
             return RedirectToAction(
                 ResolveDocumentRouteActionName(form.DocumentType),
-                new { documentType = form.DocumentType, warehouseId = form.WarehouseRef });
+                new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
         }
+
+        var updateResult = await _apiService.UpdateInventoryDocumentAsync(form, token);
+        TempData[updateResult.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
+            updateResult.IsSuccess ? "اطلاعات عمومی سند با موفقیت به‌روزرسانی شد." : updateResult.ErrorMessage ?? "به‌روزرسانی سند انجام نشد.";
 
         return RedirectToAction(
             ResolveDocumentRouteActionName(form.DocumentType),
-            new { documentId = result.Data.DocumentId, documentType = form.DocumentType });
+            new { documentId = form.DocumentId, documentType = form.DocumentType, tab = "create" });
     }
 
     [HttpPost]
@@ -696,6 +906,87 @@ public sealed partial class InventoryManagementController
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "سند لغو شد." : result.ErrorMessage ?? "لغو سند انجام نشد.";
         return await RedirectToDocumentPageAsync(form.DocumentId, token);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteDocument(
+        string documentId,
+        string? documentType,
+        string? documentNo,
+        string? status,
+        string? warehouseId,
+        string? sellerId,
+        string? occurredFrom,
+        string? occurredTo,
+        int page = 1,
+        int pageSize = 10)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Delete", "InventoryDocument.Delete", "Document.Delete"))
+        {
+            TempData["CatalogError"] = "شما دسترسی حذف سند را ندارید.";
+            return RedirectToAction(
+                ResolveDocumentRouteActionName(NormalizeDocumentType(documentType)),
+                new
+                {
+                    documentId,
+                    documentType = NormalizeDocumentType(documentType),
+                    documentNo,
+                    status,
+                    warehouseId,
+                    sellerId,
+                    occurredFrom,
+                    occurredTo,
+                    page,
+                    pageSize,
+                    tab = "list"
+                });
+        }
+
+        if (string.IsNullOrWhiteSpace(documentId))
+        {
+            TempData["CatalogError"] = "سند برای حذف مشخص نشده است.";
+            return RedirectToAction(nameof(ReceiptDocuments), new { tab = "list" });
+        }
+
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        var document = documentResult.Data;
+        if (document is null)
+        {
+            TempData["CatalogError"] = documentResult.ErrorMessage ?? "سند یافت نشد.";
+            return RedirectToAction(nameof(ReceiptDocuments), new { tab = "list" });
+        }
+
+        if (!string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["CatalogError"] = "فقط اسناد پیش‌نویس قابل حذف هستند.";
+            return await RedirectToDocumentPageAsync(documentId, token);
+        }
+
+        var deleteResult = await _apiService.DeleteInventoryDocumentAsync(documentId, token);
+        TempData[deleteResult.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
+            deleteResult.IsSuccess ? "سند و تمام آیتم‌های آن حذف شد." : deleteResult.ErrorMessage ?? "حذف سند انجام نشد.";
+
+        return RedirectToAction(
+            ResolveDocumentRouteActionName(document.DocumentType),
+            new
+            {
+                documentType = document.DocumentType,
+                documentNo,
+                status,
+                warehouseId,
+                sellerId,
+                occurredFrom,
+                occurredTo,
+                page,
+                pageSize,
+                tab = "list"
+            });
     }
 
     [HttpPost]
@@ -891,18 +1182,33 @@ public sealed partial class InventoryManagementController
         };
     }
 
-    private static CreateInventoryDocumentForm BuildCreateForm(string? warehouseId, string? sellerId, string documentType)
+    private static CreateInventoryDocumentForm BuildCreateForm(
+        InventoryDocumentDetailsModel? existingDocument,
+        string? warehouseId,
+        string? sellerId,
+        string documentType,
+        string? selectedTab)
     {
+        var isEditMode = string.Equals(selectedTab, "create", StringComparison.OrdinalIgnoreCase)
+            && existingDocument is not null;
+
         return new CreateInventoryDocumentForm
         {
+            DocumentId = isEditMode ? existingDocument?.DocumentBusinessKey : null,
             DocumentType = documentType,
-            WarehouseRef = warehouseId ?? string.Empty,
-            SellerRef = sellerId ?? string.Empty,
-            OccurredAt = DateTime.Now,
-            Lines = new List<CreateInventoryDocumentLineForm>
-            {
-                new()
-            }
+            DocumentNo = isEditMode ? existingDocument?.DocumentNo : null,
+            ReferenceType = isEditMode ? existingDocument?.ReferenceType : null,
+            ReferenceBusinessId = isEditMode ? existingDocument?.ReferenceBusinessId?.ToString() : null,
+            WarehouseRef = isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
+            SellerRef = isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
+            OccurredAt = isEditMode ? existingDocument?.OccurredAt ?? DateTime.Now : DateTime.Now,
+            ReasonCode = isEditMode ? existingDocument?.ReasonCode : null,
+            Lines = isEditMode
+                ? new List<CreateInventoryDocumentLineForm>()
+                : new List<CreateInventoryDocumentLineForm>
+                {
+                    new()
+                }
         };
     }
 
@@ -956,6 +1262,7 @@ public sealed partial class InventoryManagementController
             DocumentType = documentType,
             LineId = line.LineBusinessKey,
             VariantId = line.VariantRef,
+            WarehouseRef = null,
             Qty = line.Qty,
             UomRef = line.UomRef,
             BaseUomRef = line.BaseUomRef,
@@ -982,9 +1289,7 @@ public sealed partial class InventoryManagementController
         var productsTask = _apiService.SearchProductsAsync(token, page: 1, pageSize: 2000);
         var warehousesTask = _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var sellersTask = _apiService.GetSellerLookupAsync(token, includeInactive: true);
-        var locationsTask = document is null
-            ? _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: false)
-            : _apiService.GetLocationLookupAsync(token, warehouseId: document.WarehouseRef, includeInactive: false);
+        var locationsTask = _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
         var uomsTask = _apiService.GetUnitOfMeasureLookupAsync(token);
 
         await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, uomsTask);
@@ -993,6 +1298,13 @@ public sealed partial class InventoryManagementController
         if (string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
         {
             lineForm.DestinationLocationRef = locationsTask.Result.Data?.FirstOrDefault()?.LocationBusinessKey ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(lineForm.WarehouseRef) && !string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
+        {
+            lineForm.WarehouseRef = locationsTask.Result.Data?
+                .FirstOrDefault(x => string.Equals(x.LocationBusinessKey, lineForm.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
+                ?.WarehouseRef;
         }
 
         return new InventoryDocumentManagementPageViewModel
@@ -1008,6 +1320,27 @@ public sealed partial class InventoryManagementController
             UnitOfMeasureLookup = uomsTask.Result.Data ?? new List<UnitOfMeasureLookupModel>(),
             LineForm = lineForm
         };
+    }
+
+    private static string BuildVariantLookupLabel(ProductVariantSummaryModel variant)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        {
+            parts.Add(variant.Sku);
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Name))
+        {
+            parts.Add(variant.Name);
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Barcode))
+        {
+            parts.Add($"[{variant.Barcode}]");
+        }
+
+        return parts.Count == 0 ? variant.Id : string.Join(" - ", parts);
     }
 
     private async Task<string?> ResolveReceiptDefaultLocationRefAsync(string warehouseRef, string token, CancellationToken cancellationToken)

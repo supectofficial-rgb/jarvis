@@ -100,11 +100,23 @@
         var seller = Model.SellerLookup.FirstOrDefault(x => string.Equals(x.SellerBusinessKey, sellerId, StringComparison.OrdinalIgnoreCase));
         return seller is null ? sellerId : $"{seller.Code} - {seller.Name}";
     }
+
+    string LocationWarehouse(string? locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            return string.Empty;
+        }
+
+        return Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase))?.WarehouseRef ?? string.Empty;
+    }
+
 }
 
 <div id="receipt-document-details-modal-body"
      class="modal-body receipt-document-details-modal"
-     data-default-destination-location-id="@Model.LineForm.DestinationLocationRef">
+     data-default-warehouse-id="@Model.LineForm.WarehouseRef"
+     data-default-location-id="@Model.LineForm.DestinationLocationRef">
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
         <div class="alert alert-warning">@Model.ErrorMessage</div>
@@ -156,16 +168,29 @@
                         <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
-                        <input type="hidden" asp-for="LineForm.DestinationLocationRef" value="@Model.LineForm.DestinationLocationRef" />
                         <div class="form-row">
-                            <div class="form-group col-md-7">
+                            <div class="form-group col-md-6">
                                 <label>واریانت</label>
-                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" required>
+                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchReceiptVariantLookup", "InventoryManagement")' required>
                                     <option value="">انتخاب واریانت</option>
                                     @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                     {
                                         <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
                                     }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label>انبار</label>
+                                <select asp-for="LineForm.WarehouseRef" class="form-control js-search-select js-receipt-line-warehouse" data-placeholder="ابتدا واریانت را انتخاب کنید" disabled>
+                                    <option value="">ابتدا واریانت را انتخاب کنید</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-7">
+                                <label>لوکیشن</label>
+                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select js-receipt-line-location" data-placeholder="ابتدا انبار را انتخاب کنید" disabled required>
+                                    <option value="">ابتدا انبار را انتخاب کنید</option>
                                 </select>
                             </div>
                             <div class="form-group col-md-3">
@@ -223,6 +248,8 @@
                                                     class="btn btn-outline-primary btn-xs js-receipt-line-edit"
                                                     data-line-id="@line.LineBusinessKey"
                                                     data-variant-id="@line.VariantRef"
+                                                    data-warehouse-id="@LocationWarehouse(line.DestinationLocationRef)"
+                                                    data-location-id="@line.DestinationLocationRef"
                                                     data-qty="@line.Qty.ToString("0.####")"
                                                     data-destination-location-id="@line.DestinationLocationRef">ویرایش</button>
                                             <form asp-action="DeleteReceiptDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#receipt-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">

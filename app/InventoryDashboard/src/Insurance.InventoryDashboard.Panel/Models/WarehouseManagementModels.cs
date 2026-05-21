@@ -113,6 +113,17 @@ public sealed class LocationSearchResultModel
     public List<LocationListItemModel> Items { get; set; } = new();
 }
 
+public sealed class LocationListResponseModel
+{
+    public string? SelectedWarehouseId { get; set; }
+    public string? SelectedWarehouseName { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+    public int TotalCount { get; set; }
+    public int TotalPages { get; set; } = 1;
+    public List<LocationListItemModel> Items { get; set; } = new();
+}
+
 public sealed class WarehouseForm
 {
     public string? WarehouseId { get; set; }

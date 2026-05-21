@@ -13,6 +13,7 @@ public sealed class InventoryDocumentManagementPageViewModel
 
     public string? SelectedDocumentId { get; set; }
     public string? EditingLineId { get; set; }
+    public string? SelectedTab { get; set; }
     public InventoryDocumentDetailsModel? SelectedDocumentDetails { get; set; }
     public IReadOnlyList<InventoryDocumentListItemModel> Documents { get; set; } = Array.Empty<InventoryDocumentListItemModel>();
     public IReadOnlyList<WarehouseLookupItemModel> WarehouseLookup { get; set; } = Array.Empty<WarehouseLookupItemModel>();
@@ -136,6 +137,8 @@ public sealed class InventoryDocumentDecisionForm
 
 public sealed class CreateInventoryDocumentForm
 {
+    public string? DocumentId { get; set; }
+
     [Required(ErrorMessage = "نوع سند الزامی است.")]
     public string DocumentType { get; set; } = "Receipt";
 
@@ -203,6 +206,8 @@ public sealed class InventoryDocumentLineForm
 
     [Required(ErrorMessage = "انتخاب واریانت الزامی است.")]
     public string VariantId { get; set; } = string.Empty;
+
+    public string? WarehouseRef { get; set; }
 
     [Range(typeof(decimal), "0.000001", "999999999", ErrorMessage = "مقدار باید بزرگ‌تر از صفر باشد.")]
     public decimal Qty { get; set; } = 1m;

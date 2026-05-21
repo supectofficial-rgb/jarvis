@@ -1,5 +1,6 @@
 @using System
 @using System.Linq
+@using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.WarehouseManagementPageViewModel
 @{
     ViewData["Title"] = "لوکیشن‌ها";
@@ -25,6 +26,14 @@
     var activeTab = string.Equals(Model.LocationTab, "create", StringComparison.OrdinalIgnoreCase) || isLocationEditMode ? "create" : "list";
     var selectedWarehouseName = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, Model.SelectedWarehouseId, StringComparison.OrdinalIgnoreCase))?.Name;
     var locationTypeOptions = new[] { "Bulk", "Pick", "Return", "Damage", "Quarantine" };
+    var locationListUrl = Url.Action("LocationList", "InventoryManagement") ?? string.Empty;
+    var warehouseLabelMap = Model.WarehouseLookup
+        .OrderBy(x => x.Code)
+        .ToDictionary(x => x.WarehouseBusinessKey, x => $"{x.Code} - {x.Name}", StringComparer.OrdinalIgnoreCase);
+    var canEditLocation = Can("Inventory.Location.Update", "Location.Update");
+    var canActivateLocation = Can("Inventory.Location.Activate", "Location.Activate");
+    var canDeactivateLocation = Can("Inventory.Location.Deactivate", "Location.Deactivate");
+    var canDeleteLocation = Can("Inventory.Location.Delete", "Location.Delete");
 
     string WarehouseName(string? warehouseId)
     {
@@ -47,15 +56,15 @@
                         <h1>لوکیشن‌ها</h1>
                         <p class="text-muted">@UiText["inventory.warehouses.description"]</p>
                         <div>
-                            <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.warehouses.summary.filteredLocationCount"] @Model.LocationTotalCount</span>
+                            <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.warehouses.summary.filteredLocationCount"] <span data-location-total-count>@Model.LocationTotalCount</span></span>
                             @if (!string.IsNullOrWhiteSpace(selectedWarehouseName))
                             {
-                                <span class="badge badge-pill badge-outline-secondary mb-1">@UiText["inventory.warehouses.summary.selectedWarehouse"] @selectedWarehouseName</span>
+                                <span class="badge badge-pill badge-outline-secondary mb-1" data-location-selected-warehouse data-location-selected-prefix="@UiText["inventory.warehouses.summary.selectedWarehouse"]">@UiText["inventory.warehouses.summary.selectedWarehouse"] @selectedWarehouseName</span>
                             }
                         </div>
                     </div>
                     <div>
-                        <a asp-action="Warehouses" class="btn btn-outline-secondary" data-ajax-target="#inventory-management-root">صفحه انبارها</a>
+                        <a asp-action="Warehouses" class="btn btn-outline-secondary">صفحه انبارها</a>
                     </div>
                 </div>
 
@@ -93,7 +102,7 @@
                                     <h5 class="card-title mb-0">@(isLocationEditMode ? UiText["inventory.warehouses.editLocation"] : UiText["inventory.warehouses.createLocationTitle"])</h5>
                                     @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
                                     {
-                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" asp-route-tab="create" class="btn btn-outline-secondary btn-xs" data-ajax-target="#inventory-management-root">جدید</a>
+                                        <a asp-action="Locations" asp-route-warehouseId="@Model.SelectedWarehouseId" asp-route-tab="create" class="btn btn-outline-secondary btn-xs">جدید</a>
                                     }
                                 </div>
                                 <form asp-action="SaveLocation" method="post" data-loading-form data-dirty-watch data-ajax-target="#inventory-management-root">
@@ -162,21 +171,24 @@
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h5 class="card-title mb-0">لیست لوکیشن‌ها</h5>
-                                    <span class="text-muted small">@Model.LocationTotalCount رکورد</span>
+                                    <span class="text-muted small"><span data-location-total-count>@Model.LocationTotalCount</span> رکورد</span>
                                 </div>
 
                                 @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
                                 {
-                                    <div class="alert alert-info">
+                                    <div class="alert alert-info" data-location-warehouse-empty-state>
                                         ابتدا یک انبار انتخاب کنید تا لیست لوکیشن‌های همان انبار نمایش داده شود.
                                     </div>
                                 }
 
-                                <form asp-action="Locations" method="get" class="form-row mb-3" data-ajax-target="#inventory-management-root">
+                                <div class="mb-3" data-location-list-alert hidden></div>
+
+                                <form asp-action="LocationList" method="get" class="form-row mb-3" data-location-list-form data-location-list-url="@locationListUrl">
                                     <input type="hidden" name="tab" value="list" />
+                                    <input type="hidden" name="locationPage" value="@Model.LocationPage" data-location-page-input />
                                     <div class="form-group col-md-3">
                                         <label>انبار</label>
-                                        <select name="warehouseId" class="form-control js-search-select">
+                                        <select name="warehouseId" class="form-control js-search-select" data-location-warehouse-select>
                                             <option value="">همه انبارها</option>
                                             @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                             {
@@ -251,7 +263,7 @@
                                     </div>
                                     <div class="form-group col-md-1">
                                         <label>تعداد</label>
-                                        <select name="locationPageSize" class="form-control">
+                                        <select name="locationPageSize" class="form-control" data-location-page-size>
                                             @foreach (var size in Model.PageSizeOptions)
                                             {
                                                 @if (Model.LocationPageSize == size)
@@ -282,7 +294,7 @@
                                                 <th class="text-right">عملیات</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody data-location-list-body>
                                             @if (Model.Locations.Count == 0)
                                             {
                                                 <tr>
@@ -304,8 +316,8 @@
                                                             </span>
                                                         </td>
                                                         <td class="text-right">
-                                                            <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" asp-route-locationTypes="@Model.LocationTypesFilter" asp-route-locationCode="@Model.LocationCodeFilter" asp-route-locationAisle="@Model.LocationAisleFilter" asp-route-locationRack="@Model.LocationRackFilter" asp-route-locationShelf="@Model.LocationShelfFilter" asp-route-locationBin="@Model.LocationBinFilter" asp-route-locationStatus="@Model.LocationStatusFilter" asp-route-tab="create" data-ajax-target="#inventory-management-root">ویرایش</a>
-                                                            <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
+                                                            <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" asp-route-locationTypes="@Model.LocationTypesFilter" asp-route-locationCode="@Model.LocationCodeFilter" asp-route-locationAisle="@Model.LocationAisleFilter" asp-route-locationRack="@Model.LocationRackFilter" asp-route-locationShelf="@Model.LocationShelfFilter" asp-route-locationBin="@Model.LocationBinFilter" asp-route-locationStatus="@Model.LocationStatusFilter" asp-route-tab="create">ویرایش</a>
+                                                            <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-location-action-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                                 <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
@@ -321,7 +333,7 @@
                                                                 <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
                                                                 <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Location.Activate", "Location.Activate") ? null : "disabled")>فعال</button>
                                                             </form>
-                                                            <form asp-action="DeactivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
+                                                            <form asp-action="DeactivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-location-action-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                                 <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
@@ -337,7 +349,7 @@
                                                                 <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
                                                                 <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Location.Deactivate", "Location.Deactivate") ? null : "disabled")>غیرفعال</button>
                                                             </form>
-                                                            <form asp-action="DeleteLocation" method="post" class="d-inline" data-loading-form data-ajax-target="#inventory-management-root">
+                                                            <form asp-action="DeleteLocation" method="post" class="d-inline" data-loading-form data-location-action-form>
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                                 <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
@@ -361,16 +373,16 @@
                                     </table>
                                 </div>
 
-                                @if (Model.LocationTotalPages > 1)
-                                {
-                                    <nav class="mt-3">
+                                <nav class="mt-3" data-location-pagination @(Model.LocationTotalPages > 1 ? null : "hidden")>
+                                    @if (Model.LocationTotalPages > 1)
+                                    {
                                         <ul class="pagination pagination-sm mb-0">
                                             @for (var i = 1; i <= Model.LocationTotalPages; i++)
                                             {
                                                 <li class="page-item @(i == Model.LocationPage ? "active" : null)">
                                                     <a class="page-link"
-                                                       asp-action="Locations"
-                                                       data-ajax-target="#inventory-management-root"
+                                                       asp-action="LocationList"
+                                                       data-location-page-link
                                                        asp-route-warehouseId="@Model.SelectedWarehouseId"
                                                        asp-route-warehouseCode="@Model.WarehouseCodeFilter"
                                                        asp-route-warehouseName="@Model.WarehouseNameFilter"
@@ -390,8 +402,8 @@
                                                 </li>
                                             }
                                         </ul>
-                                    </nav>
-                                }
+                                    }
+                                </nav>
                             </div>
                         </div>
                     </div>
@@ -400,3 +412,334 @@
         </div>
     </div>
 </main>
+
+@section Scripts {
+    <script>
+        (function () {
+            var locationsPageUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Locations", "InventoryManagement") ?? string.Empty));
+            var locationListUrl = @Html.Raw(JsonSerializer.Serialize(locationListUrl));
+            var warehouseLabelMap = @Html.Raw(JsonSerializer.Serialize(warehouseLabelMap));
+            var canEditLocation = @Html.Raw(JsonSerializer.Serialize(canEditLocation));
+            var canActivateLocation = @Html.Raw(JsonSerializer.Serialize(canActivateLocation));
+            var canDeactivateLocation = @Html.Raw(JsonSerializer.Serialize(canDeactivateLocation));
+            var canDeleteLocation = @Html.Raw(JsonSerializer.Serialize(canDeleteLocation));
+            var actionUrls = {
+                activate: @Html.Raw(JsonSerializer.Serialize(Url.Action("ActivateLocation", "InventoryManagement") ?? string.Empty)),
+                deactivate: @Html.Raw(JsonSerializer.Serialize(Url.Action("DeactivateLocation", "InventoryManagement") ?? string.Empty)),
+                delete: @Html.Raw(JsonSerializer.Serialize(Url.Action("DeleteLocation", "InventoryManagement") ?? string.Empty))
+            };
+
+            var listForm = document.querySelector('[data-location-list-form]');
+            var listBody = document.querySelector('[data-location-list-body]');
+            var pagination = document.querySelector('[data-location-pagination]');
+            var totalCountEl = document.querySelector('[data-location-total-count]');
+            var selectedWarehouseBadge = document.querySelector('[data-location-selected-warehouse]');
+            var emptyStateAlert = document.querySelector('[data-location-warehouse-empty-state]');
+            var alertBox = document.querySelector('[data-location-list-alert]');
+            var pageInput = document.querySelector('[data-location-page-input]');
+
+            if (!listForm || !listBody || !pagination) {
+                return;
+            }
+
+            function escapeHtml(value) {
+                return String(value ?? '').replace(/[&<>"']/g, function (character) {
+                    switch (character) {
+                        case '&': return '&amp;';
+                        case '<': return '&lt;';
+                        case '>': return '&gt;';
+                        case '"': return '&quot;';
+                        case '\'': return '&#39;';
+                        default: return character;
+                    }
+                });
+            }
+
+            function escapeAttr(value) {
+                return escapeHtml(value).replace(/`/g, '&#96;');
+            }
+
+            function getWarehouseLabel(warehouseId) {
+                if (!warehouseId) {
+                    return '-';
+                }
+
+                return warehouseLabelMap[warehouseId] || warehouseId;
+            }
+
+            function getCurrentWarehouseId() {
+                var select = listForm.querySelector('[data-location-warehouse-select]');
+                return select ? select.value : '';
+            }
+
+            function getCurrentFilters() {
+                var data = new FormData(listForm);
+                data.set('tab', 'list');
+                return data;
+            }
+
+            function setAlert(message, type) {
+                if (!alertBox) {
+                    return;
+                }
+
+                if (!message) {
+                    alertBox.hidden = true;
+                    alertBox.innerHTML = '';
+                    return;
+                }
+
+                var alertType = type || 'info';
+                alertBox.hidden = false;
+                alertBox.innerHTML = '<div class="alert alert-' + alertType + ' mb-0">' + escapeHtml(message) + '</div>';
+            }
+
+            function buildEditUrl(item) {
+                var url = new URL(locationsPageUrl, window.location.origin);
+                var filters = getCurrentFilters();
+                filters.forEach(function (value, key) {
+                    if (key !== 'locationPage' && key !== 'locationId' && key !== 'tab') {
+                        url.searchParams.append(key, value);
+                    }
+                });
+                url.searchParams.set('warehouseId', item.warehouseRef || '');
+                url.searchParams.set('locationId', item.locationBusinessKey || '');
+                url.searchParams.set('tab', 'create');
+                return url.pathname + url.search;
+            }
+
+            function buildActionButton(label, action, kind, item, extraClass, disabled) {
+                var state = disabled ? ' disabled' : '';
+                return '<button type="button" class="btn ' + extraClass + ' btn-xs" data-location-action-button data-location-action="' + action + '" data-location-id="' + escapeAttr(item.locationBusinessKey) + '" data-location-warehouse-id="' + escapeAttr(item.warehouseRef) + '"' + state + '>' + escapeHtml(label) + '</button>';
+            }
+
+            function renderRow(item) {
+                var statusClass = item.isActive ? 'badge-primary' : 'badge-secondary';
+                var statusText = item.isActive ? 'فعال' : 'غیرفعال';
+                var editUrl = buildEditUrl(item);
+                var actionButtons = [];
+
+                if (canEditLocation) {
+                    actionButtons.push('<a class="btn btn-outline-primary btn-xs" href="' + escapeAttr(editUrl) + '">ویرایش</a>');
+                }
+                if (canActivateLocation) {
+                    actionButtons.push(buildActionButton('فعال', 'activate', 'success', item, 'btn-outline-success', false));
+                }
+                if (canDeactivateLocation) {
+                    actionButtons.push(buildActionButton('غیرفعال', 'deactivate', 'warning', item, 'btn-outline-warning', false));
+                }
+                if (canDeleteLocation) {
+                    actionButtons.push(buildActionButton('حذف', 'delete', 'danger', item, 'btn-outline-danger', false));
+                }
+
+                return '<tr>' +
+                    '<td><span class="text-monospace">' + escapeHtml(item.locationCode || '-') + '</span></td>' +
+                    '<td>' + escapeHtml(getWarehouseLabel(item.warehouseRef)) + '</td>' +
+                    '<td>' + escapeHtml(item.locationType || '-') + '</td>' +
+                    '<td>' + escapeHtml((item.aisle || '-') + ' / ' + (item.rack || '-') + ' / ' + (item.shelf || '-') + ' / ' + (item.bin || '-')) + '</td>' +
+                    '<td><span class="badge badge-pill ' + statusClass + '">' + statusText + '</span></td>' +
+                    '<td class="text-right">' + actionButtons.join(' ') + '</td>' +
+                    '</tr>';
+            }
+
+            function renderRows(items) {
+                if (!items || !items.length) {
+                    return '<tr><td colspan="6" class="text-center text-muted">لوکیشنی پیدا نشد.</td></tr>';
+                }
+
+                return items.map(renderRow).join('');
+            }
+
+            function renderPagination(response) {
+                var totalPages = response && response.totalPages ? response.totalPages : 1;
+                var currentPage = response && response.page ? response.page : 1;
+
+                if (totalPages <= 1) {
+                    pagination.hidden = true;
+                    pagination.innerHTML = '';
+                    return;
+                }
+
+                var html = ['<ul class="pagination pagination-sm mb-0">'];
+                for (var i = 1; i <= totalPages; i++) {
+                    html.push('<li class="page-item' + (i === currentPage ? ' active' : '') + '">');
+                    html.push('<a class="page-link" href="#" data-location-page-link data-location-page="' + i + '">' + i + '</a>');
+                    html.push('</li>');
+                }
+                html.push('</ul>');
+                pagination.innerHTML = html.join('');
+                pagination.hidden = false;
+            }
+
+            function syncHeader(response) {
+                if (totalCountEl) {
+                    totalCountEl.textContent = response && response.totalCount != null ? response.totalCount : 0;
+                }
+
+                var selectedWarehouseId = response && response.selectedWarehouseId ? response.selectedWarehouseId : getCurrentWarehouseId();
+                if (emptyStateAlert) {
+                    emptyStateAlert.hidden = !!selectedWarehouseId;
+                }
+                if (selectedWarehouseBadge) {
+                    var prefix = selectedWarehouseBadge.getAttribute('data-location-selected-prefix') || '';
+                    var selectedWarehouseName = response && response.selectedWarehouseName ? response.selectedWarehouseName : getWarehouseLabel(selectedWarehouseId);
+
+                    if (selectedWarehouseId && selectedWarehouseName && selectedWarehouseName !== selectedWarehouseId) {
+                        selectedWarehouseBadge.hidden = false;
+                        selectedWarehouseBadge.textContent = prefix + ' ' + selectedWarehouseName;
+                    } else if (selectedWarehouseId) {
+                        selectedWarehouseBadge.hidden = false;
+                        selectedWarehouseBadge.textContent = prefix + ' ' + selectedWarehouseName;
+                    } else {
+                        selectedWarehouseBadge.hidden = true;
+                    }
+                }
+            }
+
+            async function loadLocationList(page) {
+                var data = getCurrentFilters();
+                data.set('locationPage', String(page || 1));
+
+                if (pageInput) {
+                    pageInput.value = String(page || 1);
+                }
+
+                setAlert('');
+                var query = new URLSearchParams(data).toString();
+
+                var response = await fetch(locationListUrl + '?' + query, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-store',
+                });
+
+                if (!response.ok) {
+                    var errorPayload = null;
+                    try {
+                        errorPayload = await response.json();
+                    } catch (error) {
+                        errorPayload = null;
+                    }
+
+                    throw new Error((errorPayload && errorPayload.errorMessage) || 'خطا در بارگذاری لیست لوکیشن‌ها.');
+                }
+
+                var payload = await response.json();
+                listBody.innerHTML = renderRows(payload.items || []);
+                renderPagination(payload);
+                syncHeader(payload);
+            }
+
+            async function submitLocationAction(url, warehouseId, locationId) {
+                var token = document.querySelector('input[name="__RequestVerificationToken"]');
+                var formData = new FormData();
+                if (token) {
+                    formData.append('__RequestVerificationToken', token.value);
+                }
+                formData.append('warehouseId', warehouseId || '');
+                formData.append('locationId', locationId || '');
+
+                var response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                });
+
+                var payload = null;
+                try {
+                    payload = await response.json();
+                } catch (error) {
+                    payload = null;
+                }
+
+                if (!response.ok || !payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'عملیات با خطا مواجه شد.');
+                }
+
+                await loadLocationList(pageInput ? Number(pageInput.value || '1') : 1);
+            }
+
+            document.addEventListener('submit', function (event) {
+                var form = event.target;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                if (form.matches('form[data-location-action-form]')) {
+                    event.preventDefault();
+                    var submitter = event.submitter || document.activeElement;
+                    var confirmText = submitter && submitter.getAttribute ? submitter.getAttribute('data-confirm') : null;
+                    if (confirmText && !window.confirm(confirmText)) {
+                        return;
+                    }
+
+                    var actionUrl = form.getAttribute('action') || '';
+                    var formData = new FormData(form);
+                    fetch(actionUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    }).then(function (response) {
+                        return response.json().then(function (payload) {
+                            if (!response.ok || !payload || payload.isSuccess === false) {
+                                throw new Error((payload && payload.errorMessage) || 'عملیات با خطا مواجه شد.');
+                            }
+
+                            return loadLocationList(pageInput ? Number(pageInput.value || '1') : 1);
+                        });
+                    }).catch(function (error) {
+                        setAlert(error.message || 'عملیات با خطا مواجه شد.', 'danger');
+                    });
+                    return;
+                }
+
+                if (form !== listForm) {
+                    return;
+                }
+
+                event.preventDefault();
+                loadLocationList(1).catch(function (error) {
+                    setAlert(error.message || 'خطا در بارگذاری لیست لوکیشن‌ها.', 'danger');
+                });
+            }, true);
+
+            document.addEventListener('click', function (event) {
+                var pageLink = event.target && event.target.closest ? event.target.closest('[data-location-page-link]') : null;
+                if (pageLink) {
+                    event.preventDefault();
+                    var page = Number(pageLink.getAttribute('data-location-page') || '1');
+                    loadLocationList(page).catch(function (error) {
+                        setAlert(error.message || 'خطا در بارگذاری لیست لوکیشن‌ها.', 'danger');
+                    });
+                    return;
+                }
+
+                var actionButton = event.target && event.target.closest ? event.target.closest('[data-location-action-button]') : null;
+                if (actionButton) {
+                    event.preventDefault();
+                    var action = actionButton.getAttribute('data-location-action') || '';
+                    var warehouseId = actionButton.getAttribute('data-location-warehouse-id') || '';
+                    var locationId = actionButton.getAttribute('data-location-id') || '';
+                    var actionUrl = actionUrls[action];
+
+                    if (!actionUrl) {
+                        return;
+                    }
+
+                    submitLocationAction(actionUrl, warehouseId, locationId).catch(function (error) {
+                        setAlert(error.message || 'عملیات با خطا مواجه شد.', 'danger');
+                    });
+                }
+            }, true);
+        })();
+    </script>
+}

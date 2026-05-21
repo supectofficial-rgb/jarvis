@@ -21,6 +21,9 @@ public sealed class UpdateInventoryDocumentLineCommandHandler : CommandHandler<U
         if (document is null)
             return Fail("Document not found.");
 
+        if (document.Status != InventoryDocumentStatus.Draft)
+            return Fail("Only draft documents can be modified.");
+
         try
         {
             Enum.TryParse<InventoryAdjustmentDirection>(command.Line.AdjustmentDirection, true, out var adjustmentDirection);

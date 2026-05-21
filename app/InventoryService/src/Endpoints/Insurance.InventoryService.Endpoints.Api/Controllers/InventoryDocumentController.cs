@@ -8,7 +8,9 @@ using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.Crea
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateReturnDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateTransferDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.AddInventoryDocumentLine;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.DeleteInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.DeleteInventoryDocumentLine;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.UpdateInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.UpdateInventoryDocumentLine;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.ApproveInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CancelInventoryDocument;
@@ -31,6 +33,20 @@ public class InventoryDocumentController : OysterFxController
     [HttpPost]
     public Task<IActionResult> Create([FromBody] CreateInventoryDocumentCommand command)
         => SendCommand<CreateInventoryDocumentCommand, CreateInventoryDocumentCommandResult>(command);
+
+    [HttpPut("{documentBusinessKey:guid}")]
+    public Task<IActionResult> Update([FromRoute] Guid documentBusinessKey, [FromBody] UpdateInventoryDocumentCommand command)
+    {
+        command.DocumentBusinessKey = documentBusinessKey;
+        return SendCommand<UpdateInventoryDocumentCommand, Guid>(command);
+    }
+
+    [HttpDelete("{documentBusinessKey:guid}")]
+    public Task<IActionResult> Delete([FromRoute] Guid documentBusinessKey)
+        => SendCommand<DeleteInventoryDocumentCommand, Guid>(new DeleteInventoryDocumentCommand
+        {
+            DocumentBusinessKey = documentBusinessKey
+        });
 
     [HttpPost("receipt")]
     public Task<IActionResult> CreateReceipt([FromBody] CreateReceiptDocumentCommand command)

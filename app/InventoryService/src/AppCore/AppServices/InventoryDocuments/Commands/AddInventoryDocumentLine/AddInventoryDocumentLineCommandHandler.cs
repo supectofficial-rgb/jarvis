@@ -22,6 +22,9 @@ public sealed class AddInventoryDocumentLineCommandHandler : CommandHandler<AddI
         if (document is null)
             return Fail("Document not found.");
 
+        if (document.Status != InventoryDocumentStatus.Draft)
+            return Fail("Only draft documents can be modified.");
+
         InventoryDocumentLine? line = null;
         try
         {

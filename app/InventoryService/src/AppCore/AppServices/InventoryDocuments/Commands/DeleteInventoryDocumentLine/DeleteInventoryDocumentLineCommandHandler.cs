@@ -1,5 +1,6 @@
 namespace Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Commands.DeleteInventoryDocumentLine;
 
+using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.DeleteInventoryDocumentLine;
 using OysterFx.AppCore.AppServices.Commands;
@@ -19,6 +20,9 @@ public sealed class DeleteInventoryDocumentLineCommandHandler : CommandHandler<D
         var document = await _repository.GetByBusinessKeyAsync(command.DocumentBusinessKey);
         if (document is null)
             return Fail("Document not found.");
+
+        if (document.Status != InventoryDocumentStatus.Draft)
+            return Fail("Only draft documents can be modified.");
 
         try
         {

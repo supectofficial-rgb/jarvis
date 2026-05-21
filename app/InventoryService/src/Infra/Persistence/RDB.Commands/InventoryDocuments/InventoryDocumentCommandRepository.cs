@@ -42,4 +42,19 @@ public class InventoryDocumentCommandRepository : CommandRepository<InventoryDoc
 
         return _dbContext.Set<InventoryDocumentLine>().AnyAsync(x => x.VariantRef == variantRef);
     }
+
+    public async Task<bool> DeleteByBusinessKeyAsync(Guid documentBusinessKey)
+    {
+        if (documentBusinessKey == Guid.Empty)
+        {
+            return false;
+        }
+
+        var businessKey = BusinessKey.FromGuid(documentBusinessKey);
+        var deleted = await _dbContext.Set<InventoryDocument>()
+            .Where(x => x.BusinessKey == businessKey)
+            .ExecuteDeleteAsync();
+
+        return deleted > 0;
+    }
 }

@@ -66,6 +66,84 @@ public sealed partial class InventoryManagementController : Controller
             cancellationToken);
 
     [HttpGet]
+    public async Task<IActionResult> LocationList(
+        string? warehouseId,
+        string? locationCode,
+        string[]? locationTypes,
+        string? locationAisle,
+        string? locationRack,
+        string? locationShelf,
+        string? locationBin,
+        string? locationStatus,
+        int locationPage = 1,
+        int locationPageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربر در دسترس نیست." });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Warehouse.View", "Warehouse.Read", "Warehouse.Search"))
+        {
+            return StatusCode(403, new { isSuccess = false, errorMessage = "شما دسترسی مشاهده لوکیشن‌ها را ندارید." });
+        }
+
+        locationPageSize = NormalizePageSize(locationPageSize);
+        var normalizedLocationTypes = NormalizeLocationTypes(locationTypes);
+        var locationStatusValue = ParseStatus(locationStatus);
+        var selectedWarehouseId = string.IsNullOrWhiteSpace(warehouseId) ? null : warehouseId.Trim();
+
+        var lookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var warehouseLookup = lookupResult.Data ?? new List<WarehouseLookupItemModel>();
+        var selectedWarehouseName = warehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, selectedWarehouseId, StringComparison.OrdinalIgnoreCase)) is { } warehouse
+            ? $"{warehouse.Code} - {warehouse.Name}"
+            : null;
+
+        if (string.IsNullOrWhiteSpace(selectedWarehouseId))
+        {
+            return Json(new LocationListResponseModel
+            {
+                SelectedWarehouseId = null,
+                SelectedWarehouseName = null,
+                Page = Math.Max(locationPage, 1),
+                PageSize = locationPageSize,
+                TotalCount = 0,
+                TotalPages = 1,
+                Items = new List<LocationListItemModel>()
+            });
+        }
+
+        var locationsResult = await _apiService.SearchLocationsAsync(
+            token,
+            selectedWarehouseId,
+            locationCode,
+            normalizedLocationTypes,
+            locationAisle,
+            locationRack,
+            locationShelf,
+            locationBin,
+            locationStatusValue,
+            Math.Max(locationPage, 1),
+            locationPageSize);
+
+        var locations = locationsResult.Data?.Items ?? new List<LocationListItemModel>();
+        var totalCount = locationsResult.Data?.TotalCount ?? locations.Count;
+        var pageSize = locationsResult.Data?.PageSize ?? locationPageSize;
+
+        return Json(new LocationListResponseModel
+        {
+            SelectedWarehouseId = selectedWarehouseId,
+            SelectedWarehouseName = selectedWarehouseName,
+            Page = locationsResult.Data?.Page ?? Math.Max(locationPage, 1),
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = CalculateTotalPages(totalCount, pageSize),
+            Items = locations
+        });
+    }
+
+    [HttpGet]
     public Task<IActionResult> Warehouses(
         string? warehouseId,
         string? locationId,
@@ -463,6 +541,15 @@ public sealed partial class InventoryManagementController : Controller
         var result = await _apiService.DeleteLocationAsync(locationId, token);
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "لوکیشن حذف شد." : result.ErrorMessage ?? "حذف لوکیشن با خطا مواجه شد.";
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                isSuccess = result.IsSuccess,
+                errorMessage = result.IsSuccess ? (string?)null : result.ErrorMessage ?? "Ø­Ø°Ù Ù„ÙˆÚ©ÛŒØ´Ù† Ø¨Ø§ Ø®Ø·Ø§ Ù…ÙˆØ§Ø¬Ù‡ Ø´Ø¯."
+            });
+        }
+
         return RedirectToAction(nameof(Locations), new { warehouseId, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus });
     }
 
@@ -499,6 +586,15 @@ public sealed partial class InventoryManagementController : Controller
 
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "وضعیت انبار تغییر کرد." : result.ErrorMessage ?? "تغییر وضعیت انبار با خطا مواجه شد.";
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                isSuccess = result.IsSuccess,
+                errorMessage = result.IsSuccess ? (string?)null : result.ErrorMessage ?? "ØªØºÛŒÛŒØ± ÙˆØ¶Ø¹ÛŒØª Ù„ÙˆÚ©ÛŒØ´Ù† Ø¨Ø§ Ø®Ø·Ø§ Ù…ÙˆØ§Ø¬Ù‡ Ø´Ø¯."
+            });
+        }
+
         return RedirectToAction(nameof(Locations), new { warehouseId, locationId, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus, tab = "list" });
     }
 
@@ -628,6 +724,12 @@ public sealed partial class InventoryManagementController : Controller
     private static int CalculateTotalPages(int totalCount, int pageSize)
     {
         return Math.Max(1, (int)Math.Ceiling(totalCount / (double)Math.Max(pageSize, 1)));
+    }
+
+    private bool IsAjaxRequest()
+    {
+        return string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase)
+            || Request.Headers.Accept.Any(value => value.Contains("application/json", StringComparison.OrdinalIgnoreCase));
     }
 
     private static (DashboardMenuModule? Module, DashboardMenuItem? Item) ResolveMenu(

@@ -145,6 +145,30 @@ public sealed class InventoryDocument : AggregateRoot
         ValidateLineByType(line);
     }
 
+    public void UpdateHeader(
+        string documentNo,
+        Guid warehouseRef,
+        Guid sellerRef,
+        DateTime occurredAt,
+        string? referenceType = null,
+        Guid? referenceBusinessId = null,
+        string? reasonCode = null)
+    {
+        if (Status != InventoryDocumentStatus.Draft)
+            throw new AggregateStateExceptions("Only draft documents can be edited.", nameof(Status));
+
+        if (string.IsNullOrWhiteSpace(documentNo))
+            throw new AggregateStateExceptions("Document number is required.", nameof(documentNo));
+
+        DocumentNo = documentNo.Trim();
+        WarehouseRef = warehouseRef;
+        SellerRef = sellerRef;
+        OccurredAt = occurredAt;
+        ReferenceType = Normalize(referenceType);
+        ReferenceBusinessId = referenceBusinessId;
+        ReasonCode = Normalize(reasonCode);
+    }
+
     public void RemoveLine(Guid lineBusinessKey)
     {
         if (Status != InventoryDocumentStatus.Draft)
