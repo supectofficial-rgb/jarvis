@@ -7,8 +7,7 @@ public static class SwaggerMiddlewareExtensions
     public static IApplicationBuilder UseSwaggerMiddleware(this IApplicationBuilder app, string title = "API V1")
     {
         string title2 = title;
-        IWebHostEnvironment service = app.ApplicationServices.GetService<IWebHostEnvironment>();
-        if (service != null && service.IsDevelopment())
+        if (app is not null)
         {
             app.UseSwagger();
             app.UseSwaggerUI(delegate (SwaggerUIOptions options)

@@ -179,10 +179,7 @@ Activity.DefaultIdFormat = ActivityIdFormat.W3C;
 Activity.ForceDefaultIdFormat = true;
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwaggerMiddleware("Insurance UserService API v1");
-}
+app.UseSwaggerMiddleware("Insurance UserService API v1");
 
 // Use Elastic APM
 app.UseAllElasticApm(builder.Configuration);
