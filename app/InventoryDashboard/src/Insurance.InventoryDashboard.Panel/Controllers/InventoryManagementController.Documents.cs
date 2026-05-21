@@ -695,10 +695,6 @@ public sealed partial class InventoryManagementController
         {
             form.Lines.Clear();
         }
-        else if (isReceiptDocument)
-        {
-            form.Lines = new List<CreateInventoryDocumentLineForm>();
-        }
         else
         {
             form.Lines = form.Lines
@@ -708,14 +704,6 @@ public sealed partial class InventoryManagementController
                     !string.IsNullOrWhiteSpace(line.SourceLocationRef) ||
                     !string.IsNullOrWhiteSpace(line.DestinationLocationRef))
                 .ToList();
-
-            if (form.Lines.Count == 0)
-            {
-                TempData["CatalogError"] = "حداقل یک ردیف برای سند لازم است.";
-                return RedirectToAction(
-                    ResolveDocumentRouteActionName(form.DocumentType),
-                    new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
-            }
         }
 
         if (!TryValidateModel(form))
@@ -1216,12 +1204,7 @@ public sealed partial class InventoryManagementController
                 : isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
             OccurredAt = isEditMode ? existingDocument?.OccurredAt ?? DateTime.Now : DateTime.Now,
             ReasonCode = isEditMode ? existingDocument?.ReasonCode : null,
-            Lines = isReceiptDocument || isEditMode
-                ? new List<CreateInventoryDocumentLineForm>()
-                : new List<CreateInventoryDocumentLineForm>
-                {
-                    new()
-                }
+            Lines = new List<CreateInventoryDocumentLineForm>()
         };
     }
 

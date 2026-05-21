@@ -26,9 +26,6 @@ internal sealed class InventoryDocumentCreationService
         string? reasonCode,
         List<InventoryDocumentCommandLineItem> lines)
     {
-        if (lines.Count == 0)
-            return (false, "Inventory document must contain at least one line.", Guid.Empty);
-
         var finalDocumentNo = string.IsNullOrWhiteSpace(documentNo)
             ? $"INV-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}"
             : documentNo.Trim();

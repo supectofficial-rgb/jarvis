@@ -1328,11 +1328,6 @@
 
                 var config = selectedConfig();
                 var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
-                if (lines.length === 0) {
-                    showValidation('حداقل یک ردیف برای سند لازم است.');
-                    return false;
-                }
-
                 for (var i = 0; i < lines.length; i++) {
                     var line = lines[i];
                     var lineTitle = 'ردیف ' + (i + 1);

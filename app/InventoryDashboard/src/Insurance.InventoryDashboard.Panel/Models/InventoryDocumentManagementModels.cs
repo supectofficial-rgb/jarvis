@@ -160,10 +160,7 @@ public sealed class CreateInventoryDocumentForm
     [StringLength(120)]
     public string? ReasonCode { get; set; }
 
-    public List<CreateInventoryDocumentLineForm> Lines { get; set; } = new()
-    {
-        new()
-    };
+    public List<CreateInventoryDocumentLineForm> Lines { get; set; } = new();
 }
 
 public sealed class CreateInventoryDocumentLineForm
