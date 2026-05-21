@@ -8,6 +8,8 @@ namespace Insurance.InventoryDashboard.Panel.Controllers;
 
 public sealed class VariantManagementController : CatalogManagementController
 {
+    private static readonly int[] PageSizeOptions = [10, 25, 50];
+    private readonly IDashboardConfigService _dashboardConfigServiceLocal;
     private readonly IApiService _inventoryApiService;
 
     public VariantManagementController(
@@ -18,6 +20,7 @@ public sealed class VariantManagementController : CatalogManagementController
         ILogger<CatalogManagementController> logger)
         : base(apiService, dashboardConfigService, uiTextService, logger)
     {
+        _dashboardConfigServiceLocal = dashboardConfigService;
         _inventoryApiService = inventoryApiService;
     }
 
@@ -40,75 +43,277 @@ public sealed class VariantManagementController : CatalogManagementController
         int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
-        var result = await base.Variants(productId, variantId, categoryId, searchTerm, attributeOptionIds, trackingPolicy, statusFilter, attributeTypeFilter, sort, createNew, page, pageSize, cancellationToken);
-        if (result is not ViewResult { Model: VariantManagementPageViewModel model } viewResult)
-        {
-            return result;
-        }
-
         if (!TryGetToken(out var token))
         {
-            return result;
+            return RedirectToAction("Login", "Auth");
         }
+
+        var roles = ResolveRolesFromSession(token);
+        if (!IsAuthorizedFor(token, "Catalog.Variant.View", "ProductVariant.Read", "ProductVariant.Search"))
+        {
+            TempData["CatalogError"] = "شما دسترسی مشاهده مدیریت واریانت‌ها را ندارید.";
+            return RedirectToAction("Index", "Dashboard");
+        }
+
+        var permissions = ResolvePermissionsFromSession();
+        var modules = await _dashboardConfigServiceLocal.GetMenuByRolesAsync(roles, cancellationToken);
+        var menu = ResolveMenu(modules, "product_management", "product_variants");
+
+        var categoriesResult = await _apiService.GetCategoryTreeAsync(token);
+        var categories = categoriesResult.Data ?? new List<CategoryNodeModel>();
+        var flatCategories = FlattenCategories(categories).ToList();
+        var leafCategories = GetLeafCategories(flatCategories);
+        var activeAttributesResult = await _apiService.GetActiveAttributeDefinitionsAsync(token);
+
+        var model = new VariantManagementPageViewModel
+        {
+            UserName = HttpContext.Session.GetString("UserName") ?? "کاربر",
+            Roles = roles,
+            Permissions = permissions,
+            Modules = modules,
+            ActiveModule = menu.Module,
+            ActiveItem = menu.Item,
+            SelectedProductId = productId,
+            SelectedVariantId = variantId,
+            SelectedCategoryId = categoryId,
+            Categories = categories,
+            FlatCategories = flatCategories,
+            LeafCategories = leafCategories,
+            RelatedVariantLookup = new List<ProductVariantSummaryModel>(),
+            ProductAttributeGroups = new List<CategoryAttributeGroupViewModel>(),
+            EffectiveProductAttributes = (activeAttributesResult.Data ?? new List<AttributeDefinitionModel>())
+                .Select(x => new EffectiveAttributeViewModel
+                {
+                    AttributeId = x.Id,
+                    Name = x.Name,
+                    DataType = x.DataType,
+                    Scope = x.Scope,
+                    IsVariantLevel = x.IsVariant,
+                    IsVariantCodeCovered = x.IsVariantCodeCovered,
+                    IsRequired = x.IsRequired,
+                    DisplayOrder = x.DisplayOrder,
+                    Options = x.Options ?? new List<AttributeOptionModel>(),
+                    SourceCategoryId = x.SourceCategoryId ?? string.Empty,
+                    SourceCategoryName = x.SourceCategoryName ?? string.Empty,
+                    IsInherited = x.IsInherited
+                })
+                .ToList(),
+            MissingRequiredVariantAttributes = new List<EffectiveAttributeViewModel>(),
+            VariantSearchTerm = searchTerm,
+            VariantCategoryFilterId = categoryId,
+            VariantAttributeOptionFilterIds = attributeOptionIds,
+            VariantTrackingFilter = trackingPolicy,
+            VariantStatusFilter = statusFilter,
+            SelectedAttributeTypeFilter = attributeTypeFilter,
+            VariantSort = sort,
+            VariantPage = page,
+            VariantPageSize = pageSize,
+            VariantTotalCount = 0,
+            VariantTotalPages = 1,
+            ErrorMessage = string.Join(" | ", new[]
+            {
+                categoriesResult.ErrorMessage,
+                activeAttributesResult.ErrorMessage
+            }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            VariantForm = new VariantUpsertForm(),
+            VariantAttributeForm = new VariantAttributeValueForm(),
+            VariantUomConversionForm = new VariantUomConversionForm(),
+            VariantComponentForm = new VariantComponentForm(),
+            VariantAddOnForm = new VariantAddOnForm(),
+            VariantTagForm = new VariantTagForm(),
+            TagDefinitionForm = new TagDefinitionForm(),
+            VariantAssemblyOperationForm = new VariantAssemblyOperationForm(),
+            BulkVariantAddOnForm = new BulkVariantAddOnForm(),
+            BulkVariantImageForm = new BulkVariantImageForm(),
+            BulkVariantTagForm = new BulkVariantTagForm()
+        };
+
+        SetLayoutViewBag(model.Modules, model.ActiveModule?.ModuleId, model.ActiveItem?.ItemId, model.UserName);
+        return View("~/Views/CatalogManagement/Variants.cshtml", model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> VariantList(
+        string? productId,
+        string? variantId,
+        string? categoryId,
+        string? searchTerm,
+        string? attributeOptionIds,
+        string? trackingPolicy,
+        string? statusFilter,
+        string? attributeTypeFilter,
+        string? sort,
+        bool createNew = false,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return PartialView("~/Views/Shared/_VariantListBody.cshtml", new VariantManagementPageViewModel
+            {
+                ErrorMessage = "برای مشاهده لیست واریانت‌ها باید دوباره وارد شوید."
+            });
+        }
+
+        var roles = ResolveRolesFromSession(token);
+        if (!IsAuthorizedFor(token, "Catalog.Variant.View", "ProductVariant.Read", "ProductVariant.Search"))
+        {
+            return PartialView("~/Views/Shared/_VariantListBody.cshtml", new VariantManagementPageViewModel
+            {
+                ErrorMessage = "شما دسترسی مشاهده لیست واریانت‌ها را ندارید."
+            });
+        }
+
+        bool? isActiveFilter = TryParseStatusFilter(statusFilter, out var parsedActive) ? parsedActive : null;
+        var variantsSearchResult = await _apiService.SearchProductVariantsAsync(
+            token,
+            searchTerm,
+            productId,
+            categoryId,
+            attributeOptionIds,
+            isActiveFilter,
+            page,
+            pageSize);
+
+        var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
+        var uomById = (uomLookupResult.Data ?? new List<UnitOfMeasureLookupModel>())
+            .ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+
+        var variants = variantsSearchResult.Data?.Items ?? new List<ProductVariantSummaryModel>();
+        foreach (var variant in variants)
+        {
+            if (uomById.TryGetValue(variant.BaseUomRef, out var uom))
+            {
+                variant.BaseUom = $"{uom.Code} - {uom.Name}";
+            }
+        }
+
+        var normalizedPage = variantsSearchResult.Data?.Page ?? Math.Max(page, 1);
+        var normalizedPageSize = variantsSearchResult.Data?.PageSize ?? (PageSizeOptions.Contains(pageSize) ? pageSize : PageSizeOptions[0]);
+        var totalCount = variantsSearchResult.Data?.TotalCount ?? variants.Count;
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)Math.Max(normalizedPageSize, 1)));
 
         var relatedVariantsResult = await _apiService.SearchProductVariantsAsync(token, isActive: true, pageSize: 2000);
         var relatedVariants = (relatedVariantsResult.Data?.Items ?? new List<ProductVariantSummaryModel>())
-            .Where(x => !string.Equals(x.Id, model.SelectedVariantId, StringComparison.OrdinalIgnoreCase))
+            .Where(x => !string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase))
             .OrderBy(x => x.Name)
             .ThenBy(x => x.Sku)
             .ToList();
 
-        model.RelatedVariantLookup = relatedVariants;
-        model.VariantComponents = model.SelectedVariantDetails?.Components ?? new List<VariantComponentModel>();
-        var addOnsResult = !string.IsNullOrWhiteSpace(model.SelectedVariantId)
-            ? await _apiService.GetVariantAddOnsByVariantIdAsync(model.SelectedVariantId, token)
-            : new ApiResponse<List<VariantAddOnModel>> { IsSuccess = true, Data = new List<VariantAddOnModel>() };
+        var model = new VariantManagementPageViewModel
+        {
+            UserName = HttpContext.Session.GetString("UserName") ?? "کاربر",
+            Roles = roles,
+            Permissions = ResolvePermissionsFromSession(),
+            SelectedProductId = productId,
+            SelectedVariantId = variantId,
+            VariantSearchTerm = searchTerm,
+            VariantCategoryFilterId = categoryId,
+            VariantAttributeOptionFilterIds = attributeOptionIds,
+            VariantTrackingFilter = trackingPolicy,
+            VariantStatusFilter = statusFilter,
+            SelectedAttributeTypeFilter = attributeTypeFilter,
+            VariantSort = sort,
+            VariantPage = normalizedPage,
+            VariantPageSize = normalizedPageSize,
+            VariantTotalCount = totalCount,
+            VariantTotalPages = totalPages,
+            Variants = variants,
+            RelatedVariantLookup = relatedVariants,
+            ErrorMessage = string.Join(" | ", new[]
+            {
+                variantsSearchResult.ErrorMessage,
+                uomLookupResult.ErrorMessage,
+                relatedVariantsResult.ErrorMessage
+            }.Where(x => !string.IsNullOrWhiteSpace(x)))
+        };
 
-        model.VariantAddOns = addOnsResult.IsSuccess
-            ? addOnsResult.Data ?? new List<VariantAddOnModel>()
-            : model.SelectedVariantDetails?.AddOns ?? new List<VariantAddOnModel>();
-        model.VariantComponentForm = new VariantComponentForm
-        {
-            ProductId = model.SelectedProductId ?? string.Empty,
-            VariantId = model.SelectedVariantId ?? string.Empty,
-            Quantity = 1m
-        };
-        model.VariantAddOnForm = new VariantAddOnForm
-        {
-            ProductId = model.SelectedProductId ?? string.Empty,
-            VariantId = model.SelectedVariantId ?? string.Empty
-        };
-        model.VariantTags = model.SelectedVariantDetails?.Tags ?? new List<VariantTagModel>();
-        model.VariantTagForm = new VariantTagForm
-        {
-            ProductId = model.SelectedProductId ?? string.Empty,
-            VariantId = model.SelectedVariantId ?? string.Empty
-        };
-        model.TagDefinitionForm = new TagDefinitionForm();
-        model.VariantAssemblyOperationForm = new VariantAssemblyOperationForm
-        {
-            ProductId = model.SelectedProductId ?? string.Empty,
-            VariantId = model.SelectedVariantId ?? string.Empty,
-            OperationType = "Assemble",
-            Quantity = 1m
-        };
-        model.BulkVariantAddOnForm = new BulkVariantAddOnForm
-        {
-            ProductId = model.SelectedProductId
-        };
-        model.BulkVariantTagForm = new BulkVariantTagForm
-        {
-            ProductId = model.SelectedProductId
-        };
-        model.ErrorMessage = string.Join(" | ", new[] { model.ErrorMessage, relatedVariantsResult.ErrorMessage }.Where(x => !string.IsNullOrWhiteSpace(x)));
-        model.ErrorMessage = string.Join(" | ", new[]
-        {
-            model.ErrorMessage,
-            model.SelectedVariantDetails?.ErrorMessage,
-            addOnsResult.ErrorMessage
-        }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        return PartialView("~/Views/Shared/_VariantListBody.cshtml", model);
+    }
 
-        return viewResult;
+    [HttpGet]
+    public async Task<IActionResult> VariantComponents(
+        string? productId,
+        string? variantId,
+        string? categoryId = null,
+        string? searchTerm = null,
+        string? attributeOptionIds = null,
+        string? trackingPolicy = null,
+        string? statusFilter = null,
+        string? attributeTypeFilter = null,
+        string? sort = null,
+        bool createNew = false,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return PartialView("~/Views/Shared/_VariantComponentsListBody.cshtml", new VariantManagementPageViewModel
+            {
+                SelectedProductId = productId,
+                SelectedVariantId = variantId,
+                ErrorMessage = "برای مشاهده کامپوننت‌های واریانت باید دوباره وارد شوید."
+            });
+        }
+
+        var roles = ResolveRolesFromSession(token);
+        if (!IsAuthorizedFor(token, "Catalog.Variant.View", "ProductVariant.Read", "ProductVariant.Search"))
+        {
+            return PartialView("~/Views/Shared/_VariantComponentsListBody.cshtml", new VariantManagementPageViewModel
+            {
+                SelectedProductId = productId,
+                SelectedVariantId = variantId,
+                ErrorMessage = "شما دسترسی مشاهده کامپوننت‌های واریانت را ندارید."
+            });
+        }
+
+        var isValidVariantId = Guid.TryParse(variantId, out _);
+        var componentsResult = isValidVariantId
+            ? await _apiService.GetVariantComponentsByVariantIdAsync(variantId!, token)
+            : new ApiResponse<List<VariantComponentModel>>
+            {
+                IsSuccess = false,
+                ErrorMessage = _uiText["catalog.variants.images.invalidVariantId"],
+                Data = new List<VariantComponentModel>()
+            };
+
+        var relatedVariantsResult = isValidVariantId
+            ? await _apiService.SearchProductVariantsAsync(token, isActive: true, pageSize: 2000)
+            : new ApiResponse<ProductVariantSearchResultModel>
+            {
+                IsSuccess = true,
+                Data = new ProductVariantSearchResultModel
+                {
+                    Items = new List<ProductVariantSummaryModel>()
+                }
+            };
+        var relatedVariants = (relatedVariantsResult.Data?.Items ?? new List<ProductVariantSummaryModel>())
+            .Where(x => !string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.Name)
+            .ThenBy(x => x.Sku)
+            .ToList();
+
+        var model = new VariantManagementPageViewModel
+        {
+            UserName = HttpContext.Session.GetString("UserName") ?? "کاربر",
+            Roles = roles,
+            Permissions = ResolvePermissionsFromSession(),
+            SelectedProductId = productId,
+            SelectedVariantId = variantId,
+            VariantComponents = componentsResult.IsSuccess
+                ? componentsResult.Data ?? new List<VariantComponentModel>()
+                : new List<VariantComponentModel>(),
+            RelatedVariantLookup = relatedVariants,
+            ErrorMessage = string.Join(" | ", new[]
+            {
+                componentsResult.ErrorMessage,
+                relatedVariantsResult.ErrorMessage
+            }.Where(x => !string.IsNullOrWhiteSpace(x)))
+        };
+
+        return PartialView("~/Views/Shared/_VariantComponentsListBody.cshtml", model);
     }
 
     [HttpGet]
@@ -341,6 +546,50 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         return PartialView("_VariantMediaLibraryBody", variantResult.Data);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> VariantAddOnsList(string variantId, string? productId = null)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return PartialView("_VariantAddOnsListBody", new VariantAddOnsFragmentViewModel
+            {
+                SelectedProductId = productId,
+                SelectedVariantId = variantId,
+                ErrorMessage = "برای مشاهده Add-on ها باید دوباره وارد شوید."
+            });
+        }
+
+        if (!Guid.TryParse(variantId, out _))
+        {
+            return PartialView("_VariantAddOnsListBody", new VariantAddOnsFragmentViewModel
+            {
+                SelectedProductId = productId,
+                SelectedVariantId = variantId,
+                ErrorMessage = _uiText["catalog.variants.images.invalidVariantId"]
+            });
+        }
+
+        var relatedVariantsResult = await _apiService.SearchProductVariantsAsync(token, isActive: true, pageSize: 2000);
+        var addOnsResult = await _apiService.GetVariantAddOnsByVariantIdAsync(variantId, token);
+
+        var fragmentModel = new VariantAddOnsFragmentViewModel
+        {
+            SelectedProductId = productId,
+            SelectedVariantId = variantId,
+            RelatedVariantLookup = relatedVariantsResult.Data?.Items ?? new List<ProductVariantSummaryModel>(),
+            Items = addOnsResult.IsSuccess
+                ? addOnsResult.Data ?? new List<VariantAddOnModel>()
+                : new List<VariantAddOnModel>(),
+            ErrorMessage = string.Join(" | ", new[]
+            {
+                relatedVariantsResult.ErrorMessage,
+                addOnsResult.ErrorMessage
+            }.Where(x => !string.IsNullOrWhiteSpace(x)))
+        };
+
+        return PartialView("_VariantAddOnsListBody", fragmentModel);
     }
 
     [HttpGet]
@@ -582,6 +831,134 @@ public sealed class VariantManagementController : CatalogManagementController
             tagColor = x.TagColor,
             usageCount = x.UsageCount
         }));
+    }
+
+    private static bool TryParseStatusFilter(string? statusFilter, out bool isActive)
+    {
+        isActive = false;
+        if (string.IsNullOrWhiteSpace(statusFilter))
+        {
+            return false;
+        }
+
+        var normalized = statusFilter.Trim().ToLowerInvariant();
+        if (normalized is "active" or "true" or "1")
+        {
+            isActive = true;
+            return true;
+        }
+
+        if (normalized is "inactive" or "false" or "0")
+        {
+            isActive = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static (DashboardMenuModule? Module, DashboardMenuItem? Item) ResolveMenu(
+        IReadOnlyList<DashboardMenuModule> modules,
+        string moduleId,
+        string itemId)
+    {
+        var module = modules.FirstOrDefault(m =>
+            string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase));
+        var item = module?.Items.FirstOrDefault(i =>
+            string.Equals(i.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
+        return (module, item);
+    }
+
+    private static IEnumerable<CategoryNodeModel> FlattenCategories(IEnumerable<CategoryNodeModel> roots)
+    {
+        foreach (var root in roots
+                     .OrderBy(x => x.DisplayOrder)
+                     .ThenBy(x => x.Name)
+                     .ThenBy(x => x.Id))
+        {
+            yield return root;
+            if (root.Children.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var child in FlattenCategories(root.Children))
+            {
+                yield return child;
+            }
+        }
+    }
+
+    private static IReadOnlyList<CategoryNodeModel> GetLeafCategories(IReadOnlyList<CategoryNodeModel> flatCategories)
+        => flatCategories.Where(x => x.Children.Count == 0).ToList();
+
+    private void SetLayoutViewBag(
+        IReadOnlyList<DashboardMenuModule> modules,
+        string? activeModuleId,
+        string? activeItemId,
+        string userName)
+    {
+        ViewBag.UserDisplayName = userName;
+        ViewBag.MenuModules = modules;
+        ViewBag.ActiveModuleId = activeModuleId;
+        ViewBag.ActiveItemId = activeItemId;
+        ViewBag.CatalogPermissions = ResolvePermissionsFromSession();
+    }
+
+    private IReadOnlyList<string> ResolveRolesFromSession(string token)
+    {
+        var rolesJson = HttpContext.Session.GetString("Roles");
+        if (!string.IsNullOrWhiteSpace(rolesJson))
+        {
+            try
+            {
+                var roles = JsonSerializer.Deserialize<List<string>>(rolesJson) ?? new List<string>();
+                if (roles.Count > 0)
+                {
+                    return roles
+                        .Where(role => !string.IsNullOrWhiteSpace(role))
+                        .Select(role => role.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+            }
+            catch
+            {
+                // Ignore malformed session value.
+            }
+        }
+
+        var extractedRoles = JwtRoleExtractor.ExtractRoles(token)
+            .Where(role => !string.IsNullOrWhiteSpace(role))
+            .Select(role => role.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        HttpContext.Session.SetString("Roles", JsonSerializer.Serialize(extractedRoles));
+        return extractedRoles;
+    }
+
+    private IReadOnlyList<string> ResolvePermissionsFromSession()
+    {
+        var permissionsJson = HttpContext.Session.GetString("Permissions");
+        if (string.IsNullOrWhiteSpace(permissionsJson))
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            var permissions = JsonSerializer.Deserialize<List<string>>(permissionsJson) ?? new List<string>();
+            return permissions
+                .Where(permission => !string.IsNullOrWhiteSpace(permission))
+                .Select(permission => permission.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
     }
 
     [HttpGet]

@@ -1,0 +1,67 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.VariantManagementPageViewModel
+@{
+    string? RelatedVariantProductId(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return null;
+        }
+
+        return Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase))?.ProductId;
+    }
+}
+
+<table class="table table-sm table-striped">
+    <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th>@UiText["common.count"]</th><th>@UiText["catalog.variants.warehouse"]</th><th>@UiText["catalog.variants.location"]</th><th></th></tr></thead>
+    <tbody>
+        @if (Model.VariantComponents.Count == 0)
+        {
+            <tr><td colspan="6" class="text-muted">@UiText["catalog.variants.noComponentRegistered"]</td></tr>
+        }
+        else
+        {
+            foreach (var component in Model.VariantComponents)
+            {
+                <tr>
+                    <td class="text-monospace">@component.ComponentSku</td>
+                    <td>@(string.IsNullOrWhiteSpace(component.ComponentBarcode) ? "-" : component.ComponentBarcode)</td>
+                    <td>@component.Quantity</td>
+                    <td>@(string.IsNullOrWhiteSpace(component.WarehouseCode) ? "-" : component.WarehouseCode)</td>
+                    <td>@(string.IsNullOrWhiteSpace(component.LocationCode) ? "-" : component.LocationCode)</td>
+                    <td>
+                        @{
+                            var componentProductId = RelatedVariantProductId(component.ComponentVariantId);
+                        }
+                        <div class="btn-group btn-group-sm">
+                        @if (!string.IsNullOrWhiteSpace(componentProductId))
+                        {
+                            <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@componentProductId" asp-route-variantId="@component.ComponentVariantId">@UiText["catalog.variants.view"]</a>
+                        }
+                            @{
+                                var componentVariantLabel = Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, component.ComponentVariantId, StringComparison.OrdinalIgnoreCase));
+                                var componentVariantDisplay = componentVariantLabel is null
+                                    ? component.ComponentSku
+                                    : $"{componentVariantLabel.Sku} - {(string.IsNullOrWhiteSpace(componentVariantLabel.Name) ? componentVariantLabel.Sku : componentVariantLabel.Name)}";
+                                if (!string.IsNullOrWhiteSpace(component.ComponentBarcode))
+                                {
+                                    componentVariantDisplay = $"{componentVariantDisplay} - {component.ComponentBarcode}";
+                                }
+                            }
+                            <button type="button" class="btn btn-outline-secondary btn-xs js-component-edit" data-component-id="@component.ComponentId" data-component-variant-id="@component.ComponentVariantId" data-component-variant-label="@componentVariantDisplay" data-component-warehouse-id="@component.WarehouseId" data-component-location-id="@component.LocationId" data-component-quantity="@component.Quantity">@UiText["common.edit"]</button>
+                            <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-ajax-submit="variant-components" data-loading-form>
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                <input type="hidden" name="componentId" value="@component.ComponentId" />
+                                <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
+                                <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>

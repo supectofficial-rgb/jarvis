@@ -12,8 +12,6 @@
     ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
 
     var isEditMode = !string.IsNullOrWhiteSpace(Model.VariantForm.VariantId);
-    var hasSelectedProduct = !string.IsNullOrWhiteSpace(Model.SelectedProductId);
-    var hasSelectedVariant = !string.IsNullOrWhiteSpace(Model.SelectedVariantId);
     var attributeTypeOptions = Model.EffectiveProductAttributes
         .Select(x => x.DataType)
         .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -36,9 +34,7 @@
     }
 
     var hasCatalogSuccess = TempData.ContainsKey("CatalogSuccess");
-    var selectedProduct = Model.Products.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedProductId, StringComparison.OrdinalIgnoreCase));
-    var selectedVariant = Model.Variants.FirstOrDefault(x => string.Equals(x.Id, Model.SelectedVariantId, StringComparison.OrdinalIgnoreCase));
-    var selectedVariantName = selectedVariant?.Name ?? selectedVariant?.Sku ?? Model.SelectedVariantDetails?.Sku;
+    var selectedVariantName = Model.SelectedVariantId;
     string? RelatedVariantProductId(string? variantId)
     {
         if (string.IsNullOrWhiteSpace(variantId))
@@ -120,9 +116,9 @@
                 <h1>@UiText["catalog.variants.title"]</h1>
                 <p class="text-muted">@UiText["catalog.variants.description"]</p>
                 <div class="mb-3">
-                    @if (selectedProduct is not null)
+                    @if (!string.IsNullOrWhiteSpace(Model.SelectedProductId))
                     {
-                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.selectedProduct"] @selectedProduct.Name</span>
+                        <span class="badge badge-pill badge-outline-primary mb-1">@UiText["catalog.variants.selectedProduct"] @Model.SelectedProductId</span>
                     }
                     @if (!string.IsNullOrWhiteSpace(selectedVariantName))
                     {
@@ -346,7 +342,6 @@
                     <div class="card-body" id="variant-list-scope">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="card-title mb-0">@UiText["catalog.variants.listTitle"]</h5>
-                            <span class="text-muted small">@Model.VariantTotalCount @UiText["catalog.variants.recordCountSuffix"]</span>
                         </div>
                         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
                             <div class="text-muted small mb-2">@UiText["catalog.variants.selectedLabel"] <span data-bulk-count>0</span></div>
@@ -481,50 +476,15 @@
                                         <hr class="my-4" />
                                         <p class="text-muted small">@UiText["catalog.variants.addonListHelp"]</p>
                                         <div id="variant-addons-list-container" class="table-responsive">
-                                            @if (hasSelectedProduct && hasSelectedVariant)
-                                            {
-                                                <table class="table table-sm table-striped">
-                                                    <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th></th></tr></thead>
-                                                    <tbody>
-                                                        @if (Model.VariantAddOns.Count == 0)
-                                                        {
-                                                            <tr><td colspan="3" class="text-muted">@UiText["catalog.variants.noAddonRegistered"]</td></tr>
-                                                        }
-                                                        else
-                                                        {
-                                                            foreach (var addOn in Model.VariantAddOns)
-                                                            {
-                                                                <tr>
-                                                                    <td class="text-monospace">@addOn.AddOnSku</td>
-                                                                    <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
-                                                                    <td>
-                                                                        @{
-                                                                            var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
-                                                                        }
-                                                                        <div class="btn-group btn-group-sm">
-                                                                            @if (!string.IsNullOrWhiteSpace(addOnProductId))
-                                                                            {
-                                                                                <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">@UiText["catalog.variants.view"]</a>
-                                                                            }
-                                                                            <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-ajax-submit="variant-addons" data-loading-form>
-                                                                                @Html.AntiForgeryToken()
-                                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                                                <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
-                                                                                <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
-                                                                            </form>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                            }
-                                                        }
-                                                    </tbody>
-                                                </table>
-                                            }
-                                            else
-                                            {
-                                                <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
-                                            }
+                                            @await Html.PartialAsync(
+                                                "~/Views/Shared/_VariantAddOnsListBody.cshtml",
+                                                new Insurance.InventoryDashboard.Panel.Models.VariantAddOnsFragmentViewModel
+                                                {
+                                                    SelectedProductId = Model.SelectedProductId,
+                                                    SelectedVariantId = Model.SelectedVariantId,
+                                                    Items = Model.VariantAddOns,
+                                                    RelatedVariantLookup = Model.RelatedVariantLookup
+                                                })
                                         </div>
                                     </div>
                                 </div>
@@ -591,156 +551,20 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" data-bulk-toggle aria-label='@UiText["catalog.variants.selectAll"]' /></th>
-                                        <th>کد</th>
-                                        <th>نام</th>
-                                        <th>@UiText["catalog.variants.barcode"]</th>
-                                        <th>@UiText["catalog.variants.baseUom"]</th>
-                                        <th>@UiText["catalog.variants.trackingPolicy"]</th>
-                                        <th>@UiText["common.status"]</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @if (Model.Variants.Count == 0)
-                                    {
-                                        <tr>
-                                            <td colspan="8">
-                                                <div class="alert alert-light my-2">
-                                                    <h6>@UiText["catalog.variants.noVariantsFound"]</h6>
-                                                    <p class="mb-0 text-muted">@UiText["catalog.variants.reviewFiltersOrCreate"]</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                    else
-                                    {
-                                        @foreach (var variant in Model.Variants)
-                                        {
-                                            <tr>
-                                                <td><input type="checkbox" data-bulk-row value="@variant.Id" aria-label='@string.Format(UiText["catalog.variants.rowRequiredFormat"], variant.Sku)' /></td>
-                                                <td><span class="text-monospace">@variant.Sku</span></td>
-                                                <td>@(string.IsNullOrWhiteSpace(variant.Name) ? "-" : variant.Name)</td>
-                                                <td>@(string.IsNullOrWhiteSpace(variant.Barcode) ? "-" : $"#{variant.Barcode}")</td>
-                                                <td>@variant.BaseUom</td>
-                                                <td>@variant.TrackingPolicy</td>
-                                                <td>
-                                                    <span class="badge badge-pill @(variant.IsActive ? "badge-primary" : "badge-secondary")">
-                                                        @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
-                                                    </span>
-                                                    @if (variant.InventoryMovementLocked)
-                                                    {
-                                                        <span class="badge badge-warning ml-1">@UiText["catalog.variants.locked"]</span>
-                                                    }
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-stock-details"
-                                                                data-toggle="modal"
-                                                                data-target="#variant-stock-modal"
-                                                                data-stock-url="@Url.Action("VariantStocks", "VariantManagement", new { variantId = variant.Id })"
-                                                                data-detail-title="@UiText["catalog.variants.inventoryAndWarehouses"]">
-                                                            @UiText["catalog.variants.warehousesButton"]
-                                                        </button>
-                                                        <button type="button" class="btn btn-outline-info btn-xs js-variant-prices-details"
-                                                                data-toggle="modal"
-                                                                data-target="#variant-prices-modal"
-                                                                data-prices-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
-                                                                data-detail-title="@UiText["catalog.variants.pricesTitle"]">
-                                                            @UiText["catalog.variants.pricesButton"]
-                                                        </button>
-                                                        <button type="button"
-                                                                class="btn btn-outline-secondary btn-xs js-variant-tags"
-                                                                data-variant-id="@variant.Id"
-                                                                data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)">
-                                                            برچسب
-                                                        </button>
-                                                        <button type="button"
-                                                                class="btn btn-outline-primary btn-xs js-variant-media-details"
-                                                                data-variant-id="@variant.Id"
-                                                                data-mode="single"
-                                                                data-detail-title="@UiText["catalog.variants.variantMediaTitle"]">
-                                                            @UiText["variant.media.label"]
-                                                        </button>
-                                                        <button type="button"
-                                                                class="btn btn-outline-primary btn-xs js-variant-addon-details"
-                                                                data-variant-id="@variant.Id"
-                                                                data-product-id="@Model.SelectedProductId"
-                                                                data-mode="single"
-                                                                data-detail-title="@UiText["catalog.variants.addonListTitle"]">
-                                                            @UiText["catalog.variants.addonListTitle"]
-                                                        </button>
-                                                        <button type="button"
-                                                                class="btn btn-outline-primary btn-xs js-variant-components-details"
-                                                                data-product-id="@variant.ProductId"
-                                                                data-variant-id="@variant.Id"
-                                                                data-detail-title="@UiText["catalog.variants.componentsTitle"]">
-                                                            @UiText["catalog.variants.componentsTitle"]
-                                                        </button>
-                                                        <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                            <span class="sr-only">@UiText["common.operations"]</span>
-                                                        </button>
-                                                        <div class="dropdown-menu dropdown-menu-right">
-                                                            <form asp-action="ActivateVariant" method="post" class="px-3 py-1" data-loading-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                                <input type="hidden" name="variantId" value="@variant.Id" />
-                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>@UiText["catalog.variants.activateButton"]</button>
-                                                            </form>
-                                                            <form asp-action="DeactivateVariant" method="post" class="px-3 py-1" data-loading-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                                <input type="hidden" name="variantId" value="@variant.Id" />
-                                                                <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>@UiText["catalog.variants.deactivateButton"]</button>
-                                                            </form>
-                                                            <form asp-action="LockVariantInventoryMovement" method="post" class="px-3 py-1" data-loading-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                                <input type="hidden" name="variantId" value="@variant.Id" />
-                                                                <button type="submit"
-                                                                        class="btn btn-link p-0"
-                                                                        data-confirm-title="@UiText["catalog.variants.lockMovementTitle"]"
-                                                                        data-confirm="@UiText["catalog.variants.lockListConfirm"]"
-                                                                        @(Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement") ? null : "disabled")>
-                                                                    @UiText["catalog.variants.lockButtonShort"]
-                                                                </button>
-                                                            </form>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        }
-                                    }
-                                </tbody>
-                            </table>
+                        <div id="variant-list-content"
+                             class="table-responsive"
+                             data-source-url='@Url.Action("VariantList", "VariantManagement")'
+                             data-selected-product-id="@Model.SelectedProductId"
+                             data-selected-variant-id="@Model.SelectedVariantId"
+                             data-search-term="@Model.VariantSearchTerm"
+                             data-tracking-policy="@Model.VariantTrackingFilter"
+                             data-status-filter="@Model.VariantStatusFilter"
+                             data-attribute-type-filter="@Model.SelectedAttributeTypeFilter"
+                             data-sort="@Model.VariantSort"
+                             data-page="@Model.VariantPage"
+                             data-page-size="@Model.VariantPageSize">
+                            <div class="alert alert-light mb-0">@UiText["catalog.variants.loading"]</div>
                         </div>
-                        @if (Model.VariantTotalPages > 1)
-                        {
-                            <nav class="mt-3">
-                                <ul class="pagination pagination-sm mb-0">
-                                    @for (var i = 1; i <= Model.VariantTotalPages; i++)
-                                    {
-                                        <li class="page-item @(i == Model.VariantPage ? "active" : null)">
-                                            <a class="page-link"
-                                               asp-action="Variants"
-                                               asp-route-productId="@Model.SelectedProductId"
-                                               asp-route-variantId="@Model.SelectedVariantId"
-                                               asp-route-searchTerm="@Model.VariantSearchTerm"
-                                               asp-route-trackingPolicy="@Model.VariantTrackingFilter"
-                                               asp-route-statusFilter="@Model.VariantStatusFilter"
-                                               asp-route-attributeTypeFilter="@Model.SelectedAttributeTypeFilter"
-                                               asp-route-sort="@Model.VariantSort"
-                                               asp-route-page="@i"
-                                               asp-route-pageSize="@Model.VariantPageSize">@i</a>
-                                        </li>
-                                    }
-                                </ul>
-                            </nav>
-                        }
                     </div>
                 </div>
 
@@ -810,115 +634,62 @@
                         <p class="text-muted small mb-0">@UiText["catalog.variants.componentsHelp"]</p>
                     </div>
                 </div>
-                @if (hasSelectedProduct && hasSelectedVariant)
-                {
-                    <p class="text-muted small">@UiText["catalog.variants.componentsTableHelp"]</p>
-                    <div class="border rounded bg-light p-3 mb-3" id="variant-component-form-panel">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                            <div>
-                                <h6 class="card-title mb-1">@UiText["catalog.variants.addOrEditComponent"]</h6>
-                                <p class="text-muted small mb-0">واریانت، انبار و لوکیشن را همین‌جا انتخاب کن و سپس ثبت بزن.</p>
-                            </div>
-                            <span class="badge badge-pill badge-outline-info" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</span>
+                <p class="text-muted small">@UiText["catalog.variants.componentsTableHelp"]</p>
+                <div class="border rounded bg-light p-3 mb-3" id="variant-component-form-panel">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="card-title mb-1">@UiText["catalog.variants.addOrEditComponent"]</h6>
+                            <p class="text-muted small mb-0">واریانت، انبار و لوکیشن را همین‌جا انتخاب کن و سپس ثبت بزن.</p>
                         </div>
-                        <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-ajax-submit="variant-components" data-loading-form data-dirty-watch>
-                            @Html.AntiForgeryToken()
-                            <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
-                            <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" />
-                            <input asp-for="VariantComponentForm.ComponentId" type="hidden" />
-                            <div class="form-row">
-                                <div class="col-md-12 mb-2">
-                                    <label class="font-weight-bold">@UiText["catalog.variants.componentVariant"]</label>
-                                    <select asp-for="VariantComponentForm.ComponentVariantId"
-                                            class="form-control js-component-variant-search"
-                                            id="VariantComponentForm_ComponentVariantId"
-                                            data-placeholder='کد یا نام واریانت را جستجو کنید'
-                                            data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
-                                        <option value="">کد یا نام واریانت را جستجو کنید</option>
-                                    </select>
-                                    <small class="text-muted d-block mt-1">بعد از انتخاب واریانت، انبار و لوکیشن‌های مرتبط همان کالا بارگذاری می‌شوند.</small>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="col-md-12 mb-2">
-                                    <label class="font-weight-bold">@UiText["catalog.variants.componentLocation"]</label>
-                                    <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
-                                        <option value="">@UiText["catalog.variants.selectLocation"]</option>
-                                    </select>
-                                    <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
-                                    <small class="text-muted d-block mt-1">هر گزینه، انبار و لوکیشن را با هم نشان می‌دهد؛ با انتخاب آن، انبار هم پشت‌صحنه پر می‌شود.</small>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="col-md-4 mb-2">
-                                    <label class="font-weight-bold">@UiText["common.count"]</label>
-                                    <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" />
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
-                            </div>
-                        </form>
+                        <span class="badge badge-pill badge-outline-info" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</span>
                     </div>
-                    <div id="variant-components-list-container" class="table-responsive">
-                        <table class="table table-sm table-striped">
-                            <thead><tr><th>SKU</th><th>@UiText["catalog.variants.barcode"]</th><th>@UiText["common.count"]</th><th>@UiText["catalog.variants.warehouse"]</th><th>@UiText["catalog.variants.location"]</th><th></th></tr></thead>
-                            <tbody>
-                                @if (Model.VariantComponents.Count == 0)
-                                {
-                                    <tr><td colspan="6" class="text-muted">@UiText["catalog.variants.noComponentRegistered"]</td></tr>
-                                }
-                                else
-                                {
-                                    foreach (var component in Model.VariantComponents)
-                                    {
-                                        <tr>
-                                            <td class="text-monospace">@component.ComponentSku</td>
-                                            <td>@(string.IsNullOrWhiteSpace(component.ComponentBarcode) ? "-" : component.ComponentBarcode)</td>
-                                            <td>@component.Quantity</td>
-                                            <td>@(string.IsNullOrWhiteSpace(component.WarehouseCode) ? "-" : component.WarehouseCode)</td>
-                                            <td>@(string.IsNullOrWhiteSpace(component.LocationCode) ? "-" : component.LocationCode)</td>
-                                            <td>
-                                                @{
-                                                    var componentProductId = RelatedVariantProductId(component.ComponentVariantId);
-                                                }
-                                                <div class="btn-group btn-group-sm">
-                                                @if (!string.IsNullOrWhiteSpace(componentProductId))
-                                                {
-                                                    <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@componentProductId" asp-route-variantId="@component.ComponentVariantId">@UiText["catalog.variants.view"]</a>
-                                                }
-                                                    @{
-                                                        var componentVariantLabel = Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, component.ComponentVariantId, StringComparison.OrdinalIgnoreCase));
-                                                        var componentVariantDisplay = componentVariantLabel is null
-                                                            ? component.ComponentSku
-                                                            : $"{componentVariantLabel.Sku} - {(string.IsNullOrWhiteSpace(componentVariantLabel.Name) ? componentVariantLabel.Sku : componentVariantLabel.Name)}";
-                                                        if (!string.IsNullOrWhiteSpace(component.ComponentBarcode))
-                                                        {
-                                                            componentVariantDisplay = $"{componentVariantDisplay} - {component.ComponentBarcode}";
-                                                        }
-                                                    }
-                                                    <button type="button" class="btn btn-outline-secondary btn-xs js-component-edit" data-component-id="@component.ComponentId" data-component-variant-id="@component.ComponentVariantId" data-component-variant-label="@componentVariantDisplay" data-component-warehouse-id="@component.WarehouseId" data-component-location-id="@component.LocationId" data-component-quantity="@component.Quantity">@UiText["common.edit"]</button>
-                                                    <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-ajax-submit="variant-components" data-loading-form>
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                                        <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                                        <input type="hidden" name="componentId" value="@component.ComponentId" />
-                                                        <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
-                                                        <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
-                        </table>
+                    <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-ajax-submit="variant-components" data-loading-form data-dirty-watch>
+                        @Html.AntiForgeryToken()
+                        <input asp-for="VariantComponentForm.ProductId" type="hidden" value="@Model.SelectedProductId" id="VariantComponentForm_ProductId" />
+                        <input asp-for="VariantComponentForm.VariantId" type="hidden" value="@Model.SelectedVariantId" id="VariantComponentForm_VariantId" />
+                        <input asp-for="VariantComponentForm.ComponentId" type="hidden" id="VariantComponentForm_ComponentId" />
+                        <div class="form-row">
+                            <div class="col-md-12 mb-2">
+                                <label class="font-weight-bold">@UiText["catalog.variants.componentVariant"]</label>
+                                <select asp-for="VariantComponentForm.ComponentVariantId"
+                                        class="form-control js-component-variant-search"
+                                        id="VariantComponentForm_ComponentVariantId"
+                                        data-placeholder='کد یا نام واریانت را جستجو کنید'
+                                        data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
+                                    <option value="">کد یا نام واریانت را جستجو کنید</option>
+                                </select>
+                                <small class="text-muted d-block mt-1">بعد از انتخاب واریانت، انبار و لوکیشن‌های مرتبط همان کالا بارگذاری می‌شوند.</small>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-12 mb-2">
+                                <label class="font-weight-bold">@UiText["catalog.variants.componentLocation"]</label>
+                                <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
+                                    <option value="">@UiText["catalog.variants.selectLocation"]</option>
+                                </select>
+                                <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
+                                <small class="text-muted d-block mt-1">هر گزینه، انبار و لوکیشن را با هم نشان می‌دهد؛ با انتخاب آن، انبار هم پشت‌صحنه پر می‌شود.</small>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-4 mb-2">
+                                <label class="font-weight-bold">@UiText["common.count"]</label>
+                                <input asp-for="VariantComponentForm.Quantity" type="number" min="0.000001" step="0.000001" class="form-control" id="VariantComponentForm_Quantity" />
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <button class="btn btn-outline-primary btn-sm" type="submit">@UiText["catalog.variants.saveComponent"]</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="variant-components-list-container"
+                     class="table-responsive"
+                     data-source-url='@Url.Action("VariantComponents", "VariantManagement")'>
+                    <div class="alert alert-light mb-0">
+                        <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
+                        <p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p>
                     </div>
-                }
-                else
-                {
-                    <div class="alert alert-light mb-0"><h6>@UiText["catalog.variants.noVariantSelected"]</h6><p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p></div>
-                }
+                </div>
             </div>
         </div>
     </div>
@@ -1067,10 +838,14 @@
             var componentListContainer = document.getElementById('variant-components-list-container');
             var addonListContainer = document.getElementById('variant-addons-list-container');
             var componentModalBody = document.getElementById('variant-components-modal-body');
+            var componentModalTitle = document.querySelector('#variant-components-modal .modal-title');
+            var componentModal = window.jQuery ? window.jQuery('#variant-components-modal') : null;
             var tagsModalBody = document.getElementById('variant-tags-modal-body');
+            var variantListContainer = document.getElementById('variant-list-content');
             var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
             var tagLookupItems = [];
             var addonVariantSearchUrl = bulkAddonSelect ? (bulkAddonSelect.getAttribute('data-ajax-url') || @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "VariantManagement") ?? string.Empty))) : '';
+            var variantListUrl = variantListContainer ? (variantListContainer.getAttribute('data-source-url') || @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantList", "VariantManagement") ?? string.Empty))) : '';
             var tagLookupPromise = null;
             var tagLookupTake = 200;
             var noDisplayDataText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]));
@@ -1324,6 +1099,52 @@
                 return refreshFragmentBody(addonListContainer);
             }
 
+            function buildVariantListUrl(pageUrl) {
+                if (pageUrl) {
+                    return pageUrl;
+                }
+
+                var baseUrl = variantListUrl || '';
+                if (!baseUrl) {
+                    return '';
+                }
+
+                var params = new URLSearchParams();
+                if (searchForm) {
+                    new FormData(searchForm).forEach(function (value, key) {
+                        if (value !== null && value !== undefined && String(value).trim() !== '') {
+                            params.set(key, String(value));
+                        }
+                    });
+                }
+
+                params.set('productId', getSelectedProductId());
+                params.set('variantId', pageElement ? (pageElement.getAttribute('data-selected-variant-id') || '') : '');
+                params.set('page', '1');
+
+                var query = params.toString();
+                return query ? (baseUrl + '?' + query) : baseUrl;
+            }
+
+            function loadVariantList(pageUrl) {
+                if (!variantListContainer) {
+                    return Promise.resolve();
+                }
+
+                var url = buildVariantListUrl(pageUrl);
+                if (!url) {
+                    return Promise.resolve();
+                }
+
+                variantListContainer.setAttribute('data-source-url', url);
+                variantListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                return refreshFragmentBody(variantListContainer).then(function () {
+                    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
+                        window.jQuery('[data-toggle="tooltip"]').tooltip();
+                    }
+                });
+            }
+
             function getSelectedVariantIds() {
                 var scope = document.getElementById('variant-list-scope');
                 if (!scope) {
@@ -1397,7 +1218,7 @@
             }
 
             function refreshComponentList() {
-                return refreshFragmentBody(componentModalBody);
+                return refreshFragmentBody(componentListContainer);
             }
 
             function loadVariantMediaForModal(variantId, mode, label, seedSelectionVariantId) {
@@ -1486,10 +1307,52 @@
                     });
             }
 
+            function loadVariantComponentsForModal(variantId, label, productId) {
+                var activeProductId = (productId || getSelectedProductId() || '').trim();
+                var normalizedVariantId = (variantId || '').trim();
+                if (componentModalTitle) {
+                    componentModalTitle.textContent = label || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.componentsTitle"]));
+                }
+                if (componentModalBody) {
+                    componentModalBody.setAttribute('data-variant-id', normalizedVariantId);
+                    componentModalBody.setAttribute('data-product-id', activeProductId);
+                }
+                if (componentProductInput) {
+                    componentProductInput.value = activeProductId;
+                }
+                if (componentVariantIdInput) {
+                    componentVariantIdInput.value = normalizedVariantId;
+                }
+
+                if (componentListContainer) {
+                    var componentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantComponents", "VariantManagement") ?? string.Empty)) +
+                        '?productId=' + encodeURIComponent(activeProductId) +
+                        '&variantId=' + encodeURIComponent(normalizedVariantId);
+                    componentListContainer.setAttribute('data-source-url', componentUrl);
+                    componentListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                    if (componentModalBody) {
+                        componentModalBody.setAttribute('data-source-url', componentUrl);
+                    }
+                    if (componentModal && componentModal.modal) {
+                        componentModal.modal('show');
+                    }
+                    return refreshComponentList().catch(function () {
+                        if (componentListContainer) {
+                            componentListContainer.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                        }
+                    });
+                }
+
+                return Promise.resolve();
+            }
+
             function loadVariantAddOnsForModal(variantId, mode, label, productId) {
                 var normalizedMode = mode === 'bulk' ? 'bulk' : 'single';
                 var bulkAddonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
                 var activeProductId = (productId || getSelectedProductId() || '').trim();
+                var addonUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantAddOnsList", "VariantManagement") ?? string.Empty)) +
+                    '?variantId=' + encodeURIComponent(variantId || '') +
+                    '&productId=' + encodeURIComponent(activeProductId);
 
                 if (normalizedMode === 'bulk') {
                     if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
@@ -1516,11 +1379,8 @@
                     addonModalTitle.textContent = label || 'Add-on';
                 }
                 if (addonListContainer) {
-                    var addonUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Variants", "VariantManagement") ?? string.Empty)) +
-                        '?productId=' + encodeURIComponent(activeProductId) +
-                        '&variantId=' + encodeURIComponent(variantId || '');
                     addonListContainer.setAttribute('data-source-url', addonUrl);
-                    addonListContainer.setAttribute('data-source-selector', '#variant-addons-list-container');
+                    addonListContainer.removeAttribute('data-source-selector');
                     addonListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
                 }
 
@@ -1528,17 +1388,11 @@
                     addonModal.modal('show');
                 }
 
-                fetchPageFragment(addonUrl, '#variant-addons-list-container')
-                    .then(function (html) {
-                        if (addonListContainer) {
-                            addonListContainer.innerHTML = html || '<div class="text-danger">' + loadInfoFailedText + '</div>';
-                        }
-                    })
-                    .catch(function () {
-                        if (addonListContainer) {
-                            addonListContainer.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
-                        }
-                    });
+                return refreshAddonList().catch(function () {
+                    if (addonListContainer) {
+                        addonListContainer.innerHTML = '<div class="text-danger">' + loadInfoFailedText + '</div>';
+                    }
+                });
             }
 
             document.querySelectorAll('.js-variant-stock-details').forEach(function (button) {
@@ -1604,16 +1458,10 @@
                         alert(loadInfoFailedText);
                         return;
                     }
-                    var componentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Variants", "VariantManagement") ?? string.Empty)) +
-                        '?productId=' + encodeURIComponent(componentProductId) +
-                        '&variantId=' + encodeURIComponent(componentVariantId);
-                    openVariantFragmentModal(
-                        $('#variant-components-modal'),
-                        document.getElementById('variant-components-modal').querySelector('.modal-title'),
-                        document.getElementById('variant-components-modal-body'),
-                        componentUrl,
-                        '#variant-components-modal-body',
-                        componentButton.getAttribute('data-detail-title') || '');
+                    loadVariantComponentsForModal(
+                        componentVariantId,
+                        componentButton.getAttribute('data-detail-title') || '',
+                        componentProductId);
                     return;
                 }
 
@@ -2517,6 +2365,8 @@
             }
 
             var componentEditor = window.jQuery ? window.jQuery('#variant-components-modal') : null;
+            var componentProductInput = document.getElementById('VariantComponentForm_ProductId');
+            var componentVariantIdInput = document.getElementById('VariantComponentForm_VariantId');
             var componentIdInput = document.getElementById('VariantComponentForm_ComponentId');
             var componentVariantInput = document.getElementById('VariantComponentForm_ComponentVariantId');
             var componentWarehouseInput = document.getElementById('VariantComponentForm_WarehouseId');
@@ -2758,6 +2608,28 @@
             initializeComponentVariantSearch();
             initializeAddonVariantSearch();
             ensureTagLookupOptions();
+
+            if (searchForm) {
+                searchForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    savePageState();
+                    loadVariantList();
+                });
+            }
+
+            if (variantListContainer) {
+                variantListContainer.addEventListener('click', function (event) {
+                    var pageLink = event.target.closest ? event.target.closest('a[data-variant-list-link="true"]') : null;
+                    if (!pageLink) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    loadVariantList(pageLink.href);
+                });
+            }
+
+            loadVariantList();
 
             if (bulkTagLookupSelect) {
                 bulkTagLookupSelect.addEventListener('change', syncBulkTagIdsField);

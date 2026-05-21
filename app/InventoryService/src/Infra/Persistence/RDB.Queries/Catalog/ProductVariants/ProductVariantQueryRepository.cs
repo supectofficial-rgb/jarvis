@@ -219,7 +219,7 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         var items = await (
                 from variant in dbQuery
                 join product in _dbContext.Set<ProductReadModel>() on variant.ProductRef equals product.BusinessKey
-                orderby variant.VariantSku
+                orderby variant.Id descending
                 select new { Variant = variant, ProductName = product.Name })
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

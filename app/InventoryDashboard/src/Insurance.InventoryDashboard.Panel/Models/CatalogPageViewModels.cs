@@ -154,6 +154,15 @@ public sealed class VariantManagementPageViewModel
     public BulkVariantTagForm BulkVariantTagForm { get; set; } = new();
 }
 
+public sealed class VariantAddOnsFragmentViewModel
+{
+    public string? SelectedProductId { get; set; }
+    public string? SelectedVariantId { get; set; }
+    public IReadOnlyList<VariantAddOnModel> Items { get; set; } = Array.Empty<VariantAddOnModel>();
+    public IReadOnlyList<ProductVariantSummaryModel> RelatedVariantLookup { get; set; } = Array.Empty<ProductVariantSummaryModel>();
+    public string? ErrorMessage { get; set; }
+}
+
 public sealed class CategoryAttributeGroupViewModel
 {
     public string CategoryId { get; set; } = string.Empty;

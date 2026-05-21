@@ -1,0 +1,73 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.VariantAddOnsFragmentViewModel
+@{
+    string? RelatedVariantProductId(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return null;
+        }
+
+        return Model.RelatedVariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase))?.ProductId;
+    }
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mb-0">
+        @Model.ErrorMessage
+    </div>
+}
+else if (string.IsNullOrWhiteSpace(Model.SelectedVariantId))
+{
+    <div class="alert alert-light mb-0">
+        <h6>@UiText["catalog.variants.noVariantSelected"]</h6>
+        <p class="mb-0 text-muted">@UiText["catalog.variants.selectVariantSimple"]</p>
+    </div>
+}
+else if (Model.Items.Count == 0)
+{
+    <div class="alert alert-light mb-0">
+        @UiText["catalog.variants.noAddonRegistered"]
+    </div>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>@UiText["catalog.variants.barcode"]</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var addOn in Model.Items)
+            {
+                <tr>
+                    <td class="text-monospace">@addOn.AddOnSku</td>
+                    <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
+                    <td>
+                        @{
+                            var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
+                        }
+                        <div class="btn-group btn-group-sm">
+                            @if (!string.IsNullOrWhiteSpace(addOnProductId))
+                            {
+                                <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">@UiText["catalog.variants.view"]</a>
+                            }
+                            <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-ajax-submit="variant-addons" data-loading-form>
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
+                                <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
+                                <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

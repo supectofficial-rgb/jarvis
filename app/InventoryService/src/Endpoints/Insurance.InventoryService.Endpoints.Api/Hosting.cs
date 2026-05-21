@@ -52,7 +52,8 @@ public static class Hosting
     {
         app.UseOysterFxApiExceptionHandler();
 
-        if (app.Environment.IsDevelopment())
+        var swaggerEnabled = app.Configuration.GetValue("Swagger:Enabled", app.Environment.IsDevelopment());
+        if (swaggerEnabled)
         {
             app.UseSwagger();
             app.UseSwaggerUI();
