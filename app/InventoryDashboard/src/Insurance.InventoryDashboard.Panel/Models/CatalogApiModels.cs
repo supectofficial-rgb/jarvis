@@ -248,6 +248,7 @@ public sealed class VariantAddOnModel
 
 public sealed class VariantImageModel
 {
+    public string VariantImageBusinessKey { get; set; } = string.Empty;
     public string FileKey { get; set; } = string.Empty;
     public string OriginalFileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;

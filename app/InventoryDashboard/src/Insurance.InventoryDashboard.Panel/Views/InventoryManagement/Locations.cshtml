@@ -24,6 +24,7 @@
     var isLocationEditMode = !string.IsNullOrWhiteSpace(Model.LocationForm.LocationId);
     var activeTab = isLocationEditMode ? "create" : "list";
     var selectedWarehouseName = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, Model.SelectedWarehouseId, StringComparison.OrdinalIgnoreCase))?.Name;
+    var locationTypeOptions = new[] { "Bulk", "Pick", "Return", "Damage", "Quarantine" };
 
     string WarehouseName(string? warehouseId)
     {
@@ -174,7 +175,7 @@
                                 <form asp-action="Locations" method="get" class="form-row mb-3" data-ajax-target="#inventory-management-root">
                                     <div class="form-group col-md-3">
                                         <label>انبار</label>
-                                        <select name="warehouseId" class="form-control js-search-select" onchange="this.form.submit()">
+                                        <select name="warehouseId" class="form-control js-search-select" data-auto-submit>
                                             <option value="">همه انبارها</option>
                                             @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                             {
@@ -195,7 +196,19 @@
                                     </div>
                                     <div class="form-group col-md-2">
                                         <label>نوع</label>
-                                        <input name="locationType" value="@Model.LocationTypeFilter" class="form-control" />
+                                        <select name="locationTypes" class="form-control js-search-select" multiple data-placeholder="انتخاب چند نوع">
+                                            @foreach (var locationType in locationTypeOptions)
+                                            {
+                                                if (Model.LocationTypesFilter.Any(x => string.Equals(x, locationType, StringComparison.OrdinalIgnoreCase)))
+                                                {
+                                                    <option value="@locationType" selected="selected">@locationType</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@locationType">@locationType</option>
+                                                }
+                                            }
+                                        </select>
                                     </div>
                                     <div class="form-group col-md-2">
                                         <label>راهرو</label>
@@ -290,23 +303,53 @@
                                                             </span>
                                                         </td>
                                                         <td class="text-right">
-                                                            <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" data-ajax-target="#inventory-management-root">ویرایش</a>
+                                                            <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" asp-route-locationTypes="@Model.LocationTypesFilter" asp-route-locationCode="@Model.LocationCodeFilter" asp-route-locationAisle="@Model.LocationAisleFilter" asp-route-locationRack="@Model.LocationRackFilter" asp-route-locationShelf="@Model.LocationShelfFilter" asp-route-locationBin="@Model.LocationBinFilter" asp-route-locationStatus="@Model.LocationStatusFilter" data-ajax-target="#inventory-management-root">ویرایش</a>
                                                             <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                                 <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
+                                                                <input type="hidden" name="locationCode" value="@Model.LocationCodeFilter" />
+                                                                @foreach (var locationType in Model.LocationTypesFilter)
+                                                                {
+                                                                    <input type="hidden" name="locationTypes" value="@locationType" />
+                                                                }
+                                                                <input type="hidden" name="locationAisle" value="@Model.LocationAisleFilter" />
+                                                                <input type="hidden" name="locationRack" value="@Model.LocationRackFilter" />
+                                                                <input type="hidden" name="locationShelf" value="@Model.LocationShelfFilter" />
+                                                                <input type="hidden" name="locationBin" value="@Model.LocationBinFilter" />
+                                                                <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
                                                                 <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Location.Activate", "Location.Activate") ? null : "disabled")>فعال</button>
                                                             </form>
                                                             <form asp-action="DeactivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                                 <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
+                                                                <input type="hidden" name="locationCode" value="@Model.LocationCodeFilter" />
+                                                                @foreach (var locationType in Model.LocationTypesFilter)
+                                                                {
+                                                                    <input type="hidden" name="locationTypes" value="@locationType" />
+                                                                }
+                                                                <input type="hidden" name="locationAisle" value="@Model.LocationAisleFilter" />
+                                                                <input type="hidden" name="locationRack" value="@Model.LocationRackFilter" />
+                                                                <input type="hidden" name="locationShelf" value="@Model.LocationShelfFilter" />
+                                                                <input type="hidden" name="locationBin" value="@Model.LocationBinFilter" />
+                                                                <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
                                                                 <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Location.Deactivate", "Location.Deactivate") ? null : "disabled")>غیرفعال</button>
                                                             </form>
                                                             <form asp-action="DeleteLocation" method="post" class="d-inline" data-loading-form data-ajax-target="#inventory-management-root">
                                                                 @Html.AntiForgeryToken()
                                                                 <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
                                                                 <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
+                                                                <input type="hidden" name="locationCode" value="@Model.LocationCodeFilter" />
+                                                                @foreach (var locationType in Model.LocationTypesFilter)
+                                                                {
+                                                                    <input type="hidden" name="locationTypes" value="@locationType" />
+                                                                }
+                                                                <input type="hidden" name="locationAisle" value="@Model.LocationAisleFilter" />
+                                                                <input type="hidden" name="locationRack" value="@Model.LocationRackFilter" />
+                                                                <input type="hidden" name="locationShelf" value="@Model.LocationShelfFilter" />
+                                                                <input type="hidden" name="locationBin" value="@Model.LocationBinFilter" />
+                                                                <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
                                                                 <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف لوکیشن" data-confirm="این لوکیشن حذف شود؟" @(Can("Inventory.Location.Delete", "Location.Delete") ? null : "disabled")>حذف</button>
                                                             </form>
                                                         </td>
@@ -332,7 +375,7 @@
                                                        asp-route-warehouseName="@Model.WarehouseNameFilter"
                                                        asp-route-warehouseStatus="@Model.WarehouseStatusFilter"
                                                        asp-route-locationCode="@Model.LocationCodeFilter"
-                                                       asp-route-locationType="@Model.LocationTypeFilter"
+                                                       asp-route-locationTypes="@Model.LocationTypesFilter"
                                                        asp-route-locationAisle="@Model.LocationAisleFilter"
                                                        asp-route-locationRack="@Model.LocationRackFilter"
                                                        asp-route-locationShelf="@Model.LocationShelfFilter"

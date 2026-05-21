@@ -30,7 +30,7 @@ public sealed partial class InventoryManagementController : Controller
         string? warehouseName,
         string? warehouseStatus,
         string? locationCode,
-        string? locationType,
+        string[]? locationTypes,
         string? locationAisle,
         string? locationRack,
         string? locationShelf,
@@ -48,7 +48,7 @@ public sealed partial class InventoryManagementController : Controller
             warehouseName,
             warehouseStatus,
             locationCode,
-            locationType,
+            locationTypes,
             locationAisle,
             locationRack,
             locationShelf,
@@ -90,7 +90,7 @@ public sealed partial class InventoryManagementController : Controller
             warehouseName,
             warehouseStatus,
             locationCode,
-            locationType,
+            string.IsNullOrWhiteSpace(locationType) ? null : new[] { locationType },
             locationAisle,
             locationRack,
             locationShelf,
@@ -112,7 +112,7 @@ public sealed partial class InventoryManagementController : Controller
         string? warehouseName,
         string? warehouseStatus,
         string? locationCode,
-        string? locationType,
+        string[]? locationTypes,
         string? locationAisle,
         string? locationRack,
         string? locationShelf,
@@ -151,6 +151,7 @@ public sealed partial class InventoryManagementController : Controller
 
         var warehouseStatusValue = ParseStatus(warehouseStatus);
         var locationStatusValue = ParseStatus(locationStatus);
+        var normalizedLocationTypes = NormalizeLocationTypes(locationTypes);
 
         var warehousesResult = await _apiService.SearchWarehousesAsync(
             token,
@@ -171,7 +172,7 @@ public sealed partial class InventoryManagementController : Controller
                 token,
                 selectedWarehouseId,
                 locationCode,
-                locationType,
+                normalizedLocationTypes,
                 locationAisle,
                 locationRack,
                 locationShelf,
@@ -227,7 +228,7 @@ public sealed partial class InventoryManagementController : Controller
             WarehouseTotalPages = CalculateTotalPages(warehousesResult.Data?.TotalCount ?? warehouses.Count, warehousesResult.Data?.PageSize ?? warehousePageSize),
 
             LocationCodeFilter = locationCode,
-            LocationTypeFilter = locationType,
+            LocationTypesFilter = normalizedLocationTypes,
             LocationAisleFilter = locationAisle,
             LocationRackFilter = locationRack,
             LocationShelfFilter = locationShelf,
@@ -403,17 +404,44 @@ public sealed partial class InventoryManagementController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public Task<IActionResult> ActivateLocation(string warehouseId, string locationId) =>
-        ChangeLocationStatus(warehouseId, locationId, activate: true);
+    public Task<IActionResult> ActivateLocation(
+        string warehouseId,
+        string locationId,
+        string? locationCode = null,
+        string[]? locationTypes = null,
+        string? locationAisle = null,
+        string? locationRack = null,
+        string? locationShelf = null,
+        string? locationBin = null,
+        string? locationStatus = null) =>
+        ChangeLocationStatus(warehouseId, locationId, activate: true, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public Task<IActionResult> DeactivateLocation(string warehouseId, string locationId) =>
-        ChangeLocationStatus(warehouseId, locationId, activate: false);
+    public Task<IActionResult> DeactivateLocation(
+        string warehouseId,
+        string locationId,
+        string? locationCode = null,
+        string[]? locationTypes = null,
+        string? locationAisle = null,
+        string? locationRack = null,
+        string? locationShelf = null,
+        string? locationBin = null,
+        string? locationStatus = null) =>
+        ChangeLocationStatus(warehouseId, locationId, activate: false, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus);
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteLocation(string warehouseId, string locationId)
+    public async Task<IActionResult> DeleteLocation(
+        string warehouseId,
+        string locationId,
+        string? locationCode = null,
+        string[]? locationTypes = null,
+        string? locationAisle = null,
+        string? locationRack = null,
+        string? locationShelf = null,
+        string? locationBin = null,
+        string? locationStatus = null)
     {
         if (!TryGetToken(out var token))
         {
@@ -423,13 +451,49 @@ public sealed partial class InventoryManagementController : Controller
         if (!IsAuthorizedFor(token, "Inventory.Location.Delete", "Location.Delete"))
         {
             TempData["CatalogError"] = "شما دسترسی حذف لوکیشن را ندارید.";
-            return RedirectToAction(nameof(Locations), new { warehouseId, locationId });
+            return RedirectToAction(nameof(Warehouses), new { warehouseId });
         }
 
         var result = await _apiService.DeleteLocationAsync(locationId, token);
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "لوکیشن حذف شد." : result.ErrorMessage ?? "حذف لوکیشن با خطا مواجه شد.";
-        return RedirectToAction(nameof(Locations), new { warehouseId });
+        return RedirectToAction(nameof(Locations), new { warehouseId, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus });
+    }
+
+    private async Task<IActionResult> ChangeLocationStatus(
+        string warehouseId,
+        string locationId,
+        bool activate,
+        string? locationCode = null,
+        string[]? locationTypes = null,
+        string? locationAisle = null,
+        string? locationRack = null,
+        string? locationShelf = null,
+        string? locationBin = null,
+        string? locationStatus = null)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var permission = activate
+            ? new[] { "Inventory.Location.Activate", "Location.Activate" }
+            : new[] { "Inventory.Location.Deactivate", "Location.Deactivate" };
+
+        if (!IsAuthorizedFor(token, permission))
+        {
+            TempData["CatalogError"] = "شما دسترسی تغییر وضعیت انبار را ندارید.";
+            return RedirectToAction(nameof(Warehouses), new { warehouseId });
+        }
+
+        var result = activate
+            ? await _apiService.ActivateLocationAsync(locationId, token)
+            : await _apiService.DeactivateLocationAsync(locationId, token);
+
+        TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
+            result.IsSuccess ? "وضعیت انبار تغییر کرد." : result.ErrorMessage ?? "تغییر وضعیت انبار با خطا مواجه شد.";
+        return RedirectToAction(nameof(Locations), new { warehouseId, locationId, locationCode, locationTypes, locationAisle, locationRack, locationShelf, locationBin, locationStatus });
     }
 
     private async Task<IActionResult> ChangeWarehouseStatus(string warehouseId, bool activate)
@@ -445,7 +509,7 @@ public sealed partial class InventoryManagementController : Controller
 
         if (!IsAuthorizedFor(token, permission))
         {
-            TempData["CatalogError"] = "شما دسترسی تغییر وضعیت انبار را ندارید.";
+            TempData["CatalogError"] = "Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ ØªØºÛŒÛŒØ± ÙˆØ¶Ø¹ÛŒØª Ù„ÙˆÚ©ÛŒØ´Ù† Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.";
             return RedirectToAction(nameof(Warehouses), new { warehouseId });
         }
 
@@ -454,7 +518,7 @@ public sealed partial class InventoryManagementController : Controller
             : await _apiService.DeactivateWarehouseAsync(warehouseId, token);
 
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
-            result.IsSuccess ? "وضعیت انبار تغییر کرد." : result.ErrorMessage ?? "تغییر وضعیت انبار با خطا مواجه شد.";
+            result.IsSuccess ? "ÙˆØ¶Ø¹ÛŒØª Ù„ÙˆÚ©ÛŒØ´Ù† ØªØºÛŒÛŒØ± Ú©Ø±Ø¯." : result.ErrorMessage ?? "ØªØºÛŒÛŒØ± ÙˆØ¶Ø¹ÛŒØª Ù„ÙˆÚ©ÛŒØ´Ù† Ø¨Ø§ Ø®Ø·Ø§ Ù…ÙˆØ§Ø¬Ù‡ Ø´Ø¯.";
         return RedirectToAction(nameof(Warehouses), new { warehouseId });
     }
 
@@ -474,6 +538,21 @@ public sealed partial class InventoryManagementController : Controller
             "quarantine" => "Quarantine",
             _ => locationType.Trim()
         };
+    }
+
+    private static IReadOnlyList<string> NormalizeLocationTypes(IEnumerable<string>? locationTypes)
+    {
+        if (locationTypes is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        return locationTypes
+            .Select(NormalizeLocationType)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task<IActionResult> ChangeLocationStatus(string warehouseId, string locationId, bool activate)

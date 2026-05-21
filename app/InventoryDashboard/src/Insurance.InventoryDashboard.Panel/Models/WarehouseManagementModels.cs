@@ -35,6 +35,7 @@ public sealed class WarehouseManagementPageViewModel
     public string? LocationShelfFilter { get; set; }
     public string? LocationBinFilter { get; set; }
     public string? LocationStatusFilter { get; set; }
+    public IReadOnlyList<string> LocationTypesFilter { get; set; } = Array.Empty<string>();
     public int LocationPage { get; set; } = 1;
     public int LocationPageSize { get; set; } = 10;
     public int LocationTotalCount { get; set; }

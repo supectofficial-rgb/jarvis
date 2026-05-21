@@ -19,11 +19,8 @@ public class RemoveVariantTagCommandHandler : CommandHandler<RemoveVariantTagCom
         if (command.VariantTagBusinessKey == Guid.Empty)
             return Fail("VariantTagBusinessKey is required.");
 
-        var variant = await _variantRepository.GetByVariantTagBusinessKeyAsync(command.VariantTagBusinessKey);
-        if (variant is null)
-            return Fail("Variant tag was not found.");
-
-        if (!variant.RemoveTag(command.VariantTagBusinessKey))
+        var deleted = await _variantRepository.DeleteVariantTagByBusinessKeyAsync(command.VariantTagBusinessKey);
+        if (!deleted)
             return Fail("Variant tag was not found.");
 
         await _variantRepository.CommitAsync();

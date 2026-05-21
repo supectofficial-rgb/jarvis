@@ -74,7 +74,7 @@ public sealed class CatalogApiService : ICatalogApiService
     public Task<ApiResponse<bool>> UpsertVariantAddOnAsync(string variantId, UpsertVariantAddOnRequest request, string token) => _apiService.UpsertVariantAddOnAsync(variantId, request, token);
     public Task<ApiResponse<bool>> RemoveVariantAddOnAsync(string variantAddOnBusinessKey, string token) => _apiService.RemoveVariantAddOnAsync(variantAddOnBusinessKey, token);
     public Task<ApiResponse<bool>> UpsertVariantImageAsync(string variantId, UpsertVariantImageRequest request, string token) => _apiService.UpsertVariantImageAsync(variantId, request, token);
-    public Task<ApiResponse<bool>> RemoveVariantImageAsync(string fileKey, string token) => _apiService.RemoveVariantImageAsync(fileKey, token);
+    public Task<ApiResponse<bool>> RemoveVariantImageAsync(string variantImageBusinessKey, string token) => _apiService.RemoveVariantImageAsync(variantImageBusinessKey, token);
     public Task<ApiResponse<List<VariantAddOnModel>>> GetVariantAddOnsByVariantIdAsync(string variantId, string token) => _apiService.GetVariantAddOnsByVariantIdAsync(variantId, token);
     public Task<ApiResponse<List<VariantTagModel>>> GetVariantTagsByVariantIdAsync(string variantId, string token) => _apiService.GetVariantTagsByVariantIdAsync(variantId, token);
     public Task<ApiResponse<List<VariantTagLookupModel>>> GetVariantTagLookupAsync(string token, string? term = null, int take = 50) => _apiService.GetVariantTagLookupAsync(token, term, take);

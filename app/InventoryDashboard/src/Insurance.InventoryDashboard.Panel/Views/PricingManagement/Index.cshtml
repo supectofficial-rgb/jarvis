@@ -7,24 +7,9 @@
     ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
     ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
 
-    var priceTypeLookup = Model.PriceTypeLookup ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceTypeLookupModel>();
-    var priceChannelLookup = Model.PriceChannelLookup ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceChannelLookupModel>();
-    var variantItems = Model.VariantSearchResult?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel>();
-    var variantPriceItems = Model.VariantPrices?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.SellerVariantPriceModel>();
     var priceTypeItems = Model.PriceTypes?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceTypeModel>();
     var priceChannelItems = Model.PriceChannels?.Items ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceChannelModel>();
-
-    var priceTypeNames = priceTypeLookup
-        .GroupBy(x => x.PriceTypeBusinessKey)
-        .ToDictionary(x => x.Key, x => $"{x.First().Name} ({x.First().Code})");
-    var priceChannelNames = priceChannelLookup
-        .GroupBy(x => x.PriceChannelBusinessKey)
-        .ToDictionary(x => x.Key, x => $"{x.First().Name} ({x.First().Code})");
-    var ownerSellerTitle = Model.OwnerSeller is null
-        ? UiText["pricing.ownerSeller.notSet"]
-        : $"{Model.OwnerSeller.Name} ({Model.OwnerSeller.Code})";
-    var activeSurface = Model.ActiveItem?.ItemId ?? "variant_prices";
-    var showVariantPrices = string.Equals(activeSurface, "variant_prices", StringComparison.OrdinalIgnoreCase);
+    var activeSurface = Model.ActiveItem?.ItemId ?? "price_types";
     var showPriceTypes = string.Equals(activeSurface, "price_types", StringComparison.OrdinalIgnoreCase);
     var showPriceChannels = string.Equals(activeSurface, "price_channels", StringComparison.OrdinalIgnoreCase);
 }
@@ -51,9 +36,6 @@
             <div class="col-12 mb-4">
                 <ul class="nav nav-tabs separator-tabs ml-0 mb-4 d-none" role="tablist" id="pricing-management-tabs">
                     <li class="nav-item">
-                        <a class="nav-link @(showVariantPrices ? "active" : null)" data-item-id="variant_prices" data-toggle="tab" href="#variant-prices-tab" role="tab">@UiText["pricing.tabs.variantPricing"]</a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link @(showPriceTypes ? "active" : null)" data-item-id="price_types" data-toggle="tab" href="#price-types-tab" role="tab">@UiText["pricing.tabs.priceType"]</a>
                     </li>
                     <li class="nav-item">
@@ -62,210 +44,6 @@
                 </ul>
 
                 <div class="tab-content">
-                    @if (showVariantPrices)
-                    {
-                    <div class="tab-pane fade show active" id="variant-prices-tab" role="tabpanel">
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start flex-wrap mb-3">
-                                    <div>
-                                        <h5 class="card-title mb-1">Seller Owner</h5>
-                                        <p class="text-muted mb-0">@ownerSellerTitle</p>
-                                    </div>
-                                    @if (Model.OwnerSeller is not null)
-                                    {
-                                        <span class="badge badge-success">@UiText["common.active"]</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge badge-danger">@UiText["pricing.ownerSeller.required"]</span>
-                                    }
-                                </div>
-
-                                <form method="get" asp-action="VariantPrices" class="mb-4">
-                                    <div class="form-row align-items-end">
-                                        <div class="form-group col-lg-4 col-md-6">
-                                            <label>@UiText["pricing.variantSearch.label"]</label>
-                                            <input name="variantSearchTerm" value="@Model.VariantSearchTerm" class="form-control" placeholder="@UiText["pricing.variantSearch.placeholder"]" />
-                                        </div>
-                                        <div class="form-group col-lg-2 col-md-3">
-                                            <button class="btn btn-outline-primary btn-block" type="submit">@UiText["common.search"]</button>
-                                        </div>
-                                    </div>
-                                </form>
-
-                                @if (Model.OwnerSeller is not null)
-                                {
-                                    <form asp-action="ApplyVariantPricing" method="post" data-loading-form>
-                                        @Html.AntiForgeryToken()
-                                        <div class="row">
-                                            <div class="col-xl-7">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">@UiText["pricing.selectableVariants"]</h6>
-                                                    <button class="btn btn-link btn-sm p-0" type="button" id="toggle-all-variants">@UiText["pricing.toggleAllVariants"]</button>
-                                                </div>
-                                                <div class="table-responsive mb-3">
-                                                    <table class="table table-sm table-striped">
-                                                        <thead>
-                                                            <tr>
-                                                                <th style="width: 48px;"></th>
-                                                                <th>SKU</th>
-                                                                <th>@UiText["pricing.barcode"]</th>
-                                                                <th>@UiText["pricing.unit"]</th>
-                                                                <th>@UiText["pricing.productId"]</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @if (variantItems.Count == 0)
-                                                            {
-                                                                <tr>
-                                                                    <td colspan="5" class="text-center text-muted">@UiText["pricing.noVariantFound"]</td>
-                                                                </tr>
-                                                            }
-                                                            else
-                                                            {
-                                                                @foreach (var variant in variantItems)
-                                                                {
-                                                                    <tr>
-                                                                        <td>
-                                                                            <input type="checkbox"
-                                                                                   class="js-variant-checkbox"
-                                                                                   name="SelectedVariantRefs"
-                                                                                   value="@variant.Id" />
-                                                                        </td>
-                                                                        <td><span class="text-monospace">@variant.Sku</span></td>
-                                                                        <td>@(string.IsNullOrWhiteSpace(variant.Barcode) ? "-" : variant.Barcode)</td>
-                                                                        <td>@variant.BaseUomRef</td>
-                                                                        <td><span class="text-monospace">@variant.ProductId</span></td>
-                                                                    </tr>
-                                                                }
-                                                            }
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-
-                                            <div class="col-xl-5">
-                                                <h6 class="mb-3">@UiText["pricing.fixedPricing.title"]</h6>
-                                                <div class="form-row">
-                                                    <div class="form-group col-md-4">
-                                                        <label>@UiText["pricing.applyToAllAmount"]</label>
-                                                        <input name="ApplyToAllAmount" class="form-control" type="number" min="0" step="0.01" value="@(Model.BulkPricingForm.ApplyToAllAmount?.ToString() ?? string.Empty)" />
-                                                    </div>
-                                                    <div class="form-group col-md-4">
-                                                        <label>@UiText["pricing.currency"]</label>
-                                                        <input name="Currency" class="form-control" maxlength="8" value="@Model.BulkPricingForm.Currency" />
-                                                    </div>
-                                                    <div class="form-group col-md-4">
-                                                        <label>@UiText["pricing.minQty"]</label>
-                                                        <input name="MinQty" class="form-control" type="number" min="1" step="0.01" value="@Model.BulkPricingForm.MinQty" />
-                                                    </div>
-                                                </div>
-                                                <div class="form-row">
-                                                    <div class="form-group col-md-4">
-                                                        <label>@UiText["pricing.priority"]</label>
-                                                        <input name="Priority" class="form-control" type="number" value="@Model.BulkPricingForm.Priority" />
-                                                    </div>
-                                                </div>
-
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm table-bordered">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>@UiText["pricing.tabs.priceType"]</th>
-                                                                <th>@UiText["pricing.tabs.priceChannel"]</th>
-                                                                <th>@UiText["pricing.amount"]</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @for (var i = 0; i < Model.BulkPricingForm.Prices.Count; i++)
-                                                            {
-                                                                var price = Model.BulkPricingForm.Prices[i];
-                                                                <tr>
-                                                                    <td>
-                                                                        <input type="hidden" name="Prices[@i].PriceTypeRef" value="@price.PriceTypeRef" />
-                                                                        @(priceTypeNames.TryGetValue(price.PriceTypeRef, out var priceTypeName) ? priceTypeName : price.PriceTypeRef.ToString("D"))
-                                                                    </td>
-                                                                    <td>
-                                                                        <input type="hidden" name="Prices[@i].PriceChannelRef" value="@price.PriceChannelRef" />
-                                                                        @(priceChannelNames.TryGetValue(price.PriceChannelRef, out var channelName) ? channelName : price.PriceChannelRef.ToString("D"))
-                                                                    </td>
-                                                                    <td>
-                                                                        <input class="form-control form-control-sm" name="Prices[@i].Amount" type="number" min="0" step="0.01" value="@(price.Amount?.ToString() ?? string.Empty)" />
-                                                                    </td>
-                                                                </tr>
-                                                            }
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-
-                                                <button class="btn btn-primary mt-3" type="submit">@UiText["pricing.applyBulk"]</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                }
-                            </div>
-                        </div>
-
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <h5 class="card-title mb-3">@UiText["pricing.registeredPrices.title"]</h5>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>@UiText["pricing.variant"]</th>
-                                                <th>@UiText["pricing.tabs.priceType"]</th>
-                                                <th>@UiText["pricing.tabs.priceChannel"]</th>
-                                                <th>@UiText["pricing.amount"]</th>
-                                                <th>@UiText["common.active"]</th>
-                                                <th class="text-right">@UiText["common.operations"]</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @if (variantPriceItems.Count == 0)
-                                            {
-                                                <tr>
-                                                    <td colspan="6" class="text-center text-muted">@UiText["pricing.registeredPrices.empty"]</td>
-                                                </tr>
-                                            }
-                                            @foreach (var price in variantPriceItems)
-                                            {
-                                                var priceFormId = $"variant-price-form-{price.SellerVariantPriceBusinessKey:N}";
-                                                <tr>
-                                                    <td>
-                                                        <span class="text-monospace">@price.VariantRef.ToString("D")</span>
-                                                        <input form="@priceFormId" type="hidden" name="SellerRef" value="@price.SellerRef" />
-                                                        <input form="@priceFormId" type="hidden" name="VariantRef" value="@price.VariantRef" />
-                                                        <input form="@priceFormId" type="hidden" name="PriceTypeRef" value="@price.PriceTypeRef" />
-                                                        <input form="@priceFormId" type="hidden" name="PriceChannelRef" value="@price.PriceChannelRef" />
-                                                        <input form="@priceFormId" type="hidden" name="Currency" value="@price.Currency" />
-                                                        <input form="@priceFormId" type="hidden" name="MinQty" value="@price.MinQty" />
-                                                        <input form="@priceFormId" type="hidden" name="Priority" value="@price.Priority" />
-                                                    </td>
-                                                    <td>@(priceTypeNames.TryGetValue(price.PriceTypeRef, out var type) ? type : price.PriceTypeRef.ToString("D"))</td>
-                                                    <td>@(priceChannelNames.TryGetValue(price.PriceChannelRef, out var channel) ? channel : price.PriceChannelRef.ToString("D"))</td>
-                                                    <td><input form="@priceFormId" class="form-control form-control-sm" name="Amount" type="number" min="1" step="0.01" value="@price.Amount" /></td>
-                                                    <td>
-                                                        <input form="@priceFormId" type="checkbox" name="IsActive" value="true" @(price.IsActive ? "checked" : null) />
-                                                        <input form="@priceFormId" type="hidden" name="IsActive" value="false" />
-                                                    </td>
-                                                    <td class="text-right">
-                                                        <form id="@priceFormId" asp-action="UpdateVariantPrice" asp-route-id="@price.SellerVariantPriceBusinessKey" method="post" data-loading-form class="d-inline">
-                                                            @Html.AntiForgeryToken()
-                                                            <button class="btn btn-outline-primary btn-xs" type="submit">@UiText["common.save"]</button>
-                                                        </form>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    }
-
                     @if (showPriceTypes)
                     {
                     <div class="tab-pane fade show active" id="price-types-tab" role="tabpanel">
@@ -394,7 +172,7 @@
 @section Scripts {
     <script>
         (function () {
-            var activeItemId = '@(ViewBag.ActiveItemId ?? "variant_prices")';
+            var activeItemId = '@(ViewBag.ActiveItemId ?? "price_types")';
             var activeItemTab = document.querySelector('#pricing-management-tabs .nav-link[data-item-id="' + activeItemId + '"]');
             if (activeItemTab && window.jQuery) {
                 window.jQuery(activeItemTab).tab('show');

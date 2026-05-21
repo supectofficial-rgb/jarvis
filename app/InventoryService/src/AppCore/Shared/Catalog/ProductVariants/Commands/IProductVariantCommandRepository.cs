@@ -7,9 +7,10 @@ public interface IProductVariantCommandRepository : ICommandRepository<ProductVa
 {
     Task<ProductVariant?> GetByBusinessKeyAsync(Guid productVariantBusinessKey);
     Task<ProductVariant?> GetByVariantAddOnBusinessKeyAsync(Guid variantAddOnBusinessKey);
+    Task<bool> DeleteVariantAddOnByBusinessKeyAsync(Guid variantAddOnBusinessKey);
     Task<ProductVariant?> GetByComponentBusinessKeyAsync(Guid variantComponentBusinessKey);
-    Task<ProductVariant?> GetByVariantTagBusinessKeyAsync(Guid variantTagBusinessKey);
-    Task<ProductVariant?> GetByImageFileKeyAsync(string fileKey);
+    Task<bool> DeleteVariantTagByBusinessKeyAsync(Guid variantTagBusinessKey);
+    Task<bool> DeleteVariantImageByBusinessKeyAsync(Guid variantImageBusinessKey);
     Task<List<ProductVariant>> GetByProductRefAsync(Guid productRef);
     Task<bool> ExistsByVariantSkuAsync(string variantSku, Guid? exceptBusinessKey = null);
     Task<bool> ExistsByBarcodeAsync(string barcode, Guid? exceptBusinessKey = null);

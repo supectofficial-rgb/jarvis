@@ -20,11 +20,11 @@ public sealed class PricingManagementController : Controller
 
     [HttpGet]
     public async Task<IActionResult> Index(string? item = null, string? variantSearchTerm = null, CancellationToken cancellationToken = default)
-        => await ShowPricingPageAsync(string.IsNullOrWhiteSpace(item) ? "variant_prices" : item, variantSearchTerm, cancellationToken);
+        => await ShowPricingPageAsync(string.IsNullOrWhiteSpace(item) ? "price_types" : item, variantSearchTerm, cancellationToken);
 
     [HttpGet]
     public async Task<IActionResult> VariantPrices(string? variantSearchTerm = null, CancellationToken cancellationToken = default)
-        => await ShowPricingPageAsync("variant_prices", variantSearchTerm, cancellationToken);
+        => RedirectToAction(nameof(PriceTypes));
 
     [HttpGet]
     public async Task<IActionResult> PriceTypes(CancellationToken cancellationToken = default)
@@ -296,11 +296,11 @@ public sealed class PricingManagementController : Controller
             VariantSearchTerm = variantSearchTerm
         };
 
-        var activeItem = string.IsNullOrWhiteSpace(item) ? "variant_prices" : item.Trim();
+        var activeItem = string.IsNullOrWhiteSpace(item) ? "price_types" : item.Trim();
         model.ActiveItem = model.ActiveModule?.Items.FirstOrDefault(x => string.Equals(x.ItemId, activeItem, StringComparison.OrdinalIgnoreCase))
-            ?? model.ActiveModule?.Items.FirstOrDefault(x => string.Equals(x.ItemId, "variant_prices", StringComparison.OrdinalIgnoreCase));
+            ?? model.ActiveModule?.Items.FirstOrDefault(x => string.Equals(x.ItemId, "price_types", StringComparison.OrdinalIgnoreCase));
 
-        var selectedItem = model.ActiveItem?.ItemId ?? "variant_prices";
+        var selectedItem = model.ActiveItem?.ItemId ?? "price_types";
         if (string.Equals(selectedItem, "price_types", StringComparison.OrdinalIgnoreCase))
         {
             var priceTypesResult = await _apiService.SearchPriceTypesAsync(token, pageSize: 100);

@@ -19,11 +19,8 @@ public class RemoveVariantAddOnCommandHandler : CommandHandler<RemoveVariantAddO
         if (command.VariantAddOnBusinessKey == Guid.Empty)
             return Fail("VariantAddOnBusinessKey is required.");
 
-        var variant = await _variantRepository.GetByVariantAddOnBusinessKeyAsync(command.VariantAddOnBusinessKey);
-        if (variant is null)
-            return Fail("Variant add-on was not found.");
-
-        if (!variant.RemoveAddOn(command.VariantAddOnBusinessKey))
+        var deleted = await _variantRepository.DeleteVariantAddOnByBusinessKeyAsync(command.VariantAddOnBusinessKey);
+        if (!deleted)
             return Fail("Variant add-on was not found.");
 
         await _variantRepository.CommitAsync();

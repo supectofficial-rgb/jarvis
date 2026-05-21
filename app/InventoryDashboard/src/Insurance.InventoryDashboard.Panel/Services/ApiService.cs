@@ -933,9 +933,9 @@ public sealed class ApiService : IApiService
             "Saving variant image failed.");
     }
 
-    public Task<ApiResponse<bool>> RemoveVariantImageAsync(string fileKey, string token) =>
+    public Task<ApiResponse<bool>> RemoveVariantImageAsync(string variantImageBusinessKey, string token) =>
         DeleteCommandAsync(
-            BuildRouteWithQuery($"{InventoryApiPrefix}/ProductVariant/images", ("fileKey", fileKey)),
+            $"{InventoryApiPrefix}/ProductVariant/images/{variantImageBusinessKey}",
             token,
             "Removing variant image failed.");
 
@@ -1194,6 +1194,7 @@ public sealed class ApiService : IApiService
             }).ToList(),
             Images = item.Images.Select(image => new VariantImageModel
             {
+                VariantImageBusinessKey = image.VariantImageBusinessKey.ToString("D"),
                 FileKey = image.FileKey,
                 OriginalFileName = image.OriginalFileName,
                 ContentType = image.ContentType,
@@ -1369,7 +1370,7 @@ public sealed class ApiService : IApiService
         string token,
         string? warehouseId = null,
         string? locationCode = null,
-        string? locationType = null,
+        IReadOnlyList<string>? locationTypes = null,
         string? aisle = null,
         string? rack = null,
         string? shelf = null,
@@ -1378,11 +1379,17 @@ public sealed class ApiService : IApiService
         int page = 1,
         int pageSize = 20)
     {
+        var normalizedLocationTypes = locationTypes?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var route = BuildRouteWithQuery(
             $"{InventoryApiPrefix}/Location/search",
             ("WarehouseRef", warehouseId),
             ("LocationCode", locationCode),
-            ("LocationType", locationType),
+            ("LocationTypes", normalizedLocationTypes is { Count: > 0 } ? string.Join(",", normalizedLocationTypes) : null),
             ("Aisle", aisle),
             ("Rack", rack),
             ("Shelf", shelf),
@@ -2794,6 +2801,7 @@ public sealed class ApiService : IApiService
 
     private sealed class VariantImageItemDto
     {
+        public Guid VariantImageBusinessKey { get; set; }
         public string FileKey { get; set; } = string.Empty;
         public string OriginalFileName { get; set; } = string.Empty;
         public string ContentType { get; set; } = string.Empty;

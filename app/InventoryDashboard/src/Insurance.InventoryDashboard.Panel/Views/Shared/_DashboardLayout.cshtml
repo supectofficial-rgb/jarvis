@@ -337,6 +337,10 @@
                     window.appUi.initSearchableSelects(root);
                 }
 
+                if (typeof window.appUi.initAutoSubmit === 'function') {
+                    window.appUi.initAutoSubmit(root);
+                }
+
                 if (typeof window.appUi.initBulkActions === 'function') {
                     window.appUi.initBulkActions(root);
                 }

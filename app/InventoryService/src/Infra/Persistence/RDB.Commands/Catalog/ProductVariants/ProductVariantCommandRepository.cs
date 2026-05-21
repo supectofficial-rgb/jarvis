@@ -43,6 +43,21 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
             .FirstOrDefaultAsync(x => x.AddOns.Any(addOn => addOn.BusinessKey == businessKey));
     }
 
+    public async Task<bool> DeleteVariantAddOnByBusinessKeyAsync(Guid variantAddOnBusinessKey)
+    {
+        if (variantAddOnBusinessKey == Guid.Empty)
+        {
+            return false;
+        }
+
+        var businessKey = BusinessKey.FromGuid(variantAddOnBusinessKey);
+        var deleted = await _dbContext.Set<VariantAddOn>()
+            .Where(x => x.BusinessKey == businessKey)
+            .ExecuteDeleteAsync();
+
+        return deleted > 0;
+    }
+
     public Task<ProductVariant?> GetByComponentBusinessKeyAsync(Guid variantComponentBusinessKey)
     {
         if (variantComponentBusinessKey == Guid.Empty)
@@ -61,40 +76,34 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
             .FirstOrDefaultAsync(x => x.Components.Any(component => component.BusinessKey == businessKey));
     }
 
-    public Task<ProductVariant?> GetByVariantTagBusinessKeyAsync(Guid variantTagBusinessKey)
+    public async Task<bool> DeleteVariantTagByBusinessKeyAsync(Guid variantTagBusinessKey)
     {
         if (variantTagBusinessKey == Guid.Empty)
         {
-            return Task.FromResult<ProductVariant?>(null);
+            return false;
         }
 
         var businessKey = BusinessKey.FromGuid(variantTagBusinessKey);
-        return _dbContext.Set<ProductVariant>()
-            .Include(x => x.AttributeValues)
-            .Include(x => x.UomConversions)
-            .Include(x => x.Components)
-            .Include(x => x.AddOns)
-            .Include(x => x.Images)
-            .Include(x => x.Tags)
-            .FirstOrDefaultAsync(x => x.Tags.Any(tag => tag.BusinessKey == businessKey));
+        var deleted = await _dbContext.Set<VariantTag>()
+            .Where(x => x.BusinessKey == businessKey)
+            .ExecuteDeleteAsync();
+
+        return deleted > 0;
     }
 
-    public Task<ProductVariant?> GetByImageFileKeyAsync(string fileKey)
+    public async Task<bool> DeleteVariantImageByBusinessKeyAsync(Guid variantImageBusinessKey)
     {
-        var normalized = string.IsNullOrWhiteSpace(fileKey) ? null : fileKey.Trim();
-        if (normalized is null)
+        if (variantImageBusinessKey == Guid.Empty)
         {
-            return Task.FromResult<ProductVariant?>(null);
+            return false;
         }
 
-        return _dbContext.Set<ProductVariant>()
-            .Include(x => x.AttributeValues)
-            .Include(x => x.UomConversions)
-            .Include(x => x.Components)
-            .Include(x => x.AddOns)
-            .Include(x => x.Images)
-            .Include(x => x.Tags)
-            .FirstOrDefaultAsync(x => x.Images.Any(image => image.FileKey == normalized));
+        var businessKey = BusinessKey.FromGuid(variantImageBusinessKey);
+        var deleted = await _dbContext.Set<VariantImage>()
+            .Where(x => x.BusinessKey == businessKey)
+            .ExecuteDeleteAsync();
+
+        return deleted > 0;
     }
 
     public Task<List<ProductVariant>> GetByProductRefAsync(Guid productRef)

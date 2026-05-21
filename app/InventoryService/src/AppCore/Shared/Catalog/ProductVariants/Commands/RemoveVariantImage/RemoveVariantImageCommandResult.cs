@@ -2,5 +2,5 @@ namespace Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Comm
 
 public class RemoveVariantImageCommandResult
 {
-    public string FileKey { get; set; } = string.Empty;
+    public Guid VariantImageBusinessKey { get; set; }
 }

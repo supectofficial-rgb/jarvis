@@ -313,19 +313,6 @@
           ],
           "description": "تعریف چنل‌های قیمت مثل سایت، حضوری یا نماینده",
           "route": "/PricingManagement/PriceChannels"
-        },
-        {
-          "itemId": "variant_prices",
-          "title": "قیمت‌گذاری واریانت",
-          "icon": "simple-icon-wallet",
-          "isEnabled": true,
-          "roles": [
-            "SysAdmin",
-            "Admin",
-            "InventoryManager"
-          ],
-          "description": "ثبت قیمت برای واریانت‌هایی که بالانس ورودی دارند",
-          "route": "/PricingManagement/VariantPrices"
         }
       ]
     },

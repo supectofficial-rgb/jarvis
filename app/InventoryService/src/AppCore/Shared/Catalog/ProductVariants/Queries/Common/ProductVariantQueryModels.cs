@@ -74,6 +74,7 @@ public class VariantAddOnViewItem
 
 public class VariantImageViewItem
 {
+    public Guid VariantImageBusinessKey { get; set; }
     public Guid VariantRef { get; set; }
     public string FileKey { get; set; } = string.Empty;
     public string OriginalFileName { get; set; } = string.Empty;

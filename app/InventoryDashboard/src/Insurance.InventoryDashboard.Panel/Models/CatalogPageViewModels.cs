@@ -117,6 +117,9 @@ public sealed class VariantManagementPageViewModel
     public IReadOnlyList<SellerLookupItemModel> SellerLookup { get; set; } = Array.Empty<SellerLookupItemModel>();
     public IReadOnlyList<LocationLookupItemModel> LocationLookup { get; set; } = Array.Empty<LocationLookupItemModel>();
     public IReadOnlyList<QualityStatusLookupItemModel> QualityStatusLookup { get; set; } = Array.Empty<QualityStatusLookupItemModel>();
+    public SellerSearchItemModel? OwnerSeller { get; set; }
+    public List<PriceTypeLookupModel> PriceTypeLookup { get; set; } = new();
+    public List<PriceChannelLookupModel> PriceChannelLookup { get; set; } = new();
     public IReadOnlyList<ProductVariantSummaryModel> RelatedVariantLookup { get; set; } = Array.Empty<ProductVariantSummaryModel>();
     public decimal VariantStockTotalQuantity => VariantStockDetails.Sum(x => x.QuantityOnHand);
     public int VariantStockBucketCount => VariantStockDetails.Count;
@@ -152,6 +155,7 @@ public sealed class VariantManagementPageViewModel
     public BulkVariantAddOnForm BulkVariantAddOnForm { get; set; } = new();
     public BulkVariantImageForm BulkVariantImageForm { get; set; } = new();
     public BulkVariantTagForm BulkVariantTagForm { get; set; } = new();
+    public BulkVariantPricingRequest BulkPricingForm { get; set; } = new();
 }
 
 public sealed class VariantAddOnsFragmentViewModel

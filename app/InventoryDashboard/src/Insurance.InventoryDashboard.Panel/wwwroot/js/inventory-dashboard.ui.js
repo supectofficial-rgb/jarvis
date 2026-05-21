@@ -216,6 +216,31 @@
         });
     }
 
+    function initAutoSubmit(root) {
+        root = getScope(root);
+
+        root.querySelectorAll("[data-auto-submit]").forEach(function (element) {
+            if (element.dataset.autoSubmitBound === "true") {
+                return;
+            }
+
+            element.dataset.autoSubmitBound = "true";
+            element.addEventListener("change", function () {
+                var form = element instanceof HTMLFormElement ? element : element.form;
+                if (!form) {
+                    return;
+                }
+
+                if (typeof form.requestSubmit === "function") {
+                    form.requestSubmit();
+                    return;
+                }
+
+                form.submit();
+            });
+        });
+    }
+
     function initBulkActions(root) {
         root = getScope(root);
         root.querySelectorAll("form[data-bulk-form]").forEach(function (form) {
@@ -358,11 +383,13 @@
     onReady(function () {
         window.appUi = window.appUi || {};
         window.appUi.initSearchableSelects = initSearchableSelects;
+        window.appUi.initAutoSubmit = initAutoSubmit;
         window.appUi.initBulkActions = initBulkActions;
         window.appUi.initInventoryManagementPage = initInventoryManagementPage;
 
         initLocalizationBridge();
         initSearchableSelects();
+        initAutoSubmit();
         initBulkActions();
         initInventoryManagementPage();
     });

@@ -6,7 +6,7 @@ public class SearchLocationsQuery : IQuery<SearchLocationsQueryResult>
 {
     public Guid? WarehouseRef { get; set; }
     public string? LocationCode { get; set; }
-    public string? LocationType { get; set; }
+    public string? LocationTypes { get; set; }
     public string? Aisle { get; set; }
     public string? Rack { get; set; }
     public string? Shelf { get; set; }

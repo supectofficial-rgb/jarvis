@@ -82,7 +82,7 @@ public interface IApiService
     Task<ApiResponse<bool>> UpsertVariantAddOnAsync(string variantId, UpsertVariantAddOnRequest request, string token);
     Task<ApiResponse<bool>> RemoveVariantAddOnAsync(string variantAddOnBusinessKey, string token);
     Task<ApiResponse<bool>> UpsertVariantImageAsync(string variantId, UpsertVariantImageRequest request, string token);
-    Task<ApiResponse<bool>> RemoveVariantImageAsync(string fileKey, string token);
+    Task<ApiResponse<bool>> RemoveVariantImageAsync(string variantImageBusinessKey, string token);
     Task<ApiResponse<List<VariantAddOnModel>>> GetVariantAddOnsByVariantIdAsync(string variantId, string token);
     Task<ApiResponse<List<VariantTagModel>>> GetVariantTagsByVariantIdAsync(string variantId, string token);
     Task<ApiResponse<List<VariantTagLookupModel>>> GetVariantTagLookupAsync(string token, string? term = null, int take = 50);
@@ -108,7 +108,7 @@ public interface IApiService
     Task<ApiResponse<bool>> DeactivateLocationAsync(string locationId, string token);
     Task<ApiResponse<bool>> DeleteLocationAsync(string locationId, string token);
     Task<ApiResponse<bool>> MoveLocationToWarehouseAsync(string locationId, string targetWarehouseId, string token);
-    Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, string? locationType = null, string? aisle = null, string? rack = null, string? shelf = null, string? bin = null, bool? isActive = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, IReadOnlyList<string>? locationTypes = null, string? aisle = null, string? rack = null, string? shelf = null, string? bin = null, bool? isActive = null, int page = 1, int pageSize = 20);
     Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(string token, string? documentNo = null, string? documentType = null, string? status = null, string? warehouseId = null, string? sellerId = null, DateTime? occurredFrom = null, DateTime? occurredTo = null, int page = 1, int pageSize = 20);
     Task<ApiResponse<InventoryDocumentDetailsModel>> GetInventoryDocumentByBusinessKeyAsync(string documentId, string token);
     Task<ApiResponse<CreateInventoryDocumentResultModel>> CreateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);

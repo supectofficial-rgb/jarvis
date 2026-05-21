@@ -149,8 +149,15 @@ public class ProductVariantController : OysterFxController
         return SendCommand<UpsertVariantAddOnCommand, UpsertVariantAddOnCommandResult>(command);
     }
 
+    /// <summary>
+    /// Removes a product variant add-on link by its own business key.
+    /// </summary>
+    /// <param name="variantAddOnBusinessKey">Business key of the add-on relation row.</param>
+    /// <returns>The deleted add-on business key when successful.</returns>
     [HttpDelete("addons/{variantAddOnBusinessKey:guid}")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    [ProducesResponseType(typeof(RemoveVariantAddOnCommandResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public Task<IActionResult> RemoveAddOn([FromRoute] Guid variantAddOnBusinessKey)
         => SendCommand<RemoveVariantAddOnCommand, RemoveVariantAddOnCommandResult>(
             new RemoveVariantAddOnCommand
@@ -171,8 +178,15 @@ public class ProductVariantController : OysterFxController
     public Task<IActionResult> CreateTag([FromBody] CreateTagDefinitionCommand command)
         => SendCommand<CreateTagDefinitionCommand, CreateTagDefinitionCommandResult>(command);
 
+    /// <summary>
+    /// Removes a product variant tag link by its own business key.
+    /// </summary>
+    /// <param name="variantTagBusinessKey">Business key of the tag relation row.</param>
+    /// <returns>The deleted tag business key when successful.</returns>
     [HttpDelete("tags/{variantTagBusinessKey:guid}")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
+    [ProducesResponseType(typeof(RemoveVariantTagCommandResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public Task<IActionResult> RemoveTag([FromRoute] Guid variantTagBusinessKey)
         => SendCommand<RemoveVariantTagCommand, RemoveVariantTagCommandResult>(
             new RemoveVariantTagCommand
@@ -188,13 +202,20 @@ public class ProductVariantController : OysterFxController
         return SendCommand<UpsertVariantImageCommand, UpsertVariantImageCommandResult>(command);
     }
 
-    [HttpDelete("images")]
+    /// <summary>
+    /// Removes a product variant image by its own business key.
+    /// </summary>
+    /// <param name="variantImageBusinessKey">Business key of the image relation row.</param>
+    /// <returns>The deleted image business key when successful.</returns>
+    [HttpDelete("images/{variantImageBusinessKey:guid}")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
-    public Task<IActionResult> RemoveImage([FromQuery] string fileKey)
+    [ProducesResponseType(typeof(RemoveVariantImageCommandResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public Task<IActionResult> RemoveImage([FromRoute] Guid variantImageBusinessKey)
         => SendCommand<RemoveVariantImageCommand, RemoveVariantImageCommandResult>(
             new RemoveVariantImageCommand
             {
-                FileKey = fileKey
+                VariantImageBusinessKey = variantImageBusinessKey
             });
 
     [HttpPut("{productVariantBusinessKey:guid}/attributes/{attributeRef:guid}")]

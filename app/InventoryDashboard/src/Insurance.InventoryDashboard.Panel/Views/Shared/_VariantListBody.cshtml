@@ -85,10 +85,13 @@
                                         data-detail-title="@UiText["catalog.variants.inventoryAndWarehouses"]">
                                     @UiText["catalog.variants.warehousesButton"]
                                 </button>
-                                <button type="button" class="btn btn-outline-info btn-xs js-variant-prices-details"
+                                <button type="button" class="btn btn-outline-info btn-xs js-variant-pricing-details"
                                         data-toggle="modal"
                                         data-target="#variant-prices-modal"
                                         data-prices-url="@Url.Action("VariantPrices", "VariantManagement", new { variantId = variant.Id })"
+                                        data-variant-id="@variant.Id"
+                                        data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)"
+                                        data-pricing-mode="single"
                                         data-detail-title="@UiText["catalog.variants.pricesTitle"]">
                                     @UiText["catalog.variants.pricesButton"]
                                 </button>

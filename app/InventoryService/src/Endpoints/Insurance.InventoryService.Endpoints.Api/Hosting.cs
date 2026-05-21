@@ -13,6 +13,7 @@ using OysterFx.Infra.Auth.JwtServices;
 using OysterFx.Infra.EventBus.Outbox;
 using OysterFx.Infra.EventBus.RabbitMqBroker;
 using System.Diagnostics;
+using System.Reflection;
 
 public static class Hosting
 {
@@ -68,6 +69,12 @@ public static class Hosting
                     Array.Empty<string>()
                 }
             });
+
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
+            if (File.Exists(xmlPath))
+            {
+                options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+            }
         });
 
         return builder.Build();

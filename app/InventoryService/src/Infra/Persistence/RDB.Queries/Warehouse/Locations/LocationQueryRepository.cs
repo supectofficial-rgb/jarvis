@@ -103,10 +103,19 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
             locations = locations.Where(x => x.LocationCode.Contains(code));
         }
 
-        if (!string.IsNullOrWhiteSpace(query.LocationType))
+        if (!string.IsNullOrWhiteSpace(query.LocationTypes))
         {
-            var locationType = query.LocationType.Trim();
-            locations = locations.Where(x => x.LocationType == locationType);
+            var locationTypes = query.LocationTypes
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (locationTypes.Count > 0)
+            {
+                locations = locations.Where(x => locationTypes.Contains(x.LocationType));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(query.Aisle))

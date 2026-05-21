@@ -18,6 +18,11 @@
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(x => x)
         .ToList();
+    var priceTypeLookup = Model.PriceTypeLookup ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceTypeLookupModel>();
+    var priceChannelLookup = Model.PriceChannelLookup ?? new List<Insurance.InventoryDashboard.Panel.Models.PriceChannelLookupModel>();
+    var priceMatrixItems = Model.BulkPricingForm?.Prices ?? new List<Insurance.InventoryDashboard.Panel.Models.VariantPriceMatrixInputModel>();
+    var ownerSellerId = Model.OwnerSeller?.SellerBusinessKey.ToString("D") ?? string.Empty;
+    var pricingEnabled = Model.OwnerSeller is not null;
 
     var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     var isAdmin = Model.Roles.Any(x =>
@@ -109,6 +114,7 @@
       data-selected-product-id="@Model.SelectedProductId"
       data-selected-variant-id="@Model.SelectedVariantId"
       data-selected-variant-name="@selectedVariantName"
+      data-owner-seller-id="@ownerSellerId"
       data-catalog-success="@hasCatalogSuccess.ToString().ToLowerInvariant()">
     <div class="container-fluid">
         <div class="row variant-page-heading">
@@ -362,6 +368,15 @@
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
+                                        data-target="#variant-prices-modal"
+                                        data-pricing-mode="bulk"
+                                        data-pricing-enabled="@(pricingEnabled ? "true" : "false")"
+                                        data-requires-bulk-selection="true"
+                                        @(pricingEnabled ? null : "disabled")>
+                                    قیمت‌گذاری
+                                </button>
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-xs"
                                         data-target="#variant-tags-modal"
                                         data-tag-mode="bulk"
                                         data-requires-bulk-selection="true">
@@ -606,13 +621,100 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="variant-prices-modal-title">@UiText["catalog.variants.pricesTitle"]</h5>
+                <div>
+                    <h5 class="modal-title" id="variant-prices-modal-title">@UiText["catalog.variants.pricesTitle"]</h5>
+                    <div class="small text-muted" id="variant-prices-modal-subtitle"></div>
+                </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
-                <div id="variant-prices-modal-body" class="table-responsive small text-muted">@UiText["catalog.variants.loading"]</div>
+            <div class="modal-body" id="variant-prices-modal-body">
+                <div class="alert alert-warning d-none" id="variant-prices-bulk-empty">یک یا چند مورد از موارد را انتخاب کنید</div>
+                <div class="alert alert-danger d-none" id="variant-prices-modal-error"></div>
+                <div class="alert alert-light" id="variant-prices-modal-summary"></div>
+
+                <form asp-action="ApplyVariantPricing"
+                      asp-controller="VariantManagement"
+                      method="post"
+                      id="variant-pricing-form"
+                      data-ajax-submit="variant-pricing"
+                      data-loading-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="SelectedVariantRefs" id="variant-pricing-selected-refs" />
+                    <div id="variant-pricing-content">
+                        <div class="border rounded bg-light p-3 mb-3">
+                            <div class="form-row align-items-end">
+                                <div class="form-group col-md-4 mb-2">
+                                    <label>قیمت یکسان برای همه ردیف‌ها</label>
+                                    <input name="ApplyToAllAmount" class="form-control" id="variant-pricing-fill-amount" type="number" min="0" step="0.01" value="@Model.BulkPricingForm.ApplyToAllAmount?.ToString()" />
+                                </div>
+                                <div class="form-group col-md-3 mb-2">
+                                    <label class="d-none d-md-block">&nbsp;</label>
+                                    <button type="button" class="btn btn-outline-primary btn-block" id="variant-pricing-fill-button">پر کردن همه</button>
+                                </div>
+                                <div class="form-group col-md-2 mb-2">
+                                    <label>ارز</label>
+                                    <input name="Currency" class="form-control" maxlength="8" value="@Model.BulkPricingForm.Currency" />
+                                </div>
+                                <div class="form-group col-md-2 mb-2">
+                                    <label>حداقل مقدار</label>
+                                    <input name="MinQty" class="form-control" type="number" min="1" step="0.01" value="@Model.BulkPricingForm.MinQty" />
+                                </div>
+                                <div class="form-group col-md-1 mb-2">
+                                    <label>اولویت</label>
+                                    <input name="Priority" class="form-control" type="number" value="@Model.BulkPricingForm.Priority" />
+                                </div>
+                            </div>
+                            <small class="text-muted">اگر برای بعضی ردیف‌ها مقدار وارد نشود، همین مقدار استفاده می‌شود.</small>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>@UiText["catalog.variants.priceType"]</th>
+                                        <th>@UiText["catalog.variants.priceChannel"]</th>
+                                        <th>@UiText["pricing.amount"]</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (var i = 0; i < priceMatrixItems.Count; i++)
+                                    {
+                                        var price = priceMatrixItems[i];
+                                        <tr>
+                                            <td>
+                                                <input type="hidden" name="Prices[@i].PriceTypeRef" value="@price.PriceTypeRef" />
+                                                @(priceTypeLookup.FirstOrDefault(x => x.PriceTypeBusinessKey == price.PriceTypeRef) is { } priceType
+                                                    ? $"{priceType.Code} - {priceType.Name}"
+                                                    : price.PriceTypeRef.ToString("D"))
+                                            </td>
+                                            <td>
+                                                <input type="hidden" name="Prices[@i].PriceChannelRef" value="@price.PriceChannelRef" />
+                                                @(priceChannelLookup.FirstOrDefault(x => x.PriceChannelBusinessKey == price.PriceChannelRef) is { } priceChannel
+                                                    ? $"{priceChannel.Code} - {priceChannel.Name}"
+                                                    : price.PriceChannelRef.ToString("D"))
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm js-price-amount"
+                                                       name="Prices[@i].Amount"
+                                                       data-price-matrix-key="@($"{price.PriceTypeRef:D}|{price.PriceChannelRef:D}")"
+                                                       type="number"
+                                                       min="0"
+                                                       step="0.01"
+                                                       value="" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="text-right mt-3">
+                        <button type="submit" class="btn btn-primary">ثبت قیمت‌ها</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -807,6 +909,18 @@
             var detailModal = $('#variant-detail-modal');
             var detailModalTitle = document.getElementById('variant-detail-modal-title');
             var detailModalBody = document.getElementById('variant-detail-modal-body');
+            var pricingModal = $('#variant-prices-modal');
+            var pricingModalTitle = document.getElementById('variant-prices-modal-title');
+            var pricingModalSubtitle = document.getElementById('variant-prices-modal-subtitle');
+            var pricingModalBody = document.getElementById('variant-prices-modal-body');
+            var pricingModalSummary = document.getElementById('variant-prices-modal-summary');
+            var pricingModalError = document.getElementById('variant-prices-modal-error');
+            var pricingBulkEmpty = document.getElementById('variant-prices-bulk-empty');
+            var pricingForm = document.getElementById('variant-pricing-form');
+            var pricingSelectedRefsInput = document.getElementById('variant-pricing-selected-refs');
+            var pricingFillAmountInput = document.getElementById('variant-pricing-fill-amount');
+            var pricingFillButton = document.getElementById('variant-pricing-fill-button');
+            var pricingContent = document.getElementById('variant-pricing-content');
             var tagsModal = $('#variant-tags-modal');
             var tagsModalTitle = document.getElementById('variant-tags-modal-title');
             var tagsModalSummary = document.getElementById('variant-tags-modal-summary');
@@ -968,6 +1082,170 @@
                 }).join('');
 
                 return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
+            }
+
+            function getOwnerSellerId() {
+                return pageElement ? (pageElement.getAttribute('data-owner-seller-id') || '') : '';
+            }
+
+            function getPricingMatrixInputs() {
+                if (!pricingForm) {
+                    return [];
+                }
+
+                return Array.prototype.slice.call(pricingForm.querySelectorAll('input.js-price-amount[data-price-matrix-key]'));
+            }
+
+            function setPricingModalFeedback(message, isError) {
+                if (pricingModalError) {
+                    pricingModalError.textContent = message || '';
+                    pricingModalError.classList.toggle('d-none', !message || !isError);
+                }
+
+                if (pricingModalSummary && isError) {
+                    pricingModalSummary.classList.add('d-none');
+                }
+
+                if (pricingModalSummary && !isError) {
+                    pricingModalSummary.textContent = message || '';
+                    pricingModalSummary.classList.toggle('d-none', !message);
+                }
+            }
+
+            function clearPricingMatrix() {
+                getPricingMatrixInputs().forEach(function (input) {
+                    input.value = '';
+                });
+            }
+
+            function applyPricingMatrix(items) {
+                var itemMap = {};
+                (Array.isArray(items) ? items : []).forEach(function (item) {
+                    if (!item) {
+                        return;
+                    }
+
+                    var key = ((item.priceTypeRef || '') + '|' + (item.priceChannelRef || '')).toLowerCase();
+                    itemMap[key] = item;
+                });
+
+                getPricingMatrixInputs().forEach(function (input) {
+                    var key = (input.getAttribute('data-price-matrix-key') || '').trim().toLowerCase();
+                    var existing = itemMap[key];
+                    input.value = existing && existing.amount !== undefined && existing.amount !== null ? String(existing.amount) : '';
+                });
+
+                if (Array.isArray(items) && items.length > 0) {
+                    var first = items[0] || {};
+                    var currencyInput = pricingForm ? pricingForm.querySelector('input[name="Currency"]') : null;
+                    var minQtyInput = pricingForm ? pricingForm.querySelector('input[name="MinQty"]') : null;
+                    var priorityInput = pricingForm ? pricingForm.querySelector('input[name="Priority"]') : null;
+
+                    if (currencyInput && first.currency) {
+                        currencyInput.value = first.currency;
+                    }
+                    if (minQtyInput && first.minQty !== undefined && first.minQty !== null) {
+                        minQtyInput.value = String(first.minQty);
+                    }
+                    if (priorityInput && first.priority !== undefined && first.priority !== null) {
+                        priorityInput.value = String(first.priority);
+                    }
+                }
+            }
+
+            function updatePricingModalState(mode, label, selectedVariantRefs) {
+                var selectedRefs = Array.isArray(selectedVariantRefs) ? selectedVariantRefs.filter(Boolean) : [];
+                if (pricingSelectedRefsInput) {
+                    pricingSelectedRefsInput.value = selectedRefs.join(',');
+                }
+
+                if (pricingModal && pricingModal.attr) {
+                    pricingModal.attr('data-pricing-mode', mode || 'single');
+                    pricingModal.attr('data-variant-label', label || '');
+                    pricingModal.attr('data-bulk-has-selection', selectedRefs.length > 0 ? 'true' : 'false');
+                }
+
+                if (pricingModalSubtitle) {
+                    pricingModalSubtitle.textContent = mode === 'bulk'
+                        ? (selectedRefs.length > 0 ? ('برای ' + selectedRefs.length + ' واریانت') : '')
+                        : (label || '');
+                }
+
+                if (pricingBulkEmpty) {
+                    pricingBulkEmpty.classList.toggle('d-none', mode !== 'bulk' || selectedRefs.length > 0);
+                }
+
+                if (pricingContent) {
+                    pricingContent.classList.toggle('d-none', mode === 'bulk' && selectedRefs.length === 0);
+                }
+
+                if (pricingModalError) {
+                    pricingModalError.classList.add('d-none');
+                    pricingModalError.textContent = '';
+                }
+
+                if (pricingModalSummary) {
+                    pricingModalSummary.classList.remove('d-none');
+                    pricingModalSummary.textContent = mode === 'bulk'
+                        ? 'قیمت پایه را برای همه ترکیب‌ها وارد کن و سپس ثبت را بزن.'
+                        : 'قیمت‌های فعلی واریانت بارگذاری می‌شود و می‌توانی سریع آن را ویرایش کنی.';
+                }
+            }
+
+            function loadVariantPricingForModal(mode, variantId, label, selectedVariantRefs) {
+                var ownerSellerId = getOwnerSellerId();
+                if (!ownerSellerId) {
+                    setPricingModalFeedback('Seller Owner فعال برای قیمت‌گذاری پیدا نشد.', true);
+                    return Promise.resolve();
+                }
+
+                updatePricingModalState(mode, label, selectedVariantRefs);
+                clearPricingMatrix();
+
+                if (mode === 'bulk') {
+                    return Promise.resolve();
+                }
+
+                if (!variantId) {
+                    return Promise.resolve();
+                }
+
+                if (pricingModalTitle) {
+                    pricingModalTitle.textContent = label || pricesTitleText;
+                }
+
+                return fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("VariantPrices", "VariantManagement") ?? string.Empty)) + '?variantId=' + encodeURIComponent(variantId), {
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (payload) {
+                        if (!payload || !payload.isSuccess) {
+                            throw new Error((payload && payload.error) ? payload.error : loadInfoFailedText);
+                        }
+
+                        applyPricingMatrix(payload.items || []);
+                        return payload.items || [];
+                    })
+                    .catch(function (error) {
+                        setPricingModalFeedback((error && error.message) ? error.message : loadInfoFailedText, true);
+                        return [];
+                    });
+            }
+
+            if (pricingFillButton) {
+                pricingFillButton.addEventListener('click', function () {
+                    var amount = pricingFillAmountInput ? parseFloat(pricingFillAmountInput.value || '') : NaN;
+                    if (!isFinite(amount) || amount <= 0) {
+                        if (pricingFillAmountInput) {
+                            pricingFillAmountInput.focus();
+                        }
+                        return;
+                    }
+
+                    getPricingMatrixInputs().forEach(function (input) {
+                        input.value = String(amount);
+                    });
+                });
             }
 
             function openVariantDataModal(modal, titleElement, bodyElement, url, renderer, titleText) {
@@ -1407,18 +1685,6 @@
                 });
             });
 
-            document.querySelectorAll('.js-variant-prices-details').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    openVariantDataModal(
-                        $('#variant-prices-modal'),
-                        document.getElementById('variant-prices-modal-title'),
-                        document.getElementById('variant-prices-modal-body'),
-                        button.getAttribute('data-prices-url') || '',
-                        renderPriceDetails,
-                        button.getAttribute('data-detail-title') || pricesTitleText);
-                });
-            });
-
             document.addEventListener('click', function (event) {
                 var mediaButton = event.target.closest ? event.target.closest('.js-variant-media-details') : null;
                 if (mediaButton) {
@@ -1462,6 +1728,24 @@
                         componentVariantId,
                         componentButton.getAttribute('data-detail-title') || '',
                         componentProductId);
+                    return;
+                }
+
+                var pricingButton = event.target.closest ? event.target.closest('.js-variant-pricing-details') : null;
+                if (pricingButton) {
+                    event.preventDefault();
+                    var pricingVariantId = pricingButton.getAttribute('data-variant-id') || '';
+                    var pricingVariantLabel = pricingButton.getAttribute('data-variant-label') || '';
+                    if (!pricingVariantId) {
+                        alert(loadInfoFailedText);
+                        return;
+                    }
+
+                    loadVariantPricingForModal('single', pricingVariantId, pricingVariantLabel, [pricingVariantId]).then(function () {
+                        if (pricingModal && pricingModal.modal) {
+                            pricingModal.modal('show');
+                        }
+                    });
                     return;
                 }
 
@@ -2826,7 +3110,8 @@
                 });
 
                 document.querySelectorAll('[data-requires-bulk-selection]').forEach(function (button) {
-                    button.disabled = selectedCount === 0;
+                    var pricingEnabled = (button.getAttribute('data-pricing-enabled') || 'true') !== 'false';
+                    button.disabled = selectedCount === 0 || !pricingEnabled;
                 });
 
                 if (bulkSelectionWarning) {
@@ -2869,6 +3154,21 @@
                         }
 
                         showModal(target);
+                        return;
+                    }
+
+                    if (target === '#variant-prices-modal') {
+                        var selectedIds = syncBulkSelectionInputs();
+                        if (pricingModal && pricingModal.attr) {
+                            pricingModal.attr('data-pricing-mode', 'bulk');
+                            pricingModal.attr('data-variant-id', '');
+                            pricingModal.attr('data-variant-label', '');
+                            pricingModal.attr('data-bulk-has-selection', hasSelection ? 'true' : 'false');
+                        }
+
+                        loadVariantPricingForModal('bulk', '', '', selectedIds).then(function () {
+                            showModal(target);
+                        });
                         return;
                     }
 
@@ -2989,6 +3289,16 @@
                             });
                         }
 
+                        if (mode === 'variant-pricing') {
+                            return response.json().then(function (payload) {
+                                return {
+                                    mode: mode,
+                                    ok: response.ok,
+                                    payload: payload || {}
+                                };
+                            });
+                        }
+
                         return response.text().then(function (text) {
                             return {
                                 mode: mode,
@@ -3080,6 +3390,29 @@
                             if (tagsModal) {
                                 tagsModal.modal('hide');
                             }
+                            return Promise.resolve();
+                        }
+
+                        if (mode === 'variant-pricing') {
+                            var pricingPayload = result && result.payload ? result.payload : {};
+                            if (!result.ok || !pricingPayload.isSuccess) {
+                                throw new Error(pricingPayload.error || pricingPayload.message || loadInfoFailedText);
+                            }
+
+                            if (pricingModalSummary) {
+                                pricingModalSummary.classList.remove('d-none');
+                                pricingModalSummary.textContent = pricingPayload.message || 'قیمت‌ها با موفقیت ثبت شد.';
+                            }
+
+                            if (pricingModalError) {
+                                pricingModalError.classList.add('d-none');
+                                pricingModalError.textContent = '';
+                            }
+
+                            if (pricingFillAmountInput) {
+                                pricingFillAmountInput.value = '';
+                            }
+
                             return Promise.resolve();
                         }
 

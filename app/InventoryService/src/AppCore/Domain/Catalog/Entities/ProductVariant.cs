@@ -292,17 +292,16 @@ public sealed class ProductVariant : AggregateRoot
         return _images.First(x => string.Equals(x.FileKey, normalizedFileKey, StringComparison.OrdinalIgnoreCase));
     }
 
-    public bool RemoveImage(string fileKey)
+    public bool RemoveImage(Guid variantImageBusinessKey)
     {
-        var normalizedFileKey = NormalizeOptional(fileKey);
-        if (normalizedFileKey is null)
+        if (variantImageBusinessKey == Guid.Empty)
             return false;
 
-        var existing = _images.FirstOrDefault(x => string.Equals(x.FileKey, normalizedFileKey, StringComparison.OrdinalIgnoreCase));
+        var existing = _images.FirstOrDefault(x => x.BusinessKey.Value == variantImageBusinessKey);
         if (existing is null)
             return false;
 
-        Apply(new ProductVariantImageRemovedEvent(BusinessKey, normalizedFileKey));
+        Apply(new ProductVariantImageRemovedEvent(BusinessKey, existing.FileKey));
         return true;
     }
 

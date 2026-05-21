@@ -4,5 +4,5 @@ using OysterFx.AppCore.Shared.Commands;
 
 public class RemoveVariantImageCommand : ICommand<RemoveVariantImageCommandResult>
 {
-    public string FileKey { get; set; } = string.Empty;
+    public Guid VariantImageBusinessKey { get; set; }
 }

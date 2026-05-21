@@ -634,6 +634,7 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             .ThenBy(x => x.FileKey)
             .Select(x => new VariantImageViewItem
             {
+                VariantImageBusinessKey = x.BusinessKey,
                 VariantRef = x.VariantRef,
                 FileKey = x.FileKey,
                 OriginalFileName = x.OriginalFileName,

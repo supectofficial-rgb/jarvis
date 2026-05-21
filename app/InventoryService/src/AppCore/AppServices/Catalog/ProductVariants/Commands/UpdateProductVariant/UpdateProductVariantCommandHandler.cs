@@ -190,7 +190,7 @@ public class UpdateProductVariantCommandHandler : CommandHandler<UpdateProductVa
         foreach (var existing in aggregate.Images.ToList())
         {
             if (!incomingImageSet.Contains(existing.FileKey))
-                aggregate.RemoveImage(existing.FileKey);
+                aggregate.RemoveImage(existing.BusinessKey.Value);
         }
 
         await _variantRepository.CommitAsync();

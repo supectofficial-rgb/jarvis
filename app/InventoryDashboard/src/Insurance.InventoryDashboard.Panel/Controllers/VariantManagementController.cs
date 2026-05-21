@@ -64,6 +64,16 @@ public sealed class VariantManagementController : CatalogManagementController
         var flatCategories = FlattenCategories(categories).ToList();
         var leafCategories = GetLeafCategories(flatCategories);
         var activeAttributesResult = await _apiService.GetActiveAttributeDefinitionsAsync(token);
+        var priceTypeLookupTask = _inventoryApiService.GetPriceTypeLookupAsync(token, includeInactive: true);
+        var priceChannelLookupTask = _inventoryApiService.GetPriceChannelLookupAsync(token, includeInactive: true);
+        var ownerSellerTask = _inventoryApiService.SearchSellersAsync(token, isSystemOwner: true, isActive: true, pageSize: 10);
+
+        await Task.WhenAll(priceTypeLookupTask, priceChannelLookupTask, ownerSellerTask);
+
+        var ownerSellers = ownerSellerTask.Result.Data?.Items?
+            .Where(x => x.IsSystemOwner && x.IsActive)
+            .OrderBy(x => x.Code)
+            .ToList() ?? new List<SellerSearchItemModel>();
 
         var model = new VariantManagementPageViewModel
         {
@@ -79,6 +89,7 @@ public sealed class VariantManagementController : CatalogManagementController
             Categories = categories,
             FlatCategories = flatCategories,
             LeafCategories = leafCategories,
+            OwnerSeller = ownerSellers.Count == 1 ? ownerSellers[0] : null,
             RelatedVariantLookup = new List<ProductVariantSummaryModel>(),
             ProductAttributeGroups = new List<CategoryAttributeGroupViewModel>(),
             EffectiveProductAttributes = (activeAttributesResult.Data ?? new List<AttributeDefinitionModel>())
@@ -113,7 +124,10 @@ public sealed class VariantManagementController : CatalogManagementController
             ErrorMessage = string.Join(" | ", new[]
             {
                 categoriesResult.ErrorMessage,
-                activeAttributesResult.ErrorMessage
+                activeAttributesResult.ErrorMessage,
+                priceTypeLookupTask.Result.ErrorMessage,
+                priceChannelLookupTask.Result.ErrorMessage,
+                ownerSellerTask.Result.ErrorMessage
             }.Where(x => !string.IsNullOrWhiteSpace(x))),
             VariantForm = new VariantUpsertForm(),
             VariantAttributeForm = new VariantAttributeValueForm(),
@@ -125,8 +139,26 @@ public sealed class VariantManagementController : CatalogManagementController
             VariantAssemblyOperationForm = new VariantAssemblyOperationForm(),
             BulkVariantAddOnForm = new BulkVariantAddOnForm(),
             BulkVariantImageForm = new BulkVariantImageForm(),
-            BulkVariantTagForm = new BulkVariantTagForm()
+            BulkVariantTagForm = new BulkVariantTagForm(),
+            BulkPricingForm = new BulkVariantPricingRequest
+            {
+                Currency = "IRR",
+                MinQty = 1
+            }
         };
+
+        model.PriceTypeLookup = priceTypeLookupTask.Result.Data?.Items ?? new List<PriceTypeLookupModel>();
+        model.PriceChannelLookup = priceChannelLookupTask.Result.Data?.Items ?? new List<PriceChannelLookupModel>();
+        model.BulkPricingForm.Prices = BuildPriceMatrix(model.PriceTypeLookup, model.PriceChannelLookup);
+
+        if (ownerSellers.Count == 0)
+        {
+            model.ErrorMessage ??= "Seller Owner فعال در سیستم پیدا نشد. تا زمان ثبت Seller Owner، قیمت‌گذاری این بخش غیرفعال است.";
+        }
+        else if (ownerSellers.Count > 1)
+        {
+            model.ErrorMessage ??= "بیش از یک Seller Owner فعال پیدا شد. تا زمان تعیین یک Owner یکتا، قیمت‌گذاری این بخش غیرفعال است.";
+        }
 
         SetLayoutViewBag(model.Modules, model.ActiveModule?.ModuleId, model.ActiveItem?.ItemId, model.UserName);
         return View("~/Views/CatalogManagement/Variants.cshtml", model);
@@ -519,6 +551,109 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             isSuccess = true,
             items
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApplyVariantPricing(BulkVariantPricingRequest request)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new { isSuccess = false, error = "برای قیمت‌گذاری باید دوباره وارد شوید." });
+        }
+
+        var ownerSeller = await ResolveOwnerSellerAsync(token);
+        if (ownerSeller is null)
+        {
+            return Json(new { isSuccess = false, error = "برای قیمت‌گذاری باید Seller Owner فعال در سیستم ثبت شده باشد." });
+        }
+
+        var variantRefs = (request.SelectedVariantRefs ?? new List<string>())
+            .Select(value => Guid.TryParse(value, out var parsed) ? parsed : Guid.Empty)
+            .Where(value => value != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        if (variantRefs.Count == 0)
+        {
+            return Json(new { isSuccess = false, error = "حداقل یک واریانت را برای قیمت‌گذاری انتخاب کنید." });
+        }
+
+        var entries = (request.Prices ?? new List<VariantPriceMatrixInputModel>())
+            .Select(x => new VariantPriceMatrixInputModel
+            {
+                PriceTypeRef = x.PriceTypeRef,
+                PriceChannelRef = x.PriceChannelRef,
+                Amount = x.Amount ?? request.ApplyToAllAmount
+            })
+            .Where(x => x.Amount.HasValue && x.Amount.Value > 0)
+            .ToList();
+
+        if (entries.Count == 0)
+        {
+            return Json(new { isSuccess = false, error = "حداقل یک مبلغ معتبر برای یکی از ترکیب‌های نوع قیمت و کانال وارد کنید." });
+        }
+
+        var processedCount = 0;
+        foreach (var variantRef in variantRefs)
+        {
+            var currentPricesResult = await _inventoryApiService.SearchSellerVariantPricesAsync(
+                token,
+                sellerRef: ownerSeller.SellerBusinessKey,
+                variantRef: variantRef,
+                pageSize: 200);
+
+            if (!currentPricesResult.IsSuccess)
+            {
+                return Json(new
+                {
+                    isSuccess = false,
+                    error = currentPricesResult.ErrorMessage ?? "بارگذاری قیمت‌های فعلی واریانت ناموفق بود."
+                });
+            }
+
+            var existingPrices = currentPricesResult.Data?.Items ?? new List<SellerVariantPriceModel>();
+            foreach (var entry in entries)
+            {
+                var payload = new UpsertSellerVariantPriceRequest
+                {
+                    SellerRef = ownerSeller.SellerBusinessKey,
+                    VariantRef = variantRef,
+                    PriceTypeRef = entry.PriceTypeRef,
+                    PriceChannelRef = entry.PriceChannelRef,
+                    Amount = entry.Amount!.Value,
+                    Currency = string.IsNullOrWhiteSpace(request.Currency) ? "IRR" : request.Currency.Trim().ToUpperInvariant(),
+                    MinQty = request.MinQty <= 0 ? 1 : request.MinQty,
+                    Priority = request.Priority,
+                    IsActive = true
+                };
+
+                var existing = existingPrices.FirstOrDefault(x =>
+                    x.PriceTypeRef == entry.PriceTypeRef &&
+                    x.PriceChannelRef == entry.PriceChannelRef);
+
+                var saveResult = existing is null
+                    ? await _inventoryApiService.CreateSellerVariantPriceAsync(payload, token)
+                    : await _inventoryApiService.UpdateSellerVariantPriceAsync(existing.SellerVariantPriceBusinessKey, payload, token);
+
+                if (!saveResult.IsSuccess)
+                {
+                    return Json(new
+                    {
+                        isSuccess = false,
+                        error = saveResult.ErrorMessage ?? "ثبت قیمت واریانت ناموفق بود."
+                    });
+                }
+
+                processedCount++;
+            }
+        }
+
+        return Json(new
+        {
+            isSuccess = true,
+            message = $"{processedCount} قیمت برای Seller Owner ثبت یا به‌روزرسانی شد."
         });
     }
 
@@ -1737,7 +1872,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveVariantImage(string productId, string fileKey)
+    public async Task<IActionResult> RemoveVariantImage(string? productId, string variantImageBusinessKey)
     {
         var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
                             Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
@@ -1752,9 +1887,9 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        if (string.IsNullOrWhiteSpace(fileKey))
+        if (string.IsNullOrWhiteSpace(variantImageBusinessKey))
         {
-            var errorMessage = "شناسه فایل تصویر معتبر نیست.";
+            var errorMessage = "شناسه مدیا معتبر نیست.";
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
@@ -1764,7 +1899,7 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction(nameof(Variants), new { productId });
         }
 
-        var result = await _apiService.RemoveVariantImageAsync(fileKey, token);
+        var result = await _apiService.RemoveVariantImageAsync(variantImageBusinessKey, token);
         if (!result.IsSuccess)
         {
             if (isAjaxRequest)
@@ -1781,7 +1916,7 @@ public sealed class VariantManagementController : CatalogManagementController
                 isSuccess = true,
                 message = "تصویر واریانت حذف شد.",
                 productId,
-                fileKey
+                variantImageBusinessKey
             });
         }
         else
@@ -2283,5 +2418,45 @@ public sealed class VariantManagementController : CatalogManagementController
             Guid.Parse(parts[1]),
             Guid.Parse(parts[2]),
             Guid.Parse(parts[3]));
+    }
+
+    private async Task<SellerSearchItemModel?> ResolveOwnerSellerAsync(string token)
+    {
+        var result = await _inventoryApiService.SearchSellersAsync(token, isSystemOwner: true, isActive: true, pageSize: 10);
+        if (!result.IsSuccess)
+        {
+            return null;
+        }
+
+        var ownerSellers = result.Data?.Items?
+            .Where(x => x.IsSystemOwner && x.IsActive)
+            .OrderBy(x => x.Code)
+            .ToList() ?? new List<SellerSearchItemModel>();
+
+        return ownerSellers.Count == 1 ? ownerSellers[0] : null;
+    }
+
+    private static List<VariantPriceMatrixInputModel> BuildPriceMatrix(
+        IEnumerable<PriceTypeLookupModel> priceTypes,
+        IEnumerable<PriceChannelLookupModel> priceChannels)
+    {
+        var uniquePriceTypes = priceTypes
+            .GroupBy(x => x.PriceTypeBusinessKey)
+            .Select(x => x.First())
+            .OrderBy(x => x.Name)
+            .ToList();
+        var uniquePriceChannels = priceChannels
+            .GroupBy(x => x.PriceChannelBusinessKey)
+            .Select(x => x.First())
+            .OrderBy(x => x.Name)
+            .ToList();
+
+        return (from priceType in uniquePriceTypes
+                from priceChannel in uniquePriceChannels
+                select new VariantPriceMatrixInputModel
+                {
+                    PriceTypeRef = priceType.PriceTypeBusinessKey,
+                    PriceChannelRef = priceChannel.PriceChannelBusinessKey
+                }).ToList();
     }
 }
