@@ -218,10 +218,6 @@
                                 <input type="hidden" asp-for="CreateForm.DocumentId" />
                                 <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
                                 <div class="form-group col-md-2">
-                                    <label>نوع سند</label>
-                                    <div class="form-control-plaintext pt-2">@TypeLabel(Model.CreateForm.DocumentType)</div>
-                                </div>
-                                <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
@@ -233,17 +229,6 @@
                                     <label>@UiText["inventory.documents.referenceId"]</label>
                                     <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
                                 </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.warehouse"]</label>
-                                    <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
-                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
-                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                                <input asp-for="CreateForm.SellerRef" type="hidden" />
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
                                     <input asp-for="CreateForm.OccurredAt" type="datetime-local" class="form-control" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
@@ -254,26 +239,7 @@
                                 </div>
                             </div>
 
-                            @if (string.IsNullOrWhiteSpace(Model.CreateForm.DocumentId))
-                            {
-                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
-                                <div>
-                                    <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
-                                    <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
-                                </div>
-                                <button class="btn btn-outline-primary btn-xs" type="button" id="toggle-document-lines">افزودن واریانت</button>
-                            </div>
-
-                            <div id="document-lines-panel" class="d-none">
-                                <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
-                                <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
-
-                                <div class="d-flex justify-content-end mb-3">
-                                    <button class="btn btn-outline-primary btn-xs" type="button" id="add-document-line">@UiText["inventory.documents.addLine"]</button>
-                                </div>
-
-                                <div id="document-lines">
-                                @for (var i = 0; i < Model.CreateForm.Lines.Count; i++)
+                                @* @for (var i = 0; i < Model.CreateForm.Lines.Count; i++)
                                 {
                                     <div class="card mb-3 document-line" data-line-index="@i">
                                         <div class="card-body">
@@ -377,13 +343,10 @@
                                 }
                             </div>
                             </div>
-                            }
-                            else
-                            {
                                 <div class="alert alert-info border mt-3">
                                     این سند در حالت ویرایش است. فقط اطلاعات عمومی سند در فرم بالا قابل ویرایش است.
                                 </div>
-                            }
+                            *@
 
                         <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@(string.IsNullOrWhiteSpace(Model.CreateForm.DocumentId) ? "ایجاد سند" : "ثبت تغییرات")</button>
                         </form>
@@ -402,7 +365,7 @@
                             <h5 class="card-title mb-0">لیست اسناد</h5>
                         <span class="text-muted small" id="receipt-document-list-count">@Model.DocumentTotalCount رکورد</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="receipt-document-list-form">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" id="receipt-document-list-form">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
@@ -935,6 +898,10 @@
             var toggleLinesButton = document.getElementById('toggle-document-lines');
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
+
+            if (!lineContainer) {
+                return;
+            }
 
             var documentTypeConfig = {
                 Receipt: {
@@ -1568,20 +1535,7 @@
                 }
 
                 if (canDeleteDocument) {
-                    html += '<form action="' + deleteDocumentUrl + '" method="post" class="d-inline mr-1" data-loading-form data-ajax-target="#documents-page-root" onsubmit="return confirm(\'این سند و همه آیتم‌های آن حذف شوند؟\');">';
-                    html += '<input name="__RequestVerificationToken" type="hidden" value="' + escapeHtml(getAntiForgeryToken()) + '" />';
-                    html += '<input type="hidden" name="DocumentId" value="' + documentId + '" />';
-                    html += '<input type="hidden" name="documentType" value="' + documentType + '" />';
-                    html += '<input type="hidden" name="documentNo" value="' + documentNoValue + '" />';
-                    html += '<input type="hidden" name="status" value="' + statusValue + '" />';
-                    html += '<input type="hidden" name="warehouseId" value="' + warehouseValue + '" />';
-                    html += '<input type="hidden" name="sellerId" value="' + sellerValue + '" />';
-                    html += '<input type="hidden" name="occurredFrom" value="' + occurredFromValue + '" />';
-                    html += '<input type="hidden" name="occurredTo" value="' + occurredToValue + '" />';
-                    html += '<input type="hidden" name="page" value="' + escapeHtml(currentPage) + '" />';
-                    html += '<input type="hidden" name="pageSize" value="' + currentPageSize + '" />';
-                    html += '<button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>';
-                    html += '</form>';
+                    html += '<button type="button" class="btn btn-outline-danger btn-xs mr-1 js-receipt-document-delete" data-document-id="' + documentId + '" data-document-no="' + documentNo + '">حذف</button>';
                 }
 
                 html += '<button type="button" class="btn btn-outline-info btn-xs js-receipt-document-action" data-document-id="' + documentId + '" data-document-no="' + documentNo + '" data-document-status="' + status + '"' + (canActDocument ? '' : ' disabled') + '>اقدام</button>';
@@ -1656,6 +1610,62 @@
 
                 renderReceiptDocumentRows(payload.items || [], currentPage);
                 renderReceiptDocumentPagination(totalPages, currentPage);
+            }
+
+            async function deleteReceiptDocument(documentId, documentNo) {
+                if (!documentId) {
+                    return;
+                }
+
+                if (!window.confirm('این سند ' + (documentNo ? '(' + documentNo + ')' : '') + ' و همه آیتم‌های آن حذف شوند؟')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                payload.append('documentId', documentId);
+                payload.append('documentType', 'Receipt');
+                payload.append('page', String(getCurrentReceiptListPage() || 1));
+                payload.append('pageSize', getReceiptListValue('pageSize') || '@Model.DocumentPageSize');
+                payload.append('documentNo', getReceiptListValue('documentNo'));
+                payload.append('status', getReceiptListValue('status'));
+                payload.append('warehouseId', getReceiptListValue('warehouseId'));
+                payload.append('sellerId', getReceiptListValue('sellerId'));
+                payload.append('occurredFrom', getReceiptListValue('occurredFrom'));
+                payload.append('occurredTo', getReceiptListValue('occurredTo'));
+
+                var response = await fetch(deleteDocumentUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Delete document request failed.');
+                }
+
+                await refreshReceiptDocumentList();
+            }
+
+            function bindReceiptDocumentListForm() {
+                var form = document.querySelector(documentListFormSelector);
+                if (!form || form.dataset.receiptListBound === 'true') {
+                    return;
+                }
+
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    refreshReceiptDocumentList(1).catch(function (error) {
+                        console.error(error);
+                    });
+                }, true);
+
+                form.dataset.receiptListBound = 'true';
             }
 
             function initModalWidgets(root) {
@@ -1865,7 +1875,7 @@
                 });
 
                 controls.warehouseSelect.addEventListener('change', function () {
-                    renderReceiptLocationOptions(root, controls.warehouseSelect.value || '', '');
+                    renderReceiptLocationOptions(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '');
                 });
 
                 controls.variantSelect.dataset.receiptInventoryBound = 'true';
@@ -1879,6 +1889,8 @@
                             console.error(error);
                         });
                 } else {
+                    receiptWarehouseOptions = [];
+                    receiptLocationOptions = [];
                     renderReceiptWarehouseOptions(root, '');
                     renderReceiptLocationOptions(root, '', '');
                 }
@@ -2142,6 +2154,8 @@
                 await refreshReceiptDocumentList();
             }
 
+            bindReceiptDocumentListForm();
+
             if (!window.__receiptDocumentsModalBound) {
                 window.__receiptDocumentsModalBound = true;
 
@@ -2154,6 +2168,17 @@
                         loadReceiptDetails(documentId, documentNo).catch(function (error) {
                             console.error(error);
                         });
+                        return;
+                    }
+
+                    var deleteButton = event.target && event.target.closest ? event.target.closest('.js-receipt-document-delete') : null;
+                    if (deleteButton) {
+                        event.preventDefault();
+                        deleteReceiptDocument(
+                            deleteButton.getAttribute('data-document-id') || '',
+                            deleteButton.getAttribute('data-document-no') || '').catch(function (error) {
+                                console.error(error);
+                            });
                         return;
                     }
 

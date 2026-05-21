@@ -157,7 +157,7 @@ public class WarehouseQueryRepository : QueryRepository<InventoryServiceQueryDbC
             {
                 LocationBusinessKey = x.BusinessKey,
                 LocationCode = x.LocationCode,
-                LocationType = x.LocationType,
+                LocationType = x.LocationType.ToString(),
                 Aisle = x.Aisle,
                 Rack = x.Rack,
                 Shelf = x.Shelf,

@@ -150,10 +150,8 @@ public sealed class CreateInventoryDocumentForm
 
     public string? ReferenceBusinessId { get; set; }
 
-    [Required(ErrorMessage = "انتخاب انبار الزامی است.")]
     public string WarehouseRef { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "انتخاب فروشنده الزامی است.")]
     public string SellerRef { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "زمان وقوع الزامی است.")]

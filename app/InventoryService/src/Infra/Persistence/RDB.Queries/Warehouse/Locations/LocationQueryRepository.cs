@@ -1,5 +1,6 @@
 namespace Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Locations;
 
+using Insurance.InventoryService.AppCore.Domain.Warehouse.Entities;
 using Insurance.InventoryService.AppCore.Shared.Warehouse.Locations.Queries;
 using Insurance.InventoryService.AppCore.Shared.Warehouse.Locations.Queries.Common;
 using Insurance.InventoryService.AppCore.Shared.Warehouse.Locations.Queries.GetByBusinessKey;
@@ -49,7 +50,7 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
                 LocationBusinessKey = x.BusinessKey,
                 WarehouseRef = x.WarehouseRef,
                 LocationCode = x.LocationCode,
-                LocationType = x.LocationType,
+                LocationType = x.LocationType.ToString(),
                 Aisle = x.Aisle,
                 Rack = x.Rack,
                 Shelf = x.Shelf,
@@ -61,10 +62,13 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
 
     public Task<List<LocationListItem>> GetByTypeAsync(string locationType, Guid? warehouseRef = null, bool onlyActive = false)
     {
-        var normalizedType = locationType.Trim();
+        if (!Enum.TryParse<LocationType>(locationType.Trim(), true, out var parsedType))
+        {
+            return Task.FromResult(new List<LocationListItem>());
+        }
 
         var query = _dbContext.Set<LocationReadModel>()
-            .Where(x => x.LocationType == normalizedType);
+            .Where(x => x.LocationType == parsedType);
 
         if (warehouseRef.HasValue)
             query = query.Where(x => x.WarehouseRef == warehouseRef.Value);
@@ -78,7 +82,7 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
                 LocationBusinessKey = x.BusinessKey,
                 WarehouseRef = x.WarehouseRef,
                 LocationCode = x.LocationCode,
-                LocationType = x.LocationType,
+                LocationType = x.LocationType.ToString(),
                 Aisle = x.Aisle,
                 Rack = x.Rack,
                 Shelf = x.Shelf,
@@ -109,7 +113,10 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(x => Enum.TryParse<LocationType>(x, true, out var parsedType) ? parsedType : (LocationType?)null)
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .Distinct()
                 .ToList();
 
             if (locationTypes.Count > 0)
@@ -155,7 +162,7 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
                 LocationBusinessKey = x.BusinessKey,
                 WarehouseRef = x.WarehouseRef,
                 LocationCode = x.LocationCode,
-                LocationType = x.LocationType,
+                LocationType = x.LocationType.ToString(),
                 Aisle = x.Aisle,
                 Rack = x.Rack,
                 Shelf = x.Shelf,
@@ -189,7 +196,7 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
                 LocationBusinessKey = x.BusinessKey,
                 WarehouseRef = x.WarehouseRef,
                 LocationCode = x.LocationCode,
-                LocationType = x.LocationType
+                LocationType = x.LocationType.ToString()
             })
             .ToListAsync();
     }
@@ -201,7 +208,7 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
             LocationBusinessKey = item.BusinessKey,
             WarehouseRef = item.WarehouseRef,
             LocationCode = item.LocationCode,
-            LocationType = item.LocationType,
+            LocationType = item.LocationType.ToString(),
             Aisle = item.Aisle,
             Rack = item.Rack,
             Shelf = item.Shelf,

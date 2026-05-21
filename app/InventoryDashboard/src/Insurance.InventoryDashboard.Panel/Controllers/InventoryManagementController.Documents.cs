@@ -688,13 +688,14 @@ public sealed partial class InventoryManagementController
         }
 
         var isUpdate = !string.IsNullOrWhiteSpace(form.DocumentId);
+        var isReceiptDocument = string.Equals(form.DocumentType, "Receipt", StringComparison.OrdinalIgnoreCase);
         form.Lines ??= new List<CreateInventoryDocumentLineForm>();
 
         if (isUpdate)
         {
             form.Lines.Clear();
         }
-        else
+        else if (!isReceiptDocument)
         {
             form.Lines = form.Lines
                 .Where(line =>
@@ -723,31 +724,34 @@ public sealed partial class InventoryManagementController
 
         if (!isUpdate)
         {
-            var ruleError = ValidateDocumentFormAgainstBackendRules(form);
-            if (!string.IsNullOrWhiteSpace(ruleError))
+            if (!isReceiptDocument)
             {
-                TempData["CatalogError"] = ruleError;
-                return RedirectToAction(
-                    ResolveDocumentRouteActionName(form.DocumentType),
-                    new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
-            }
-
-            var variantLookupResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
-            var variants = variantLookupResult.Data ?? new List<ProductVariantSummaryModel>();
-
-            foreach (var line in form.Lines)
-            {
-                var variant = variants.FirstOrDefault(x => string.Equals(x.Id, line.VariantId, StringComparison.OrdinalIgnoreCase));
-                if (variant is null)
+                var ruleError = ValidateDocumentFormAgainstBackendRules(form);
+                if (!string.IsNullOrWhiteSpace(ruleError))
                 {
-                    TempData["CatalogError"] = "واریانت انتخاب شده معتبر نیست.";
+                    TempData["CatalogError"] = ruleError;
                     return RedirectToAction(
                         ResolveDocumentRouteActionName(form.DocumentType),
                         new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
                 }
 
-                line.UomRef = variant.BaseUomRef;
-                line.BaseUomRef = variant.BaseUomRef;
+                var variantLookupResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+                var variants = variantLookupResult.Data ?? new List<ProductVariantSummaryModel>();
+
+                foreach (var line in form.Lines)
+                {
+                    var variant = variants.FirstOrDefault(x => string.Equals(x.Id, line.VariantId, StringComparison.OrdinalIgnoreCase));
+                    if (variant is null)
+                    {
+                        TempData["CatalogError"] = "واریانت انتخاب شده معتبر نیست.";
+                        return RedirectToAction(
+                            ResolveDocumentRouteActionName(form.DocumentType),
+                            new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, tab = "create" });
+                    }
+
+                    line.UomRef = variant.BaseUomRef;
+                    line.BaseUomRef = variant.BaseUomRef;
+                }
             }
 
             var result = await _apiService.CreateInventoryDocumentAsync(form, token);
@@ -1191,6 +1195,7 @@ public sealed partial class InventoryManagementController
     {
         var isEditMode = string.Equals(selectedTab, "create", StringComparison.OrdinalIgnoreCase)
             && existingDocument is not null;
+        var isReceiptDocument = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase);
 
         return new CreateInventoryDocumentForm
         {
@@ -1199,11 +1204,15 @@ public sealed partial class InventoryManagementController
             DocumentNo = isEditMode ? existingDocument?.DocumentNo : null,
             ReferenceType = isEditMode ? existingDocument?.ReferenceType : null,
             ReferenceBusinessId = isEditMode ? existingDocument?.ReferenceBusinessId?.ToString() : null,
-            WarehouseRef = isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
-            SellerRef = isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
+            WarehouseRef = isReceiptDocument
+                ? string.Empty
+                : isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
+            SellerRef = isReceiptDocument
+                ? string.Empty
+                : isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
             OccurredAt = isEditMode ? existingDocument?.OccurredAt ?? DateTime.Now : DateTime.Now,
             ReasonCode = isEditMode ? existingDocument?.ReasonCode : null,
-            Lines = isEditMode
+            Lines = isReceiptDocument || isEditMode
                 ? new List<CreateInventoryDocumentLineForm>()
                 : new List<CreateInventoryDocumentLineForm>
                 {

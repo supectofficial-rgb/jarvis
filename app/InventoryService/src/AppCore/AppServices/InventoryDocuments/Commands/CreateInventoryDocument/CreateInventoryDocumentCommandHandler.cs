@@ -21,7 +21,9 @@ public class CreateInventoryDocumentCommandHandler
         if (!Enum.TryParse<InventoryDocumentType>(command.DocumentType, true, out var documentType))
             return Fail($"Unsupported inventory document type '{command.DocumentType}'.");
 
-        if (command.Lines.Count == 0)
+        var isReceiptDocument = documentType == InventoryDocumentType.Receipt;
+
+        if (!isReceiptDocument && command.Lines.Count == 0)
             return Fail("Inventory document must contain at least one line.");
 
         var documentNo = string.IsNullOrWhiteSpace(command.DocumentNo)
