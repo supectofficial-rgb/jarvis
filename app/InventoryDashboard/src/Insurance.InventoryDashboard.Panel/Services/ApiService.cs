@@ -863,15 +863,11 @@ public sealed class ApiService : IApiService
             "Saving variant component failed.");
     }
 
-    public Task<ApiResponse<bool>> RemoveVariantComponentAsync(string variantId, string componentVariantId, string? componentId, string token)
-    {
-        var route = BuildRouteWithQuery(
-            $"{InventoryApiPrefix}/ProductVariant/{variantId}/components",
-            ("variantComponentBusinessKey", componentId),
-            ("componentVariantRef", componentVariantId));
-
-        return DeleteCommandAsync(route, token, "Removing variant component failed.");
-    }
+    public Task<ApiResponse<bool>> RemoveVariantComponentAsync(string variantComponentBusinessKey, string token) =>
+        DeleteCommandAsync(
+            $"{InventoryApiPrefix}/ProductVariant/components/{variantComponentBusinessKey}",
+            token,
+            "Removing variant component failed.");
 
     public async Task<ApiResponse<List<VariantComponentModel>>> GetVariantComponentsByVariantIdAsync(string variantId, string token)
     {
@@ -914,14 +910,8 @@ public sealed class ApiService : IApiService
             "Saving variant add-on failed.");
     }
 
-    public Task<ApiResponse<bool>> RemoveVariantAddOnAsync(string variantId, string addOnVariantId, string token)
-    {
-        var route = BuildRouteWithQuery(
-            $"{InventoryApiPrefix}/ProductVariant/{variantId}/addons",
-            ("addOnVariantRef", addOnVariantId));
-
-        return DeleteCommandAsync(route, token, "Removing variant add-on failed.");
-    }
+    public Task<ApiResponse<bool>> RemoveVariantAddOnAsync(string variantAddOnBusinessKey, string token) =>
+        DeleteCommandAsync($"{InventoryApiPrefix}/ProductVariant/addons/{variantAddOnBusinessKey}", token, "Removing variant add-on failed.");
 
     public Task<ApiResponse<bool>> UpsertVariantImageAsync(string variantId, UpsertVariantImageRequest request, string token)
     {
@@ -943,14 +933,11 @@ public sealed class ApiService : IApiService
             "Saving variant image failed.");
     }
 
-    public Task<ApiResponse<bool>> RemoveVariantImageAsync(string variantId, string fileKey, string token)
-    {
-        var route = BuildRouteWithQuery(
-            $"{InventoryApiPrefix}/ProductVariant/{variantId}/images",
-            ("fileKey", fileKey));
-
-        return DeleteCommandAsync(route, token, "Removing variant image failed.");
-    }
+    public Task<ApiResponse<bool>> RemoveVariantImageAsync(string fileKey, string token) =>
+        DeleteCommandAsync(
+            BuildRouteWithQuery($"{InventoryApiPrefix}/ProductVariant/images", ("fileKey", fileKey)),
+            token,
+            "Removing variant image failed.");
 
     public async Task<ApiResponse<List<VariantAddOnModel>>> GetVariantAddOnsByVariantIdAsync(string variantId, string token)
     {
@@ -1070,22 +1057,11 @@ public sealed class ApiService : IApiService
         };
     }
 
-    public Task<ApiResponse<bool>> RemoveVariantTagAsync(string variantId, string? variantTagBusinessKey, string? tagName, string token)
-    {
-        var query = new List<string>();
-        if (Guid.TryParse(variantTagBusinessKey, out var parsedTagId))
-        {
-            query.Add($"variantTagBusinessKey={Uri.EscapeDataString(parsedTagId.ToString("D"))}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(tagName))
-        {
-            query.Add($"tagName={Uri.EscapeDataString(tagName)}");
-        }
-
-        var suffix = query.Count > 0 ? "?" + string.Join("&", query) : string.Empty;
-        return DeleteCommandAsync($"{InventoryApiPrefix}/ProductVariant/{variantId}/tags{suffix}", token, "Removing variant tag failed.");
-    }
+    public Task<ApiResponse<bool>> RemoveVariantTagAsync(string variantTagBusinessKey, string token) =>
+        DeleteCommandAsync(
+            $"{InventoryApiPrefix}/ProductVariant/tags/{variantTagBusinessKey}",
+            token,
+            "Removing variant tag failed.");
 
     public async Task<ApiResponse<List<ProductVariantSummaryModel>>> GetProductVariantsByProductIdAsync(
         string productId,

@@ -196,15 +196,14 @@ public sealed class ProductVariant : AggregateRoot
         return _components.First(x => x.BusinessKey.Value == componentBusinessKey);
     }
 
-    public void RemoveComponent(Guid? variantComponentBusinessKey, Guid componentVariantRef)
+    public bool RemoveComponent(Guid variantComponentBusinessKey)
     {
-        var existing = variantComponentBusinessKey.HasValue && variantComponentBusinessKey.Value != Guid.Empty
-            ? _components.FirstOrDefault(x => x.BusinessKey.Value == variantComponentBusinessKey.Value)
-            : _components.FirstOrDefault(x => x.ComponentVariantRef == componentVariantRef);
+        var existing = _components.FirstOrDefault(x => x.BusinessKey.Value == variantComponentBusinessKey);
         if (existing is null)
-            return;
+            return false;
 
         Apply(new ProductVariantComponentRemovedEvent(BusinessKey, existing.BusinessKey.Value));
+        return true;
     }
 
     public VariantAddOn AddOrUpdateAddOn(Guid addOnVariantRef)
@@ -219,13 +218,14 @@ public sealed class ProductVariant : AggregateRoot
         return _addOns.First(x => x.AddOnVariantRef == addOnVariantRef);
     }
 
-    public void RemoveAddOn(Guid addOnVariantRef)
+    public bool RemoveAddOn(Guid variantAddOnBusinessKey)
     {
-        var existing = _addOns.FirstOrDefault(x => x.AddOnVariantRef == addOnVariantRef);
+        var existing = _addOns.FirstOrDefault(x => x.BusinessKey.Value == variantAddOnBusinessKey);
         if (existing is null)
-            return;
+            return false;
 
-        Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, addOnVariantRef));
+        Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, existing.AddOnVariantRef));
+        return true;
     }
 
     public VariantTag AddOrUpdateTag(Guid? variantTagBusinessKey, Guid tagRef, string tagName, string? tagColor, int displayOrder)
@@ -251,16 +251,17 @@ public sealed class ProductVariant : AggregateRoot
         return _tags.First(x => x.BusinessKey.Value == tagBusinessKey);
     }
 
-    public void RemoveTag(Guid? variantTagBusinessKey)
+    public bool RemoveTag(Guid? variantTagBusinessKey)
     {
         var existing = variantTagBusinessKey.HasValue && variantTagBusinessKey.Value != Guid.Empty
             ? _tags.FirstOrDefault(x => x.BusinessKey.Value == variantTagBusinessKey.Value)
             : null;
 
         if (existing is null)
-            return;
+            return false;
 
         Apply(new ProductVariantTagRemovedEvent(BusinessKey, existing.BusinessKey.Value));
+        return true;
     }
 
     public VariantImage AddOrUpdateImage(
@@ -291,17 +292,18 @@ public sealed class ProductVariant : AggregateRoot
         return _images.First(x => string.Equals(x.FileKey, normalizedFileKey, StringComparison.OrdinalIgnoreCase));
     }
 
-    public void RemoveImage(string fileKey)
+    public bool RemoveImage(string fileKey)
     {
         var normalizedFileKey = NormalizeOptional(fileKey);
         if (normalizedFileKey is null)
-            return;
+            return false;
 
         var existing = _images.FirstOrDefault(x => string.Equals(x.FileKey, normalizedFileKey, StringComparison.OrdinalIgnoreCase));
         if (existing is null)
-            return;
+            return false;
 
         Apply(new ProductVariantImageRemovedEvent(BusinessKey, normalizedFileKey));
+        return true;
     }
 
     private void EnsureInventoryControlledFieldsAreMutable()

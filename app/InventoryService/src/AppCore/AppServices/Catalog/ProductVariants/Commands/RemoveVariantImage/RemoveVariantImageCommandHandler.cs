@@ -16,22 +16,20 @@ public class RemoveVariantImageCommandHandler : CommandHandler<RemoveVariantImag
 
     public override async Task<CommandResult<RemoveVariantImageCommandResult>> Handle(RemoveVariantImageCommand command)
     {
-        if (command.ProductVariantBusinessKey == Guid.Empty)
-            return Fail("ProductVariantBusinessKey is required.");
-
         if (string.IsNullOrWhiteSpace(command.FileKey))
             return Fail("FileKey is required.");
 
-        var variant = await _variantRepository.GetByBusinessKeyAsync(command.ProductVariantBusinessKey);
+        var variant = await _variantRepository.GetByImageFileKeyAsync(command.FileKey);
         if (variant is null)
-            return Fail("Product variant was not found.");
+            return Fail("Variant image was not found.");
 
-        variant.RemoveImage(command.FileKey);
+        if (!variant.RemoveImage(command.FileKey))
+            return Fail("Variant image was not found.");
+
         await _variantRepository.CommitAsync();
 
         return Ok(new RemoveVariantImageCommandResult
         {
-            ProductVariantBusinessKey = variant.BusinessKey.Value,
             FileKey = command.FileKey.Trim()
         });
     }

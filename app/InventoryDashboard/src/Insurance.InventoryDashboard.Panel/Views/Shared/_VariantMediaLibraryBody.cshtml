@@ -90,7 +90,6 @@ else
                             <form asp-action="RemoveVariantImage" method="post" class="d-inline" data-ajax-submit="variant-media-remove" data-loading-form>
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="productId" value="@productId" />
-                                <input type="hidden" name="variantId" value="@Model.Id" />
                                 <input type="hidden" name="fileKey" value="@media.FileKey" />
                                 <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["catalog.variants.removeRelation"]</button>
                             </form>

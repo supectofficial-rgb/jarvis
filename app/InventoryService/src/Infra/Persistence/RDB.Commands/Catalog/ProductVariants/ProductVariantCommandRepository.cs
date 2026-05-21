@@ -25,6 +25,78 @@ public class ProductVariantCommandRepository : CommandRepository<ProductVariant,
             .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(productVariantBusinessKey));
     }
 
+    public Task<ProductVariant?> GetByVariantAddOnBusinessKeyAsync(Guid variantAddOnBusinessKey)
+    {
+        if (variantAddOnBusinessKey == Guid.Empty)
+        {
+            return Task.FromResult<ProductVariant?>(null);
+        }
+
+        var businessKey = BusinessKey.FromGuid(variantAddOnBusinessKey);
+        return _dbContext.Set<ProductVariant>()
+            .Include(x => x.AttributeValues)
+            .Include(x => x.UomConversions)
+            .Include(x => x.Components)
+            .Include(x => x.AddOns)
+            .Include(x => x.Images)
+            .Include(x => x.Tags)
+            .FirstOrDefaultAsync(x => x.AddOns.Any(addOn => addOn.BusinessKey == businessKey));
+    }
+
+    public Task<ProductVariant?> GetByComponentBusinessKeyAsync(Guid variantComponentBusinessKey)
+    {
+        if (variantComponentBusinessKey == Guid.Empty)
+        {
+            return Task.FromResult<ProductVariant?>(null);
+        }
+
+        var businessKey = BusinessKey.FromGuid(variantComponentBusinessKey);
+        return _dbContext.Set<ProductVariant>()
+            .Include(x => x.AttributeValues)
+            .Include(x => x.UomConversions)
+            .Include(x => x.Components)
+            .Include(x => x.AddOns)
+            .Include(x => x.Images)
+            .Include(x => x.Tags)
+            .FirstOrDefaultAsync(x => x.Components.Any(component => component.BusinessKey == businessKey));
+    }
+
+    public Task<ProductVariant?> GetByVariantTagBusinessKeyAsync(Guid variantTagBusinessKey)
+    {
+        if (variantTagBusinessKey == Guid.Empty)
+        {
+            return Task.FromResult<ProductVariant?>(null);
+        }
+
+        var businessKey = BusinessKey.FromGuid(variantTagBusinessKey);
+        return _dbContext.Set<ProductVariant>()
+            .Include(x => x.AttributeValues)
+            .Include(x => x.UomConversions)
+            .Include(x => x.Components)
+            .Include(x => x.AddOns)
+            .Include(x => x.Images)
+            .Include(x => x.Tags)
+            .FirstOrDefaultAsync(x => x.Tags.Any(tag => tag.BusinessKey == businessKey));
+    }
+
+    public Task<ProductVariant?> GetByImageFileKeyAsync(string fileKey)
+    {
+        var normalized = string.IsNullOrWhiteSpace(fileKey) ? null : fileKey.Trim();
+        if (normalized is null)
+        {
+            return Task.FromResult<ProductVariant?>(null);
+        }
+
+        return _dbContext.Set<ProductVariant>()
+            .Include(x => x.AttributeValues)
+            .Include(x => x.UomConversions)
+            .Include(x => x.Components)
+            .Include(x => x.AddOns)
+            .Include(x => x.Images)
+            .Include(x => x.Tags)
+            .FirstOrDefaultAsync(x => x.Images.Any(image => image.FileKey == normalized));
+    }
+
     public Task<List<ProductVariant>> GetByProductRefAsync(Guid productRef)
     {
         return _dbContext.Set<ProductVariant>()

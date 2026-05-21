@@ -16,23 +16,21 @@ public class RemoveVariantAddOnCommandHandler : CommandHandler<RemoveVariantAddO
 
     public override async Task<CommandResult<RemoveVariantAddOnCommandResult>> Handle(RemoveVariantAddOnCommand command)
     {
-        if (command.ProductVariantBusinessKey == Guid.Empty)
-            return Fail("ProductVariantBusinessKey is required.");
+        if (command.VariantAddOnBusinessKey == Guid.Empty)
+            return Fail("VariantAddOnBusinessKey is required.");
 
-        if (command.AddOnVariantRef == Guid.Empty)
-            return Fail("AddOnVariantRef is required.");
-
-        var variant = await _variantRepository.GetByBusinessKeyAsync(command.ProductVariantBusinessKey);
+        var variant = await _variantRepository.GetByVariantAddOnBusinessKeyAsync(command.VariantAddOnBusinessKey);
         if (variant is null)
-            return Fail("Product variant was not found.");
+            return Fail("Variant add-on was not found.");
 
-        variant.RemoveAddOn(command.AddOnVariantRef);
+        if (!variant.RemoveAddOn(command.VariantAddOnBusinessKey))
+            return Fail("Variant add-on was not found.");
+
         await _variantRepository.CommitAsync();
 
         return Ok(new RemoveVariantAddOnCommandResult
         {
-            ProductVariantBusinessKey = variant.BusinessKey.Value,
-            AddOnVariantRef = command.AddOnVariantRef
+            VariantAddOnBusinessKey = command.VariantAddOnBusinessKey
         });
     }
 }

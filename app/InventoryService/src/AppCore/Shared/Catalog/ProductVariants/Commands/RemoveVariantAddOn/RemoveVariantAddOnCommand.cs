@@ -4,6 +4,5 @@ using OysterFx.AppCore.Shared.Commands;
 
 public class RemoveVariantAddOnCommand : ICommand<RemoveVariantAddOnCommandResult>
 {
-    public Guid ProductVariantBusinessKey { get; set; }
-    public Guid AddOnVariantRef { get; set; }
+    public Guid VariantAddOnBusinessKey { get; set; }
 }

@@ -2,7 +2,5 @@ namespace Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Comm
 
 public class RemoveVariantTagCommandResult
 {
-    public Guid ProductVariantBusinessKey { get; set; }
-    public Guid? VariantTagBusinessKey { get; set; }
-    public string? TagName { get; set; }
+    public Guid VariantTagBusinessKey { get; set; }
 }

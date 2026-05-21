@@ -720,20 +720,55 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveVariantComponent(string productId, string variantId, string componentVariantId, string? componentId)
+    public async Task<IActionResult> RemoveVariantComponent(string productId, string variantComponentBusinessKey)
     {
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
         if (!TryGetToken(out var token))
         {
+            if (isAjaxRequest)
+            {
+                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+            }
+
             return RedirectToAction("Login", "Auth");
         }
 
-        var result = await _apiService.RemoveVariantComponentAsync(variantId, componentVariantId, componentId, token);
-        if (!result.IsSuccess)
+        if (string.IsNullOrWhiteSpace(variantComponentBusinessKey))
         {
-            TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â­Ã˜Â°Ã™Â Ã˜Â¬Ã˜Â²Ã˜Â¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+            var errorMessage = "شناسه کامپوننت معتبر نیست.";
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
+            return RedirectToAction(nameof(Variants), new { productId });
         }
 
-        return RedirectToAction(nameof(Variants), new { productId, variantId });
+        var result = await _apiService.RemoveVariantComponentAsync(variantComponentBusinessKey, token);
+        if (!result.IsSuccess)
+        {
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف کامپوننت انجام نشد." });
+            }
+
+            TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â­Ã˜Â°Ã™Â Ã˜Â¬Ã˜Â²Ã˜Â¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+        }
+        else if (isAjaxRequest)
+        {
+            return Json(new
+            {
+                isSuccess = true,
+                message = "کامپوننت با موفقیت حذف شد.",
+                productId,
+                variantComponentBusinessKey
+            });
+        }
+
+        return RedirectToAction(nameof(Variants), new { productId });
     }
 
     [HttpPost]
@@ -773,7 +808,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveVariantAddOn(string productId, string variantId, string addOnVariantId)
+    public async Task<IActionResult> RemoveVariantAddOn(string productId, string variantAddOnBusinessKey)
     {
         var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
                             Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
@@ -788,19 +823,19 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        if (string.IsNullOrWhiteSpace(variantId) || string.IsNullOrWhiteSpace(addOnVariantId))
+        if (string.IsNullOrWhiteSpace(variantAddOnBusinessKey))
         {
-            var errorMessage = "شناسه واریانت یا ادزآن معتبر نیست.";
+            var errorMessage = "شناسه Add-on معتبر نیست.";
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
             }
 
             TempData["CatalogError"] = errorMessage;
-            return RedirectToAction(nameof(Variants), new { productId, variantId });
+            return RedirectToAction(nameof(Variants), new { productId });
         }
 
-        var result = await _apiService.RemoveVariantAddOnAsync(variantId, addOnVariantId, token);
+        var result = await _apiService.RemoveVariantAddOnAsync(variantAddOnBusinessKey, token);
         if (!result.IsSuccess)
         {
             if (isAjaxRequest)
@@ -817,12 +852,11 @@ public sealed class VariantManagementController : CatalogManagementController
                 isSuccess = true,
                 message = "Add-on با موفقیت حذف شد.",
                 productId,
-                variantId,
-                addOnVariantId
+                variantAddOnBusinessKey
             });
         }
 
-        return RedirectToAction(nameof(Variants), new { productId, variantId });
+        return RedirectToAction(nameof(Variants), new { productId });
     }
 
     [HttpGet]
@@ -1134,7 +1168,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveVariantTag(string productId, string variantId, string? variantTagBusinessKey, string? tagId, string? tagName)
+    public async Task<IActionResult> RemoveVariantTag(string productId, string variantTagBusinessKey)
     {
         var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
                             Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
@@ -1149,11 +1183,19 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        var resolvedVariantTagBusinessKey = !string.IsNullOrWhiteSpace(variantTagBusinessKey)
-            ? variantTagBusinessKey
-            : tagId;
+        if (string.IsNullOrWhiteSpace(variantTagBusinessKey))
+        {
+            var errorMessage = "شناسه Tag معتبر نیست.";
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
 
-        var result = await _apiService.RemoveVariantTagAsync(variantId, resolvedVariantTagBusinessKey, tagName, token);
+            TempData["CatalogError"] = errorMessage;
+            return RedirectToAction(nameof(Variants), new { productId });
+        }
+
+        var result = await _apiService.RemoveVariantTagAsync(variantTagBusinessKey, token);
         if (!result.IsSuccess)
         {
             if (isAjaxRequest)
@@ -1171,17 +1213,15 @@ public sealed class VariantManagementController : CatalogManagementController
                 {
                     isSuccess = true,
                     message = "برچسب با موفقیت حذف شد.",
-                    variantId,
                     productId,
-                    variantTagBusinessKey = resolvedVariantTagBusinessKey,
-                    tagName
+                    variantTagBusinessKey
                 });
             }
 
             TempData["CatalogSuccess"] = "برچسب با موفقیت حذف شد.";
         }
 
-        return RedirectToAction(nameof(Variants), new { productId, variantId });
+        return RedirectToAction(nameof(Variants), new { productId });
     }
 
     [HttpPost]
@@ -1697,7 +1737,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveVariantImage(string productId, string variantId, string fileKey)
+    public async Task<IActionResult> RemoveVariantImage(string productId, string fileKey)
     {
         var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
                             Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
@@ -1712,19 +1752,19 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction("Login", "Auth");
         }
 
-        if (string.IsNullOrWhiteSpace(variantId) || string.IsNullOrWhiteSpace(fileKey))
+        if (string.IsNullOrWhiteSpace(fileKey))
         {
-            var errorMessage = "شناسه واریانت یا فایل تصویر معتبر نیست.";
+            var errorMessage = "شناسه فایل تصویر معتبر نیست.";
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
             }
 
             TempData["CatalogError"] = "Ã˜Â´Ã™â€ Ã˜Â§Ã˜Â³Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã›Å’Ã˜Â§ Ã™ÂÃ˜Â§Ã›Å’Ã™â€ž Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã™â€ Ã›Å’Ã˜Â³Ã˜Âª.";
-            return RedirectToAction(nameof(Variants), new { productId, variantId });
+            return RedirectToAction(nameof(Variants), new { productId });
         }
 
-        var result = await _apiService.RemoveVariantImageAsync(variantId, fileKey, token);
+        var result = await _apiService.RemoveVariantImageAsync(fileKey, token);
         if (!result.IsSuccess)
         {
             if (isAjaxRequest)
@@ -1741,7 +1781,6 @@ public sealed class VariantManagementController : CatalogManagementController
                 isSuccess = true,
                 message = "تصویر واریانت حذف شد.",
                 productId,
-                variantId,
                 fileKey
             });
         }
@@ -1750,7 +1789,7 @@ public sealed class VariantManagementController : CatalogManagementController
             TempData["CatalogSuccess"] = "Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â­Ã˜Â°Ã™Â Ã˜Â´Ã˜Â¯.";
         }
 
-        return RedirectToAction(nameof(Variants), new { productId, variantId });
+        return RedirectToAction(nameof(Variants), new { productId });
     }
 
     private async Task<(bool Success, string? Error, CreateInventoryDocumentForm? Form)> BuildAssembleDocumentAsync(

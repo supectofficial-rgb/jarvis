@@ -53,9 +53,7 @@
                             <form asp-action="RemoveVariantComponent" method="post" class="d-inline" data-ajax-submit="variant-components" data-loading-form>
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                <input type="hidden" name="componentId" value="@component.ComponentId" />
-                                <input type="hidden" name="componentVariantId" value="@component.ComponentVariantId" />
+                                <input type="hidden" name="variantComponentBusinessKey" value="@component.ComponentId" />
                                 <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
                             </form>
                         </div>

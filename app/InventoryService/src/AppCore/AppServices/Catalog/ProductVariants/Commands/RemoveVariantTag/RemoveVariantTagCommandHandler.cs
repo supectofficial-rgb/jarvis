@@ -16,21 +16,21 @@ public class RemoveVariantTagCommandHandler : CommandHandler<RemoveVariantTagCom
 
     public override async Task<CommandResult<RemoveVariantTagCommandResult>> Handle(RemoveVariantTagCommand command)
     {
-        if (command.ProductVariantBusinessKey == Guid.Empty)
-            return Fail("ProductVariantBusinessKey is required.");
+        if (command.VariantTagBusinessKey == Guid.Empty)
+            return Fail("VariantTagBusinessKey is required.");
 
-        var variant = await _variantRepository.GetByBusinessKeyAsync(command.ProductVariantBusinessKey);
+        var variant = await _variantRepository.GetByVariantTagBusinessKeyAsync(command.VariantTagBusinessKey);
         if (variant is null)
-            return Fail("Product variant was not found.");
+            return Fail("Variant tag was not found.");
 
-        variant.RemoveTag(command.VariantTagBusinessKey);
+        if (!variant.RemoveTag(command.VariantTagBusinessKey))
+            return Fail("Variant tag was not found.");
+
         await _variantRepository.CommitAsync();
 
         return Ok(new RemoveVariantTagCommandResult
         {
-            ProductVariantBusinessKey = variant.BusinessKey.Value,
-            VariantTagBusinessKey = command.VariantTagBusinessKey,
-            TagName = command.TagName
+            VariantTagBusinessKey = command.VariantTagBusinessKey
         });
     }
 }

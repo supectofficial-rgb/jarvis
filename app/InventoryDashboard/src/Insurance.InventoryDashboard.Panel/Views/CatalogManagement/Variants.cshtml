@@ -2124,13 +2124,9 @@
                 var body = new URLSearchParams();
                 body.append('__RequestVerificationToken', token);
                 body.append('productId', getSelectedProductId());
-                body.append('variantId', tagsSingleVariantId.value || '');
                 var variantTagBusinessKey = (tag.variantTagBusinessKey || tag.VariantTagBusinessKey || tag.tagId || tag.TagId || '').toString().trim();
                 if (variantTagBusinessKey) {
                     body.append('variantTagBusinessKey', variantTagBusinessKey);
-                }
-                if (tag.tagName || tag.TagName) {
-                    body.append('tagName', tag.tagName || tag.TagName);
                 }
 
                 return fetch(@Html.Raw(JsonSerializer.Serialize(Url.Action("RemoveVariantTag", "VariantManagement") ?? string.Empty)), {

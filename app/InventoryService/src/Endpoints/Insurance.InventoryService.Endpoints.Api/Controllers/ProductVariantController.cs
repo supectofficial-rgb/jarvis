@@ -132,15 +132,13 @@ public class ProductVariantController : OysterFxController
         return SendCommand<UpsertVariantComponentCommand, UpsertVariantComponentCommandResult>(command);
     }
 
-    [HttpDelete("{productVariantBusinessKey:guid}/components")]
+    [HttpDelete("components/{variantComponentBusinessKey:guid}")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
-    public Task<IActionResult> RemoveComponent([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid? variantComponentBusinessKey, [FromQuery] Guid componentVariantRef)
+    public Task<IActionResult> RemoveComponent([FromRoute] Guid variantComponentBusinessKey)
         => SendCommand<RemoveVariantComponentCommand, RemoveVariantComponentCommandResult>(
             new RemoveVariantComponentCommand
             {
-                ProductVariantBusinessKey = productVariantBusinessKey,
-                VariantComponentBusinessKey = variantComponentBusinessKey,
-                ComponentVariantRef = componentVariantRef
+                VariantComponentBusinessKey = variantComponentBusinessKey
             });
 
     [HttpPut("{productVariantBusinessKey:guid}/addons")]
@@ -151,14 +149,13 @@ public class ProductVariantController : OysterFxController
         return SendCommand<UpsertVariantAddOnCommand, UpsertVariantAddOnCommandResult>(command);
     }
 
-    [HttpDelete("{productVariantBusinessKey:guid}/addons")]
+    [HttpDelete("addons/{variantAddOnBusinessKey:guid}")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
-    public Task<IActionResult> RemoveAddOn([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid addOnVariantRef)
+    public Task<IActionResult> RemoveAddOn([FromRoute] Guid variantAddOnBusinessKey)
         => SendCommand<RemoveVariantAddOnCommand, RemoveVariantAddOnCommandResult>(
             new RemoveVariantAddOnCommand
             {
-                ProductVariantBusinessKey = productVariantBusinessKey,
-                AddOnVariantRef = addOnVariantRef
+                VariantAddOnBusinessKey = variantAddOnBusinessKey
             });
 
     [HttpPut("{productVariantBusinessKey:guid}/tags")]
@@ -174,15 +171,13 @@ public class ProductVariantController : OysterFxController
     public Task<IActionResult> CreateTag([FromBody] CreateTagDefinitionCommand command)
         => SendCommand<CreateTagDefinitionCommand, CreateTagDefinitionCommandResult>(command);
 
-    [HttpDelete("{productVariantBusinessKey:guid}/tags")]
+    [HttpDelete("tags/{variantTagBusinessKey:guid}")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
-    public Task<IActionResult> RemoveTag([FromRoute] Guid productVariantBusinessKey, [FromQuery] Guid? variantTagBusinessKey, [FromQuery] string? tagName)
+    public Task<IActionResult> RemoveTag([FromRoute] Guid variantTagBusinessKey)
         => SendCommand<RemoveVariantTagCommand, RemoveVariantTagCommandResult>(
             new RemoveVariantTagCommand
             {
-                ProductVariantBusinessKey = productVariantBusinessKey,
-                VariantTagBusinessKey = variantTagBusinessKey,
-                TagName = tagName
+                VariantTagBusinessKey = variantTagBusinessKey
             });
 
     [HttpPut("{productVariantBusinessKey:guid}/images")]
@@ -193,13 +188,12 @@ public class ProductVariantController : OysterFxController
         return SendCommand<UpsertVariantImageCommand, UpsertVariantImageCommandResult>(command);
     }
 
-    [HttpDelete("{productVariantBusinessKey:guid}/images")]
+    [HttpDelete("images")]
     [RequirePermission("Inventory.ProductVariant.Update", "Catalog.Variant.Update")]
-    public Task<IActionResult> RemoveImage([FromRoute] Guid productVariantBusinessKey, [FromQuery] string fileKey)
+    public Task<IActionResult> RemoveImage([FromQuery] string fileKey)
         => SendCommand<RemoveVariantImageCommand, RemoveVariantImageCommandResult>(
             new RemoveVariantImageCommand
             {
-                ProductVariantBusinessKey = productVariantBusinessKey,
                 FileKey = fileKey
             });
 

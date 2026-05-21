@@ -60,8 +60,7 @@ else
                             <form asp-action="RemoveVariantAddOn" method="post" class="d-inline" data-ajax-submit="variant-addons" data-loading-form>
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                                <input type="hidden" name="addOnVariantId" value="@addOn.AddOnVariantId" />
+                                <input type="hidden" name="variantAddOnBusinessKey" value="@addOn.AddOnId" />
                                 <button type="submit" class="btn btn-outline-danger btn-xs">@UiText["common.delete"]</button>
                             </form>
                         </div>

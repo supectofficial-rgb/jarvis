@@ -6,6 +6,10 @@ using OysterFx.AppCore.Shared.Commands;
 public interface IProductVariantCommandRepository : ICommandRepository<ProductVariant, long>
 {
     Task<ProductVariant?> GetByBusinessKeyAsync(Guid productVariantBusinessKey);
+    Task<ProductVariant?> GetByVariantAddOnBusinessKeyAsync(Guid variantAddOnBusinessKey);
+    Task<ProductVariant?> GetByComponentBusinessKeyAsync(Guid variantComponentBusinessKey);
+    Task<ProductVariant?> GetByVariantTagBusinessKeyAsync(Guid variantTagBusinessKey);
+    Task<ProductVariant?> GetByImageFileKeyAsync(string fileKey);
     Task<List<ProductVariant>> GetByProductRefAsync(Guid productRef);
     Task<bool> ExistsByVariantSkuAsync(string variantSku, Guid? exceptBusinessKey = null);
     Task<bool> ExistsByBarcodeAsync(string barcode, Guid? exceptBusinessKey = null);

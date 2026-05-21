@@ -2,6 +2,5 @@ namespace Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Comm
 
 public class RemoveVariantAddOnCommandResult
 {
-    public Guid ProductVariantBusinessKey { get; set; }
-    public Guid AddOnVariantRef { get; set; }
+    public Guid VariantAddOnBusinessKey { get; set; }
 }
