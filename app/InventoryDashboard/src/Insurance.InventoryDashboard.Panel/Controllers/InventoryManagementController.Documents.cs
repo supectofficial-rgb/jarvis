@@ -205,7 +205,7 @@ public sealed partial class InventoryManagementController
             });
         }
 
-        if (!Guid.TryParse(variantId, out _))
+        if (!Guid.TryParse(variantId, out var parsedVariantId))
         {
             return Json(new
             {
@@ -287,6 +287,81 @@ public sealed partial class InventoryManagementController
         });
     }
 
+    [HttpGet("/InventoryManagement/Documents/Transfer/Details")]
+    public async Task<IActionResult> TransferDocumentDetails(
+        string documentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Content("شما دسترسی مشاهده اسناد موجودی را ندارید.");
+        }
+
+        var model = await BuildTransferDocumentDetailsModalModelAsync(documentId, token, cancellationToken);
+        return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", model);
+    }
+
+    [HttpGet("/InventoryManagement/Documents/Transfer/VariantInventoryLookup")]
+    public async Task<IActionResult> SearchTransferVariantInventoryLookup(string variantId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!Guid.TryParse(variantId, out _))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "واریانت انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        var parsedVariantId = Guid.Parse(variantId);
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده انبارهای واریانت را ندارید."
+            });
+        }
+
+        var stockBucketsResult = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: parsedVariantId, minQuantity: 0);
+
+        if (!stockBucketsResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = stockBucketsResult.ErrorMessage
+            });
+        }
+
+        var allowedLocationIds = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+            .Where(x => x.QuantityOnHand > 0)
+            .Select(x => x.LocationRef.ToString("D"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            allowedLocationIds
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveReceiptDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
@@ -349,6 +424,85 @@ public sealed partial class InventoryManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveTransferDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Content("شما دسترسی ویرایش آیتم سند را ندارید.");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            var invalidModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidModel.ErrorMessage = ExtractModelError(ModelState);
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(form.DocumentId, token);
+        var document = documentResult.Data;
+        if (document is null)
+        {
+            var notFoundModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            notFoundModel.ErrorMessage = documentResult.ErrorMessage ?? "سند یافت نشد.";
+            notFoundModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", notFoundModel);
+        }
+
+        var variantsResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var variants = variantsResult.Data ?? new List<ProductVariantSummaryModel>();
+        var variant = variants.FirstOrDefault(x => string.Equals(x.Id, form.VariantId, StringComparison.OrdinalIgnoreCase));
+        if (variant is null)
+        {
+            var invalidVariantModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidVariantModel.ErrorMessage = "واریانت انتخاب شده معتبر نیست.";
+            invalidVariantModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidVariantModel);
+        }
+
+        form.UomRef = variant.BaseUomRef;
+        form.BaseUomRef = variant.BaseUomRef;
+
+        if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
+        {
+            var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidLocationModel.ErrorMessage = "برای سند انتقال، لوکیشن مبدا الزامی است.";
+            invalidLocationModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidLocationModel);
+        }
+
+        if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
+        {
+            var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidLocationModel.ErrorMessage = "برای سند انتقال، لوکیشن مقصد الزامی است.";
+            invalidLocationModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidLocationModel);
+        }
+
+        if (string.Equals(form.SourceLocationRef, form.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
+        {
+            var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidLocationModel.ErrorMessage = "لوکیشن مبدأ و مقصد باید متفاوت باشند.";
+            invalidLocationModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidLocationModel);
+        }
+
+        var result = string.IsNullOrWhiteSpace(form.LineId)
+            ? await _apiService.AddInventoryDocumentLineAsync(form.DocumentId, form, token)
+            : await _apiService.UpdateInventoryDocumentLineAsync(form.DocumentId, form.LineId!, form, token);
+
+        var refreshedModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token, cancellationToken);
+        refreshedModel.ErrorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "ذخیره آیتم سند انجام نشد.";
+        return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", refreshedModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteReceiptDocumentLine(string documentId, string lineId, CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
@@ -372,6 +526,33 @@ public sealed partial class InventoryManagementController
         var refreshedModel = await BuildReceiptDocumentDetailsModalModelAsync(documentId, token);
         refreshedModel.ErrorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "حذف آیتم سند انجام نشد.";
         return PartialView("~/Views/InventoryManagement/_ReceiptDocumentDetailsModalBody.cshtml", refreshedModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteTransferDocumentLine(string documentId, string lineId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Content("شما دسترسی حذف آیتم سند را ندارید.");
+        }
+
+        if (string.IsNullOrWhiteSpace(documentId) || string.IsNullOrWhiteSpace(lineId))
+        {
+            var invalidModel = await BuildTransferDocumentDetailsModalModelAsync(documentId, token);
+            invalidModel.ErrorMessage = "آیتم سند برای حذف مشخص نشده است.";
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var result = await _apiService.DeleteInventoryDocumentLineAsync(documentId, lineId, token);
+        var refreshedModel = await BuildTransferDocumentDetailsModalModelAsync(documentId, token);
+        refreshedModel.ErrorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "حذف آیتم سند انجام نشد.";
+        return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", refreshedModel);
     }
 
     [HttpGet("/InventoryManagement/Documents/Issue")]
@@ -402,6 +583,168 @@ public sealed partial class InventoryManagementController
             page,
             pageSize,
             cancellationToken);
+
+    [HttpGet("/InventoryManagement/Documents/Issue/Details")]
+    public async Task<IActionResult> IssueDocumentDetails(
+        string documentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Content("شما دسترسی مشاهده اسناد موجودی را ندارید.");
+        }
+
+        var model = await BuildIssueDocumentDetailsModalModelAsync(documentId, token, cancellationToken);
+        return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", model);
+    }
+
+    [HttpGet("/InventoryManagement/Documents/Issue/VariantInventoryLookup")]
+    public async Task<IActionResult> SearchIssueVariantInventoryLookup(string variantId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!Guid.TryParse(variantId, out var parsedVariantId))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "واریانت انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده انبارهای واریانت را ندارید."
+            });
+        }
+
+        var stockBucketsResult = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: parsedVariantId, minQuantity: 0);
+        if (!stockBucketsResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = stockBucketsResult.ErrorMessage
+            });
+        }
+
+        var allowedLocationIds = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+            .Where(x => x.QuantityOnHand > 0)
+            .Select(x => x.LocationRef.ToString("D"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            allowedLocationIds
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveIssueDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Content("شما دسترسی ویرایش آیتم سند را ندارید.");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            var invalidModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidModel.ErrorMessage = ExtractModelError(ModelState);
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(form.DocumentId, token);
+        var document = documentResult.Data;
+        if (document is null)
+        {
+            var notFoundModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+            notFoundModel.ErrorMessage = documentResult.ErrorMessage ?? "سند یافت نشد.";
+            notFoundModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", notFoundModel);
+        }
+
+        var variantsResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var variants = variantsResult.Data ?? new List<ProductVariantSummaryModel>();
+        var variant = variants.FirstOrDefault(x => string.Equals(x.Id, form.VariantId, StringComparison.OrdinalIgnoreCase));
+        if (variant is null)
+        {
+            var invalidVariantModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidVariantModel.ErrorMessage = "واریانت انتخاب شده معتبر نیست.";
+            invalidVariantModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidVariantModel);
+        }
+
+        form.UomRef = variant.BaseUomRef;
+        form.BaseUomRef = variant.BaseUomRef;
+
+        if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
+        {
+            var invalidLocationModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidLocationModel.ErrorMessage = "برای سند حواله، لوکیشن مبدأ الزامی است.";
+            invalidLocationModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidLocationModel);
+        }
+
+        var result = string.IsNullOrWhiteSpace(form.LineId)
+            ? await _apiService.AddInventoryDocumentLineAsync(form.DocumentId, form, token)
+            : await _apiService.UpdateInventoryDocumentLineAsync(form.DocumentId, form.LineId!, form, token);
+
+        var refreshedModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token, cancellationToken);
+        refreshedModel.ErrorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "ذخیره آیتم سند انجام نشد.";
+        return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", refreshedModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteIssueDocumentLine(string documentId, string lineId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Content("شما دسترسی حذف آیتم سند را ندارید.");
+        }
+
+        if (string.IsNullOrWhiteSpace(documentId) || string.IsNullOrWhiteSpace(lineId))
+        {
+            var invalidModel = await BuildIssueDocumentDetailsModalModelAsync(documentId, token);
+            invalidModel.ErrorMessage = "آیتم سند برای حذف مشخص نشده است.";
+            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var result = await _apiService.DeleteInventoryDocumentLineAsync(documentId, lineId, token);
+        var refreshedModel = await BuildIssueDocumentDetailsModalModelAsync(documentId, token);
+        refreshedModel.ErrorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "حذف آیتم سند انجام نشد.";
+        return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", refreshedModel);
+    }
 
     [HttpGet("/InventoryManagement/Documents/Transfer")]
     public Task<IActionResult> TransferDocuments(
@@ -1042,7 +1385,7 @@ public sealed partial class InventoryManagementController
 
                     if (string.Equals(line.SourceLocationRef, line.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
                     {
-                        return "در سند انتقال، لوکیشن مبدا و مقصد باید متفاوت باشند.";
+                        return "برای سند انتقال، لوکیشن مبدا و مقصد باید متفاوت باشند.";
                     }
                     break;
 
@@ -1302,6 +1645,82 @@ public sealed partial class InventoryManagementController
                 .FirstOrDefault(x => string.Equals(x.LocationBusinessKey, lineForm.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
                 ?.WarehouseRef;
         }
+
+        return new InventoryDocumentManagementPageViewModel
+        {
+            SelectedDocumentId = documentId,
+            SelectedDocumentDetails = document,
+            ErrorMessage = documentResult.IsSuccess ? null : documentResult.ErrorMessage,
+            ProductLookup = productsTask.Result.Data ?? new List<ProductSummaryModel>(),
+            VariantLookup = variantsTask.Result.Data ?? new List<ProductVariantSummaryModel>(),
+            WarehouseLookup = warehousesTask.Result.Data ?? new List<WarehouseLookupItemModel>(),
+            SellerLookup = sellersTask.Result.Data ?? new List<SellerLookupItemModel>(),
+            LocationLookup = locationsTask.Result.Data ?? new List<LocationLookupItemModel>(),
+            UnitOfMeasureLookup = uomsTask.Result.Data ?? new List<UnitOfMeasureLookupModel>(),
+            LineForm = lineForm
+        };
+    }
+
+    private Task<InventoryDocumentManagementPageViewModel> BuildTransferDocumentDetailsModalModelAsync(
+        string documentId,
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        return BuildTransferDocumentDetailsModalModelCoreAsync(documentId, token, cancellationToken);
+    }
+
+    private async Task<InventoryDocumentManagementPageViewModel> BuildTransferDocumentDetailsModalModelCoreAsync(
+        string documentId,
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        var document = documentResult.Data;
+
+        var variantsTask = _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var productsTask = _apiService.SearchProductsAsync(token, page: 1, pageSize: 2000);
+        var warehousesTask = _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var sellersTask = _apiService.GetSellerLookupAsync(token, includeInactive: true);
+        var locationsTask = _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var uomsTask = _apiService.GetUnitOfMeasureLookupAsync(token);
+
+        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, uomsTask);
+
+        var lineForm = BuildLineForm(document, documentId, null, "Transfer");
+
+        return new InventoryDocumentManagementPageViewModel
+        {
+            SelectedDocumentId = documentId,
+            SelectedDocumentDetails = document,
+            ErrorMessage = documentResult.IsSuccess ? null : documentResult.ErrorMessage,
+            ProductLookup = productsTask.Result.Data ?? new List<ProductSummaryModel>(),
+            VariantLookup = variantsTask.Result.Data ?? new List<ProductVariantSummaryModel>(),
+            WarehouseLookup = warehousesTask.Result.Data ?? new List<WarehouseLookupItemModel>(),
+            SellerLookup = sellersTask.Result.Data ?? new List<SellerLookupItemModel>(),
+            LocationLookup = locationsTask.Result.Data ?? new List<LocationLookupItemModel>(),
+            UnitOfMeasureLookup = uomsTask.Result.Data ?? new List<UnitOfMeasureLookupModel>(),
+            LineForm = lineForm
+        };
+    }
+
+    private async Task<InventoryDocumentManagementPageViewModel> BuildIssueDocumentDetailsModalModelAsync(
+        string documentId,
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        var document = documentResult.Data;
+
+        var variantsTask = _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var productsTask = _apiService.SearchProductsAsync(token, page: 1, pageSize: 2000);
+        var warehousesTask = _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var sellersTask = _apiService.GetSellerLookupAsync(token, includeInactive: true);
+        var locationsTask = _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var uomsTask = _apiService.GetUnitOfMeasureLookupAsync(token);
+
+        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, uomsTask);
+
+        var lineForm = BuildLineForm(document, documentId, null, "Issue");
 
         return new InventoryDocumentManagementPageViewModel
         {

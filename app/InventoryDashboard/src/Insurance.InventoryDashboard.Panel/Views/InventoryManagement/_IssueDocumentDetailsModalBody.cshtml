@@ -3,7 +3,7 @@
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
     var document = Model.SelectedDocumentDetails;
-    var currentDocumentType = document?.DocumentType ?? "Receipt";
+    var currentDocumentType = document?.DocumentType ?? "Issue";
     var canEditLines = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);
 
     string TypeLabel(string? type) => type switch
@@ -78,47 +78,12 @@
         var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
         return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
     }
-
-    string WarehouseName(string? warehouseId)
-    {
-        if (string.IsNullOrWhiteSpace(warehouseId))
-        {
-            return "-";
-        }
-
-        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
-        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
-    }
-
-    string SellerName(string? sellerId)
-    {
-        if (string.IsNullOrWhiteSpace(sellerId))
-        {
-            return "-";
-        }
-
-        var seller = Model.SellerLookup.FirstOrDefault(x => string.Equals(x.SellerBusinessKey, sellerId, StringComparison.OrdinalIgnoreCase));
-        return seller is null ? sellerId : $"{seller.Code} - {seller.Name}";
-    }
-
-    string LocationWarehouse(string? locationId)
-    {
-        if (string.IsNullOrWhiteSpace(locationId))
-        {
-            return string.Empty;
-        }
-
-        return Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase))?.WarehouseRef ?? string.Empty;
-    }
-
 }
 
-<div id="receipt-document-details-modal-body"
-     class="modal-body receipt-document-details-modal"
-     data-warehouse-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.WarehouseLookup.Select(x => new { id = x.WarehouseBusinessKey, text = $"{x.Code} - {x.Name}" })))'
+<div id="issue-document-details-modal-body"
+     class="modal-body issue-document-details-modal"
      data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LocationLookup.Select(x => new { id = x.LocationBusinessKey, warehouseId = x.WarehouseRef, text = $"{x.LocationCode} ({x.LocationType})" })))'
-     data-default-warehouse-id="@Model.LineForm.WarehouseRef"
-     data-default-location-id="@Model.LineForm.DestinationLocationRef">
+     data-default-source-location-id="@Model.LineForm.SourceLocationRef">
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
         <div class="alert alert-warning">@Model.ErrorMessage</div>
@@ -138,26 +103,15 @@
             <span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span>
         </div>
 
-        <div class="row mb-3">
-            <div class="col-md-6 mb-2">
-                <div class="text-muted small">تاریخ وقوع</div>
-                <div>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</div>
-            </div>
-            <div class="col-md-6 mb-2">
-                <div class="text-muted small">مرجع</div>
-                <div>@(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</div>
-            </div>
-        </div>
-
         @if (canEditLines)
         {
             <div class="card mb-3">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ویرایش آیتم")</h6>
-                        <button type="button" class="btn btn-outline-secondary btn-xs js-receipt-line-cancel d-none">لغو ویرایش</button>
+                        <button type="button" class="btn btn-outline-secondary btn-xs js-issue-line-cancel d-none">لغو ویرایش</button>
                     </div>
-                    <form asp-action="SaveReceiptDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#receipt-document-details-modal-body" class="mb-0">
+                    <form asp-action="SaveIssueDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#issue-document-details-modal-body" class="mb-0">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
@@ -165,7 +119,7 @@
                         <div class="form-row">
                             <div class="form-group col-md-6">
                                 <label>واریانت</label>
-                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchReceiptVariantLookup", "InventoryManagement")' required>
+                                <select asp-for="LineForm.VariantId" class="form-control js-search-select js-issue-line-variant" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchReceiptVariantLookup", "InventoryManagement")' required>
                                     <option value="">انتخاب واریانت</option>
                                     @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                     {
@@ -174,29 +128,19 @@
                                 </select>
                             </div>
                             <div class="form-group col-md-6">
-                                <label>انبار</label>
-                                <select asp-for="LineForm.WarehouseRef" class="form-control js-search-select js-receipt-line-warehouse" data-placeholder="انتخاب انبار" required>
-                                    <option value="">انتخاب انبار</option>
-                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.LineForm.WarehouseRef ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                    }
+                                <label>لوکیشن مبدأ</label>
+                                <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select js-issue-line-source" data-placeholder="انتخاب لوکیشن" disabled required>
+                                    <option value="">ابتدا واریانت را انتخاب کنید</option>
                                 </select>
                             </div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group col-md-7">
-                                <label>لوکیشن</label>
-                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select js-receipt-line-location" data-placeholder="انتخاب لوکیشن" disabled required>
-                                    <option value="">ابتدا انبار را انتخاب کنید</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-3">
+                            <div class="form-group col-md-10">
                                 <label>تعداد</label>
                                 <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
                             </div>
                             <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-primary btn-block js-receipt-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
+                                <button class="btn btn-primary btn-block js-issue-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
                             </div>
                         </div>
                     </form>
@@ -227,7 +171,7 @@
                                 <th>واریانت</th>
                                 <th>تعداد</th>
                                 <th>واحد</th>
-                                <th>مقصد</th>
+                                <th>مبدأ</th>
                                 <th class="text-right">عملیات</th>
                             </tr>
                         </thead>
@@ -238,19 +182,17 @@
                                     <td>@VariantName(line.VariantRef)</td>
                                     <td>@line.Qty.ToString("0.####")</td>
                                     <td>@UomName(line.UomRef)</td>
-                                    <td>@LocationName(line.DestinationLocationRef)</td>
+                                    <td>@LocationName(line.SourceLocationRef)</td>
                                     <td class="text-right">
                                         @if (canEditLines)
                                         {
                                             <button type="button"
-                                                    class="btn btn-outline-primary btn-xs js-receipt-line-edit"
+                                                    class="btn btn-outline-primary btn-xs js-issue-line-edit"
                                                     data-line-id="@line.LineBusinessKey"
                                                     data-variant-id="@line.VariantRef"
-                                                    data-warehouse-id="@LocationWarehouse(line.DestinationLocationRef)"
-                                                    data-location-id="@line.DestinationLocationRef"
-                                                    data-qty="@line.Qty.ToString("0.####")"
-                                                    data-destination-location-id="@line.DestinationLocationRef">ویرایش</button>
-                                            <form asp-action="DeleteReceiptDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#receipt-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">
+                                                    data-source-location-id="@line.SourceLocationRef"
+                                                    data-qty="@line.Qty.ToString("0.####")">ویرایش</button>
+                                            <form asp-action="DeleteIssueDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#issue-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
                                                 <input type="hidden" name="lineId" value="@line.LineBusinessKey" />

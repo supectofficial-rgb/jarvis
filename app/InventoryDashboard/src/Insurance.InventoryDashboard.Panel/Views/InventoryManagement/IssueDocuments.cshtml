@@ -318,16 +318,19 @@
                                                         }
                                                     </select>
                                                 </div>
-                                                <div class="form-group col-md-3 line-destination">
-                                                    <label>لوکیشن مقصد</label>
-                                                    <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                        <option value="">انتخاب لوکیشن</option>
-                                                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                                        {
-                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                                        }
-                                                    </select>
-                                                </div>
+                                                @if (!string.Equals(currentDocumentType, "Issue", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <div class="form-group col-md-3 line-destination">
+                                                        <label>لوکیشن مقصد</label>
+                                                        <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
+                                                            <option value="">انتخاب لوکیشن</option>
+                                                            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                                            {
+                                                                <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
                                                 <div class="form-group col-md-2">
                                                     <label>لات/بچ</label>
                                                     <input name="CreateForm.Lines[@i].LotBatchNo" value="@Model.CreateForm.Lines[i].LotBatchNo" class="form-control" />
@@ -593,16 +596,19 @@
                                                     }
                                                 </select>
                                             </div>
-                                            <div class="form-group col-md-3 line-destination">
-                                                <label>لوکیشن مقصد</label>
-                                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                    <option value="">انتخاب لوکیشن</option>
-                                                    @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                                    {
-                                                        <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                                    }
-                                                </select>
-                                            </div>
+                                            @if (!string.Equals(selectedDocumentType, "Issue", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <div class="form-group col-md-3 line-destination">
+                                                    <label>لوکیشن مقصد</label>
+                                                    <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
+                                                        <option value="">انتخاب لوکیشن</option>
+                                                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                                        {
+                                                            <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                            }
                                             <div class="form-group col-md-2">
                                                 <label>لات/بچ</label>
                                                 <input asp-for="LineForm.LotBatchNo" class="form-control" />
@@ -686,7 +692,10 @@
                                                     <th>تعداد</th>
                                                     <th>واحد</th>
                                                     <th>مبدا</th>
-                                                    <th>مقصد</th>
+                                                    @if (!string.Equals(selectedDocumentType, "Issue", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <th>مقصد</th>
+                                                    }
                                                     @if (showQualityColumn)
                                                     {
                                                         <th>کیفیت</th>
@@ -721,7 +730,10 @@
                                                         <td>@line.Qty.ToString("0.####")</td>
                                                         <td>@UomName(line.UomRef)</td>
                                                         <td>@LocationName(line.SourceLocationRef)</td>
-                                                        <td>@LocationName(line.DestinationLocationRef)</td>
+                                                        @if (!string.Equals(selectedDocumentType, "Issue", StringComparison.OrdinalIgnoreCase))
+                                                        {
+                                                            <td>@LocationName(line.DestinationLocationRef)</td>
+                                                        }
                                                         @if (showQualityColumn)
                                                         {
                                                             <td>
@@ -754,7 +766,7 @@
                                                     @if (!string.IsNullOrWhiteSpace(line.LotBatchNo) || line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         <tr>
-                                                            <td colspan="@(showQualityColumn ? 8 : 7)" class="text-muted small">
+                                                            <td colspan="@(showQualityColumn ? (string.Equals(selectedDocumentType, "Issue", StringComparison.OrdinalIgnoreCase) ? 7 : 8) : (string.Equals(selectedDocumentType, "Issue", StringComparison.OrdinalIgnoreCase) ? 6 : 7))" class="text-muted small">
                                                                 Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
                                                                 @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
                                                                 {

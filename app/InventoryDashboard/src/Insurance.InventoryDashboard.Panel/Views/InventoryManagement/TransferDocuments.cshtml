@@ -402,9 +402,9 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="card-title mb-0">لیست اسناد</h5>
-                            <span class="text-muted small">@Model.DocumentTotalCount رکورد</span>
+                            <span class="text-muted small" id="transfer-document-list-count">@Model.DocumentTotalCount رکورد</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="transfer-document-list-form">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
@@ -477,7 +477,7 @@
                                         <th class="text-right">عملیات</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="transfer-document-list-body">
                                     @if (Model.Documents.Count == 0)
                                     {
                                         <tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>
@@ -494,7 +494,40 @@
                                                 <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@document.DocumentBusinessKey" asp-route-documentNo="@Model.DocumentNoFilter" asp-route-documentType="@Model.DocumentTypeFilter" asp-route-status="@Model.DocumentStatusFilter" asp-route-warehouseId="@Model.WarehouseFilter" asp-route-sellerId="@Model.SellerFilter" asp-route-occurredFrom="@Model.OccurredFromFilter" asp-route-occurredTo="@Model.OccurredToFilter" asp-route-page="@Model.DocumentPage" asp-route-pageSize="@Model.DocumentPageSize" data-ajax-target="#documents-page-root">جزئیات</a>
+                                                    <button type="button"
+                                                            class="btn btn-outline-primary btn-xs js-transfer-document-details"
+                                                            data-document-id="@document.DocumentBusinessKey"
+                                                            data-document-no="@document.DocumentNo">جزئیات</button>
+                                                    @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <a class="btn btn-outline-secondary btn-xs mr-1"
+                                                           asp-action="@documentAction"
+                                                           asp-controller="InventoryManagement"
+                                                           asp-route-documentId="@document.DocumentBusinessKey"
+                                                           asp-route-documentType="@document.DocumentType"
+                                                           asp-route-tab="create"
+                                                           data-ajax-target="#documents-page-root">ویرایش</a>
+                                                        <form asp-action="DeleteDocument"
+                                                              asp-controller="InventoryManagement"
+                                                              method="post"
+                                                              class="d-inline"
+                                                              data-loading-form
+                                                              data-ajax-target="#documents-page-root"
+                                                              onsubmit="return confirm('این سند حذف شود؟');">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
+                                                            <input type="hidden" name="documentType" value="@document.DocumentType" />
+                                                            <input type="hidden" name="documentNo" value="@Model.DocumentNoFilter" />
+                                                            <input type="hidden" name="status" value="@Model.DocumentStatusFilter" />
+                                                            <input type="hidden" name="warehouseId" value="@Model.WarehouseFilter" />
+                                                            <input type="hidden" name="sellerId" value="@Model.SellerFilter" />
+                                                            <input type="hidden" name="occurredFrom" value="@Model.OccurredFromFilter" />
+                                                            <input type="hidden" name="occurredTo" value="@Model.OccurredToFilter" />
+                                                            <input type="hidden" name="page" value="@Model.DocumentPage" />
+                                                            <input type="hidden" name="pageSize" value="@Model.DocumentPageSize" />
+                                                            <button class="btn btn-outline-danger btn-xs mr-1 js-transfer-document-delete" type="button" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">حذف</button>
+                                                        </form>
+                                                    }
                                                 </td>
                                             </tr>
                                         }
@@ -505,8 +538,8 @@
 
                         @if (Model.DocumentTotalPages > 1)
                         {
-                            <nav class="mt-3">
-                                <ul class="pagination pagination-sm mb-0">
+                            <nav class="mt-3" id="transfer-document-list-pagination-wrapper">
+                                <ul class="pagination pagination-sm mb-0" id="transfer-document-list-pagination">
                                     @for (var i = 1; i <= Model.DocumentTotalPages; i++)
                                     {
                                         <li class="page-item @(i == Model.DocumentPage ? "active" : null)">
@@ -685,8 +718,8 @@
                                                     <th>واریانت</th>
                                                     <th>تعداد</th>
                                                     <th>واحد</th>
-                                                    <th>مبدا</th>
-                                                    <th>مقصد</th>
+                                        <th>مبدا</th>
+                                        <th>مقصد</th>
                                                     @if (showQualityColumn)
                                                     {
                                                         <th>کیفیت</th>
@@ -721,7 +754,7 @@
                                                         <td>@line.Qty.ToString("0.####")</td>
                                                         <td>@UomName(line.UomRef)</td>
                                                         <td>@LocationName(line.SourceLocationRef)</td>
-                                                        <td>@LocationName(line.DestinationLocationRef)</td>
+                                                         <td>@LocationName(line.DestinationLocationRef)</td>
                                                         @if (showQualityColumn)
                                                         {
                                                             <td>
@@ -821,6 +854,25 @@
     </div>
 </main>
 
+<div class="modal fade" id="transfer-document-details-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="transfer-document-details-modal-title">جزئیات سند حواله</h5>
+                    <div class="small text-muted" id="transfer-document-details-modal-subtitle"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="transfer-document-details-modal-body">
+                <div class="text-muted">در حال بارگذاری...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script data-ajax-reinit="documents">
         (function () {
@@ -839,7 +891,7 @@
                     title: 'رسید انبار',
                     text: 'برای ورود کالا به انبار استفاده می‌شود. در هر ردیف، لوکیشن مقصد الزامی است.',
                     source: false,
-                    destination: true,
+                    destination: false,
                     quality: false,
                     qualityChange: false,
                     adjustment: false,
@@ -859,7 +911,7 @@
                     title: 'انتقال بین لوکیشن‌ها',
                     text: 'برای جابه‌جایی داخلی کالا استفاده می‌شود. مبدا و مقصد هر ردیف الزامی و باید متفاوت باشند.',
                     source: true,
-                    destination: true,
+                    destination: false,
                     quality: false,
                     qualityChange: false,
                     adjustment: false,
@@ -1244,6 +1296,609 @@
             toggleTypeFields();
             syncLocationsToWarehouse();
             setLinesPanelVisible(false);
+        })();
+    </script>
+    <script data-ajax-reinit="transfer-documents-details">
+        (function () {
+            var modalSelector = '#transfer-document-details-modal';
+            var modalBodySelector = '#transfer-document-details-modal-body';
+            var modalTitleSelector = '#transfer-document-details-modal-title';
+            var modalSubtitleSelector = '#transfer-document-details-modal-subtitle';
+            var detailsUrl = '@Url.Action("TransferDocumentDetails", "InventoryManagement")';
+            var variantInventoryLookupUrl = '@Url.Action("SearchTransferVariantInventoryLookup", "InventoryManagement")';
+            var transferLocationOptions = [];
+            var transferAllowedLocationIds = [];
+            var documentListUrl = '@Url.Action("DocumentList", "InventoryManagement")';
+            var documentListFormSelector = '#transfer-document-list-form';
+            var documentListCountSelector = '#transfer-document-list-count';
+            var documentListBodySelector = '#transfer-document-list-body';
+            var documentListPaginationWrapperSelector = '#transfer-document-list-pagination-wrapper';
+            var documentListPaginationSelector = '#transfer-document-list-pagination';
+            var deleteDocumentUrl = '@Url.Action("DeleteDocument", "InventoryManagement")';
+
+            function showModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalSelector).modal('show');
+                }
+            }
+
+            function escapeHtml(value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function hydrateTransferInventoryOptions(root) {
+                root = root || document;
+                var locationJson = root.dataset ? root.dataset.locationOptions : '';
+
+                if (locationJson) {
+                    try {
+                        transferLocationOptions = JSON.parse(locationJson) || [];
+                    } catch (error) {
+                        console.error(error);
+                        transferLocationOptions = [];
+                    }
+                }
+            }
+
+            function getTransferLineControls(root) {
+                root = root || document;
+                return {
+                    variantSelect: root.querySelector('select[name="LineForm.VariantId"]'),
+                    sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]'),
+                    qtyInput: root.querySelector('input[name="LineForm.Qty"]'),
+                    submitButton: root.querySelector('.js-transfer-line-submit'),
+                    cancelButton: root.querySelector('.js-transfer-line-cancel')
+                };
+            }
+
+            function setSelectOptions(select, items, placeholderText, selectedValue) {
+                if (!select) {
+                    return;
+                }
+
+                while (select.firstChild) {
+                    select.removeChild(select.firstChild);
+                }
+
+                var placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = placeholderText || '';
+                select.appendChild(placeholder);
+
+                (items || []).forEach(function (item) {
+                    var option = document.createElement('option');
+                    option.value = item.locationId || item.id || '';
+                    option.textContent = item.text || option.value;
+                    if (item && item.warehouseId) {
+                        option.setAttribute('data-warehouse-id', item.warehouseId);
+                    }
+                    if (item && item.warehouseText) {
+                        option.setAttribute('data-warehouse-text', item.warehouseText);
+                    }
+                    if (item && item.locationText) {
+                        option.setAttribute('data-location-text', item.locationText);
+                    }
+                    select.appendChild(option);
+                });
+
+                select.value = selectedValue || '';
+                if (window.jQuery) {
+                    window.jQuery(select).trigger('change.select2');
+                }
+            }
+
+            function renderTransferLocationOptions(root, selectedSourceLocationId) {
+                var controls = getTransferLineControls(root);
+                if (!controls.sourceSelect) {
+                    return;
+                }
+
+                var sourceLocations = transferLocationOptions.filter(function (item) {
+                    return !transferAllowedLocationIds.length || transferAllowedLocationIds.indexOf((item.locationId || item.id || '').toLowerCase()) >= 0;
+                });
+
+                var sourcePlaceholderText = sourceLocations.length ? 'انتخاب لوکیشن' : 'برای این واریانت لوکیشنی یافت نشد';
+
+                setSelectOptions(controls.sourceSelect, sourceLocations, sourcePlaceholderText, selectedSourceLocationId);
+
+                controls.sourceSelect.disabled = sourceLocations.length === 0;
+            }
+
+            async function loadTransferVariantInventory(root, variantId, selectedSourceLocationId) {
+                root = root || document;
+                var controls = getTransferLineControls(root);
+                if (!controls.variantSelect || !controls.sourceSelect) {
+                    return;
+                }
+
+                hydrateTransferInventoryOptions(root);
+
+                if (!variantId) {
+                    renderTransferLocationOptions(
+                        root,
+                        selectedSourceLocationId || controls.sourceSelect.value || '');
+                    return;
+                }
+
+                var url = new URL(variantInventoryLookupUrl, window.location.origin);
+                url.searchParams.set('variantId', variantId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'Loading transfer variant inventory failed.');
+                }
+
+                transferAllowedLocationIds = Array.isArray(payload.allowedLocationIds)
+                    ? payload.allowedLocationIds.map(function (value) { return String(value || '').toLowerCase(); })
+                    : [];
+
+                renderTransferLocationOptions(
+                    root,
+                    selectedSourceLocationId || controls.sourceSelect.value || '');
+            }
+
+            function initializeTransferInventoryChain(root) {
+                root = root || document;
+                var controls = getTransferLineControls(root);
+                if (!controls.variantSelect || !controls.sourceSelect) {
+                    return;
+                }
+
+                if (controls.variantSelect.dataset.transferInventoryBound === 'true') {
+                    return;
+                }
+
+                controls.variantSelect.addEventListener('change', function () {
+                    loadTransferVariantInventory(
+                        root,
+                        controls.variantSelect.value || '',
+                        controls.sourceSelect.value || '').catch(function (error) {
+                            console.error(error);
+                        });
+                });
+
+                controls.variantSelect.dataset.transferInventoryBound = 'true';
+
+                hydrateTransferInventoryOptions(root);
+                renderTransferLocationOptions(
+                    root,
+                    controls.sourceSelect.value || '');
+
+                if (controls.variantSelect.value) {
+                    loadTransferVariantInventory(
+                        root,
+                        controls.variantSelect.value,
+                        controls.sourceSelect.value || '').catch(function (error) {
+                            console.error(error);
+                        });
+                }
+            }
+
+            async function loadTransferDetails(documentId, documentNo) {
+                var url = new URL(detailsUrl, window.location.origin);
+                url.searchParams.set('documentId', documentId || '');
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+
+                var html = await response.text();
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var nextBody = doc.querySelector(modalBodySelector);
+                var currentBody = document.querySelector(modalBodySelector);
+                if (!nextBody || !currentBody) {
+                    throw new Error('Transfer details modal body could not be loaded.');
+                }
+
+                currentBody.replaceWith(nextBody);
+                initModalWidgets(nextBody);
+
+                var titleElement = document.querySelector(modalTitleSelector);
+                var subtitleElement = document.querySelector(modalSubtitleSelector);
+                if (titleElement) {
+                    titleElement.textContent = documentNo ? ('جزئیات سند ' + documentNo) : 'جزئیات سند حواله';
+                }
+                if (subtitleElement) {
+                    subtitleElement.textContent = documentId || '';
+                }
+
+                showModal();
+            }
+
+            function fillTransferLineForm(trigger) {
+                if (!trigger) {
+                    return;
+                }
+
+                var modal = document.querySelector(modalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
+                var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
+                var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var submitButton = modal.querySelector('.js-transfer-line-submit');
+                var cancelButton = modal.querySelector('.js-transfer-line-cancel');
+
+                if (lineIdInput) {
+                    lineIdInput.value = trigger.getAttribute('data-line-id') || '';
+                }
+
+                if (variantSelect) {
+                    variantSelect.value = trigger.getAttribute('data-variant-id') || '';
+                    if (window.jQuery) {
+                        window.jQuery(variantSelect).trigger('change');
+                    }
+                }
+
+                if (qtyInput) {
+                    qtyInput.value = trigger.getAttribute('data-qty') || '1';
+                }
+
+                if (sourceSelect) {
+                    sourceSelect.value = trigger.getAttribute('data-source-location-id') || '';
+                }
+
+                if (variantSelect && variantSelect.value) {
+                    loadTransferVariantInventory(
+                        modal,
+                        variantSelect.value,
+                        sourceSelect ? (sourceSelect.value || '') : '').catch(function (error) {
+                            console.error(error);
+                        });
+                }
+
+                if (submitButton) {
+                    submitButton.textContent = 'ذخیره تغییرات';
+                }
+
+                if (cancelButton) {
+                    cancelButton.classList.remove('d-none');
+                }
+            }
+
+            function resetTransferLineForm() {
+                var modal = document.querySelector(modalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
+                var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
+                var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var submitButton = modal.querySelector('.js-transfer-line-submit');
+                var cancelButton = modal.querySelector('.js-transfer-line-cancel');
+
+                if (lineIdInput) {
+                    lineIdInput.value = '';
+                }
+                if (variantSelect) {
+                    variantSelect.value = '';
+                    if (window.jQuery) {
+                        window.jQuery(variantSelect).trigger('change');
+                    }
+                }
+                if (sourceSelect) {
+                    sourceSelect.value = '';
+                    sourceSelect.disabled = true;
+                    if (window.jQuery) {
+                        window.jQuery(sourceSelect).trigger('change.select2');
+                    }
+                }
+                if (qtyInput) {
+                    qtyInput.value = '1';
+                }
+                if (submitButton) {
+                    submitButton.textContent = 'افزودن آیتم';
+                }
+                if (cancelButton) {
+                    cancelButton.classList.add('d-none');
+                }
+            }
+
+            function initModalWidgets(root) {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(root);
+                }
+
+                initializeTransferInventoryChain(root);
+            }
+
+            function getTransferListForm() {
+                return document.querySelector(documentListFormSelector);
+            }
+
+            function getTransferListValue(name) {
+                var form = getTransferListForm();
+                if (!form) {
+                    return '';
+                }
+
+                var field = form.querySelector('[name="' + name + '"]');
+                return field ? (field.value || '') : '';
+            }
+
+            function getCurrentTransferListPage() {
+                var activeLink = document.querySelector(documentListPaginationSelector + ' .page-item.active .page-link');
+                if (activeLink) {
+                    var value = parseInt(activeLink.textContent || '1', 10);
+                    if (!isNaN(value) && value > 0) {
+                        return value;
+                    }
+                }
+
+                var currentUrl = new URL(window.location.href);
+                var page = parseInt(currentUrl.searchParams.get('page') || '1', 10);
+                if (!isNaN(page) && page > 0) {
+                    return page;
+                }
+
+                return 1;
+            }
+
+            function getTransferListQuery(page) {
+                var params = new URLSearchParams();
+                params.set('documentType', 'Transfer');
+                params.set('page', String(page && page > 0 ? page : 1));
+                params.set('pageSize', getTransferListValue('pageSize') || '@Model.DocumentPageSize');
+                params.set('documentNo', getTransferListValue('documentNo'));
+                params.set('status', getTransferListValue('status'));
+                params.set('warehouseId', getTransferListValue('warehouseId'));
+                params.set('sellerId', getTransferListValue('sellerId'));
+                params.set('occurredFrom', getTransferListValue('occurredFrom'));
+                params.set('occurredTo', getTransferListValue('occurredTo'));
+                return params;
+            }
+
+            function buildTransferDocumentActionHtml(document, currentPage) {
+                var documentId = escapeHtml(document.documentBusinessKey || '');
+                var documentNo = escapeHtml(document.documentNo || '');
+                var documentType = escapeHtml(document.documentType || '');
+                var status = escapeHtml(document.status || '');
+                var canEditDocument = String(document.status || '').toLowerCase() === 'draft';
+                var canDeleteDocument = String(document.status || '').toLowerCase() === 'draft';
+                var canActDocument = String(document.status || '').toLowerCase() !== 'posted';
+                var editUrl = '@Url.Action("TransferDocuments", "InventoryManagement")'
+                    + '?documentId=' + encodeURIComponent(document.documentBusinessKey || '')
+                    + '&documentType=' + encodeURIComponent(document.documentType || 'Transfer')
+                    + '&tab=create'
+                    + '&page=' + encodeURIComponent(currentPage || 1)
+                    + '&pageSize=' + encodeURIComponent(getTransferListValue('pageSize') || '@Model.DocumentPageSize')
+                    + '&documentNo=' + encodeURIComponent(getTransferListValue('documentNo') || '')
+                    + '&status=' + encodeURIComponent(getTransferListValue('status') || '')
+                    + '&warehouseId=' + encodeURIComponent(getTransferListValue('warehouseId') || '')
+                    + '&sellerId=' + encodeURIComponent(getTransferListValue('sellerId') || '')
+                    + '&occurredFrom=' + encodeURIComponent(getTransferListValue('occurredFrom') || '')
+                    + '&occurredTo=' + encodeURIComponent(getTransferListValue('occurredTo') || '');
+
+                var html = '';
+                html += '<td><span class="text-monospace">' + documentNo + '</span></td>';
+                html += '<td>' + escapeHtml(getDocumentTypeLabel(document.documentType)) + '</td>';
+                html += '<td>' + escapeHtml(formatDocumentDateTime(document.occurredAt)) + '</td>';
+                html += '<td><span class="badge badge-pill ' + getStatusClass(document.status) + '">' + escapeHtml(getStatusLabel(document.status)) + '</span></td>';
+                html += '<td class="text-right">';
+                html += '<button type="button" class="btn btn-outline-primary btn-xs js-transfer-document-details mr-1" data-document-id="' + documentId + '" data-document-no="' + documentNo + '">جزئیات</button>';
+
+                if (canEditDocument) {
+                    html += '<a class="btn btn-outline-secondary btn-xs mr-1" href="' + editUrl + '" data-ajax-target="#documents-page-root">ویرایش</a>';
+                }
+
+                if (canDeleteDocument) {
+                    html += '<button type="button" class="btn btn-outline-danger btn-xs mr-1 js-transfer-document-delete" data-document-id="' + documentId + '" data-document-no="' + documentNo + '">حذف</button>';
+                }
+
+                html += '</td>';
+                return html;
+            }
+
+            function renderTransferDocumentRows(items, currentPage) {
+                var body = document.querySelector(documentListBodySelector);
+                if (!body) {
+                    return;
+                }
+
+                var rows = Array.isArray(items) ? items : [];
+                if (rows.length === 0) {
+                    body.innerHTML = '<tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>';
+                    return;
+                }
+
+                body.innerHTML = rows.map(function (document) {
+                    return '<tr>' + buildTransferDocumentActionHtml(document, currentPage) + '</tr>';
+                }).join('');
+            }
+
+            function renderTransferDocumentPagination(totalPages, currentPage) {
+                var wrapper = document.querySelector(documentListPaginationWrapperSelector);
+                if (!wrapper) {
+                    return;
+                }
+
+                var pageCount = parseInt(totalPages || '0', 10) || 0;
+                var page = parseInt(currentPage || '1', 10) || 1;
+                if (pageCount <= 1) {
+                    wrapper.innerHTML = '';
+                    return;
+                }
+
+                var links = [];
+                for (var i = 1; i <= pageCount; i++) {
+                    links.push('<li class="page-item ' + (i === page ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + i + '">' + i + '</a></li>');
+                }
+
+                wrapper.innerHTML = '<nav id="transfer-document-list-pagination"><ul class="pagination pagination-sm mb-0">' + links.join('') + '</ul></nav>';
+            }
+
+            async function refreshTransferDocumentList(page) {
+                var query = getTransferListQuery(page || getCurrentTransferListPage());
+                var response = await fetch(documentListUrl + '?' + query.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Document list refresh failed.');
+                }
+
+                var payload = await response.json();
+                if (!payload) {
+                    throw new Error('Document list refresh returned empty payload.');
+                }
+
+                var totalCount = typeof payload.totalCount === 'number' ? payload.totalCount : 0;
+                var currentPage = typeof payload.page === 'number' ? payload.page : getCurrentTransferListPage();
+                var totalPages = typeof payload.totalPages === 'number' ? payload.totalPages : 1;
+
+                var countElement = document.querySelector(documentListCountSelector);
+                if (countElement) {
+                    countElement.textContent = totalCount + ' رکورد';
+                }
+
+                renderTransferDocumentRows(payload.items || [], currentPage);
+                renderTransferDocumentPagination(totalPages, currentPage);
+            }
+
+            async function deleteTransferDocument(documentId, documentNo) {
+                if (!documentId) {
+                    return;
+                }
+
+                if (!window.confirm('این سند ' + (documentNo ? '(' + documentNo + ')' : '') + ' و همه آیتم‌های آن حذف شوند؟')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                payload.append('documentId', documentId);
+                payload.append('documentType', 'Transfer');
+                payload.append('page', String(getCurrentTransferListPage() || 1));
+                payload.append('pageSize', getTransferListValue('pageSize') || '@Model.DocumentPageSize');
+                payload.append('documentNo', getTransferListValue('documentNo'));
+                payload.append('status', getTransferListValue('status'));
+                payload.append('warehouseId', getTransferListValue('warehouseId'));
+                payload.append('sellerId', getTransferListValue('sellerId'));
+                payload.append('occurredFrom', getTransferListValue('occurredFrom'));
+                payload.append('occurredTo', getTransferListValue('occurredTo'));
+
+                var response = await fetch(deleteDocumentUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Delete document request failed.');
+                }
+
+                await refreshTransferDocumentList();
+            }
+
+            function bindTransferDocumentListForm() {
+                var form = document.querySelector(documentListFormSelector);
+                if (!form || form.dataset.transferListBound === 'true') {
+                    return;
+                }
+
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    refreshTransferDocumentList(1).catch(function (error) {
+                        console.error(error);
+                    });
+                }, true);
+
+                form.dataset.transferListBound = 'true';
+            }
+
+            if (!window.__transferDocumentsModalBound) {
+                window.__transferDocumentsModalBound = true;
+
+                document.addEventListener('click', function (event) {
+                    var detailsTrigger = event.target && event.target.closest ? event.target.closest('.js-transfer-document-details') : null;
+                    if (detailsTrigger) {
+                        event.preventDefault();
+                        loadTransferDetails(
+                            detailsTrigger.getAttribute('data-document-id') || '',
+                            detailsTrigger.getAttribute('data-document-no') || '').catch(function (error) {
+                            console.error(error);
+                        });
+                        return;
+                    }
+
+                    var deleteTrigger = event.target && event.target.closest ? event.target.closest('.js-transfer-document-delete') : null;
+                    if (deleteTrigger) {
+                        event.preventDefault();
+                        deleteTransferDocument(
+                            deleteTrigger.getAttribute('data-document-id') || '',
+                            deleteTrigger.getAttribute('data-document-no') || '').catch(function (error) {
+                                console.error(error);
+                            });
+                        return;
+                    }
+
+                    var editButton = event.target && event.target.closest ? event.target.closest('.js-transfer-line-edit') : null;
+                    if (editButton) {
+                        event.preventDefault();
+                        fillTransferLineForm(editButton);
+                        return;
+                    }
+
+                    var cancelButton = event.target && event.target.closest ? event.target.closest('.js-transfer-line-cancel') : null;
+                    if (cancelButton) {
+                        event.preventDefault();
+                        resetTransferLineForm();
+                        return;
+                    }
+
+                    var paginationLink = event.target && event.target.closest ? event.target.closest(documentListPaginationSelector + ' .page-link') : null;
+                    if (paginationLink) {
+                        event.preventDefault();
+                        var page = parseInt(paginationLink.getAttribute('data-page') || '1', 10);
+                        refreshTransferDocumentList(page).catch(function (error) {
+                            console.error(error);
+                        });
+                    }
+                }, true);
+            }
+
+            if (!window.__transferDocumentsModalAuxBound) {
+                window.__transferDocumentsModalAuxBound = true;
+
+                var modalElement = document.querySelector(modalSelector);
+                if (modalElement) {
+                    initModalWidgets(modalElement);
+                    modalElement.addEventListener('hidden.bs.modal', function () {
+                        resetTransferLineForm();
+                    });
+                }
+
+                bindTransferDocumentListForm();
+            }
         })();
     </script>
 }

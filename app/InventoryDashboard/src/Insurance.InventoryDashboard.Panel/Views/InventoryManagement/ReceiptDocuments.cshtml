@@ -1399,6 +1399,30 @@
                 return field ? (field.value || '') : '';
             }
 
+            function hydrateReceiptInventoryOptions(root) {
+                root = root || document;
+                var warehouseJson = root.dataset ? root.dataset.warehouseOptions : '';
+                var locationJson = root.dataset ? root.dataset.locationOptions : '';
+
+                if (warehouseJson) {
+                    try {
+                        receiptWarehouseOptions = JSON.parse(warehouseJson) || [];
+                    } catch (error) {
+                        console.error(error);
+                        receiptWarehouseOptions = [];
+                    }
+                }
+
+                if (locationJson) {
+                    try {
+                        receiptLocationOptions = JSON.parse(locationJson) || [];
+                    } catch (error) {
+                        console.error(error);
+                        receiptLocationOptions = [];
+                    }
+                }
+            }
+
             function getReceiptListQuery(page) {
                 var params = new URLSearchParams();
                 params.set('documentType', 'Receipt');
@@ -1437,7 +1461,6 @@
                 var canEditDocument = String(document.status || '').toLowerCase() === 'draft';
                 var canDeleteDocument = String(document.status || '').toLowerCase() === 'draft';
                 var canActDocument = String(document.status || '').toLowerCase() !== 'posted';
-                var currentPageSize = escapeHtml(getReceiptListValue('pageSize') || '@Model.DocumentPageSize');
                 var documentNoValue = escapeHtml(getReceiptListValue('documentNo'));
                 var statusValue = escapeHtml(getReceiptListValue('status'));
                 var occurredFromValue = escapeHtml(getReceiptListValue('occurredFrom'));
@@ -1747,11 +1770,11 @@
                     return;
                 }
 
+                hydrateReceiptInventoryOptions(root);
+
                 if (!variantId) {
-                    receiptWarehouseOptions = [];
-                    receiptLocationOptions = [];
-                    renderReceiptWarehouseOptions(root, '');
-                    renderReceiptLocationOptions(root, '', '');
+                    renderReceiptWarehouseOptions(root, selectedWarehouseId || controls.warehouseSelect.value || '');
+                    renderReceiptLocationOptions(root, selectedWarehouseId || controls.warehouseSelect.value || '', selectedLocationId || controls.locationSelect.value || '');
                     return;
                 }
 
@@ -1798,7 +1821,7 @@
                 }
 
                 controls.variantSelect.addEventListener('change', function () {
-                    loadReceiptVariantInventory(root, controls.variantSelect.value || '', '', '').catch(function (error) {
+                    loadReceiptVariantInventory(root, controls.variantSelect.value || '', controls.warehouseSelect.value || '', controls.locationSelect.value || '').catch(function (error) {
                         console.error(error);
                     });
                 });
@@ -1809,6 +1832,10 @@
 
                 controls.variantSelect.dataset.receiptInventoryBound = 'true';
 
+                hydrateReceiptInventoryOptions(root);
+                renderReceiptWarehouseOptions(root, controls.warehouseSelect.value || '');
+                renderReceiptLocationOptions(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '');
+
                 if (controls.variantSelect.value) {
                     loadReceiptVariantInventory(
                         root,
@@ -1817,11 +1844,6 @@
                         controls.locationSelect.value || '').catch(function (error) {
                             console.error(error);
                         });
-                } else {
-                    receiptWarehouseOptions = [];
-                    receiptLocationOptions = [];
-                    renderReceiptWarehouseOptions(root, '');
-                    renderReceiptLocationOptions(root, '', '');
                 }
             }
 
@@ -1948,7 +1970,6 @@
                 }
                 if (warehouseSelect) {
                     warehouseSelect.value = '';
-                    warehouseSelect.disabled = true;
                     if (window.jQuery) {
                         window.jQuery(warehouseSelect).trigger('change.select2');
                     }
@@ -2148,6 +2169,7 @@
 
                 var modalElement = document.querySelector(modalSelector);
                 if (modalElement) {
+                    hydrateReceiptInventoryOptions(modalElement);
                     modalElement.addEventListener('hidden.bs.modal', function () {
                         resetReceiptLineForm();
                     });
