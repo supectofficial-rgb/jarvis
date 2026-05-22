@@ -113,7 +113,17 @@
         }
 
         var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
-        return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
+        if (location is null)
+        {
+            return locationId;
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, location.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+        var warehouseLabel = warehouse is null ? location.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+        var locationLabel = string.IsNullOrWhiteSpace(location.LocationType)
+            ? location.LocationCode
+            : $"{location.LocationCode} ({location.LocationType})";
+        return string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}";
     }
 
     string QualityName(string? qualityId)
@@ -148,8 +158,6 @@
     var hasListContext = !string.IsNullOrWhiteSpace(Model.SelectedDocumentId)
         || !string.IsNullOrWhiteSpace(Model.DocumentNoFilter)
         || !string.IsNullOrWhiteSpace(Model.DocumentStatusFilter)
-        || !string.IsNullOrWhiteSpace(Model.WarehouseFilter)
-        || !string.IsNullOrWhiteSpace(Model.SellerFilter)
         || !string.IsNullOrWhiteSpace(Model.OccurredFromFilter)
         || !string.IsNullOrWhiteSpace(Model.OccurredToFilter)
         || Model.DocumentPage > 1;
@@ -167,9 +175,6 @@
             <div class="col-12">
                 <div class="mb-4">
                     <h1>@UiText["inventory.documents.title"]</h1>
-                    <div class="mb-2">
-                        <span class="badge badge-pill badge-primary">@TypeLabel(currentDocumentType)</span>
-                    </div>
                     <p class="text-muted">@UiText["inventory.documents.description"]</p>
                     <div>
                         <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.documents.summary.documents"] @Model.DocumentTotalCount</span>
@@ -220,10 +225,6 @@
                             <div class="form-row">
                                 <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
                                 <div class="form-group col-md-2">
-                                    <label>نوع سند</label>
-                                    <div class="form-control-plaintext pt-2">@TypeLabel(Model.CreateForm.DocumentType)</div>
-                                </div>
-                                <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
@@ -234,26 +235,6 @@
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.referenceId"]</label>
                                     <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.warehouse"]</label>
-                                    <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
-                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
-                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.seller"]</label>
-                                    <select asp-for="CreateForm.SellerRef" class="form-control" required>
-                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
-                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@seller.SellerBusinessKey">@seller.Code - @seller.Name</option>
-                                        }
-                                    </select>
                                 </div>
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
@@ -314,7 +295,7 @@
                                                         <option value="">انتخاب لوکیشن</option>
                                                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                         {
-                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@LocationName(location.LocationBusinessKey)</option>
                                                         }
                                                     </select>
                                                 </div>
@@ -324,7 +305,7 @@
                                                         <option value="">انتخاب لوکیشن</option>
                                                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                         {
-                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@LocationName(location.LocationBusinessKey)</option>
                                                         }
                                                     </select>
                                                 </div>
@@ -422,26 +403,6 @@
                                     <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">پست شده</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-3">
-                                <label>انبار</label>
-                                <select name="warehouseId" class="form-control js-search-select">
-                                    <option value="">همه</option>
-                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.WarehouseFilter ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-3">
-                                <label>فروشنده</label>
-                                <select name="sellerId" class="form-control js-search-select">
-                                    <option value="">همه</option>
-                                    @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@seller.SellerBusinessKey" selected="@(seller.SellerBusinessKey == Model.SellerFilter ? "selected" : null)">@seller.Code - @seller.Name</option>
-                                    }
-                                </select>
-                            </div>
                             <div class="form-group col-md-2">
                                 <label>از تاریخ</label>
                                 <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
@@ -470,8 +431,6 @@
                                     <tr>
                                         <th>شماره</th>
                                         <th>نوع</th>
-                                        <th>انبار</th>
-                                        <th>فروشنده</th>
                                         <th>تاریخ</th>
                                         <th>وضعیت</th>
                                         <th class="text-right">عملیات</th>
@@ -480,7 +439,7 @@
                                 <tbody id="transfer-document-list-body">
                                     @if (Model.Documents.Count == 0)
                                     {
-                                        <tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>
+                                        <tr><td colspan="5" class="text-center text-muted">سندی پیدا نشد.</td></tr>
                                     }
                                     else
                                     {
@@ -489,8 +448,6 @@
                                             <tr>
                                                 <td><span class="text-monospace">@document.DocumentNo</span></td>
                                                 <td>@TypeLabel(document.DocumentType)</td>
-                                                <td>@WarehouseName(document.WarehouseRef)</td>
-                                                <td>@SellerName(document.SellerRef)</td>
                                                 <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
@@ -519,8 +476,6 @@
                                                             <input type="hidden" name="documentType" value="@document.DocumentType" />
                                                             <input type="hidden" name="documentNo" value="@Model.DocumentNoFilter" />
                                                             <input type="hidden" name="status" value="@Model.DocumentStatusFilter" />
-                                                            <input type="hidden" name="warehouseId" value="@Model.WarehouseFilter" />
-                                                            <input type="hidden" name="sellerId" value="@Model.SellerFilter" />
                                                             <input type="hidden" name="occurredFrom" value="@Model.OccurredFromFilter" />
                                                             <input type="hidden" name="occurredTo" value="@Model.OccurredToFilter" />
                                                             <input type="hidden" name="page" value="@Model.DocumentPage" />
@@ -550,8 +505,6 @@
                                                asp-route-documentNo="@Model.DocumentNoFilter"
                                                asp-route-documentType="@Model.DocumentTypeFilter"
                                                asp-route-status="@Model.DocumentStatusFilter"
-                                               asp-route-warehouseId="@Model.WarehouseFilter"
-                                               asp-route-sellerId="@Model.SellerFilter"
                                                asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                asp-route-occurredTo="@Model.OccurredToFilter"
                                                asp-route-page="@i"
@@ -584,8 +537,6 @@
                             <p class="mb-1"><strong>شماره:</strong> <span class="text-monospace">@Model.SelectedDocumentDetails.DocumentNo</span></p>
                             <p class="mb-1"><strong>نوع:</strong> @TypeLabel(Model.SelectedDocumentDetails.DocumentType)</p>
                             <p class="mb-1"><strong>وضعیت:</strong> <span class="badge badge-pill @StatusClass(Model.SelectedDocumentDetails.Status)">@StatusLabel(Model.SelectedDocumentDetails.Status)</span></p>
-                            <p class="mb-1"><strong>انبار:</strong> @WarehouseName(Model.SelectedDocumentDetails.WarehouseRef)</p>
-                            <p class="mb-1"><strong>فروشنده:</strong> @SellerName(Model.SelectedDocumentDetails.SellerRef)</p>
                             <p class="mb-1"><strong>تاریخ وقوع:</strong> @Model.SelectedDocumentDetails.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
                             <p class="mb-1"><strong>مرجع:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReferenceType) ? "-" : $"{Model.SelectedDocumentDetails.ReferenceType} / {Model.SelectedDocumentDetails.ReferenceBusinessId}")</p>
                             <p class="mb-1"><strong>علت:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReasonCode) ? "-" : Model.SelectedDocumentDetails.ReasonCode)</p>
@@ -622,7 +573,7 @@
                                                     <option value="">انتخاب لوکیشن</option>
                                                     @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                     {
-                                                        <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                        <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.SourceLocationRef ? "selected" : null)">@LocationName(location.LocationBusinessKey)</option>
                                                     }
                                                 </select>
                                             </div>
@@ -632,7 +583,7 @@
                                                     <option value="">انتخاب لوکیشن</option>
                                                     @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                     {
-                                                        <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                        <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@LocationName(location.LocationBusinessKey)</option>
                                                     }
                                                 </select>
                                             </div>
@@ -1350,6 +1301,7 @@
                 return {
                     variantSelect: root.querySelector('select[name="LineForm.VariantId"]'),
                     sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]'),
+                    destinationSelect: root.querySelector('select[name="LineForm.DestinationLocationRef"]'),
                     qtyInput: root.querySelector('input[name="LineForm.Qty"]'),
                     submitButton: root.querySelector('.js-transfer-line-submit'),
                     cancelButton: root.querySelector('.js-transfer-line-cancel')
@@ -1392,9 +1344,9 @@
                 }
             }
 
-            function renderTransferLocationOptions(root, selectedSourceLocationId) {
+            function renderTransferLocationOptions(root, selectedSourceLocationId, selectedDestinationLocationId) {
                 var controls = getTransferLineControls(root);
-                if (!controls.sourceSelect) {
+                if (!controls.sourceSelect || !controls.destinationSelect) {
                     return;
                 }
 
@@ -1405,14 +1357,16 @@
                 var sourcePlaceholderText = sourceLocations.length ? 'انتخاب لوکیشن' : 'برای این واریانت لوکیشنی یافت نشد';
 
                 setSelectOptions(controls.sourceSelect, sourceLocations, sourcePlaceholderText, selectedSourceLocationId);
+                setSelectOptions(controls.destinationSelect, sourceLocations, sourcePlaceholderText, selectedDestinationLocationId);
 
                 controls.sourceSelect.disabled = sourceLocations.length === 0;
+                controls.destinationSelect.disabled = sourceLocations.length === 0;
             }
 
-            async function loadTransferVariantInventory(root, variantId, selectedSourceLocationId) {
+            async function loadTransferVariantInventory(root, variantId, selectedSourceLocationId, selectedDestinationLocationId) {
                 root = root || document;
                 var controls = getTransferLineControls(root);
-                if (!controls.variantSelect || !controls.sourceSelect) {
+                if (!controls.variantSelect || !controls.sourceSelect || !controls.destinationSelect) {
                     return;
                 }
 
@@ -1421,7 +1375,8 @@
                 if (!variantId) {
                     renderTransferLocationOptions(
                         root,
-                        selectedSourceLocationId || controls.sourceSelect.value || '');
+                        selectedSourceLocationId || controls.sourceSelect.value || '',
+                        selectedDestinationLocationId || controls.destinationSelect.value || '');
                     return;
                 }
 
@@ -1446,13 +1401,14 @@
 
                 renderTransferLocationOptions(
                     root,
-                    selectedSourceLocationId || controls.sourceSelect.value || '');
+                    selectedSourceLocationId || controls.sourceSelect.value || '',
+                    selectedDestinationLocationId || controls.destinationSelect.value || '');
             }
 
             function initializeTransferInventoryChain(root) {
                 root = root || document;
                 var controls = getTransferLineControls(root);
-                if (!controls.variantSelect || !controls.sourceSelect) {
+                if (!controls.variantSelect || !controls.sourceSelect || !controls.destinationSelect) {
                     return;
                 }
 
@@ -1464,7 +1420,8 @@
                     loadTransferVariantInventory(
                         root,
                         controls.variantSelect.value || '',
-                        controls.sourceSelect.value || '').catch(function (error) {
+                        controls.sourceSelect.value || '',
+                        controls.destinationSelect.value || '').catch(function (error) {
                             console.error(error);
                         });
                 });
@@ -1474,13 +1431,15 @@
                 hydrateTransferInventoryOptions(root);
                 renderTransferLocationOptions(
                     root,
-                    controls.sourceSelect.value || '');
+                    controls.sourceSelect.value || '',
+                    controls.destinationSelect.value || '');
 
                 if (controls.variantSelect.value) {
                     loadTransferVariantInventory(
                         root,
                         controls.variantSelect.value,
-                        controls.sourceSelect.value || '').catch(function (error) {
+                        controls.sourceSelect.value || '',
+                        controls.destinationSelect.value || '').catch(function (error) {
                             console.error(error);
                         });
                 }
@@ -1534,9 +1493,11 @@
                 var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var destinationSelect = modal.querySelector('select[name="LineForm.DestinationLocationRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
                 var submitButton = modal.querySelector('.js-transfer-line-submit');
                 var cancelButton = modal.querySelector('.js-transfer-line-cancel');
+                var destinationLocationId = trigger.getAttribute('data-destination-location-id') || '';
 
                 if (lineIdInput) {
                     lineIdInput.value = trigger.getAttribute('data-line-id') || '';
@@ -1557,11 +1518,16 @@
                     sourceSelect.value = trigger.getAttribute('data-source-location-id') || '';
                 }
 
+                if (destinationSelect) {
+                    destinationSelect.value = destinationLocationId;
+                }
+
                 if (variantSelect && variantSelect.value) {
                     loadTransferVariantInventory(
                         modal,
                         variantSelect.value,
-                        sourceSelect ? (sourceSelect.value || '') : '').catch(function (error) {
+                        sourceSelect ? (sourceSelect.value || '') : '',
+                        destinationSelect ? (destinationSelect.value || '') : '').catch(function (error) {
                             console.error(error);
                         });
                 }
@@ -1584,6 +1550,7 @@
                 var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var destinationSelect = modal.querySelector('select[name="LineForm.DestinationLocationRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
                 var submitButton = modal.querySelector('.js-transfer-line-submit');
                 var cancelButton = modal.querySelector('.js-transfer-line-cancel');
@@ -1602,6 +1569,13 @@
                     sourceSelect.disabled = true;
                     if (window.jQuery) {
                         window.jQuery(sourceSelect).trigger('change.select2');
+                    }
+                }
+                if (destinationSelect) {
+                    destinationSelect.value = '';
+                    destinationSelect.disabled = true;
+                    if (window.jQuery) {
+                        window.jQuery(destinationSelect).trigger('change.select2');
                     }
                 }
                 if (qtyInput) {
@@ -1662,8 +1636,6 @@
                 params.set('pageSize', getTransferListValue('pageSize') || '@Model.DocumentPageSize');
                 params.set('documentNo', getTransferListValue('documentNo'));
                 params.set('status', getTransferListValue('status'));
-                params.set('warehouseId', getTransferListValue('warehouseId'));
-                params.set('sellerId', getTransferListValue('sellerId'));
                 params.set('occurredFrom', getTransferListValue('occurredFrom'));
                 params.set('occurredTo', getTransferListValue('occurredTo'));
                 return params;
@@ -1685,8 +1657,6 @@
                     + '&pageSize=' + encodeURIComponent(getTransferListValue('pageSize') || '@Model.DocumentPageSize')
                     + '&documentNo=' + encodeURIComponent(getTransferListValue('documentNo') || '')
                     + '&status=' + encodeURIComponent(getTransferListValue('status') || '')
-                    + '&warehouseId=' + encodeURIComponent(getTransferListValue('warehouseId') || '')
-                    + '&sellerId=' + encodeURIComponent(getTransferListValue('sellerId') || '')
                     + '&occurredFrom=' + encodeURIComponent(getTransferListValue('occurredFrom') || '')
                     + '&occurredTo=' + encodeURIComponent(getTransferListValue('occurredTo') || '');
 
@@ -1796,8 +1766,6 @@
                 payload.append('pageSize', getTransferListValue('pageSize') || '@Model.DocumentPageSize');
                 payload.append('documentNo', getTransferListValue('documentNo'));
                 payload.append('status', getTransferListValue('status'));
-                payload.append('warehouseId', getTransferListValue('warehouseId'));
-                payload.append('sellerId', getTransferListValue('sellerId'));
                 payload.append('occurredFrom', getTransferListValue('occurredFrom'));
                 payload.append('occurredTo', getTransferListValue('occurredTo'));
 

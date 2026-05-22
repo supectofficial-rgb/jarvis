@@ -1269,9 +1269,9 @@
             var documentListPaginationWrapperSelector = '#receipt-document-list-pagination-wrapper';
             var documentListPaginationSelector = '#receipt-document-list-pagination';
             var deleteDocumentUrl = '@Url.Action("DeleteDocument", "InventoryManagement")';
-            var variantInventoryLookupUrl = '@Url.Action("SearchReceiptVariantInventoryLookup", "InventoryManagement")';
+            var receiptWarehouseLookupUrl = '@Url.Action("SearchReceiptWarehousesLookup", "InventoryManagement")';
+            var receiptLocationLookupUrl = '@Url.Action("SearchReceiptWarehouseLocationsLookup", "InventoryManagement")';
             var receiptWarehouseOptions = [];
-            var receiptLocationOptions = [];
             var warehouseDisplayLookup = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
                 Model.WarehouseLookup.ToDictionary(x => x.WarehouseBusinessKey, x => $"{x.Code} - {x.Name}")));
             var sellerDisplayLookup = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
@@ -1400,27 +1400,7 @@
             }
 
             function hydrateReceiptInventoryOptions(root) {
-                root = root || document;
-                var warehouseJson = root.dataset ? root.dataset.warehouseOptions : '';
-                var locationJson = root.dataset ? root.dataset.locationOptions : '';
-
-                if (warehouseJson) {
-                    try {
-                        receiptWarehouseOptions = JSON.parse(warehouseJson) || [];
-                    } catch (error) {
-                        console.error(error);
-                        receiptWarehouseOptions = [];
-                    }
-                }
-
-                if (locationJson) {
-                    try {
-                        receiptLocationOptions = JSON.parse(locationJson) || [];
-                    } catch (error) {
-                        console.error(error);
-                        receiptLocationOptions = [];
-                    }
-                }
+                receiptWarehouseOptions = [];
             }
 
             function getReceiptListQuery(page) {
@@ -1728,7 +1708,7 @@
                 setSelectOptions(
                     controls.warehouseSelect,
                     receiptWarehouseOptions,
-                    receiptWarehouseOptions.length ? 'انتخاب انبار' : 'انباری یافت نشد',
+                    receiptWarehouseOptions.length ? 'انتخاب انبار' : 'انبار یافت نشد',
                     'warehouseId',
                     'text',
                     selectedWarehouseId);
@@ -1739,46 +1719,74 @@
                 }
             }
 
-            function renderReceiptLocationOptions(root, selectedWarehouseId, selectedLocationId) {
+            async function loadReceiptLocationOptions(root, selectedWarehouseId, selectedLocationId) {
                 var controls = getReceiptLineControls(root);
                 if (!controls.locationSelect) {
                     return;
                 }
 
-                var filteredLocations = receiptLocationOptions.filter(function (item) {
-                    return !selectedWarehouseId || ((item.warehouseId || '').toLowerCase() === selectedWarehouseId.toLowerCase());
+                if (!selectedWarehouseId) {
+                    setSelectOptions(
+                        controls.locationSelect,
+                        [],
+                        'ابتدا انبار را انتخاب کنید',
+                        'locationId',
+                        'text',
+                        '');
+                    controls.locationSelect.disabled = true;
+                    if (window.jQuery) {
+                        window.jQuery(controls.locationSelect).trigger('change.select2');
+                    }
+                    return;
+                }
+
+                var url = new URL(receiptLocationLookupUrl, window.location.origin);
+                url.searchParams.set('warehouseId', selectedWarehouseId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
                 });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'Loading receipt warehouse locations failed.');
+                }
+
+                var locations = Array.isArray(payload.locations) ? payload.locations.slice() : [];
 
                 setSelectOptions(
                     controls.locationSelect,
-                    filteredLocations,
-                    selectedWarehouseId ? (filteredLocations.length ? 'انتخاب لوکیشن' : 'برای این انبار لوکیشنی یافت نشد') : 'ابتدا انبار را انتخاب کنید',
+                    locations,
+                    locations.length ? 'انتخاب لوکیشن' : 'برای این انبار لوکیشنی یافت نشد',
                     'locationId',
                     'text',
                     selectedLocationId);
 
-                controls.locationSelect.disabled = !selectedWarehouseId || filteredLocations.length === 0;
+                controls.locationSelect.disabled = locations.length === 0;
                 if (window.jQuery) {
                     window.jQuery(controls.locationSelect).trigger('change.select2');
                 }
             }
 
-            async function loadReceiptVariantInventory(root, variantId, selectedWarehouseId, selectedLocationId) {
+            async function loadReceiptWarehouses(root, selectedWarehouseId, selectedLocationId) {
                 root = root || document;
                 var controls = getReceiptLineControls(root);
                 if (!controls.variantSelect || !controls.warehouseSelect || !controls.locationSelect) {
                     return;
                 }
 
-                hydrateReceiptInventoryOptions(root);
-
+                var variantId = controls.variantSelect.value || '';
                 if (!variantId) {
-                    renderReceiptWarehouseOptions(root, selectedWarehouseId || controls.warehouseSelect.value || '');
-                    renderReceiptLocationOptions(root, selectedWarehouseId || controls.warehouseSelect.value || '', selectedLocationId || controls.locationSelect.value || '');
+                    hydrateReceiptInventoryOptions(root);
+                    renderReceiptWarehouseOptions(root, '');
+                    await loadReceiptLocationOptions(root, '', '');
                     return;
                 }
 
-                var url = new URL(variantInventoryLookupUrl, window.location.origin);
+                var url = new URL(receiptWarehouseLookupUrl, window.location.origin);
                 url.searchParams.set('variantId', variantId);
 
                 var response = await fetch(url.toString(), {
@@ -1790,11 +1798,10 @@
 
                 var payload = await response.json();
                 if (!payload || payload.isSuccess === false) {
-                    throw new Error((payload && payload.errorMessage) || 'Loading receipt variant inventory failed.');
+                    throw new Error((payload && payload.errorMessage) || 'Loading receipt warehouses failed.');
                 }
 
                 receiptWarehouseOptions = Array.isArray(payload.warehouses) ? payload.warehouses.slice() : [];
-                receiptLocationOptions = Array.isArray(payload.locations) ? payload.locations.slice() : [];
 
                 renderReceiptWarehouseOptions(root, selectedWarehouseId || '');
                 var warehouseValue = selectedWarehouseId || controls.warehouseSelect.value || '';
@@ -1806,7 +1813,7 @@
                     }
                 }
 
-                renderReceiptLocationOptions(root, warehouseValue, selectedLocationId || '');
+                await loadReceiptLocationOptions(root, warehouseValue, selectedLocationId || '');
             }
 
             function initializeReceiptInventoryChain(root) {
@@ -1821,25 +1828,28 @@
                 }
 
                 controls.variantSelect.addEventListener('change', function () {
-                    loadReceiptVariantInventory(root, controls.variantSelect.value || '', controls.warehouseSelect.value || '', controls.locationSelect.value || '').catch(function (error) {
+                    loadReceiptWarehouses(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '').catch(function (error) {
                         console.error(error);
                     });
                 });
 
                 controls.warehouseSelect.addEventListener('change', function () {
-                    renderReceiptLocationOptions(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '');
+                    loadReceiptLocationOptions(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '').catch(function (error) {
+                        console.error(error);
+                    });
                 });
 
                 controls.variantSelect.dataset.receiptInventoryBound = 'true';
 
                 hydrateReceiptInventoryOptions(root);
-                renderReceiptWarehouseOptions(root, controls.warehouseSelect.value || '');
-                renderReceiptLocationOptions(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '');
+                renderReceiptWarehouseOptions(root, '');
+                loadReceiptLocationOptions(root, '', '').catch(function (error) {
+                    console.error(error);
+                });
 
                 if (controls.variantSelect.value) {
-                    loadReceiptVariantInventory(
+                    loadReceiptWarehouses(
                         root,
-                        controls.variantSelect.value,
                         controls.warehouseSelect.value || '',
                         controls.locationSelect.value || '').catch(function (error) {
                             console.error(error);
@@ -1914,7 +1924,7 @@
                 if (variantSelect) {
                     variantSelect.value = trigger.getAttribute('data-variant-id') || '';
                     if (window.jQuery) {
-                        window.jQuery(variantSelect).trigger('change');
+                        window.jQuery(variantSelect).trigger('change.select2');
                     }
                 }
 
@@ -1931,7 +1941,7 @@
                 }
 
                 if (variantSelect && variantSelect.value) {
-                    loadReceiptVariantInventory(modal, variantSelect.value, warehouseId, locationId).catch(function (error) {
+                    loadReceiptWarehouses(modal, warehouseId, locationId).catch(function (error) {
                         console.error(error);
                     });
                 }
@@ -1965,11 +1975,12 @@
                 if (variantSelect) {
                     variantSelect.value = '';
                     if (window.jQuery) {
-                        window.jQuery(variantSelect).trigger('change');
+                        window.jQuery(variantSelect).trigger('change.select2');
                     }
                 }
                 if (warehouseSelect) {
-                    warehouseSelect.value = '';
+                    setSelectOptions(warehouseSelect, [], 'ابتدا واریانت را انتخاب کنید', 'warehouseId', 'text', '');
+                    warehouseSelect.disabled = true;
                     if (window.jQuery) {
                         window.jQuery(warehouseSelect).trigger('change.select2');
                     }
@@ -1978,7 +1989,7 @@
                     qtyInput.value = '1';
                 }
                 if (destinationInput) {
-                    destinationInput.value = '';
+                    setSelectOptions(destinationInput, [], 'ابتدا انبار را انتخاب کنید', 'locationId', 'text', '');
                     destinationInput.disabled = true;
                     if (window.jQuery) {
                         window.jQuery(destinationInput).trigger('change.select2');

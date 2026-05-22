@@ -193,6 +193,129 @@ public sealed partial class InventoryManagementController
         });
     }
 
+    [HttpGet("/InventoryManagement/Documents/Receipt/WarehousesLookup")]
+    public async Task<IActionResult> SearchReceiptWarehousesLookup(string? variantId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(variantId) && !Guid.TryParse(variantId, out _))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "واریانت انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده انبارها را ندارید."
+            });
+        }
+
+        var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        if (!warehouseLookupResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = warehouseLookupResult.ErrorMessage
+            });
+        }
+
+        var warehouses = (warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>())
+            .OrderBy(x => x.Code)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                id = x.WarehouseBusinessKey,
+                warehouseId = x.WarehouseBusinessKey,
+                text = $"{x.Code} - {x.Name}",
+                code = x.Code,
+                name = x.Name
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            warehouses
+        });
+    }
+
+    [HttpGet("/InventoryManagement/Documents/Receipt/LocationsLookup")]
+    public async Task<IActionResult> SearchReceiptWarehouseLocationsLookup(string warehouseId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return Json(new
+            {
+                isSuccess = true,
+                locations = new List<object>()
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده لوکیشن‌ها را ندارید."
+            });
+        }
+
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: warehouseId, includeInactive: true);
+        if (!locationLookupResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = locationLookupResult.ErrorMessage
+            });
+        }
+
+        var locations = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
+            .OrderBy(x => x.LocationCode)
+            .ThenBy(x => x.LocationType)
+            .Select(x => new
+            {
+                id = x.LocationBusinessKey,
+                locationId = x.LocationBusinessKey,
+                warehouseId = x.WarehouseRef,
+                text = string.IsNullOrWhiteSpace(x.LocationType)
+                    ? x.LocationCode
+                    : $"{x.LocationCode} ({x.LocationType})",
+                code = x.LocationCode,
+                type = x.LocationType
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            locations
+        });
+    }
+
     [HttpGet("/InventoryManagement/Documents/Receipt/VariantInventoryLookup")]
     public async Task<IActionResult> SearchReceiptVariantInventoryLookup(string variantId, CancellationToken cancellationToken = default)
     {

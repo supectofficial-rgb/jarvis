@@ -148,8 +148,6 @@
     var hasListContext = !string.IsNullOrWhiteSpace(Model.SelectedDocumentId)
         || !string.IsNullOrWhiteSpace(Model.DocumentNoFilter)
         || !string.IsNullOrWhiteSpace(Model.DocumentStatusFilter)
-        || !string.IsNullOrWhiteSpace(Model.WarehouseFilter)
-        || !string.IsNullOrWhiteSpace(Model.SellerFilter)
         || !string.IsNullOrWhiteSpace(Model.OccurredFromFilter)
         || !string.IsNullOrWhiteSpace(Model.OccurredToFilter)
         || Model.DocumentPage > 1;
@@ -167,9 +165,6 @@
             <div class="col-12">
                 <div class="mb-4">
                     <h1>@UiText["inventory.documents.title"]</h1>
-                    <div class="mb-2">
-                        <span class="badge badge-pill badge-primary">@TypeLabel(currentDocumentType)</span>
-                    </div>
                     <p class="text-muted">@UiText["inventory.documents.description"]</p>
                     <div>
                         <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.documents.summary.documents"] @Model.DocumentTotalCount</span>
@@ -220,10 +215,6 @@
                             <div class="form-row">
                                 <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
                                 <div class="form-group col-md-2">
-                                    <label>نوع سند</label>
-                                    <div class="form-control-plaintext pt-2">@TypeLabel(Model.CreateForm.DocumentType)</div>
-                                </div>
-                                <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
@@ -234,26 +225,6 @@
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.referenceId"]</label>
                                     <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.warehouse"]</label>
-                                    <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
-                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
-                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.seller"]</label>
-                                    <select asp-for="CreateForm.SellerRef" class="form-control" required>
-                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
-                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@seller.SellerBusinessKey">@seller.Code - @seller.Name</option>
-                                        }
-                                    </select>
                                 </div>
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
@@ -425,26 +396,6 @@
                                     <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">پست شده</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-3">
-                                <label>انبار</label>
-                                <select name="warehouseId" class="form-control js-search-select">
-                                    <option value="">همه</option>
-                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.WarehouseFilter ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-3">
-                                <label>فروشنده</label>
-                                <select name="sellerId" class="form-control js-search-select">
-                                    <option value="">همه</option>
-                                    @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@seller.SellerBusinessKey" selected="@(seller.SellerBusinessKey == Model.SellerFilter ? "selected" : null)">@seller.Code - @seller.Name</option>
-                                    }
-                                </select>
-                            </div>
                             <div class="form-group col-md-2">
                                 <label>از تاریخ</label>
                                 <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
@@ -473,8 +424,6 @@
                                     <tr>
                                         <th>شماره</th>
                                         <th>نوع</th>
-                                        <th>انبار</th>
-                                        <th>فروشنده</th>
                                         <th>تاریخ</th>
                                         <th>وضعیت</th>
                                         <th class="text-right">عملیات</th>
@@ -483,7 +432,7 @@
                                 <tbody>
                                     @if (Model.Documents.Count == 0)
                                     {
-                                        <tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>
+                                        <tr><td colspan="5" class="text-center text-muted">سندی پیدا نشد.</td></tr>
                                     }
                                     else
                                     {
@@ -492,12 +441,13 @@
                                             <tr>
                                                 <td><span class="text-monospace">@document.DocumentNo</span></td>
                                                 <td>@TypeLabel(document.DocumentType)</td>
-                                                <td>@WarehouseName(document.WarehouseRef)</td>
-                                                <td>@SellerName(document.SellerRef)</td>
                                                 <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@document.DocumentBusinessKey" asp-route-documentNo="@Model.DocumentNoFilter" asp-route-documentType="@Model.DocumentTypeFilter" asp-route-status="@Model.DocumentStatusFilter" asp-route-warehouseId="@Model.WarehouseFilter" asp-route-sellerId="@Model.SellerFilter" asp-route-occurredFrom="@Model.OccurredFromFilter" asp-route-occurredTo="@Model.OccurredToFilter" asp-route-page="@Model.DocumentPage" asp-route-pageSize="@Model.DocumentPageSize" data-ajax-target="#documents-page-root">جزئیات</a>
+                                                    <button type="button"
+                                                            class="btn btn-outline-primary btn-xs js-issue-document-details"
+                                                            data-document-id="@document.DocumentBusinessKey"
+                                                            data-document-no="@document.DocumentNo">جزئیات</button>
                                                 </td>
                                             </tr>
                                         }
@@ -520,8 +470,6 @@
                                                asp-route-documentNo="@Model.DocumentNoFilter"
                                                asp-route-documentType="@Model.DocumentTypeFilter"
                                                asp-route-status="@Model.DocumentStatusFilter"
-                                               asp-route-warehouseId="@Model.WarehouseFilter"
-                                               asp-route-sellerId="@Model.SellerFilter"
                                                asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                asp-route-occurredTo="@Model.OccurredToFilter"
                                                asp-route-page="@i"
@@ -554,8 +502,6 @@
                             <p class="mb-1"><strong>شماره:</strong> <span class="text-monospace">@Model.SelectedDocumentDetails.DocumentNo</span></p>
                             <p class="mb-1"><strong>نوع:</strong> @TypeLabel(Model.SelectedDocumentDetails.DocumentType)</p>
                             <p class="mb-1"><strong>وضعیت:</strong> <span class="badge badge-pill @StatusClass(Model.SelectedDocumentDetails.Status)">@StatusLabel(Model.SelectedDocumentDetails.Status)</span></p>
-                            <p class="mb-1"><strong>انبار:</strong> @WarehouseName(Model.SelectedDocumentDetails.WarehouseRef)</p>
-                            <p class="mb-1"><strong>فروشنده:</strong> @SellerName(Model.SelectedDocumentDetails.SellerRef)</p>
                             <p class="mb-1"><strong>تاریخ وقوع:</strong> @Model.SelectedDocumentDetails.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
                             <p class="mb-1"><strong>مرجع:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReferenceType) ? "-" : $"{Model.SelectedDocumentDetails.ReferenceType} / {Model.SelectedDocumentDetails.ReferenceBusinessId}")</p>
                             <p class="mb-1"><strong>علت:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReasonCode) ? "-" : Model.SelectedDocumentDetails.ReasonCode)</p>
@@ -832,6 +778,25 @@
         </div>
     </div>
 </main>
+
+<div class="modal fade" id="issue-document-details-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="issue-document-details-modal-title">جزئیات سند حواله</h5>
+                    <div class="small text-muted" id="issue-document-details-modal-subtitle"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="issue-document-details-modal-body">
+                <div class="text-muted">در حال بارگذاری...</div>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script data-ajax-reinit="documents">
@@ -1256,6 +1221,330 @@
             toggleTypeFields();
             syncLocationsToWarehouse();
             setLinesPanelVisible(false);
+        })();
+    </script>
+    <script data-ajax-reinit="issue-document-details">
+        (function () {
+            var modalSelector = '#issue-document-details-modal';
+            var modalBodySelector = '#issue-document-details-modal-body';
+            var modalTitleSelector = '#issue-document-details-modal-title';
+            var modalSubtitleSelector = '#issue-document-details-modal-subtitle';
+            var detailsUrl = '@Url.Action("IssueDocumentDetails", "InventoryManagement")';
+            var variantInventoryLookupUrl = '@Url.Action("SearchIssueVariantInventoryLookup", "InventoryManagement")';
+            var issueLocationOptions = [];
+
+            function showModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalSelector).modal('show');
+                }
+            }
+
+            function initModalWidgets(root) {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(root);
+                }
+                initializeIssueInventoryChain(root);
+            }
+
+            function hydrateIssueInventoryOptions(root) {
+                root = root || document;
+                var locationJson = root.dataset ? root.dataset.locationOptions : '';
+                if (!locationJson) {
+                    return;
+                }
+
+                try {
+                    issueLocationOptions = JSON.parse(locationJson) || [];
+                } catch (error) {
+                    console.error(error);
+                    issueLocationOptions = [];
+                }
+            }
+
+            function getIssueLineControls(root) {
+                root = root || document;
+                return {
+                    variantSelect: root.querySelector('select[name="LineForm.VariantId"]'),
+                    sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]')
+                };
+            }
+
+            function setSelectOptions(select, items, placeholderText, valueSelector, textSelector, selectedValue) {
+                if (!select) {
+                    return;
+                }
+
+                while (select.firstChild) {
+                    select.removeChild(select.firstChild);
+                }
+
+                var placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = placeholderText || '';
+                select.appendChild(placeholder);
+
+                (items || []).forEach(function (item) {
+                    var option = document.createElement('option');
+                    option.value = item[valueSelector] || '';
+                    option.textContent = item[textSelector] || option.value;
+                    select.appendChild(option);
+                });
+
+                select.value = selectedValue || '';
+            }
+
+            function renderIssueLocationOptions(root, selectedLocationId, allowedLocationIds) {
+                var controls = getIssueLineControls(root);
+                if (!controls.sourceSelect) {
+                    return;
+                }
+
+                var allowed = Array.isArray(allowedLocationIds) ? allowedLocationIds.filter(Boolean).map(function (value) {
+                    return String(value).toLowerCase();
+                }) : [];
+
+                var filteredLocations = issueLocationOptions.filter(function (item) {
+                    if (!allowed.length) {
+                        return false;
+                    }
+
+                    var itemId = String(item.id || item.locationId || '').toLowerCase();
+                    return allowed.indexOf(itemId) >= 0;
+                });
+
+                setSelectOptions(
+                    controls.sourceSelect,
+                    filteredLocations,
+                    controls.variantSelect && controls.variantSelect.value
+                        ? (filteredLocations.length ? 'انتخاب لوکیشن' : 'برای این واریانت لوکیشنی یافت نشد')
+                        : 'ابتدا واریانت را انتخاب کنید',
+                    'id',
+                    'text',
+                    selectedLocationId);
+
+                if (!selectedLocationId && filteredLocations.length === 1) {
+                    controls.sourceSelect.value = filteredLocations[0].id || filteredLocations[0].locationId || '';
+                }
+
+                controls.sourceSelect.disabled = !controls.variantSelect || !controls.variantSelect.value || filteredLocations.length === 0;
+                if (window.jQuery) {
+                    window.jQuery(controls.sourceSelect).trigger('change.select2');
+                }
+            }
+
+            async function loadIssueVariantInventory(root, variantId, selectedLocationId) {
+                root = root || document;
+                var controls = getIssueLineControls(root);
+                if (!controls.variantSelect || !controls.sourceSelect) {
+                    return;
+                }
+
+                hydrateIssueInventoryOptions(root);
+
+                if (!variantId) {
+                    renderIssueLocationOptions(root, selectedLocationId || controls.sourceSelect.value || '', []);
+                    return;
+                }
+
+                var url = new URL(variantInventoryLookupUrl, window.location.origin);
+                url.searchParams.set('variantId', variantId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'Loading issue variant inventory failed.');
+                }
+
+                renderIssueLocationOptions(root, selectedLocationId || '', payload.allowedLocationIds || []);
+            }
+
+            function initializeIssueInventoryChain(root) {
+                root = root || document;
+                var controls = getIssueLineControls(root);
+                if (!controls.variantSelect || !controls.sourceSelect) {
+                    return;
+                }
+
+                if (controls.variantSelect.dataset.issueInventoryBound === 'true') {
+                    return;
+                }
+
+                controls.variantSelect.addEventListener('change', function () {
+                    loadIssueVariantInventory(root, controls.variantSelect.value || '', controls.sourceSelect.value || '').catch(function (error) {
+                        console.error(error);
+                    });
+                });
+
+                controls.variantSelect.dataset.issueInventoryBound = 'true';
+                hydrateIssueInventoryOptions(root);
+                renderIssueLocationOptions(root, controls.sourceSelect.value || '', []);
+                if (controls.variantSelect.value) {
+                    loadIssueVariantInventory(root, controls.variantSelect.value, controls.sourceSelect.value || '').catch(function (error) {
+                        console.error(error);
+                    });
+                }
+            }
+
+            async function loadIssueDetails(documentId, documentNo) {
+                var url = new URL(detailsUrl, window.location.origin);
+                url.searchParams.set('documentId', documentId || '');
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+
+                var html = await response.text();
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var nextBody = doc.querySelector(modalBodySelector);
+                var currentBody = document.querySelector(modalBodySelector);
+                if (!nextBody || !currentBody) {
+                    throw new Error('Issue details modal body could not be loaded.');
+                }
+
+                currentBody.replaceWith(nextBody);
+                initModalWidgets(nextBody);
+
+                var titleElement = document.querySelector(modalTitleSelector);
+                var subtitleElement = document.querySelector(modalSubtitleSelector);
+                if (titleElement) {
+                    titleElement.textContent = documentNo ? ('جزئیات سند ' + documentNo) : 'جزئیات سند حواله';
+                }
+                if (subtitleElement) {
+                    subtitleElement.textContent = documentId || '';
+                }
+
+                showModal();
+            }
+
+            function fillIssueLineForm(trigger) {
+                var modal = document.querySelector(modalSelector);
+                if (!modal || !trigger) {
+                    return;
+                }
+
+                var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
+                var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
+                var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var submitButton = modal.querySelector('.js-issue-line-submit');
+                var cancelButton = modal.querySelector('.js-issue-line-cancel');
+                var sourceLocationId = trigger.getAttribute('data-source-location-id') || '';
+
+                if (lineIdInput) {
+                    lineIdInput.value = trigger.getAttribute('data-line-id') || '';
+                }
+
+                if (variantSelect) {
+                    variantSelect.value = trigger.getAttribute('data-variant-id') || '';
+                    if (window.jQuery) {
+                        window.jQuery(variantSelect).trigger('change');
+                    }
+                }
+
+                if (qtyInput) {
+                    qtyInput.value = trigger.getAttribute('data-qty') || '1';
+                }
+
+                if (sourceSelect) {
+                    sourceSelect.value = sourceLocationId;
+                }
+
+                if (variantSelect && variantSelect.value) {
+                    loadIssueVariantInventory(modal, variantSelect.value, sourceLocationId).catch(function (error) {
+                        console.error(error);
+                    });
+                }
+
+                if (submitButton) {
+                    submitButton.textContent = 'ذخیره تغییرات';
+                }
+
+                if (cancelButton) {
+                    cancelButton.classList.remove('d-none');
+                }
+            }
+
+            function resetIssueLineForm() {
+                var modal = document.querySelector(modalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
+                var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
+                var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var submitButton = modal.querySelector('.js-issue-line-submit');
+                var cancelButton = modal.querySelector('.js-issue-line-cancel');
+
+                if (lineIdInput) {
+                    lineIdInput.value = '';
+                }
+                if (variantSelect) {
+                    variantSelect.value = '';
+                    if (window.jQuery) {
+                        window.jQuery(variantSelect).trigger('change');
+                    }
+                }
+                if (sourceSelect) {
+                    sourceSelect.value = '';
+                    sourceSelect.disabled = true;
+                    if (window.jQuery) {
+                        window.jQuery(sourceSelect).trigger('change.select2');
+                    }
+                }
+                if (qtyInput) {
+                    qtyInput.value = '1';
+                }
+                if (submitButton) {
+                    submitButton.textContent = 'افزودن آیتم';
+                }
+                if (cancelButton) {
+                    cancelButton.classList.add('d-none');
+                }
+            }
+
+            document.addEventListener('click', function (event) {
+                var detailsTrigger = event.target && event.target.closest ? event.target.closest('.js-issue-document-details') : null;
+                if (detailsTrigger) {
+                    event.preventDefault();
+                    loadIssueDetails(detailsTrigger.getAttribute('data-document-id') || '', detailsTrigger.getAttribute('data-document-no') || '').catch(function (error) {
+                        console.error(error);
+                    });
+                    return;
+                }
+
+                var editButton = event.target && event.target.closest ? event.target.closest('.js-issue-line-edit') : null;
+                if (editButton) {
+                    event.preventDefault();
+                    fillIssueLineForm(editButton);
+                    return;
+                }
+
+                var cancelButton = event.target && event.target.closest ? event.target.closest('.js-issue-line-cancel') : null;
+                if (cancelButton) {
+                    event.preventDefault();
+                    resetIssueLineForm();
+                }
+            });
+
+            var modalElement = document.querySelector(modalSelector);
+            if (modalElement) {
+                initModalWidgets(modalElement);
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    resetIssueLineForm();
+                });
+            }
         })();
     </script>
 }

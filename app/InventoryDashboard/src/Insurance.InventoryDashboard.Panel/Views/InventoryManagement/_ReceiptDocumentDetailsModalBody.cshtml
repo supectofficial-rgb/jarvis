@@ -115,8 +115,6 @@
 
 <div id="receipt-document-details-modal-body"
      class="modal-body receipt-document-details-modal"
-     data-warehouse-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.WarehouseLookup.Select(x => new { id = x.WarehouseBusinessKey, text = $"{x.Code} - {x.Name}" })))'
-     data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LocationLookup.Select(x => new { id = x.LocationBusinessKey, warehouseId = x.WarehouseRef, text = $"{x.LocationCode} ({x.LocationType})" })))'
      data-default-warehouse-id="@Model.LineForm.WarehouseRef"
      data-default-location-id="@Model.LineForm.DestinationLocationRef">
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
@@ -177,10 +175,6 @@
                                 <label>انبار</label>
                                 <select asp-for="LineForm.WarehouseRef" class="form-control js-search-select js-receipt-line-warehouse" data-placeholder="انتخاب انبار" required>
                                     <option value="">انتخاب انبار</option>
-                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.LineForm.WarehouseRef ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                    }
                                 </select>
                             </div>
                         </div>

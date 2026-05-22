@@ -76,13 +76,36 @@
         }
 
         var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
-        return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
+        if (location is null)
+        {
+            return locationId;
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, location.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+        var warehouseLabel = warehouse is null ? location.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+        var locationLabel = string.IsNullOrWhiteSpace(location.LocationType)
+            ? location.LocationCode
+            : $"{location.LocationCode} ({location.LocationType})";
+        return string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}";
     }
+
+    var issueLocationOptions = Model.LocationLookup.Select(x =>
+    {
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(w => string.Equals(w.WarehouseBusinessKey, x.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+        var warehouseLabel = warehouse is null ? x.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+        var locationLabel = string.IsNullOrWhiteSpace(x.LocationType) ? x.LocationCode : $"{x.LocationCode} ({x.LocationType})";
+        return new
+        {
+            id = x.LocationBusinessKey,
+            warehouseId = x.WarehouseRef,
+            text = string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}"
+        };
+    }).ToList();
 }
 
 <div id="issue-document-details-modal-body"
      class="modal-body issue-document-details-modal"
-     data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LocationLookup.Select(x => new { id = x.LocationBusinessKey, warehouseId = x.WarehouseRef, text = $"{x.LocationCode} ({x.LocationType})" })))'
+     data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(issueLocationOptions))'
      data-default-source-location-id="@Model.LineForm.SourceLocationRef">
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
