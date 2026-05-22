@@ -22,28 +22,6 @@
         return names.Any(permissionSet.Contains);
     }
 
-    string WarehouseName(string? warehouseId)
-    {
-        if (string.IsNullOrWhiteSpace(warehouseId))
-        {
-            return "-";
-        }
-
-        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
-        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
-    }
-
-    string SellerName(string? sellerId)
-    {
-        if (string.IsNullOrWhiteSpace(sellerId))
-        {
-            return "-";
-        }
-
-        var seller = Model.SellerLookup.FirstOrDefault(x => string.Equals(x.SellerBusinessKey, sellerId, StringComparison.OrdinalIgnoreCase));
-        return seller is null ? sellerId : $"{seller.Code} - {seller.Name}";
-    }
-
     string TypeLabel(string? type) => type switch
     {
         "Receipt" => UiText["inventory.documents.type.receipt"],
@@ -145,16 +123,14 @@
         _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
     };
 
-    var hasListContext = !string.IsNullOrWhiteSpace(Model.SelectedDocumentId)
-        || !string.IsNullOrWhiteSpace(Model.DocumentNoFilter)
+    var hasListContext = !string.IsNullOrWhiteSpace(Model.DocumentNoFilter)
         || !string.IsNullOrWhiteSpace(Model.DocumentStatusFilter)
-        || !string.IsNullOrWhiteSpace(Model.WarehouseFilter)
-        || !string.IsNullOrWhiteSpace(Model.SellerFilter)
         || !string.IsNullOrWhiteSpace(Model.OccurredFromFilter)
         || !string.IsNullOrWhiteSpace(Model.OccurredToFilter)
         || Model.DocumentPage > 1;
 
-    var showListTab = hasListContext;
+    var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase)
+        || (string.IsNullOrWhiteSpace(Model.SelectedTab) && hasListContext);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
@@ -383,26 +359,6 @@
                                     <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">پست شده</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-3">
-                                <label>انبار</label>
-                                <select name="warehouseId" class="form-control js-search-select">
-                                    <option value="">همه</option>
-                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.WarehouseFilter ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-3">
-                                <label>فروشنده</label>
-                                <select name="sellerId" class="form-control js-search-select">
-                                    <option value="">همه</option>
-                                    @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@seller.SellerBusinessKey" selected="@(seller.SellerBusinessKey == Model.SellerFilter ? "selected" : null)">@seller.Code - @seller.Name</option>
-                                    }
-                                </select>
-                            </div>
                             <div class="form-group col-md-2">
                                 <label>از تاریخ</label>
                                 <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
@@ -431,8 +387,6 @@
                                     <tr>
                                         <th>شماره</th>
                                         <th>نوع</th>
-                                        <th>انبار</th>
-                                        <th>فروشنده</th>
                                         <th>تاریخ</th>
                                         <th>وضعیت</th>
                                         <th class="text-right">عملیات</th>
@@ -441,7 +395,7 @@
                                 <tbody id="receipt-document-list-body">
                                     @if (Model.Documents.Count == 0)
                                     {
-                                        <tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>
+                                        <tr><td colspan="5" class="text-center text-muted">سندی پیدا نشد.</td></tr>
                                     }
                                     else
                                     {
@@ -453,8 +407,6 @@
                                             <tr>
                                                 <td><span class="text-monospace">@document.DocumentNo</span></td>
                                                 <td>@TypeLabel(document.DocumentType)</td>
-                                                <td>@WarehouseName(document.WarehouseRef)</td>
-                                                <td>@SellerName(document.SellerRef)</td>
                                                 <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
@@ -471,8 +423,6 @@
                                                            asp-route-pageSize="@Model.DocumentPageSize"
                                                            asp-route-documentNo="@Model.DocumentNoFilter"
                                                            asp-route-status="@Model.DocumentStatusFilter"
-                                                           asp-route-warehouseId="@Model.WarehouseFilter"
-                                                           asp-route-sellerId="@Model.SellerFilter"
                                                            asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                            asp-route-occurredTo="@Model.OccurredToFilter"
                                                            data-ajax-target="#documents-page-root">ویرایش</a>
@@ -485,8 +435,6 @@
                                                             <input type="hidden" name="documentType" value="@document.DocumentType" />
                                                             <input type="hidden" name="documentNo" value="@Model.DocumentNoFilter" />
                                                             <input type="hidden" name="status" value="@Model.DocumentStatusFilter" />
-                                                            <input type="hidden" name="warehouseId" value="@Model.WarehouseFilter" />
-                                                            <input type="hidden" name="sellerId" value="@Model.SellerFilter" />
                                                             <input type="hidden" name="occurredFrom" value="@Model.OccurredFromFilter" />
                                                             <input type="hidden" name="occurredTo" value="@Model.OccurredToFilter" />
                                                             <input type="hidden" name="page" value="@Model.DocumentPage" />
@@ -523,8 +471,6 @@
                                                asp-route-documentNo="@Model.DocumentNoFilter"
                                                asp-route-documentType="@Model.DocumentTypeFilter"
                                                asp-route-status="@Model.DocumentStatusFilter"
-                                               asp-route-warehouseId="@Model.WarehouseFilter"
-                                               asp-route-sellerId="@Model.SellerFilter"
                                                asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                asp-route-occurredTo="@Model.OccurredToFilter"
                                                asp-route-page="@i"
@@ -558,8 +504,6 @@
                             <p class="mb-1"><strong>شماره:</strong> <span class="text-monospace">@Model.SelectedDocumentDetails.DocumentNo</span></p>
                             <p class="mb-1"><strong>نوع:</strong> @TypeLabel(Model.SelectedDocumentDetails.DocumentType)</p>
                             <p class="mb-1"><strong>وضعیت:</strong> <span class="badge badge-pill @StatusClass(Model.SelectedDocumentDetails.Status)">@StatusLabel(Model.SelectedDocumentDetails.Status)</span></p>
-                            <p class="mb-1"><strong>انبار:</strong> @WarehouseName(Model.SelectedDocumentDetails.WarehouseRef)</p>
-                            <p class="mb-1"><strong>فروشنده:</strong> @SellerName(Model.SelectedDocumentDetails.SellerRef)</p>
                             <p class="mb-1"><strong>تاریخ وقوع:</strong> @Model.SelectedDocumentDetails.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
                             <p class="mb-1"><strong>مرجع:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReferenceType) ? "-" : $"{Model.SelectedDocumentDetails.ReferenceType} / {Model.SelectedDocumentDetails.ReferenceBusinessId}")</p>
                             <p class="mb-1"><strong>علت:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReasonCode) ? "-" : Model.SelectedDocumentDetails.ReasonCode)</p>
@@ -1462,8 +1406,6 @@
                 params.set('pageSize', getReceiptListValue('pageSize') || '@Model.DocumentPageSize');
                 params.set('documentNo', getReceiptListValue('documentNo'));
                 params.set('status', getReceiptListValue('status'));
-                params.set('warehouseId', getReceiptListValue('warehouseId'));
-                params.set('sellerId', getReceiptListValue('sellerId'));
                 params.set('occurredFrom', getReceiptListValue('occurredFrom'));
                 params.set('occurredTo', getReceiptListValue('occurredTo'));
                 return params;
@@ -1498,8 +1440,6 @@
                 var currentPageSize = escapeHtml(getReceiptListValue('pageSize') || '@Model.DocumentPageSize');
                 var documentNoValue = escapeHtml(getReceiptListValue('documentNo'));
                 var statusValue = escapeHtml(getReceiptListValue('status'));
-                var warehouseValue = escapeHtml(getReceiptListValue('warehouseId'));
-                var sellerValue = escapeHtml(getReceiptListValue('sellerId'));
                 var occurredFromValue = escapeHtml(getReceiptListValue('occurredFrom'));
                 var occurredToValue = escapeHtml(getReceiptListValue('occurredTo'));
                 var editUrl = '@Url.Action("ReceiptDocuments", "InventoryManagement")'
@@ -1510,16 +1450,12 @@
                     + '&pageSize=' + encodeURIComponent(getReceiptListValue('pageSize') || '@Model.DocumentPageSize')
                     + '&documentNo=' + encodeURIComponent(getReceiptListValue('documentNo') || '')
                     + '&status=' + encodeURIComponent(getReceiptListValue('status') || '')
-                    + '&warehouseId=' + encodeURIComponent(getReceiptListValue('warehouseId') || '')
-                    + '&sellerId=' + encodeURIComponent(getReceiptListValue('sellerId') || '')
                     + '&occurredFrom=' + encodeURIComponent(getReceiptListValue('occurredFrom') || '')
                     + '&occurredTo=' + encodeURIComponent(getReceiptListValue('occurredTo') || '');
 
                 var html = '';
                 html += '<td><span class="text-monospace">' + documentNo + '</span></td>';
                 html += '<td>' + escapeHtml(getDocumentTypeLabel(document.documentType)) + '</td>';
-                html += '<td>' + escapeHtml(getWarehouseLabel(document.warehouseRef)) + '</td>';
-                html += '<td>' + escapeHtml(getSellerLabel(document.sellerRef)) + '</td>';
                 html += '<td>' + escapeHtml(formatDocumentDateTime(document.occurredAt)) + '</td>';
                 html += '<td><span class="badge badge-pill ' + getStatusClass(document.status) + '">' + escapeHtml(getStatusLabel(document.status)) + '</span></td>';
                 html += '<td class="text-right">';
@@ -1546,7 +1482,7 @@
 
                 var rows = Array.isArray(items) ? items : [];
                 if (rows.length === 0) {
-                    body.innerHTML = '<tr><td colspan="7" class="text-center text-muted">سندی پیدا نشد.</td></tr>';
+                    body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">سندی پیدا نشد.</td></tr>';
                     return;
                 }
 
@@ -1624,8 +1560,6 @@
                 payload.append('pageSize', getReceiptListValue('pageSize') || '@Model.DocumentPageSize');
                 payload.append('documentNo', getReceiptListValue('documentNo'));
                 payload.append('status', getReceiptListValue('status'));
-                payload.append('warehouseId', getReceiptListValue('warehouseId'));
-                payload.append('sellerId', getReceiptListValue('sellerId'));
                 payload.append('occurredFrom', getReceiptListValue('occurredFrom'));
                 payload.append('occurredTo', getReceiptListValue('occurredTo'));
 

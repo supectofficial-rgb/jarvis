@@ -289,7 +289,7 @@ public sealed partial class InventoryManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveReceiptDocumentLine(InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> SaveReceiptDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
         {
@@ -674,7 +674,7 @@ public sealed partial class InventoryManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveDocument(CreateInventoryDocumentForm form)
+    public async Task<IActionResult> SaveDocument([Bind(Prefix = "CreateForm")] CreateInventoryDocumentForm form)
     {
         if (!TryGetToken(out var token))
         {
@@ -766,7 +766,7 @@ public sealed partial class InventoryManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SaveDocumentLine(InventoryDocumentLineForm form)
+    public async Task<IActionResult> SaveDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form)
     {
         if (!TryGetToken(out var token))
         {

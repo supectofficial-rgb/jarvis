@@ -137,19 +137,11 @@
         </div>
 
         <div class="row mb-3">
-            <div class="col-md-3 mb-2">
-                <div class="text-muted small">انبار</div>
-                <div>@WarehouseName(document.WarehouseRef)</div>
-            </div>
-            <div class="col-md-3 mb-2">
-                <div class="text-muted small">فروشنده</div>
-                <div>@SellerName(document.SellerRef)</div>
-            </div>
-            <div class="col-md-3 mb-2">
+            <div class="col-md-6 mb-2">
                 <div class="text-muted small">تاریخ وقوع</div>
                 <div>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</div>
             </div>
-            <div class="col-md-3 mb-2">
+            <div class="col-md-6 mb-2">
                 <div class="text-muted small">مرجع</div>
                 <div>@(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</div>
             </div>
