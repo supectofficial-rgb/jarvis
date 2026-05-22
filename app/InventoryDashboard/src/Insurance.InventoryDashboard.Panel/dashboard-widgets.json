@@ -33,8 +33,7 @@
       "description": "مدیریت دسته‌بندی، اتریبیوت، آپشن و اتریبیوت‌های مرتبط با دسته‌بندی",
       "roles": [
         "SysAdmin",
-        "Admin",
-        "InventoryManager"
+        "Admin"
       ],
       "items": [
         {
@@ -44,8 +43,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "مدیریت ساختار درختی Category",
           "route": "/CategoryManagement/Categories"
@@ -57,8 +55,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "تعریف و ویرایش اتریبیوت‌ها و گزینه‌های آنها",
           "route": "/CategoryManagement/Attributes"
@@ -70,8 +67,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "اختصاص و تنظیم اتریبیوت‌های مرتبط با دسته‌بندی",
           "route": "/CategoryManagement/CategoryAttributes"
@@ -83,8 +79,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "مدیریت فرمول نام واریانت برای هر دسته‌بندی",
           "route": "/CategoryManagement/VariantNameFormulas"
@@ -99,8 +94,7 @@
       "description": "مدیریت Product و Variant",
       "roles": [
         "SysAdmin",
-        "Admin",
-        "InventoryManager"
+        "Admin"
       ],
       "items": [
         {
@@ -110,8 +104,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "مدیریت Product و Attributeهای مرتبط",
           "route": "/ProductManagement/Products?create=true"
@@ -123,8 +116,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "مدیریت Variant و مقادیر Attribute",
           "route": "/VariantManagement/Variants"
@@ -277,6 +269,124 @@
       ]
     },
     {
+      "moduleId": "warehouse_operations",
+      "title": "عملیات انباردار",
+      "icon": "iconsminds-warehouse",
+      "isEnabled": true,
+      "description": "صفحات عملیاتی مخصوص انباردار برای کارهای روزانه، بدون شلوغی بخش‌های مدیریتی",
+      "roles": [
+        "SysAdmin",
+        "Admin",
+        "InventoryManager"
+      ],
+      "items": [
+        {
+          "itemId": "overview",
+          "title": "نمای کلی",
+          "icon": "simple-icon-speedometer",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "نمای سریع وضعیت و میانبرهای روزانه انباردار",
+          "route": "/WarehouseClerk/Overview"
+        },
+        {
+          "itemId": "inbound",
+          "title": "دریافت و ورود",
+          "icon": "simple-icon-login",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "صفحهٔ متمرکز برای دریافت، ورود و اسناد ورودی",
+          "route": "/WarehouseClerk/Inbound"
+        },
+        {
+          "itemId": "inventory",
+          "title": "موجودی و لوکیشن",
+          "icon": "simple-icon-location-pin",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ورود سریع به انبارها، لوکیشن‌ها و موجودی",
+          "route": "/WarehouseClerk/Inventory"
+        },
+        {
+          "itemId": "stock_control",
+          "title": "کنترل موجودی",
+          "icon": "simple-icon-calculator",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "شمارش، مغایرت، اصلاح و عملیات کنترل موجودی",
+          "route": "/WarehouseClerk/StockControl"
+        },
+        {
+          "itemId": "outbound",
+          "title": "خروج و ارسال",
+          "icon": "simple-icon-logout",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "درگاه کارهای خروجی، ارسال و تسک‌های مرتبط",
+          "route": "/WarehouseClerk/Outbound"
+        },
+        {
+          "itemId": "reports",
+          "title": "گزارش‌ها",
+          "icon": "simple-icon-chart",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "صفحهٔ گزارش‌ها و خلاصه‌های مدیریتی انبار",
+          "route": "/WarehouseClerk/Reports"
+        },
+        {
+          "itemId": "alerts",
+          "title": "هشدارها",
+          "icon": "simple-icon-bell",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "هشدارهای عملیاتی و پیام‌های فوری انبار",
+          "route": "/WarehouseClerk/Alerts"
+        },
+        {
+          "itemId": "tasks",
+          "title": "تسک‌ها",
+          "icon": "simple-icon-check",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مدیریت کارهای روزانه و وظایف اپراتورها",
+          "route": "/WarehouseClerk/Tasks"
+        }
+      ]
+    },
+    {
       "moduleId": "pricing_management",
       "title": "مدیریت قیمت",
       "icon": "iconsminds-coins",
@@ -284,8 +394,7 @@
       "description": "مدیریت نوع قیمت، کانال قیمت و قیمت‌گذاری واریانت‌های دارای موجودی",
       "roles": [
         "SysAdmin",
-        "Admin",
-        "InventoryManager"
+        "Admin"
       ],
       "items": [
         {
@@ -295,8 +404,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "تعریف تایپ‌های قیمت مثل فروش عادی، عمده یا همکار",
           "route": "/PricingManagement/PriceTypes"
@@ -308,8 +416,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "تعریف چنل‌های قیمت مثل سایت، حضوری یا نماینده",
           "route": "/PricingManagement/PriceChannels"
@@ -324,8 +431,7 @@
       "description": "جایگاه ماژول مالی آینده؛ فعلا UI تب‌دار و جستجوی واریانت برای پیش‌فاکتور",
       "roles": [
         "SysAdmin",
-        "Admin",
-        "InventoryManager"
+        "Admin"
       ],
       "items": [
         {
@@ -335,8 +441,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "ثبت و مدیریت پیش‌فاکتور",
           "route": "/InvoiceManagement/Proformas"
@@ -348,8 +453,7 @@
           "isEnabled": true,
           "roles": [
             "SysAdmin",
-            "Admin",
-            "InventoryManager"
+            "Admin"
           ],
           "description": "ثبت و مدیریت فاکتور",
           "route": "/InvoiceManagement/Invoices"

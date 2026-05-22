@@ -1778,16 +1778,7 @@
                     return;
                 }
 
-                var variantId = controls.variantSelect.value || '';
-                if (!variantId) {
-                    hydrateReceiptInventoryOptions(root);
-                    renderReceiptWarehouseOptions(root, '');
-                    await loadReceiptLocationOptions(root, '', '');
-                    return;
-                }
-
                 var url = new URL(receiptWarehouseLookupUrl, window.location.origin);
-                url.searchParams.set('variantId', variantId);
 
                 var response = await fetch(url.toString(), {
                     headers: {
@@ -1827,12 +1818,6 @@
                     return;
                 }
 
-                controls.variantSelect.addEventListener('change', function () {
-                    loadReceiptWarehouses(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '').catch(function (error) {
-                        console.error(error);
-                    });
-                });
-
                 controls.warehouseSelect.addEventListener('change', function () {
                     loadReceiptLocationOptions(root, controls.warehouseSelect.value || '', controls.locationSelect.value || '').catch(function (error) {
                         console.error(error);
@@ -1842,19 +1827,12 @@
                 controls.variantSelect.dataset.receiptInventoryBound = 'true';
 
                 hydrateReceiptInventoryOptions(root);
-                renderReceiptWarehouseOptions(root, '');
-                loadReceiptLocationOptions(root, '', '').catch(function (error) {
-                    console.error(error);
-                });
-
-                if (controls.variantSelect.value) {
-                    loadReceiptWarehouses(
-                        root,
-                        controls.warehouseSelect.value || '',
-                        controls.locationSelect.value || '').catch(function (error) {
-                            console.error(error);
-                        });
-                }
+                loadReceiptWarehouses(
+                    root,
+                    controls.warehouseSelect.value || '',
+                    controls.locationSelect.value || '').catch(function (error) {
+                        console.error(error);
+                    });
             }
 
             function getAntiForgeryToken() {

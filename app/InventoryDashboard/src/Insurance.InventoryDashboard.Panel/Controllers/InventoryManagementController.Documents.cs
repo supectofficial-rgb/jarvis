@@ -472,16 +472,61 @@ public sealed partial class InventoryManagementController
             });
         }
 
+        var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+
+        if (!warehouseLookupResult.IsSuccess || !locationLookupResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = JoinErrors(
+                    warehouseLookupResult.ErrorMessage,
+                    locationLookupResult.ErrorMessage)
+            });
+        }
+
+        var warehouseLookup = (warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>())
+            .ToDictionary(x => x.WarehouseBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
+        var locationLookup = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
+            .ToDictionary(x => x.LocationBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
+
         var allowedLocationIds = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
-            .Where(x => x.QuantityOnHand > 0)
             .Select(x => x.LocationRef.ToString("D"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var locations = allowedLocationIds
+            .Select(locationId =>
+            {
+                if (!locationLookup.TryGetValue(locationId, out var location))
+                {
+                    return null;
+                }
+
+                var warehouse = warehouseLookup.TryGetValue(location.WarehouseRef, out var warehouseItem) ? warehouseItem : null;
+                var warehouseLabel = warehouse is null ? location.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+                var locationLabel = string.IsNullOrWhiteSpace(location.LocationType)
+                    ? location.LocationCode
+                    : $"{location.LocationCode} ({location.LocationType})";
+
+                return new
+                {
+                    id = location.LocationBusinessKey,
+                    locationId = location.LocationBusinessKey,
+                    warehouseId = location.WarehouseRef,
+                    warehouseText = warehouseLabel,
+                    locationText = locationLabel,
+                    text = string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}"
+                };
+            })
+            .Where(x => x is not null)
             .ToList();
 
         return Json(new
         {
             isSuccess = true,
-            allowedLocationIds
+            locations
         });
     }
 
@@ -767,7 +812,6 @@ public sealed partial class InventoryManagementController
         }
 
         var allowedLocationIds = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
-            .Where(x => x.QuantityOnHand > 0)
             .Select(x => x.LocationRef.ToString("D"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();

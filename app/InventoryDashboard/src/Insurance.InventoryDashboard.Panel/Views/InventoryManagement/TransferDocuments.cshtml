@@ -1258,7 +1258,6 @@
             var detailsUrl = '@Url.Action("TransferDocumentDetails", "InventoryManagement")';
             var variantInventoryLookupUrl = '@Url.Action("SearchTransferVariantInventoryLookup", "InventoryManagement")';
             var transferLocationOptions = [];
-            var transferAllowedLocationIds = [];
             var documentListUrl = '@Url.Action("DocumentList", "InventoryManagement")';
             var documentListFormSelector = '#transfer-document-list-form';
             var documentListCountSelector = '#transfer-document-list-count';
@@ -1283,17 +1282,7 @@
             }
 
             function hydrateTransferInventoryOptions(root) {
-                root = root || document;
-                var locationJson = root.dataset ? root.dataset.locationOptions : '';
-
-                if (locationJson) {
-                    try {
-                        transferLocationOptions = JSON.parse(locationJson) || [];
-                    } catch (error) {
-                        console.error(error);
-                        transferLocationOptions = [];
-                    }
-                }
+                transferLocationOptions = [];
             }
 
             function getTransferLineControls(root) {
@@ -1350,9 +1339,7 @@
                     return;
                 }
 
-                var sourceLocations = transferLocationOptions.filter(function (item) {
-                    return !transferAllowedLocationIds.length || transferAllowedLocationIds.indexOf((item.locationId || item.id || '').toLowerCase()) >= 0;
-                });
+                var sourceLocations = transferLocationOptions.slice();
 
                 var sourcePlaceholderText = sourceLocations.length ? 'انتخاب لوکیشن' : 'برای این واریانت لوکیشنی یافت نشد';
 
@@ -1395,9 +1382,7 @@
                     throw new Error((payload && payload.errorMessage) || 'Loading transfer variant inventory failed.');
                 }
 
-                transferAllowedLocationIds = Array.isArray(payload.allowedLocationIds)
-                    ? payload.allowedLocationIds.map(function (value) { return String(value || '').toLowerCase(); })
-                    : [];
+                transferLocationOptions = Array.isArray(payload.locations) ? payload.locations.slice() : [];
 
                 renderTransferLocationOptions(
                     root,

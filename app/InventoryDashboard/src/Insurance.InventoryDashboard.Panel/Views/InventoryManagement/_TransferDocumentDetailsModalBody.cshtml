@@ -89,25 +89,10 @@
         return string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}";
     }
 
-    var transferLocationOptions = Model.LocationLookup.Select(x =>
-    {
-        var warehouse = Model.WarehouseLookup.FirstOrDefault(w => string.Equals(w.WarehouseBusinessKey, x.WarehouseRef, StringComparison.OrdinalIgnoreCase));
-        var warehouseLabel = warehouse is null ? x.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
-        var locationLabel = string.IsNullOrWhiteSpace(x.LocationType) ? x.LocationCode : $"{x.LocationCode} ({x.LocationType})";
-        return new
-        {
-            id = x.LocationBusinessKey,
-            warehouseId = x.WarehouseRef,
-            warehouseText = warehouseLabel,
-            locationText = locationLabel,
-            text = string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}"
-        };
-    }).ToList();
 }
 
 <div id="transfer-document-details-modal-body"
      class="modal-body transfer-document-details-modal"
-     data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(transferLocationOptions))'
       data-default-source-location-id="@Model.LineForm.SourceLocationRef"
       data-default-destination-location-id="@Model.LineForm.DestinationLocationRef">
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
