@@ -117,13 +117,14 @@ public interface IApiService
     Task<ApiResponse<bool>> ApproveInventoryDocumentAsync(string documentId, string approvedBy, string token);
     Task<ApiResponse<bool>> RejectInventoryDocumentAsync(string documentId, string? reasonCode, string token);
     Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token);
-    Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string? postedBy, string token);
+    Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string? postedBy, IReadOnlyList<PostDocumentLineSerialSelectionModel>? lineSerialSelections, string token);
     Task<ApiResponse<bool>> AddInventoryDocumentLineAsync(string documentId, InventoryDocumentLineForm line, string token);
     Task<ApiResponse<bool>> UpdateInventoryDocumentLineAsync(string documentId, string lineId, InventoryDocumentLineForm line, string token);
     Task<ApiResponse<bool>> DeleteInventoryDocumentLineAsync(string documentId, string lineId, string token);
     Task<ApiResponse<List<SellerLookupItemModel>>> GetSellerLookupAsync(string token, bool includeInactive = true);
     Task<ApiResponse<List<LocationLookupItemModel>>> GetLocationLookupAsync(string token, string? warehouseId = null, bool includeInactive = false);
     Task<ApiResponse<List<QualityStatusLookupItemModel>>> GetQualityStatusLookupAsync(string token, bool includeInactive = false);
+    Task<ApiResponse<List<SerialItemLookupModel>>> GetAvailableSerialItemsAsync(string token, string? variantId = null, string? warehouseId = null);
     Task<ApiResponse<StockDetailSearchResultModel>> SearchStockDetailsAsync(string token, string? variantId = null, string? sellerId = null, string? warehouseId = null, string? locationId = null, string? qualityStatusId = null, string? lotBatchNo = null, bool? isEmpty = null, int page = 1, int pageSize = 200);
     Task<ApiResponse<List<InventoryTransactionListItemModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token);
     Task<ApiResponse<List<ProductVariantSummaryModel>>> SearchVariantsAsync(string token, string? productId = null, string? sku = null, string? barcode = null, bool? isActive = true, int page = 1, int pageSize = 2000);

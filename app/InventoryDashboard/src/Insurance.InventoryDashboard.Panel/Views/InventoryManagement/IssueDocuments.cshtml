@@ -371,7 +371,7 @@
 
         <div class="tab-pane fade @(showListTab ? "show active" : null)" id="document-list-pane" role="tabpanel" aria-labelledby="document-list-tab">
             <div class="row">
-                <div class="col-xl-8 mb-4">
+                <div class="col-12 mb-4">
                 <div class="card mb-4">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -484,7 +484,7 @@
                 </div>
             </div>
 
-            <div class="col-xl-4 mb-4">
+            <div class="d-none">
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title">جزئیات سند</h5>
@@ -1435,10 +1435,12 @@
                 var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
                 var submitButton = modal.querySelector('.js-issue-line-submit');
                 var cancelButton = modal.querySelector('.js-issue-line-cancel');
                 var sourceLocationId = trigger.getAttribute('data-source-location-id') || '';
+                var qualityId = trigger.getAttribute('data-quality-id') || '';
 
                 if (lineIdInput) {
                     lineIdInput.value = trigger.getAttribute('data-line-id') || '';
@@ -1457,6 +1459,13 @@
 
                 if (sourceSelect) {
                     sourceSelect.value = sourceLocationId;
+                }
+
+                if (qualitySelect) {
+                    qualitySelect.value = qualityId;
+                    if (window.jQuery) {
+                        window.jQuery(qualitySelect).trigger('change.select2');
+                    }
                 }
 
                 if (variantSelect && variantSelect.value) {
@@ -1483,6 +1492,7 @@
                 var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
                 var submitButton = modal.querySelector('.js-issue-line-submit');
                 var cancelButton = modal.querySelector('.js-issue-line-cancel');
@@ -1501,6 +1511,12 @@
                     sourceSelect.disabled = true;
                     if (window.jQuery) {
                         window.jQuery(sourceSelect).trigger('change.select2');
+                    }
+                }
+                if (qualitySelect) {
+                    qualitySelect.value = '';
+                    if (window.jQuery) {
+                        window.jQuery(qualitySelect).trigger('change.select2');
                     }
                 }
                 if (qtyInput) {

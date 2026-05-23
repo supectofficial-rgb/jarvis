@@ -76,6 +76,43 @@ public sealed class InventoryDocumentLineDetailsModel
     public string? LotBatchNo { get; set; }
     public string? ReasonCode { get; set; }
     public string? AdjustmentDirection { get; set; }
+    public List<InventoryDocumentLineSerialModel> Serials { get; set; } = new();
+}
+
+public sealed class InventoryDocumentLineSerialModel
+{
+    public string SerialItemBusinessKey { get; set; } = string.Empty;
+    public string? SerialRef { get; set; }
+    public string SerialNo { get; set; } = string.Empty;
+}
+
+public sealed class SerialItemLookupModel
+{
+    public string SerialItemBusinessKey { get; set; } = string.Empty;
+    public string SerialNo { get; set; } = string.Empty;
+    public string VariantRef { get; set; } = string.Empty;
+    public string SellerRef { get; set; } = string.Empty;
+    public string WarehouseRef { get; set; } = string.Empty;
+    public string LocationRef { get; set; } = string.Empty;
+    public string? StockDetailRef { get; set; }
+    public string QualityStatusRef { get; set; } = string.Empty;
+    public string? LotBatchNo { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime DateScannedIn { get; set; }
+    public string? LastTransactionRef { get; set; }
+    public DateTime LastUpdatedAt { get; set; }
+}
+
+public sealed class PostDocumentSerialItemModel
+{
+    public string SerialItemBusinessKey { get; set; } = string.Empty;
+    public string SerialNo { get; set; } = string.Empty;
+}
+
+public sealed class PostDocumentLineSerialSelectionModel
+{
+    public string DocumentLineBusinessKey { get; set; } = string.Empty;
+    public List<PostDocumentSerialItemModel> Serials { get; set; } = new();
 }
 
 public sealed class InventoryDocumentDetailsModel
@@ -187,6 +224,7 @@ public sealed class CreateInventoryDocumentLineForm
     public string? ReasonCode { get; set; }
 
     public string? AdjustmentDirection { get; set; }
+    public List<InventoryDocumentLineSerialModel> Serials { get; set; } = new();
 }
 
 public sealed class InventoryDocumentLineForm
@@ -222,6 +260,7 @@ public sealed class InventoryDocumentLineForm
     public string? ReasonCode { get; set; }
 
     public string? AdjustmentDirection { get; set; }
+    public List<InventoryDocumentLineSerialModel> Serials { get; set; } = new();
 }
 
 public sealed class CreateInventoryDocumentResultModel

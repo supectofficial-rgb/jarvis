@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Insurance.InventoryDashboard.Panel.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -138,6 +139,106 @@ public sealed partial class InventoryManagementController
 
         var model = await BuildReceiptDocumentDetailsModalModelAsync(documentId, token, cancellationToken);
         return PartialView("~/Views/InventoryManagement/_ReceiptDocumentDetailsModalBody.cshtml", model);
+    }
+
+    [HttpGet("/InventoryManagement/Documents/Receipt/PostPreview")]
+    public async Task<IActionResult> ReceiptDocumentPostPreview(
+        string documentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده جزئیات سند را ندارید."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(documentId))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شناسه سند معتبر نیست."
+            });
+        }
+
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        if (!documentResult.IsSuccess || documentResult.Data is null)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = documentResult.ErrorMessage ?? "سند یافت نشد."
+            });
+        }
+
+        var variantIds = documentResult.Data.Lines
+            .Select(x => x.VariantRef)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var variantsResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var variantLookup = (variantsResult.Data ?? new List<ProductVariantSummaryModel>())
+            .Where(x => variantIds.Contains(x.Id))
+            .ToDictionary(x => x.Id, x => BuildVariantLookupLabel(x), StringComparer.OrdinalIgnoreCase);
+
+        var serialTasks = documentResult.Data.Lines
+            .Select(line => _apiService.GetAvailableSerialItemsAsync(token, line.VariantRef))
+            .ToList();
+
+        await Task.WhenAll(serialTasks);
+
+        var lines = documentResult.Data.Lines
+            .Select((line, index) =>
+            {
+                var availableSerials = serialTasks[index].Result.Data ?? new List<SerialItemLookupModel>();
+                var selectedSerialRefs = line.Serials
+                    .Select(serial => serial.SerialItemBusinessKey)
+                    .Where(serialRef => !string.IsNullOrWhiteSpace(serialRef))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                return new
+                {
+                    documentLineBusinessKey = line.LineBusinessKey,
+                    lineNo = index + 1,
+                    variantRef = line.VariantRef,
+                    variantLabel = variantLookup.TryGetValue(line.VariantRef, out var label) ? label : line.VariantRef,
+                    qty = line.Qty,
+                    selectedSerials = selectedSerialRefs,
+                    availableSerials = availableSerials.Select(serial => new
+                    {
+                        serialItemBusinessKey = serial.SerialItemBusinessKey,
+                        serialNo = serial.SerialNo,
+                        warehouseRef = serial.WarehouseRef,
+                        locationRef = serial.LocationRef,
+                        qualityStatusRef = serial.QualityStatusRef,
+                        lotBatchNo = serial.LotBatchNo,
+                        status = serial.Status
+                    }).ToList()
+                };
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            documentId,
+            documentNo = documentResult.Data.DocumentNo,
+            lines
+        });
     }
 
     [HttpGet("/InventoryManagement/Documents/Receipt/VariantLookup")]
@@ -576,6 +677,14 @@ public sealed partial class InventoryManagementController
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
 
+        if (string.IsNullOrWhiteSpace(form.QualityStatusRef))
+        {
+            var invalidQualityModel = await BuildReceiptDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidQualityModel.ErrorMessage = "برای سند رسید، وضعیت کیفیت الزامی است.";
+            invalidQualityModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReceiptDocumentDetailsModalBody.cshtml", invalidQualityModel);
+        }
+
         if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
         {
             form.DestinationLocationRef = await ResolveReceiptDefaultLocationRefAsync(document.WarehouseRef, token, cancellationToken);
@@ -635,6 +744,14 @@ public sealed partial class InventoryManagementController
 
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
+
+        if (string.IsNullOrWhiteSpace(form.QualityStatusRef))
+        {
+            var invalidQualityModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidQualityModel.ErrorMessage = "برای سند انتقال، وضعیت کیفیت الزامی است.";
+            invalidQualityModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidQualityModel);
+        }
 
         if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
         {
@@ -868,6 +985,14 @@ public sealed partial class InventoryManagementController
 
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
+
+        if (string.IsNullOrWhiteSpace(form.QualityStatusRef))
+        {
+            var invalidQualityModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidQualityModel.ErrorMessage = "برای سند حواله، وضعیت کیفیت الزامی است.";
+            invalidQualityModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidQualityModel);
+        }
 
         if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
         {
@@ -1497,7 +1622,7 @@ public sealed partial class InventoryManagementController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PostDocument(string documentId)
+    public async Task<IActionResult> PostDocument(string documentId, string? serialSelectionsJson)
     {
         if (!TryGetToken(out var token))
         {
@@ -1517,7 +1642,8 @@ public sealed partial class InventoryManagementController
         }
 
         var postedBy = HttpContext.Session.GetString("UserName") ?? "dashboard";
-        var result = await _apiService.PostInventoryDocumentAsync(documentId, postedBy, token);
+        var serialSelections = ParsePostDocumentSerialSelections(serialSelectionsJson);
+        var result = await _apiService.PostInventoryDocumentAsync(documentId, postedBy, serialSelections, token);
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "سند پست شد." : result.ErrorMessage ?? "پست سند انجام نشد.";
         return await RedirectToDocumentPageAsync(documentId, token);
@@ -1779,7 +1905,13 @@ public sealed partial class InventoryManagementController
             ToQualityStatusRef = line.ToQualityStatusRef,
             LotBatchNo = line.LotBatchNo,
             ReasonCode = line.ReasonCode,
-            AdjustmentDirection = line.AdjustmentDirection
+            AdjustmentDirection = line.AdjustmentDirection,
+            Serials = line.Serials.Select(serial => new InventoryDocumentLineSerialModel
+            {
+                SerialItemBusinessKey = serial.SerialItemBusinessKey,
+                SerialRef = serial.SerialRef,
+                SerialNo = serial.SerialNo
+            }).ToList()
         };
     }
 
@@ -1796,14 +1928,20 @@ public sealed partial class InventoryManagementController
         var warehousesTask = _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var sellersTask = _apiService.GetSellerLookupAsync(token, includeInactive: true);
         var locationsTask = _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var qualityStatusLookupTask = _apiService.GetQualityStatusLookupAsync(token, includeInactive: false);
         var uomsTask = _apiService.GetUnitOfMeasureLookupAsync(token);
 
-        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, uomsTask);
+        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, qualityStatusLookupTask, uomsTask);
 
         var lineForm = BuildLineForm(document, documentId, null, "Receipt");
         if (string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
         {
             lineForm.DestinationLocationRef = locationsTask.Result.Data?.FirstOrDefault()?.LocationBusinessKey ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(lineForm.QualityStatusRef))
+        {
+            lineForm.QualityStatusRef = qualityStatusLookupTask.Result.Data?.FirstOrDefault()?.QualityStatusBusinessKey;
         }
 
         if (string.IsNullOrWhiteSpace(lineForm.WarehouseRef) && !string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
@@ -1823,6 +1961,7 @@ public sealed partial class InventoryManagementController
             WarehouseLookup = warehousesTask.Result.Data ?? new List<WarehouseLookupItemModel>(),
             SellerLookup = sellersTask.Result.Data ?? new List<SellerLookupItemModel>(),
             LocationLookup = locationsTask.Result.Data ?? new List<LocationLookupItemModel>(),
+            QualityStatusLookup = qualityStatusLookupTask.Result.Data ?? new List<QualityStatusLookupItemModel>(),
             UnitOfMeasureLookup = uomsTask.Result.Data ?? new List<UnitOfMeasureLookupModel>(),
             LineForm = lineForm
         };
@@ -1849,11 +1988,24 @@ public sealed partial class InventoryManagementController
         var warehousesTask = _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var sellersTask = _apiService.GetSellerLookupAsync(token, includeInactive: true);
         var locationsTask = _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var qualityStatusLookupTask = _apiService.GetQualityStatusLookupAsync(token, includeInactive: false);
         var uomsTask = _apiService.GetUnitOfMeasureLookupAsync(token);
 
-        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, uomsTask);
+        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, qualityStatusLookupTask, uomsTask);
 
         var lineForm = BuildLineForm(document, documentId, null, "Transfer");
+        if (string.IsNullOrWhiteSpace(lineForm.QualityStatusRef))
+        {
+            lineForm.QualityStatusRef = qualityStatusLookupTask.Result.Data?.FirstOrDefault()?.QualityStatusBusinessKey;
+        }
+        if (string.IsNullOrWhiteSpace(lineForm.FromQualityStatusRef))
+        {
+            lineForm.FromQualityStatusRef = lineForm.QualityStatusRef;
+        }
+        if (string.IsNullOrWhiteSpace(lineForm.ToQualityStatusRef))
+        {
+            lineForm.ToQualityStatusRef = lineForm.QualityStatusRef;
+        }
 
         return new InventoryDocumentManagementPageViewModel
         {
@@ -1865,6 +2017,7 @@ public sealed partial class InventoryManagementController
             WarehouseLookup = warehousesTask.Result.Data ?? new List<WarehouseLookupItemModel>(),
             SellerLookup = sellersTask.Result.Data ?? new List<SellerLookupItemModel>(),
             LocationLookup = locationsTask.Result.Data ?? new List<LocationLookupItemModel>(),
+            QualityStatusLookup = qualityStatusLookupTask.Result.Data ?? new List<QualityStatusLookupItemModel>(),
             UnitOfMeasureLookup = uomsTask.Result.Data ?? new List<UnitOfMeasureLookupModel>(),
             LineForm = lineForm
         };
@@ -1883,11 +2036,24 @@ public sealed partial class InventoryManagementController
         var warehousesTask = _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var sellersTask = _apiService.GetSellerLookupAsync(token, includeInactive: true);
         var locationsTask = _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var qualityStatusLookupTask = _apiService.GetQualityStatusLookupAsync(token, includeInactive: false);
         var uomsTask = _apiService.GetUnitOfMeasureLookupAsync(token);
 
-        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, uomsTask);
+        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, qualityStatusLookupTask, uomsTask);
 
         var lineForm = BuildLineForm(document, documentId, null, "Issue");
+        if (string.IsNullOrWhiteSpace(lineForm.QualityStatusRef))
+        {
+            lineForm.QualityStatusRef = qualityStatusLookupTask.Result.Data?.FirstOrDefault()?.QualityStatusBusinessKey;
+        }
+        if (string.IsNullOrWhiteSpace(lineForm.FromQualityStatusRef))
+        {
+            lineForm.FromQualityStatusRef = lineForm.QualityStatusRef;
+        }
+        if (string.IsNullOrWhiteSpace(lineForm.ToQualityStatusRef))
+        {
+            lineForm.ToQualityStatusRef = lineForm.QualityStatusRef;
+        }
 
         return new InventoryDocumentManagementPageViewModel
         {
@@ -1899,9 +2065,54 @@ public sealed partial class InventoryManagementController
             WarehouseLookup = warehousesTask.Result.Data ?? new List<WarehouseLookupItemModel>(),
             SellerLookup = sellersTask.Result.Data ?? new List<SellerLookupItemModel>(),
             LocationLookup = locationsTask.Result.Data ?? new List<LocationLookupItemModel>(),
+            QualityStatusLookup = qualityStatusLookupTask.Result.Data ?? new List<QualityStatusLookupItemModel>(),
             UnitOfMeasureLookup = uomsTask.Result.Data ?? new List<UnitOfMeasureLookupModel>(),
             LineForm = lineForm
         };
+    }
+
+    private static readonly JsonSerializerOptions PostDocumentSerialSelectionsJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    private static List<PostDocumentLineSerialSelectionModel>? ParsePostDocumentSerialSelections(string? serialSelectionsJson)
+    {
+        if (string.IsNullOrWhiteSpace(serialSelectionsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var selections = JsonSerializer.Deserialize<List<PostDocumentLineSerialSelectionModel>>(serialSelectionsJson, PostDocumentSerialSelectionsJsonOptions);
+            if (selections is null || selections.Count == 0)
+            {
+                return null;
+            }
+
+            foreach (var selection in selections)
+            {
+                selection.DocumentLineBusinessKey = selection.DocumentLineBusinessKey?.Trim() ?? string.Empty;
+                selection.Serials ??= new List<PostDocumentSerialItemModel>();
+                selection.Serials = selection.Serials
+                    .Where(serial => !string.IsNullOrWhiteSpace(serial.SerialItemBusinessKey) || !string.IsNullOrWhiteSpace(serial.SerialNo))
+                    .Select(serial => new PostDocumentSerialItemModel
+                    {
+                        SerialItemBusinessKey = serial.SerialItemBusinessKey?.Trim() ?? string.Empty,
+                        SerialNo = serial.SerialNo?.Trim() ?? string.Empty
+                    })
+                    .ToList();
+            }
+
+            return selections
+                .Where(selection => !string.IsNullOrWhiteSpace(selection.DocumentLineBusinessKey))
+                .ToList();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string BuildVariantLookupLabel(ProductVariantSummaryModel variant)

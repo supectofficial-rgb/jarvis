@@ -7,6 +7,7 @@ using Insurance.InventoryService.AppCore.Domain.StockDetails.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.PostInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryTransactions.Commands;
 using Insurance.InventoryService.AppCore.Shared.StockDetails.Commands;
 using OysterFx.AppCore.AppServices.Commands;
@@ -20,17 +21,20 @@ public class PostInventoryDocumentCommandHandler
     private readonly IInventoryTransactionCommandRepository _transactionRepository;
     private readonly IStockDetailCommandRepository _stockDetailRepository;
     private readonly IInventorySourceBalanceCommandRepository _sourceBalanceRepository;
+    private readonly ISerialItemCommandRepository _serialRepository;
 
     public PostInventoryDocumentCommandHandler(
         IInventoryDocumentCommandRepository documentRepository,
         IInventoryTransactionCommandRepository transactionRepository,
         IStockDetailCommandRepository stockDetailRepository,
-        IInventorySourceBalanceCommandRepository sourceBalanceRepository)
+        IInventorySourceBalanceCommandRepository sourceBalanceRepository,
+        ISerialItemCommandRepository serialRepository)
     {
         _documentRepository = documentRepository;
         _transactionRepository = transactionRepository;
         _stockDetailRepository = stockDetailRepository;
         _sourceBalanceRepository = sourceBalanceRepository;
+        _serialRepository = serialRepository;
     }
 
     public override async Task<CommandResult<PostInventoryDocumentCommandResult>> Handle(PostInventoryDocumentCommand command)
@@ -54,7 +58,8 @@ public class PostInventoryDocumentCommandHandler
             idempotencyKey: document.IdempotencyKey,
             reasonCode: document.ReasonCode);
 
-        var effects = BuildEffects(document).ToList();
+        var selectedSerialsByLine = BuildSelectedSerialsByLine(command.LineSerials);
+        var effects = BuildEffects(document, selectedSerialsByLine).ToList();
         foreach (var effect in effects)
         {
             var line = effect.TransactionLine;
@@ -99,6 +104,21 @@ public class PostInventoryDocumentCommandHandler
 
             stockDetail.ApplyQuantity(line.BaseQtyDelta, document.OccurredAt);
             line.LinkStockDetail(stockDetail.BusinessKey);
+
+            if (effect.Serials.Count > 0 && line.BaseQtyDelta > 0)
+            {
+                foreach (var selectedSerial in effect.Serials)
+                {
+                    if (!selectedSerial.SerialRef.HasValue)
+                        continue;
+
+                    var serialItem = await _serialRepository.GetByBusinessKeyAsync(selectedSerial.SerialRef.Value);
+                    if (serialItem is null)
+                        return Fail("One of the selected serial items was not found.");
+
+                    serialItem.LinkStockDetail(stockDetail.BusinessKey);
+                }
+            }
         }
 
         var sourceTracingResult = await ApplySourceTracingAsync(document, transaction, effects);
@@ -238,10 +258,34 @@ public class PostInventoryDocumentCommandHandler
     private static bool ShouldConsumeSource(InventoryDocumentType documentType)
         => documentType is InventoryDocumentType.Issue or InventoryDocumentType.Adjustment or InventoryDocumentType.Conversion;
 
-    private static IEnumerable<InventoryDocumentPostingEffect> BuildEffects(InventoryDocument document)
+    private static IReadOnlyDictionary<Guid, IReadOnlyList<PostInventoryDocumentLineSerialItem>> BuildSelectedSerialsByLine(
+        IReadOnlyCollection<PostInventoryDocumentLineSerialSelectionItem>? selections)
+    {
+        if (selections is null || selections.Count == 0)
+        {
+            return new Dictionary<Guid, IReadOnlyList<PostInventoryDocumentLineSerialItem>>();
+        }
+
+        return selections
+            .Where(x => x.DocumentLineBusinessKey != Guid.Empty)
+            .GroupBy(x => x.DocumentLineBusinessKey)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<PostInventoryDocumentLineSerialItem>)group
+                    .SelectMany(x => x.Serials ?? new List<PostInventoryDocumentLineSerialItem>())
+                    .Where(x => x.SerialRef.HasValue || !string.IsNullOrWhiteSpace(x.SerialNo))
+                    .ToList());
+    }
+
+    private static IEnumerable<InventoryDocumentPostingEffect> BuildEffects(
+        InventoryDocument document,
+        IReadOnlyDictionary<Guid, IReadOnlyList<PostInventoryDocumentLineSerialItem>> selectedSerialsByLine)
     {
         foreach (var line in document.Lines)
         {
+            selectedSerialsByLine.TryGetValue(line.BusinessKey.Value, out var selectedSerials);
+            var serialRef = selectedSerials?.FirstOrDefault(x => x.SerialRef.HasValue)?.SerialRef;
+
             switch (document.DocumentType)
             {
                 case InventoryDocumentType.Receipt:
@@ -256,8 +300,10 @@ public class PostInventoryDocumentCommandHandler
                             line.BaseUomRef,
                             destinationLocationRef: line.DestinationLocationRef,
                             newQualityStatusRef: line.QualityStatusRef,
+                            serialRef: serialRef,
                             lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode));
+                            reasonCode: line.ReasonCode),
+                        selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
                     break;
 
                 case InventoryDocumentType.Issue:
@@ -271,8 +317,10 @@ public class PostInventoryDocumentCommandHandler
                             line.BaseUomRef,
                             sourceLocationRef: line.SourceLocationRef,
                             oldQualityStatusRef: line.QualityStatusRef,
+                            serialRef: serialRef,
                             lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode));
+                            reasonCode: line.ReasonCode),
+                        selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
                     break;
 
                 case InventoryDocumentType.Adjustment:
@@ -292,8 +340,10 @@ public class PostInventoryDocumentCommandHandler
                             destinationLocationRef: adjustmentDelta > 0 ? line.DestinationLocationRef ?? line.SourceLocationRef : null,
                             oldQualityStatusRef: adjustmentDelta < 0 ? line.QualityStatusRef : null,
                             newQualityStatusRef: adjustmentDelta > 0 ? line.QualityStatusRef : null,
+                            serialRef: serialRef,
                             lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode));
+                            reasonCode: line.ReasonCode),
+                        selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
                     break;
 
                 case InventoryDocumentType.Transfer:
@@ -307,8 +357,10 @@ public class PostInventoryDocumentCommandHandler
                             line.BaseUomRef,
                             sourceLocationRef: line.SourceLocationRef,
                             oldQualityStatusRef: line.QualityStatusRef,
+                            serialRef: serialRef,
                             lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode));
+                            reasonCode: line.ReasonCode),
+                        selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
 
                     yield return CreateEffect(
                         line,
@@ -320,8 +372,10 @@ public class PostInventoryDocumentCommandHandler
                             line.BaseUomRef,
                             destinationLocationRef: line.DestinationLocationRef,
                             newQualityStatusRef: line.QualityStatusRef,
+                            serialRef: serialRef,
                             lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode));
+                            reasonCode: line.ReasonCode),
+                        selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
                     break;
 
                 case InventoryDocumentType.QualityChange:
@@ -335,8 +389,10 @@ public class PostInventoryDocumentCommandHandler
                             line.BaseUomRef,
                             sourceLocationRef: line.SourceLocationRef ?? line.DestinationLocationRef,
                             oldQualityStatusRef: line.FromQualityStatusRef,
+                            serialRef: serialRef,
                             lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode));
+                            reasonCode: line.ReasonCode),
+                        selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
 
                     yield return CreateEffect(
                         line,
@@ -348,8 +404,10 @@ public class PostInventoryDocumentCommandHandler
                             line.BaseUomRef,
                             destinationLocationRef: line.DestinationLocationRef ?? line.SourceLocationRef,
                             newQualityStatusRef: line.ToQualityStatusRef,
+                            serialRef: serialRef,
                             lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode));
+                            reasonCode: line.ReasonCode),
+                        selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
                     break;
 
                 case InventoryDocumentType.Conversion:
@@ -365,8 +423,10 @@ public class PostInventoryDocumentCommandHandler
                                 line.BaseUomRef,
                                 sourceLocationRef: line.SourceLocationRef,
                                 oldQualityStatusRef: line.QualityStatusRef,
+                                serialRef: serialRef,
                                 lotBatchNo: line.LotBatchNo,
-                                reasonCode: line.ReasonCode));
+                                reasonCode: line.ReasonCode),
+                            selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
                     }
 
                     if (line.DestinationLocationRef.HasValue)
@@ -381,8 +441,10 @@ public class PostInventoryDocumentCommandHandler
                                 line.BaseUomRef,
                                 destinationLocationRef: line.DestinationLocationRef,
                                 newQualityStatusRef: line.QualityStatusRef,
+                                serialRef: serialRef,
                                 lotBatchNo: line.LotBatchNo,
-                                reasonCode: line.ReasonCode));
+                                reasonCode: line.ReasonCode),
+                            selectedSerials ?? Array.Empty<PostInventoryDocumentLineSerialItem>());
                     }
                     break;
             }
@@ -391,10 +453,12 @@ public class PostInventoryDocumentCommandHandler
 
     private static InventoryDocumentPostingEffect CreateEffect(
         InventoryDocumentLine documentLine,
-        InventoryTransactionLine transactionLine)
-        => new(documentLine.BusinessKey.Value, transactionLine);
+        InventoryTransactionLine transactionLine,
+        IReadOnlyList<PostInventoryDocumentLineSerialItem> serials)
+        => new(documentLine.BusinessKey.Value, transactionLine, serials);
 
     private sealed record InventoryDocumentPostingEffect(
         Guid DocumentLineBusinessKey,
-        InventoryTransactionLine TransactionLine);
+        InventoryTransactionLine TransactionLine,
+        IReadOnlyList<PostInventoryDocumentLineSerialItem> Serials);
 }

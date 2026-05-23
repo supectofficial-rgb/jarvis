@@ -1460,7 +1460,7 @@ public sealed class ApiService : IApiService
                     LotBatchNo = NormalizeOptional(x.LotBatchNo),
                     ReasonCode = NormalizeOptional(x.ReasonCode),
                     AdjustmentDirection = NormalizeOptional(x.AdjustmentDirection),
-                    Serials = Array.Empty<object>()
+                    Serials = MapSerials(x.Serials)
                 })
                 .ToList()
         };
@@ -1535,7 +1535,7 @@ public sealed class ApiService : IApiService
                 LotBatchNo = NormalizeOptional(line.LotBatchNo),
                 ReasonCode = NormalizeOptional(line.ReasonCode),
                 AdjustmentDirection = NormalizeOptional(line.AdjustmentDirection),
-                Serials = Array.Empty<object>()
+                Serials = MapSerials(line.Serials)
             }
         };
 
@@ -1561,7 +1561,7 @@ public sealed class ApiService : IApiService
                 LotBatchNo = NormalizeOptional(line.LotBatchNo),
                 ReasonCode = NormalizeOptional(line.ReasonCode),
                 AdjustmentDirection = NormalizeOptional(line.AdjustmentDirection),
-                Serials = Array.Empty<object>()
+                Serials = MapSerials(line.Serials)
             }
         };
 
@@ -1580,8 +1580,75 @@ public sealed class ApiService : IApiService
     public Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token) =>
         PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/cancel", new { ReasonCode = NormalizeOptional(reasonCode) }, token, "Cancelling inventory document failed.");
 
-    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string? postedBy, string token) =>
-        PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/post", new { PostedBy = NormalizeOptional(postedBy) }, token, "Posting inventory document failed.");
+    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(
+        string documentId,
+        string? postedBy,
+        IReadOnlyList<PostDocumentLineSerialSelectionModel>? lineSerialSelections,
+        string token)
+    {
+        var payload = new
+        {
+            PostedBy = NormalizeOptional(postedBy),
+            LineSerials = (lineSerialSelections ?? Array.Empty<PostDocumentLineSerialSelectionModel>())
+                .Where(x => !string.IsNullOrWhiteSpace(x.DocumentLineBusinessKey))
+                .Select(x => new
+                {
+                    DocumentLineBusinessKey = ParseGuidOrEmpty(x.DocumentLineBusinessKey),
+                    Serials = x.Serials
+                        .Where(s => !string.IsNullOrWhiteSpace(s.SerialItemBusinessKey) || !string.IsNullOrWhiteSpace(s.SerialNo))
+                        .Select(s => new
+                        {
+                            SerialRef = ParseNullableGuid(s.SerialItemBusinessKey),
+                            SerialNo = NormalizeOptional(s.SerialNo)
+                        })
+                        .ToList()
+                })
+                .ToList()
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/post", payload, token, "Posting inventory document failed.");
+    }
+
+    public async Task<ApiResponse<List<SerialItemLookupModel>>> GetAvailableSerialItemsAsync(string token, string? variantId = null, string? warehouseId = null)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/SerialItem/available",
+            ("variantRef", variantId),
+            ("warehouseRef", warehouseId));
+
+        var result = await GetQueryAsync<GetAvailableSerialItemsQueryResultDto>(route, token, "Loading available serial items failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<SerialItemLookupModel>>
+            {
+                IsSuccess = false,
+                ErrorMessage = result.ErrorMessage
+            };
+        }
+
+        return new ApiResponse<List<SerialItemLookupModel>>
+        {
+            IsSuccess = true,
+            Data = (result.Data?.Items ?? new List<SerialItemLookupItemDto>())
+                .Select(x => new SerialItemLookupModel
+                {
+                    SerialItemBusinessKey = x.SerialItemBusinessKey.ToString("D"),
+                    SerialNo = x.SerialNo,
+                    VariantRef = x.VariantRef.ToString("D"),
+                    SellerRef = x.SellerRef.ToString("D"),
+                    WarehouseRef = x.WarehouseRef.ToString("D"),
+                    LocationRef = x.LocationRef.ToString("D"),
+                    StockDetailRef = x.StockDetailRef?.ToString("D"),
+                    QualityStatusRef = x.QualityStatusRef.ToString("D"),
+                    LotBatchNo = x.LotBatchNo,
+                    Status = x.Status,
+                    DateScannedIn = x.DateScannedIn,
+                    LastTransactionRef = x.LastTransactionRef?.ToString("D"),
+                    LastUpdatedAt = x.LastUpdatedAt
+                })
+                .ToList()
+        };
+    }
 
     public async Task<ApiResponse<List<SellerLookupItemModel>>> GetSellerLookupAsync(string token, bool includeInactive = true)
     {
@@ -2204,6 +2271,25 @@ public sealed class ApiService : IApiService
             .ToList();
     }
 
+    private static List<object> MapSerials(IEnumerable<InventoryDocumentLineSerialModel>? serials)
+    {
+        if (serials is null)
+        {
+            return new List<object>();
+        }
+
+        return serials
+            .Where(x => !string.IsNullOrWhiteSpace(x.SerialItemBusinessKey) || !string.IsNullOrWhiteSpace(x.SerialNo))
+            .Select(x => new
+            {
+                SerialRef = ParseNullableGuid(x.SerialItemBusinessKey),
+                SerialNo = NormalizeOptional(x.SerialNo)
+            })
+            .Where(x => x.SerialRef.HasValue || !string.IsNullOrWhiteSpace(x.SerialNo))
+            .Cast<object>()
+            .ToList();
+    }
+
     private static int ParseRoundingMode(string? roundingMode)
     {
         if (string.IsNullOrWhiteSpace(roundingMode))
@@ -2690,6 +2776,28 @@ public sealed class ApiService : IApiService
     private sealed class ItemsQueryResultDto<T>
     {
         public List<T> Items { get; set; } = new();
+    }
+
+    private sealed class GetAvailableSerialItemsQueryResultDto
+    {
+        public List<SerialItemLookupItemDto> Items { get; set; } = new();
+    }
+
+    private sealed class SerialItemLookupItemDto
+    {
+        public Guid SerialItemBusinessKey { get; set; }
+        public string SerialNo { get; set; } = string.Empty;
+        public Guid VariantRef { get; set; }
+        public Guid SellerRef { get; set; }
+        public Guid WarehouseRef { get; set; }
+        public Guid LocationRef { get; set; }
+        public Guid? StockDetailRef { get; set; }
+        public Guid QualityStatusRef { get; set; }
+        public string? LotBatchNo { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime DateScannedIn { get; set; }
+        public Guid? LastTransactionRef { get; set; }
+        public DateTime LastUpdatedAt { get; set; }
     }
 
     private sealed class VariantListItemDto

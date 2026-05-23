@@ -34,4 +34,12 @@ public class InventoryDocumentLineQueryItem
     public string? LotBatchNo { get; set; }
     public string? ReasonCode { get; set; }
     public string? AdjustmentDirection { get; set; }
+    public List<InventoryDocumentLineSerialQueryItem> Serials { get; set; } = new();
+}
+
+public class InventoryDocumentLineSerialQueryItem
+{
+    public Guid SerialItemBusinessKey { get; set; }
+    public Guid? SerialRef { get; set; }
+    public string SerialNo { get; set; } = string.Empty;
 }

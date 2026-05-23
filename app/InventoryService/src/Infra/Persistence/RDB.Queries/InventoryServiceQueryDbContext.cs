@@ -77,6 +77,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     public DbSet<UnitOfMeasureReadModel> UnitOfMeasures => Set<UnitOfMeasureReadModel>();
     public DbSet<InventoryDocumentReadModel> InventoryDocuments => Set<InventoryDocumentReadModel>();
     public DbSet<InventoryDocumentLineReadModel> InventoryDocumentLines => Set<InventoryDocumentLineReadModel>();
+    public DbSet<InventoryDocumentLineSerialReadModel> InventoryDocumentLineSerials => Set<InventoryDocumentLineSerialReadModel>();
     public DbSet<InventoryTransactionReadModel> InventoryTransactions => Set<InventoryTransactionReadModel>();
     public DbSet<InventoryTransactionLineReadModel> InventoryTransactionLines => Set<InventoryTransactionLineReadModel>();
     public DbSet<InventoryReservationReadModel> InventoryReservations => Set<InventoryReservationReadModel>();

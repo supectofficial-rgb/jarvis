@@ -68,6 +68,17 @@
         return uom is null ? uomId : $"{uom.Code} - {uom.Name}";
     }
 
+    string QualityName(string? qualityId)
+    {
+        if (string.IsNullOrWhiteSpace(qualityId))
+        {
+            return "-";
+        }
+
+        var quality = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, qualityId, StringComparison.OrdinalIgnoreCase));
+        return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
+    }
+
     string LocationName(string? locationId)
     {
         if (string.IsNullOrWhiteSpace(locationId))
@@ -163,8 +174,15 @@
                                     <option value="">ابتدا واریانت را انتخاب کنید</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-6 d-flex align-items-end">
-                                <div class="text-muted small">مبدأ و مقصد باید از لوکیشن‌های مجاز همان واریانت باشند.</div>
+                            <div class="form-group col-md-6">
+                                <label>وضعیت کیفیت</label>
+                                <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
+                                    <option value="">انتخاب کیفیت</option>
+                                    @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                    }
+                                </select>
                             </div>
                         </div>
                         <div class="form-row">
@@ -204,7 +222,9 @@
                                 <th>واریانت</th>
                                 <th>تعداد</th>
                                 <th>واحد</th>
+                                <th>کیفیت</th>
                                 <th>مبدا</th>
+                                <th>مقصد</th>
                                 <th class="text-right">عملیات</th>
                             </tr>
                         </thead>
@@ -215,7 +235,9 @@
                                     <td>@VariantName(line.VariantRef)</td>
                                     <td>@line.Qty.ToString("0.####")</td>
                                     <td>@UomName(line.UomRef)</td>
+                                    <td>@QualityName(line.QualityStatusRef)</td>
                                     <td>@LocationName(line.SourceLocationRef)</td>
+                                    <td>@LocationName(line.DestinationLocationRef)</td>
                                     <td class="text-right">
                                         @if (canEditLines)
                                         {
@@ -224,6 +246,8 @@
                                                     data-line-id="@line.LineBusinessKey"
                                                     data-variant-id="@line.VariantRef"
                                                     data-source-location-id="@line.SourceLocationRef"
+                                                    data-destination-location-id="@line.DestinationLocationRef"
+                                                    data-quality-id="@line.QualityStatusRef"
                                                     data-qty="@line.Qty.ToString("0.####")">ویرایش</button>
                                             <form asp-action="DeleteTransferDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#transfer-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">
                                                 @Html.AntiForgeryToken()
@@ -241,7 +265,7 @@
                                 @if (line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase) || !string.IsNullOrWhiteSpace(line.LotBatchNo))
                                 {
                                     <tr>
-                                        <td colspan="5" class="text-muted small">
+                                        <td colspan="7" class="text-muted small">
                                             Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
                                             @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
                                             {

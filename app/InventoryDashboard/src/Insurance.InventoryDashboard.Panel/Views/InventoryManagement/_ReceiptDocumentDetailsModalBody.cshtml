@@ -161,7 +161,7 @@
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                         <div class="form-row">
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-4">
                                 <label>واریانت</label>
                                 <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchReceiptVariantLookup", "InventoryManagement")' required>
                                     <option value="">انتخاب واریانت</option>
@@ -171,15 +171,25 @@
                                     }
                                 </select>
                             </div>
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-4">
                                 <label>انبار</label>
                                 <select asp-for="LineForm.WarehouseRef" class="form-control js-search-select js-receipt-line-warehouse" data-placeholder="انتخاب انبار" required>
                                     <option value="">انتخاب انبار</option>
                                 </select>
                             </div>
+                            <div class="form-group col-md-4">
+                                <label>وضعیت کیفیت</label>
+                                <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
+                                    <option value="">انتخاب کیفیت</option>
+                                    @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                    }
+                                </select>
+                            </div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group col-md-7">
+                            <div class="form-group col-md-6">
                                 <label>لوکیشن</label>
                                 <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select js-receipt-line-location" data-placeholder="انتخاب لوکیشن" disabled required>
                                     <option value="">ابتدا انبار را انتخاب کنید</option>
@@ -189,7 +199,7 @@
                                 <label>تعداد</label>
                                 <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
                             </div>
-                            <div class="form-group col-md-2 d-flex align-items-end">
+                            <div class="form-group col-md-3 d-flex align-items-end">
                                 <button class="btn btn-primary btn-block js-receipt-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
                             </div>
                         </div>
@@ -242,6 +252,7 @@
                                                     data-variant-id="@line.VariantRef"
                                                     data-warehouse-id="@LocationWarehouse(line.DestinationLocationRef)"
                                                     data-location-id="@line.DestinationLocationRef"
+                                                    data-quality-id="@line.QualityStatusRef"
                                                     data-qty="@line.Qty.ToString("0.####")"
                                                     data-destination-location-id="@line.DestinationLocationRef">ویرایش</button>
                                             <form asp-action="DeleteReceiptDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#receipt-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">

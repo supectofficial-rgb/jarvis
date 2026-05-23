@@ -30,7 +30,15 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
             .OrderBy(x => x.Id)
             .ToListAsync();
 
-        return ToBusinessKeyResult(item, lines);
+        var lineIds = lines.Select(x => x.Id).ToList();
+        var serials = lineIds.Count == 0
+            ? new List<InventoryDocumentLineSerialReadModel>()
+            : await _dbContext.InventoryDocumentLineSerials
+                .Where(x => x.InventoryDocumentLineId.HasValue && lineIds.Contains(x.InventoryDocumentLineId.Value))
+                .OrderBy(x => x.Id)
+                .ToListAsync();
+
+        return ToBusinessKeyResult(item, lines, serials);
     }
 
     public async Task<InventoryDocumentListItem?> GetByIdAsync(Guid documentId)
@@ -84,6 +92,27 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
                     : null
             })
             .ToListAsync();
+
+        var lineIds = lines.Select(x => x.LineBusinessKey).ToList();
+        var serials = lineIds.Count == 0
+            ? new List<InventoryDocumentLineSerialReadModel>()
+            : await _dbContext.InventoryDocumentLineSerials
+                .Where(x => x.InventoryDocumentLineId.HasValue && lineIds.Contains(x.DocumentLineRef))
+                .OrderBy(x => x.Id)
+                .ToListAsync();
+
+        foreach (var line in lines)
+        {
+            line.Serials = serials
+                .Where(x => x.DocumentLineRef == line.LineBusinessKey)
+                .Select(x => new InventoryDocumentLineSerialListItem
+                {
+                    SerialItemBusinessKey = x.BusinessKey,
+                    SerialRef = x.SerialRef,
+                    SerialNo = x.SerialNo
+                })
+                .ToList();
+        }
 
         return new GetInventoryDocumentLinesByDocumentQueryResult { Items = lines };
     }
@@ -181,7 +210,8 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
 
     private static GetInventoryDocumentByBusinessKeyQueryResult ToBusinessKeyResult(
         InventoryDocumentReadModel x,
-        IReadOnlyList<InventoryDocumentLineReadModel> lines)
+        IReadOnlyList<InventoryDocumentLineReadModel> lines,
+        IReadOnlyList<InventoryDocumentLineSerialReadModel> serials)
         => new()
         {
             DocumentBusinessKey = x.BusinessKey,
@@ -197,10 +227,15 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
             PostedAt = x.PostedAt,
             PostedTransactionRef = x.PostedTransactionRef,
             ReasonCode = x.ReasonCode,
-            Lines = lines.Select(ToLineItem).ToList()
+            Lines = lines.Select(line => ToLineItem(line, serials.Where(x => x.DocumentLineRef == line.BusinessKey).ToList())).ToList()
         };
 
     private static InventoryDocumentLineQueryItem ToLineItem(InventoryDocumentLineReadModel x)
+        => ToLineItem(x, Array.Empty<InventoryDocumentLineSerialReadModel>());
+
+    private static InventoryDocumentLineQueryItem ToLineItem(
+        InventoryDocumentLineReadModel x,
+        IReadOnlyList<InventoryDocumentLineSerialReadModel> serials)
         => new()
         {
             LineBusinessKey = x.BusinessKey,
@@ -216,6 +251,12 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
             ToQualityStatusRef = x.ToQualityStatusRef,
             LotBatchNo = x.LotBatchNo,
             ReasonCode = x.ReasonCode,
-            AdjustmentDirection = x.AdjustmentDirection?.ToString()
+            AdjustmentDirection = x.AdjustmentDirection?.ToString(),
+            Serials = serials.Select(s => new InventoryDocumentLineSerialQueryItem
+            {
+                SerialItemBusinessKey = s.BusinessKey,
+                SerialRef = s.SerialRef,
+                SerialNo = s.SerialNo
+            }).ToList()
         };
 }
