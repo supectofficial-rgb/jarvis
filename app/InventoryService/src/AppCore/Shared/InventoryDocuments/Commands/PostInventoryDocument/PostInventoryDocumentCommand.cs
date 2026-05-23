@@ -12,6 +12,7 @@ public class PostInventoryDocumentCommand : ICommand<PostInventoryDocumentComman
 public sealed class PostInventoryDocumentLineSerialSelectionItem
 {
     public Guid DocumentLineBusinessKey { get; set; }
+    public bool UseUniqueSerialItems { get; set; }
     public List<PostInventoryDocumentLineSerialItem> Serials { get; set; } = new();
 }
 

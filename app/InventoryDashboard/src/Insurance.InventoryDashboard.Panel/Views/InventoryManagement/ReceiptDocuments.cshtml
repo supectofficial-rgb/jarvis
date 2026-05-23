@@ -2091,6 +2091,8 @@
                     selectedSerials.forEach(function (serialId) {
                         selectedLookup[String(serialId || '')] = true;
                     });
+                    var lineId = String(line.documentLineBusinessKey || '');
+                    var toggleId = 'receipt-post-unique-' + String(line.lineNo || '').replace(/[^0-9A-Za-z_-]/g, '') + '-' + lineId.slice(0, 8);
 
                     var serialHtml = serials.length
                         ? serials.map(function (serial) {
@@ -2111,7 +2113,7 @@
                                 + '</span>'
                                 + '</label>';
                         }).join('')
-                        : '<div class="text-muted small">شناسه یکتایی برای این ردیف در دسترس نیست.</div>';
+                        : '<div class="text-muted small">شناسه یکتایی برای این ردیف در دسترس نیست. اگر این ردیف باید شناسه یکتا داشته باشد، تیک بالای همین ردیف را بزنید تا در ثبت نهایی برای هر واحد شناسه ساخته شود.</div>';
 
                     return ''
                         + '<div class="mb-3 pb-3 border-bottom">'
@@ -2122,9 +2124,30 @@
                         + '</div>'
                         + '<div class="text-muted small">تعداد: ' + escapeHtml(String(line.qty || '0')) + '</div>'
                         + '</div>'
-                        + '<div class="pl-1">' + serialHtml + '</div>'
+                        + '<div class="custom-control custom-checkbox mb-2">'
+                        + '<input type="checkbox" class="custom-control-input js-receipt-post-line-unique-toggle"'
+                        + ' id="' + escapeAttribute(toggleId) + '"'
+                        + ' data-line-id="' + escapeAttribute(lineId) + '"' + (selectedSerials.length ? ' checked' : '') + ' />'
+                        + '<label class="custom-control-label" for="' + escapeAttribute(toggleId) + '">صدور شناسه یکتا برای این ردیف</label>'
+                        + '</div>'
+                        + '<div class="pl-1 js-receipt-post-line-serial-container" data-line-id="' + escapeAttribute(lineId) + '">'
+                        + serialHtml + '</div>'
                         + '</div>';
                 }).join('');
+
+                container.querySelectorAll('.js-receipt-post-line-unique-toggle').forEach(function (checkbox) {
+                    checkbox.addEventListener('change', function () {
+                        var lineId = checkbox.getAttribute('data-line-id') || '';
+                        var serialContainer = container.querySelector('.js-receipt-post-line-serial-container[data-line-id="' + lineId.replace(/"/g, '\\"') + '"]');
+                        if (!serialContainer) {
+                            return;
+                        }
+
+                        serialContainer.classList.toggle('d-none', !checkbox.checked);
+                    });
+
+                    checkbox.dispatchEvent(new Event('change'));
+                });
             }
 
             async function loadReceiptPostPreview(documentId) {
@@ -2175,20 +2198,25 @@
 
                 return payload.lines.map(function (line) {
                     var lineId = String(line.documentLineBusinessKey || '');
+                    var lineToggle = document.querySelector(actionPostLinesSelector + ' .js-receipt-post-line-unique-toggle[data-line-id="' + lineId.replace(/"/g, '\\"') + '"]');
+                    var useUniqueSerialItems = !!(lineToggle && lineToggle.checked);
                     var selectedSerials = [];
-                    document.querySelectorAll(actionPostLinesSelector + ' .js-receipt-post-serial[data-line-id="' + lineId.replace(/"/g, '\\"') + '"]').forEach(function (checkbox) {
-                        if (!checkbox.checked) {
-                            return;
-                        }
+                    if (useUniqueSerialItems) {
+                        document.querySelectorAll(actionPostLinesSelector + ' .js-receipt-post-serial[data-line-id="' + lineId.replace(/"/g, '\\"') + '"]').forEach(function (checkbox) {
+                            if (!checkbox.checked) {
+                                return;
+                            }
 
-                        selectedSerials.push({
-                            SerialItemBusinessKey: checkbox.getAttribute('data-serial-id') || '',
-                            SerialNo: checkbox.getAttribute('data-serial-no') || ''
+                            selectedSerials.push({
+                                SerialItemBusinessKey: checkbox.getAttribute('data-serial-id') || '',
+                                SerialNo: checkbox.getAttribute('data-serial-no') || ''
+                            });
                         });
-                    });
+                    }
 
                     return {
                         DocumentLineBusinessKey: lineId,
+                        UseUniqueSerialItems: useUniqueSerialItems,
                         Serials: selectedSerials
                     };
                 }).filter(function (line) {

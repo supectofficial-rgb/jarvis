@@ -1594,6 +1594,7 @@ public sealed class ApiService : IApiService
                 .Select(x => new
                 {
                     DocumentLineBusinessKey = ParseGuidOrEmpty(x.DocumentLineBusinessKey),
+                    UseUniqueSerialItems = x.UseUniqueSerialItems,
                     Serials = x.Serials
                         .Where(s => !string.IsNullOrWhiteSpace(s.SerialItemBusinessKey) || !string.IsNullOrWhiteSpace(s.SerialNo))
                         .Select(s => new

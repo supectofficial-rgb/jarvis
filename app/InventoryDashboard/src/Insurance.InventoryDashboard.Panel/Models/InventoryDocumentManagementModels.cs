@@ -112,6 +112,7 @@ public sealed class PostDocumentSerialItemModel
 public sealed class PostDocumentLineSerialSelectionModel
 {
     public string DocumentLineBusinessKey { get; set; } = string.Empty;
+    public bool UseUniqueSerialItems { get; set; }
     public List<PostDocumentSerialItemModel> Serials { get; set; } = new();
 }
 
