@@ -58,6 +58,10 @@
                     <h1>@UiText["inventory.warehouses.title"]</h1>
                     <p class="text-muted">@UiText["inventory.warehouses.description"]</p>
                     <div>
+                        @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
+                        {
+                            <a asp-action="WarehouseStructures" asp-route-warehouseId="@Model.SelectedWarehouseId" class="btn btn-outline-primary mr-2">ساختار</a>
+                        }
                         <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.warehouses.summary.warehouseCount"] @Model.WarehouseTotalCount</span>
                         <span class="badge badge-pill badge-outline-primary mb-1">@UiText["inventory.warehouses.summary.filteredLocationCount"] @Model.LocationTotalCount</span>
                         @if (!string.IsNullOrWhiteSpace(selectedWarehouseName))

@@ -1,9 +1,11 @@
 ﻿namespace Insurance.UserService.AppCore.AppServices.Users.Commands.CreateUser;
 
 using Insurance.UserService.AppCore.Domain.Accounts.Entities;
+using Insurance.UserService.AppCore.Domain.MembershipRoleAssignments.Entities;
 using Insurance.UserService.AppCore.Domain.Memberships.Entities;
 using Insurance.UserService.AppCore.Domain.Roles.Entities;
 using Insurance.UserService.AppCore.Domain.Users.Entities;
+using Insurance.UserService.AppCore.Shared.MembershipRoleAssignments.Commands;
 using Insurance.UserService.AppCore.Shared.Memberships.Commands;
 using Insurance.UserService.AppCore.Shared.Organizations.Commands;
 using Insurance.UserService.AppCore.Shared.Roles.Commands;
@@ -12,6 +14,8 @@ using Insurance.UserService.AppCore.Shared.Users.Commands.CreateUser;
 using Microsoft.AspNetCore.Identity;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
+using OysterFx.AppCore.Domain.ValueObjects;
+using OysterFx.Infra.Auth.UserServices;
 using System;
 using System.Threading.Tasks;
 
@@ -22,6 +26,8 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
     private readonly IRoleCommandRepository _roleCommandRepository;
     private readonly IOrganizationCommandRepository _organizationCommandRepository;
     private readonly IMembershipCommandRepository _membershipCommandRepository;
+    private readonly IMembershipRoleAssignmentCommandRepository _membershipRoleAssignmentCommandRepository;
+    private readonly IUserInfoService _userInfoService;
     private readonly RoleManager<AppRole> _roleManager;
 
     public CreateUserCommandHandler(
@@ -30,6 +36,8 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         IRoleCommandRepository roleCommandRepository,
         IOrganizationCommandRepository organizationCommandRepository,
         IMembershipCommandRepository membershipCommandRepository,
+        IMembershipRoleAssignmentCommandRepository membershipRoleAssignmentCommandRepository,
+        IUserInfoService userInfoService,
         RoleManager<AppRole> roleManager)
     {
         _userCommandRepository = userCommandRepository;
@@ -37,6 +45,8 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         _roleCommandRepository = roleCommandRepository;
         _organizationCommandRepository = organizationCommandRepository;
         _membershipCommandRepository = membershipCommandRepository;
+        _membershipRoleAssignmentCommandRepository = membershipRoleAssignmentCommandRepository;
+        _userInfoService = userInfoService;
         _roleManager = roleManager;
     }
 
@@ -98,13 +108,24 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         //    }
         //}
 
-        var organization = await _organizationCommandRepository.GetAsync(command.OrganizationBusinessKey);
+        var organizationBusinessKeyValue =
+            _userInfoService.GetClaim("activeOrganizationBusinessKey")
+            ?? _userInfoService.GetClaim("currentOrganizationKey");
 
-        if (organization is not null)
+        if (!string.IsNullOrWhiteSpace(organizationBusinessKeyValue) &&
+            Guid.TryParse(organizationBusinessKeyValue, out var organizationGuid))
         {
-            var membership = Membership.Create(organization.TenantId, user.BusinessKey, organization.BusinessKey);
-            await _membershipCommandRepository.InsertAsync(membership);
-            //await _membershipCommandRepository.CommitAsync();
+            var organizationBusinessKey = BusinessKey.FromGuid(organizationGuid);
+            var organization = await _organizationCommandRepository.GetAsync(organizationBusinessKey);
+
+            if (organization is not null)
+            {
+                var membership = Membership.Create(organization.TenantId, user.BusinessKey, organization.BusinessKey);
+                await _membershipCommandRepository.InsertAsync(membership);
+
+                var membershipRoleAssignment = MembershipRoleAssignment.Create(membership.BusinessKey, BusinessKey.FromGuid(command.RoleBusinessKey));
+                await _membershipRoleAssignmentCommandRepository.InsertAsync(membershipRoleAssignment);
+            }
         }
 
         await _userCommandRepository.CommitAsync();

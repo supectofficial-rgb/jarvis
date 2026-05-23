@@ -110,7 +110,6 @@ public class DataSeedCommandHandler(ICommandBus commandBus) : CommandHandler<Dat
             MobileNumber = "+989390000000",
             UserName = "admin",
             Password = "1qaz!QAZ",
-            OrganizationBusinessKey = organizationBusinessKey,
             RoleBusinessKey = roleBusinessKey
         };
 

@@ -11,7 +11,7 @@ public interface IApiService
     Task<ApiResponse<List<RoleSummaryModel>>> GetRolesAsync(string token);
     Task<ApiResponse<List<PersonaSummaryModel>>> GetPersonasAsync(string token);
     Task<ApiResponse<List<PermissionSummaryModel>>> GetPermissionsAsync(string token);
-    Task<ApiResponse<Guid>> CreateUserAsync(string token, string organizationBusinessKey, CreateDocumentUserForm request, string password);
+    Task<ApiResponse<Guid>> CreateUserAsync(string token, CreateDocumentUserForm request, string password);
 
     Task<ApiResponse<bool>> AssignPersonaToUserAsync(string userId, string personaId, string token);
     Task<ApiResponse<bool>> RemovePersonaFromUserAsync(string userId, string personaId, string token);
@@ -104,6 +104,12 @@ public interface IApiService
     Task<ApiResponse<WarehouseSearchResultModel>> SearchWarehousesAsync(string token, string? code = null, string? name = null, bool? isActive = null, int page = 1, int pageSize = 20);
     Task<ApiResponse<List<WarehouseLookupItemModel>>> GetWarehouseLookupAsync(string token, bool includeInactive = true);
     Task<ApiResponse<WarehouseWithLocationsModel>> GetWarehouseWithLocationsAsync(string warehouseId, string token, bool includeInactiveLocations = true);
+    Task<ApiResponse<List<LocationStructureTreeItemModel>>> GetWarehouseLocationStructureTreeAsync(string warehouseId, string token, bool includeInactive = true);
+    Task<ApiResponse<List<LocationStructureValueItemModel>>> GetLocationStructureValuesAsync(string structureId, string token, bool includeInactive = true);
+    Task<ApiResponse<bool>> CreateLocationStructureNodeAsync(LocationStructureNodeForm request, string token);
+    Task<ApiResponse<bool>> UpdateLocationStructureNodeAsync(string structureId, LocationStructureNodeForm request, string token);
+    Task<ApiResponse<bool>> CreateLocationStructureValueAsync(LocationStructureValueForm request, string token);
+    Task<ApiResponse<bool>> UpdateLocationStructureValueAsync(string structureValueId, LocationStructureValueForm request, string token);
     Task<ApiResponse<bool>> CreateLocationAsync(UpsertLocationRequest request, string token);
     Task<ApiResponse<bool>> UpdateLocationAsync(string locationId, UpsertLocationRequest request, string token);
     Task<ApiResponse<bool>> ActivateLocationAsync(string locationId, string token);

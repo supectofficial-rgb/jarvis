@@ -291,10 +291,9 @@
                                     <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
                                     <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
                                 </div>
-                                <button class="btn btn-outline-primary btn-xs" type="button" id="toggle-document-lines">افزودن واریانت</button>
                             </div>
 
-                            <div id="document-lines-panel" class="d-none">
+                            <div id="document-lines-panel">
                                 <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
                                 <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
 
@@ -901,7 +900,6 @@
             var warehouseSelect = document.getElementById('create-warehouse-select');
             var createForm = document.getElementById('document-create-form');
             var linesPanel = document.getElementById('document-lines-panel');
-            var toggleLinesButton = document.getElementById('toggle-document-lines');
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
 
@@ -989,17 +987,6 @@
                         }
                     });
                 });
-            }
-
-            function setLinesPanelVisible(isVisible) {
-                if (!linesPanel) {
-                    return;
-                }
-
-                linesPanel.classList.toggle('d-none', !isVisible);
-                if (toggleLinesButton) {
-                    toggleLinesButton.textContent = isVisible ? 'پنهان کردن واریانت' : 'افزودن واریانت';
-                }
             }
 
             function clearValidation() {
@@ -1281,12 +1268,6 @@
                 addLineButton.addEventListener('click', addLine);
             }
 
-            if (toggleLinesButton) {
-                toggleLinesButton.addEventListener('click', function () {
-                    setLinesPanelVisible(linesPanel ? linesPanel.classList.contains('d-none') : false);
-                });
-            }
-
             if (documentTypeSelect) {
                 documentTypeSelect.addEventListener('change', function () {
                     clearValidation();
@@ -1314,7 +1295,6 @@
             renumberLines();
             toggleTypeFields();
             syncLocationsToWarehouse();
-            setLinesPanelVisible(false);
         })();
     </script>
     <script data-ajax-reinit="issue-document-details">
@@ -1325,6 +1305,7 @@
             var modalSubtitleSelector = '#issue-document-details-modal-subtitle';
             var detailsUrl = '@Url.Action("IssueDocumentDetails", "InventoryManagement")';
             var variantInventoryLookupUrl = '@Url.Action("SearchIssueVariantInventoryLookup", "InventoryManagement")';
+            var variantSerialLookupUrl = '@Url.Action("SearchIssueVariantSerialLookup", "InventoryManagement")';
             var issueLocationOptions = [];
 
             function showModal() {
@@ -1361,6 +1342,173 @@
                     variantSelect: root.querySelector('select[name="LineForm.VariantId"]'),
                     sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]')
                 };
+            }
+
+            function getIssueLineSerialControls(root) {
+                root = root || document;
+                return {
+                    section: root.querySelector('.line-serials'),
+                    summary: root.querySelector('.js-issue-line-serial-summary'),
+                    container: root.querySelector('.js-issue-line-serial-container'),
+                    hidden: root.querySelector('.js-issue-line-serial-hidden')
+                };
+            }
+
+            function parseSerialSelectionJson(serialJson) {
+                if (!serialJson) {
+                    return [];
+                }
+
+                try {
+                    var parsed = JSON.parse(serialJson);
+                    if (!Array.isArray(parsed)) {
+                        return [];
+                    }
+
+                    return parsed
+                        .map(function (item) {
+                            return {
+                                serialItemBusinessKey: String(item.serialItemBusinessKey || item.SerialItemBusinessKey || ''),
+                                serialNo: String(item.serialNo || item.SerialNo || '')
+                            };
+                        })
+                        .filter(function (item) {
+                            return item.serialItemBusinessKey || item.serialNo;
+                        });
+                } catch (error) {
+                    console.error(error);
+                    return [];
+                }
+            }
+
+            function collectIssueSelectedSerialIds(root) {
+                var controls = getIssueLineSerialControls(root);
+                if (!controls.container) {
+                    return [];
+                }
+
+                var selected = [];
+                controls.container.querySelectorAll('.js-issue-line-serial-select').forEach(function (checkbox) {
+                    if (!checkbox.checked) {
+                        return;
+                    }
+
+                    selected.push(checkbox.getAttribute('data-serial-id') || '');
+                });
+
+                return selected.filter(Boolean);
+            }
+
+            function syncIssueLineSerialHiddenInputs(root) {
+                var controls = getIssueLineSerialControls(root);
+                if (!controls.hidden || !controls.container) {
+                    return;
+                }
+
+                var selectedSerials = [];
+                controls.container.querySelectorAll('.js-issue-line-serial-select').forEach(function (checkbox) {
+                    if (!checkbox.checked) {
+                        return;
+                    }
+
+                    selectedSerials.push({
+                        serialId: checkbox.getAttribute('data-serial-id') || '',
+                        serialNo: checkbox.getAttribute('data-serial-no') || ''
+                    });
+                });
+
+                controls.hidden.innerHTML = '';
+                selectedSerials.forEach(function (serial, index) {
+                    var idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'LineForm.Serials[' + index + '].SerialItemBusinessKey';
+                    idInput.value = serial.serialId;
+                    controls.hidden.appendChild(idInput);
+
+                    var noInput = document.createElement('input');
+                    noInput.type = 'hidden';
+                    noInput.name = 'LineForm.Serials[' + index + '].SerialNo';
+                    noInput.value = serial.serialNo;
+                    controls.hidden.appendChild(noInput);
+                });
+            }
+
+            function renderIssueSerialOptions(root, serials, selectedSerialIds, sourceSelected) {
+                root = root || document;
+                var controls = getIssueLineSerialControls(root);
+                if (!controls.section || !controls.summary || !controls.container) {
+                    return;
+                }
+
+                var variantControls = getIssueLineControls(root);
+                var hasVariant = !!(variantControls.variantSelect && variantControls.variantSelect.value);
+                var hasSource = !!sourceSelected;
+                var items = Array.isArray(serials) ? serials : [];
+                var selectedLookup = {};
+                (selectedSerialIds || []).forEach(function (serialId) {
+                    selectedLookup[String(serialId || '')] = true;
+                });
+
+                controls.container.innerHTML = '';
+                controls.hidden.innerHTML = '';
+
+                if (!hasVariant || !hasSource) {
+                    controls.section.classList.add('d-none');
+                    controls.summary.textContent = 'ابتدا واریانت و لوکیشن مبدأ را انتخاب کنید.';
+                    return;
+                }
+
+                controls.section.classList.remove('d-none');
+
+                if (!items.length) {
+                    controls.summary.textContent = 'سریالی برای این واریانت در لوکیشن انتخاب‌شده پیدا نشد.';
+                    controls.container.innerHTML = '<div class="text-muted small">موردی برای انتخاب وجود ندارد.</div>';
+                    return;
+                }
+
+                controls.summary.textContent = 'سریال‌های موجود را انتخاب کنید.';
+
+                items.forEach(function (serial) {
+                    var serialId = String(serial.serialItemBusinessKey || '');
+                    var serialNo = String(serial.serialNo || serialId || '-');
+                    var warehouseLabel = serial.warehouseRef || '';
+                    var locationLabel = serial.locationRef || '';
+                    var qualityLabel = serial.qualityStatusRef || '';
+
+                    var wrapper = document.createElement('label');
+                    wrapper.className = 'd-flex align-items-start mb-1 small border rounded px-2 py-1 bg-white';
+
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'mr-2 mt-1 js-issue-line-serial-select';
+                    checkbox.setAttribute('data-serial-id', serialId);
+                    checkbox.setAttribute('data-serial-no', serial.serialNo || '');
+                    checkbox.checked = !!selectedLookup[serialId];
+
+                    checkbox.addEventListener('change', function () {
+                        syncIssueLineSerialHiddenInputs(root);
+                    });
+
+                    var content = document.createElement('span');
+                    content.className = 'flex-grow-1';
+
+                    var title = document.createElement('span');
+                    title.className = 'd-block font-weight-bold';
+                    title.textContent = serialNo;
+
+                    var meta = document.createElement('span');
+                    meta.className = 'd-block text-muted';
+                    meta.style.fontSize = '11px';
+                    meta.textContent = [warehouseLabel, locationLabel, qualityLabel, serial.status || ''].filter(Boolean).join(' / ');
+
+                    content.appendChild(title);
+                    content.appendChild(meta);
+                    wrapper.appendChild(checkbox);
+                    wrapper.appendChild(content);
+                    controls.container.appendChild(wrapper);
+                });
+
+                syncIssueLineSerialHiddenInputs(root);
             }
 
             function setSelectOptions(select, items, placeholderText, valueSelector, textSelector, selectedValue) {
@@ -1426,7 +1574,7 @@
                 }
             }
 
-            async function loadIssueVariantInventory(root, variantId, selectedLocationId) {
+            async function loadIssueVariantInventory(root, variantId, selectedLocationId, selectedSerialIds) {
                 root = root || document;
                 var controls = getIssueLineControls(root);
                 if (!controls.variantSelect || !controls.sourceSelect) {
@@ -1456,11 +1604,48 @@
                 }
 
                 renderIssueLocationOptions(root, selectedLocationId || '', payload.allowedLocationIds || []);
+                if (controls.sourceSelect && controls.sourceSelect.value) {
+                    await loadIssueVariantSerials(root, variantId, controls.sourceSelect.value, selectedSerialIds || []);
+                } else {
+                    renderIssueSerialOptions(root, [], [], false);
+                }
+            }
+
+            async function loadIssueVariantSerials(root, variantId, sourceLocationId, selectedSerialIds) {
+                root = root || document;
+                var controls = getIssueLineControls(root);
+                if (!controls.variantSelect) {
+                    return;
+                }
+
+                if (!variantId || !sourceLocationId) {
+                    renderIssueSerialOptions(root, [], selectedSerialIds || [], false);
+                    return;
+                }
+
+                var url = new URL(variantSerialLookupUrl, window.location.origin);
+                url.searchParams.set('variantId', variantId);
+                url.searchParams.set('sourceLocationId', sourceLocationId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'Loading issue variant serials failed.');
+                }
+
+                renderIssueSerialOptions(root, payload.serials || [], selectedSerialIds || [], sourceLocationId);
             }
 
             function initializeIssueInventoryChain(root) {
                 root = root || document;
                 var controls = getIssueLineControls(root);
+                var defaultSourceLocationId = root.dataset ? (root.dataset.defaultSourceLocationId || '') : '';
                 if (!controls.variantSelect || !controls.sourceSelect) {
                     return;
                 }
@@ -1470,18 +1655,38 @@
                 }
 
                 controls.variantSelect.addEventListener('change', function () {
-                    loadIssueVariantInventory(root, controls.variantSelect.value || '', controls.sourceSelect.value || '').catch(function (error) {
+                    loadIssueVariantInventory(root, controls.variantSelect.value || '', controls.sourceSelect.value || '', []).catch(function (error) {
                         console.error(error);
                     });
                 });
 
+                controls.sourceSelect.addEventListener('change', function () {
+                    if (!controls.variantSelect.value) {
+                        renderIssueSerialOptions(root, [], [], false);
+                        return;
+                    }
+
+                    loadIssueVariantSerials(
+                        root,
+                        controls.variantSelect.value || '',
+                        controls.sourceSelect.value || '',
+                        collectIssueSelectedSerialIds(root)).catch(function (error) {
+                            console.error(error);
+                        });
+                });
+
                 controls.variantSelect.dataset.issueInventoryBound = 'true';
                 hydrateIssueInventoryOptions(root);
-                renderIssueLocationOptions(root, controls.sourceSelect.value || '', []);
+                renderIssueLocationOptions(root, defaultSourceLocationId, []);
+                renderIssueSerialOptions(root, [], [], !!defaultSourceLocationId);
                 if (controls.variantSelect.value) {
-                    loadIssueVariantInventory(root, controls.variantSelect.value, controls.sourceSelect.value || '').catch(function (error) {
-                        console.error(error);
-                    });
+                    loadIssueVariantInventory(
+                        root,
+                        controls.variantSelect.value,
+                        defaultSourceLocationId,
+                        parseSerialSelectionJson(root.dataset ? root.dataset.defaultSerialsJson : '')).catch(function (error) {
+                            console.error(error);
+                        });
                 }
             }
 
@@ -1535,6 +1740,10 @@
                 var cancelButton = modal.querySelector('.js-issue-line-cancel');
                 var sourceLocationId = trigger.getAttribute('data-source-location-id') || '';
                 var qualityId = trigger.getAttribute('data-quality-id') || '';
+                var serialsJson = trigger.getAttribute('data-serials-json') || '';
+                var selectedSerialIds = parseSerialSelectionJson(serialsJson).map(function (item) {
+                    return item.serialItemBusinessKey;
+                });
 
                 if (lineIdInput) {
                     lineIdInput.value = trigger.getAttribute('data-line-id') || '';
@@ -1542,9 +1751,6 @@
 
                 if (variantSelect) {
                     variantSelect.value = trigger.getAttribute('data-variant-id') || '';
-                    if (window.jQuery) {
-                        window.jQuery(variantSelect).trigger('change');
-                    }
                 }
 
                 if (qtyInput) {
@@ -1563,7 +1769,7 @@
                 }
 
                 if (variantSelect && variantSelect.value) {
-                    loadIssueVariantInventory(modal, variantSelect.value, sourceLocationId).catch(function (error) {
+                    loadIssueVariantInventory(modal, variantSelect.value, sourceLocationId, selectedSerialIds).catch(function (error) {
                         console.error(error);
                     });
                 }
@@ -1612,6 +1818,19 @@
                     if (window.jQuery) {
                         window.jQuery(qualitySelect).trigger('change.select2');
                     }
+                }
+                var serialControls = getIssueLineSerialControls(modal);
+                if (serialControls.section) {
+                    serialControls.section.classList.add('d-none');
+                }
+                if (serialControls.summary) {
+                    serialControls.summary.textContent = 'ابتدا واریانت و لوکیشن مبدأ را انتخاب کنید.';
+                }
+                if (serialControls.container) {
+                    serialControls.container.innerHTML = '';
+                }
+                if (serialControls.hidden) {
+                    serialControls.hidden.innerHTML = '';
                 }
                 if (qtyInput) {
                     qtyInput.value = '1';

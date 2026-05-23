@@ -40,6 +40,8 @@ using Insurance.InventoryService.Infra.Persistence.RDB.Queries.StockDetails.Seri
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.StockDetails.SerialItems.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Locations.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Locations.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.LocationStructures.Configs;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.LocationStructures.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.QualityStatuses.Configs;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.QualityStatuses.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Warehouse.Warehouses.Configs;
@@ -96,6 +98,8 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     public DbSet<OfferReadModel> Offers => Set<OfferReadModel>();
     public DbSet<WarehouseReadModel> Warehouses => Set<WarehouseReadModel>();
     public DbSet<LocationReadModel> Locations => Set<LocationReadModel>();
+    public DbSet<LocationStructureNodeReadModel> LocationStructureNodes => Set<LocationStructureNodeReadModel>();
+    public DbSet<LocationStructureValueReadModel> LocationStructureValues => Set<LocationStructureValueReadModel>();
     public DbSet<QualityStatusReadModel> QualityStatuses => Set<QualityStatusReadModel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -1,5 +1,6 @@
 ﻿namespace Insurance.UserService.Infra.Persistence.RDB.Commands.Extensions;
 
+using Insurance.UserService.AppCore.Domain.Users.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using OysterFx.AppCore.Domain.Aggregates;
@@ -40,6 +41,11 @@ public static class AuditableShadowProperties
                         .Property<DateTime?>(CreatedDateTime);
             modelBuilder.Entity(entityType.ClrType)
                         .Property<DateTime?>(ModifiedDateTime);
+
+            if (entityType.ClrType == typeof(User))
+            {
+                continue;
+            }
 
             modelBuilder.Entity(entityType.ClrType)
                         .Property<string>(CreatedByOrganizationBusinessKey).HasMaxLength(50);

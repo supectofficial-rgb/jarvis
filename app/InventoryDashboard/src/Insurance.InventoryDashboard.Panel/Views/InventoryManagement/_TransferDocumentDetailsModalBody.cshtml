@@ -100,12 +100,34 @@
         return string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}";
     }
 
+    var transferDestinationLocationOptions = Model.LocationLookup.Select(location =>
+    {
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, location.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+        var warehouseLabel = warehouse is null ? location.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+        var locationLabel = string.IsNullOrWhiteSpace(location.LocationType)
+            ? location.LocationCode
+            : $"{location.LocationCode} ({location.LocationType})";
+
+        return new
+        {
+            id = location.LocationBusinessKey,
+            locationId = location.LocationBusinessKey,
+            warehouseId = location.WarehouseRef,
+            warehouseText = warehouseLabel,
+            locationText = locationLabel,
+            text = string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}"
+        };
+    }).ToList();
+
 }
 
 <div id="transfer-document-details-modal-body"
      class="modal-body transfer-document-details-modal"
+      data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(transferDestinationLocationOptions))'
       data-default-source-location-id="@Model.LineForm.SourceLocationRef"
-      data-default-destination-location-id="@Model.LineForm.DestinationLocationRef">
+      data-default-destination-location-id="@Model.LineForm.DestinationLocationRef"
+      data-default-warehouse-id="@Model.LineForm.WarehouseRef"
+      data-default-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LineForm.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
         <div class="alert alert-warning">@Model.ErrorMessage</div>
@@ -150,7 +172,7 @@
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                         <div class="form-row">
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-4">
                                 <label>واریانت</label>
                                 <select asp-for="LineForm.VariantId" class="form-control js-search-select js-transfer-line-variant" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchReceiptVariantLookup", "InventoryManagement")' required>
                                     <option value="">انتخاب واریانت</option>
@@ -160,21 +182,37 @@
                                     }
                                 </select>
                             </div>
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-4">
                                 <label>لوکیشن مبدا</label>
                                 <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select js-transfer-line-source" data-placeholder="انتخاب لوکیشن" disabled required>
                                     <option value="">ابتدا واریانت را انتخاب کنید</option>
                                 </select>
                             </div>
+                            <div class="form-group col-md-4 line-serials d-none">
+                                <label>سریال‌های قابل خروج</label>
+                                <div class="text-muted small js-transfer-line-serial-summary mb-2">ابتدا واریانت و لوکیشن مبدأ را انتخاب کنید.</div>
+                                <div class="border rounded bg-light p-2 js-transfer-line-serial-container" style="max-height: 220px; overflow:auto;"></div>
+                                <div class="js-transfer-line-serial-hidden d-none"></div>
+                            </div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group col-md-6">
-                                <label>لوکیشن مقصد</label>
-                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select js-transfer-line-destination" data-placeholder="انتخاب لوکیشن" disabled required>
-                                    <option value="">ابتدا واریانت را انتخاب کنید</option>
+                            <div class="form-group col-md-4">
+                                <label>انبار مقصد</label>
+                                <select asp-for="LineForm.WarehouseRef" class="form-control js-search-select js-transfer-line-warehouse" data-placeholder="انتخاب انبار">
+                                    <option value="">انتخاب انبار</option>
+                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.LineForm.WarehouseRef ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                    }
                                 </select>
                             </div>
-                            <div class="form-group col-md-6">
+                            <div class="form-group col-md-4">
+                                <label>لوکیشن مقصد</label>
+                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select js-transfer-line-destination" data-placeholder="انتخاب لوکیشن" disabled required>
+                                    <option value="">ابتدا انبار مقصد را انتخاب کنید</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
                                 <label>وضعیت کیفیت</label>
                                 <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
                                     <option value="">انتخاب کیفیت</option>
@@ -248,7 +286,8 @@
                                                     data-source-location-id="@line.SourceLocationRef"
                                                     data-destination-location-id="@line.DestinationLocationRef"
                                                     data-quality-id="@line.QualityStatusRef"
-                                                    data-qty="@line.Qty.ToString("0.####")">ویرایش</button>
+                                                    data-qty="@line.Qty.ToString("0.####")"
+                                                    data-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>ویرایش</button>
                                             <form asp-action="DeleteTransferDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#transfer-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />

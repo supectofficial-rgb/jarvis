@@ -63,11 +63,10 @@ public sealed class ApiService : IApiService
     public Task<ApiResponse<List<PermissionSummaryModel>>> GetPermissionsAsync(string token) =>
         GetQueryAsync<List<PermissionSummaryModel>>("/api/UserService/Permission/get-all", token, "Loading permissions failed.");
 
-    public Task<ApiResponse<Guid>> CreateUserAsync(string token, string organizationBusinessKey, CreateDocumentUserForm request, string password)
+    public Task<ApiResponse<Guid>> CreateUserAsync(string token, CreateDocumentUserForm request, string password)
     {
         var payload = new
         {
-            OrganizationBusinessKey = ParseGuidOrEmpty(organizationBusinessKey),
             MobileNumber = request.MobileNumber?.Trim(),
             UserName = request.UserName?.Trim(),
             Password = password,
@@ -1336,6 +1335,98 @@ public sealed class ApiService : IApiService
         }
 
         return new ApiResponse<WarehouseWithLocationsModel> { IsSuccess = true, Data = result.Data?.Item };
+    }
+
+    public async Task<ApiResponse<List<LocationStructureTreeItemModel>>> GetWarehouseLocationStructureTreeAsync(string warehouseId, string token, bool includeInactive = true)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/WarehouseStructure/warehouse/{warehouseId}/tree",
+            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+        var result = await GetQueryAsync<LocationStructureTreeQueryResultDto>(route, token, "Loading warehouse structure tree failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<LocationStructureTreeItemModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        return new ApiResponse<List<LocationStructureTreeItemModel>>
+        {
+            IsSuccess = true,
+            Data = (result.Data?.Items ?? new List<LocationStructureTreeItemModel>())
+        };
+    }
+
+    public async Task<ApiResponse<List<LocationStructureValueItemModel>>> GetLocationStructureValuesAsync(string structureId, string token, bool includeInactive = true)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/WarehouseStructure/node/{structureId}/values",
+            ("includeInactive", includeInactive.ToString().ToLowerInvariant()));
+        var result = await GetQueryAsync<LocationStructureValuesQueryResultDto>(route, token, "Loading location structure values failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<List<LocationStructureValueItemModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        return new ApiResponse<List<LocationStructureValueItemModel>>
+        {
+            IsSuccess = true,
+            Data = (result.Data?.Items ?? new List<LocationStructureValueItemModel>())
+        };
+    }
+
+    public Task<ApiResponse<bool>> CreateLocationStructureNodeAsync(LocationStructureNodeForm request, string token)
+    {
+        var payload = new
+        {
+            WarehouseRef = ParseGuidOrEmpty(request.WarehouseRef),
+            ParentStructureRef = ParseNullableGuid(request.ParentStructureRef),
+            Code = request.Code.Trim(),
+            Name = request.Name.Trim(),
+            DisplayOrder = request.DisplayOrder
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/WarehouseStructure/node", payload, token, "Creating location structure failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdateLocationStructureNodeAsync(string structureId, LocationStructureNodeForm request, string token)
+    {
+        var payload = new
+        {
+            WarehouseRef = ParseGuidOrEmpty(request.WarehouseRef),
+            ParentStructureRef = ParseNullableGuid(request.ParentStructureRef),
+            Code = request.Code.Trim(),
+            Name = request.Name.Trim(),
+            DisplayOrder = request.DisplayOrder,
+            IsActive = request.IsActive
+        };
+
+        return PutCommandAsync($"{InventoryApiPrefix}/WarehouseStructure/node/{structureId}", payload, token, "Updating location structure failed.");
+    }
+
+    public Task<ApiResponse<bool>> CreateLocationStructureValueAsync(LocationStructureValueForm request, string token)
+    {
+        var payload = new
+        {
+            StructureRef = ParseGuidOrEmpty(request.StructureRef),
+            Code = request.Code.Trim(),
+            Name = request.Name.Trim(),
+            DisplayOrder = request.DisplayOrder
+        };
+
+        return PostCommandAsync($"{InventoryApiPrefix}/WarehouseStructure/value", payload, token, "Creating location structure value failed.");
+    }
+
+    public Task<ApiResponse<bool>> UpdateLocationStructureValueAsync(string structureValueId, LocationStructureValueForm request, string token)
+    {
+        var payload = new
+        {
+            StructureRef = ParseGuidOrEmpty(request.StructureRef),
+            Code = request.Code.Trim(),
+            Name = request.Name.Trim(),
+            DisplayOrder = request.DisplayOrder,
+            IsActive = request.IsActive
+        };
+
+        return PutCommandAsync($"{InventoryApiPrefix}/WarehouseStructure/value/{structureValueId}", payload, token, "Updating location structure value failed.");
     }
 
     public Task<ApiResponse<bool>> CreateLocationAsync(UpsertLocationRequest request, string token)
@@ -2973,6 +3064,16 @@ public sealed class ApiService : IApiService
     private sealed class WarehouseWithLocationsQueryResultDto
     {
         public WarehouseWithLocationsModel? Item { get; set; }
+    }
+
+    private sealed class LocationStructureTreeQueryResultDto
+    {
+        public List<LocationStructureTreeItemModel> Items { get; set; } = new();
+    }
+
+    private sealed class LocationStructureValuesQueryResultDto
+    {
+        public List<LocationStructureValueItemModel> Items { get; set; } = new();
     }
 
     private sealed class SellerLookupQueryResultDto

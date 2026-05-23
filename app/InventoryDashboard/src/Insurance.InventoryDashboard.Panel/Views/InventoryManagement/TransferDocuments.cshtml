@@ -251,10 +251,9 @@
                                     <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
                                     <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
                                 </div>
-                                <button class="btn btn-outline-primary btn-xs" type="button" id="toggle-document-lines">افزودن واریانت</button>
                             </div>
 
-                            <div id="document-lines-panel" class="d-none">
+                            <div id="document-lines-panel">
                                 <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
                                 <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
 
@@ -833,7 +832,6 @@
             var warehouseSelect = document.getElementById('create-warehouse-select');
             var createForm = document.getElementById('document-create-form');
             var linesPanel = document.getElementById('document-lines-panel');
-            var toggleLinesButton = document.getElementById('toggle-document-lines');
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
 
@@ -921,17 +919,6 @@
                         }
                     });
                 });
-            }
-
-            function setLinesPanelVisible(isVisible) {
-                if (!linesPanel) {
-                    return;
-                }
-
-                linesPanel.classList.toggle('d-none', !isVisible);
-                if (toggleLinesButton) {
-                    toggleLinesButton.textContent = isVisible ? 'پنهان کردن واریانت' : 'افزودن واریانت';
-                }
             }
 
             function clearValidation() {
@@ -1213,12 +1200,6 @@
                 addLineButton.addEventListener('click', addLine);
             }
 
-            if (toggleLinesButton) {
-                toggleLinesButton.addEventListener('click', function () {
-                    setLinesPanelVisible(linesPanel ? linesPanel.classList.contains('d-none') : false);
-                });
-            }
-
             if (documentTypeSelect) {
                 documentTypeSelect.addEventListener('change', function () {
                     clearValidation();
@@ -1246,7 +1227,6 @@
             renumberLines();
             toggleTypeFields();
             syncLocationsToWarehouse();
-            setLinesPanelVisible(false);
         })();
     </script>
     <script data-ajax-reinit="transfer-documents-details">
@@ -1257,7 +1237,9 @@
             var modalSubtitleSelector = '#transfer-document-details-modal-subtitle';
             var detailsUrl = '@Url.Action("TransferDocumentDetails", "InventoryManagement")';
             var variantInventoryLookupUrl = '@Url.Action("SearchTransferVariantInventoryLookup", "InventoryManagement")';
-            var transferLocationOptions = [];
+            var variantSerialLookupUrl = '@Url.Action("SearchTransferVariantSerialLookup", "InventoryManagement")';
+            var transferSourceLocationOptions = [];
+            var transferDestinationLocationOptions = [];
             var documentListUrl = '@Url.Action("DocumentList", "InventoryManagement")';
             var documentListFormSelector = '#transfer-document-list-form';
             var documentListCountSelector = '#transfer-document-list-count';
@@ -1282,7 +1264,20 @@
             }
 
             function hydrateTransferInventoryOptions(root) {
-                transferLocationOptions = [];
+                root = root || document;
+                var locationJson = root.dataset ? root.dataset.locationOptions : '';
+                transferDestinationLocationOptions = [];
+
+                if (!locationJson) {
+                    return;
+                }
+
+                try {
+                    transferDestinationLocationOptions = JSON.parse(locationJson) || [];
+                } catch (error) {
+                    console.error(error);
+                    transferDestinationLocationOptions = [];
+                }
             }
 
             function getTransferLineControls(root) {
@@ -1290,6 +1285,7 @@
                 return {
                     variantSelect: root.querySelector('select[name="LineForm.VariantId"]'),
                     sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]'),
+                    warehouseSelect: root.querySelector('select[name="LineForm.WarehouseRef"]'),
                     destinationSelect: root.querySelector('select[name="LineForm.DestinationLocationRef"]'),
                     qtyInput: root.querySelector('input[name="LineForm.Qty"]'),
                     submitButton: root.querySelector('.js-transfer-line-submit'),
@@ -1333,37 +1329,285 @@
                 }
             }
 
-            function renderTransferLocationOptions(root, selectedSourceLocationId, selectedDestinationLocationId) {
+            function getTransferLineSerialControls(root) {
+                root = root || document;
+                return {
+                    section: root.querySelector('.line-serials'),
+                    summary: root.querySelector('.js-transfer-line-serial-summary'),
+                    container: root.querySelector('.js-transfer-line-serial-container'),
+                    hidden: root.querySelector('.js-transfer-line-serial-hidden')
+                };
+            }
+
+            function parseTransferSerialSelectionJson(serialJson) {
+                if (!serialJson) {
+                    return [];
+                }
+
+                try {
+                    var parsed = JSON.parse(serialJson);
+                    if (!Array.isArray(parsed)) {
+                        return [];
+                    }
+
+                    return parsed
+                        .map(function (item) {
+                            return {
+                                serialItemBusinessKey: String(item.serialItemBusinessKey || item.SerialItemBusinessKey || ''),
+                                serialNo: String(item.serialNo || item.SerialNo || '')
+                            };
+                        })
+                        .filter(function (item) {
+                            return item.serialItemBusinessKey || item.serialNo;
+                        });
+                } catch (error) {
+                    console.error(error);
+                    return [];
+                }
+            }
+
+            function collectTransferSelectedSerialIds(root) {
+                var controls = getTransferLineSerialControls(root);
+                if (!controls.container) {
+                    return [];
+                }
+
+                var selected = [];
+                controls.container.querySelectorAll('.js-transfer-line-serial-select').forEach(function (checkbox) {
+                    if (!checkbox.checked) {
+                        return;
+                    }
+
+                    selected.push(checkbox.getAttribute('data-serial-id') || '');
+                });
+
+                return selected.filter(Boolean);
+            }
+
+            function syncTransferLineSerialHiddenInputs(root) {
+                var controls = getTransferLineSerialControls(root);
+                if (!controls.hidden || !controls.container) {
+                    return;
+                }
+
+                var selectedSerials = [];
+                controls.container.querySelectorAll('.js-transfer-line-serial-select').forEach(function (checkbox) {
+                    if (!checkbox.checked) {
+                        return;
+                    }
+
+                    selectedSerials.push({
+                        serialId: checkbox.getAttribute('data-serial-id') || '',
+                        serialNo: checkbox.getAttribute('data-serial-no') || ''
+                    });
+                });
+
+                controls.hidden.innerHTML = '';
+                selectedSerials.forEach(function (serial, index) {
+                    var idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'LineForm.Serials[' + index + '].SerialItemBusinessKey';
+                    idInput.value = serial.serialId;
+                    controls.hidden.appendChild(idInput);
+
+                    var noInput = document.createElement('input');
+                    noInput.type = 'hidden';
+                    noInput.name = 'LineForm.Serials[' + index + '].SerialNo';
+                    noInput.value = serial.serialNo;
+                    controls.hidden.appendChild(noInput);
+                });
+            }
+
+            function renderTransferSerialOptions(root, serials, selectedSerialIds, sourceSelected) {
+                root = root || document;
+                var controls = getTransferLineSerialControls(root);
+                if (!controls.section || !controls.summary || !controls.container) {
+                    return;
+                }
+
+                var variantControls = getTransferLineControls(root);
+                var hasVariant = !!(variantControls.variantSelect && variantControls.variantSelect.value);
+                var hasSource = !!sourceSelected;
+                var items = Array.isArray(serials) ? serials : [];
+                var selectedLookup = {};
+                (selectedSerialIds || []).forEach(function (serialId) {
+                    selectedLookup[String(serialId || '')] = true;
+                });
+
+                controls.container.innerHTML = '';
+                controls.hidden.innerHTML = '';
+
+                if (!hasVariant || !hasSource) {
+                    controls.section.classList.add('d-none');
+                    controls.summary.textContent = 'ابتدا واریانت و لوکیشن مبدأ را انتخاب کنید.';
+                    return;
+                }
+
+                controls.section.classList.remove('d-none');
+
+                if (!items.length) {
+                    controls.summary.textContent = 'سریالی برای این واریانت در لوکیشن انتخاب‌شده پیدا نشد.';
+                    controls.container.innerHTML = '<div class="text-muted small">موردی برای انتخاب وجود ندارد.</div>';
+                    return;
+                }
+
+                controls.summary.textContent = 'سریال‌های موجود را انتخاب کنید.';
+
+                items.forEach(function (serial) {
+                    var serialId = String(serial.serialItemBusinessKey || '');
+                    var serialNo = String(serial.serialNo || serialId || '-');
+                    var warehouseLabel = serial.warehouseRef || '';
+                    var locationLabel = serial.locationRef || '';
+                    var qualityLabel = serial.qualityStatusRef || '';
+
+                    var wrapper = document.createElement('label');
+                    wrapper.className = 'd-flex align-items-start mb-1 small border rounded px-2 py-1 bg-white';
+
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'mr-2 mt-1 js-transfer-line-serial-select';
+                    checkbox.setAttribute('data-serial-id', serialId);
+                    checkbox.setAttribute('data-serial-no', serial.serialNo || '');
+                    checkbox.checked = !!selectedLookup[serialId];
+
+                    checkbox.addEventListener('change', function () {
+                        syncTransferLineSerialHiddenInputs(root);
+                    });
+
+                    var content = document.createElement('span');
+                    content.className = 'flex-grow-1';
+
+                    var title = document.createElement('span');
+                    title.className = 'd-block font-weight-bold';
+                    title.textContent = serialNo;
+
+                    var meta = document.createElement('span');
+                    meta.className = 'd-block text-muted';
+                    meta.style.fontSize = '11px';
+                    meta.textContent = [warehouseLabel, locationLabel, qualityLabel, serial.status || ''].filter(Boolean).join(' / ');
+
+                    content.appendChild(title);
+                    content.appendChild(meta);
+                    wrapper.appendChild(checkbox);
+                    wrapper.appendChild(content);
+                    controls.container.appendChild(wrapper);
+                });
+
+                syncTransferLineSerialHiddenInputs(root);
+            }
+
+            function renderTransferSourceLocationOptions(root, selectedSourceLocationId, allowedLocationIds) {
                 var controls = getTransferLineControls(root);
                 if (!controls.sourceSelect || !controls.destinationSelect) {
                     return;
                 }
 
-                var sourceLocations = transferLocationOptions.slice();
+                var allowed = Array.isArray(allowedLocationIds) ? allowedLocationIds.filter(Boolean).map(function (value) {
+                    return String(value).toLowerCase();
+                }) : [];
 
-                var sourcePlaceholderText = sourceLocations.length ? 'انتخاب لوکیشن' : 'برای این واریانت لوکیشنی یافت نشد';
+                var sourceLocations = transferSourceLocationOptions.filter(function (item) {
+                    if (!allowed.length) {
+                        return false;
+                    }
+
+                    var itemId = String(item.id || item.locationId || '').toLowerCase();
+                    return allowed.indexOf(itemId) >= 0;
+                });
+
+                var sourcePlaceholderText = controls.variantSelect && controls.variantSelect.value
+                    ? (sourceLocations.length ? 'انتخاب لوکیشن' : 'برای این واریانت لوکیشنی یافت نشد')
+                    : 'ابتدا واریانت را انتخاب کنید';
 
                 setSelectOptions(controls.sourceSelect, sourceLocations, sourcePlaceholderText, selectedSourceLocationId);
-                setSelectOptions(controls.destinationSelect, sourceLocations, sourcePlaceholderText, selectedDestinationLocationId);
-
                 controls.sourceSelect.disabled = sourceLocations.length === 0;
-                controls.destinationSelect.disabled = sourceLocations.length === 0;
+                if (window.jQuery) {
+                    window.jQuery(controls.sourceSelect).trigger('change.select2');
+                }
             }
 
-            async function loadTransferVariantInventory(root, variantId, selectedSourceLocationId, selectedDestinationLocationId) {
+            function renderTransferDestinationLocationOptions(root, selectedWarehouseId, selectedDestinationLocationId) {
+                var controls = getTransferLineControls(root);
+                if (!controls.warehouseSelect || !controls.destinationSelect) {
+                    return;
+                }
+
+                var selectedWarehouse = String(selectedWarehouseId || controls.warehouseSelect.value || '');
+                var filteredLocations = transferDestinationLocationOptions.filter(function (item) {
+                    if (!selectedWarehouse) {
+                        return false;
+                    }
+
+                    return String(item.warehouseId || '').toLowerCase() === selectedWarehouse.toLowerCase();
+                });
+
+                var destinationPlaceholderText = selectedWarehouse
+                    ? (filteredLocations.length ? 'انتخاب لوکیشن' : 'برای این انبار لوکیشنی یافت نشد')
+                    : 'ابتدا انبار مقصد را انتخاب کنید';
+
+                setSelectOptions(controls.destinationSelect, filteredLocations, destinationPlaceholderText, selectedDestinationLocationId);
+                controls.destinationSelect.disabled = !selectedWarehouse || filteredLocations.length === 0;
+                if (window.jQuery) {
+                    window.jQuery(controls.destinationSelect).trigger('change.select2');
+                }
+            }
+
+            function resolveTransferWarehouseIdByLocation(locationId) {
+                if (!locationId) {
+                    return '';
+                }
+
+                var match = transferDestinationLocationOptions.find(function (item) {
+                    return String(item.id || item.locationId || '').toLowerCase() === String(locationId || '').toLowerCase();
+                });
+
+                return match ? (match.warehouseId || '') : '';
+            }
+
+            async function loadTransferVariantSerials(root, variantId, sourceLocationId, selectedSerialIds) {
                 root = root || document;
                 var controls = getTransferLineControls(root);
-                if (!controls.variantSelect || !controls.sourceSelect || !controls.destinationSelect) {
+                if (!controls.variantSelect) {
+                    return;
+                }
+
+                if (!variantId || !sourceLocationId) {
+                    renderTransferSerialOptions(root, [], selectedSerialIds || [], false);
+                    return;
+                }
+
+                var url = new URL(variantSerialLookupUrl, window.location.origin);
+                url.searchParams.set('variantId', variantId);
+                url.searchParams.set('sourceLocationId', sourceLocationId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'Loading transfer variant serials failed.');
+                }
+
+                renderTransferSerialOptions(root, payload.serials || [], selectedSerialIds || [], sourceLocationId);
+            }
+
+            async function loadTransferVariantInventory(root, variantId, selectedSourceLocationId, selectedWarehouseId, selectedDestinationLocationId, selectedSerialIds) {
+                root = root || document;
+                var controls = getTransferLineControls(root);
+                if (!controls.variantSelect || !controls.sourceSelect || !controls.destinationSelect || !controls.warehouseSelect) {
                     return;
                 }
 
                 hydrateTransferInventoryOptions(root);
 
                 if (!variantId) {
-                    renderTransferLocationOptions(
-                        root,
-                        selectedSourceLocationId || controls.sourceSelect.value || '',
-                        selectedDestinationLocationId || controls.destinationSelect.value || '');
+                    renderTransferSourceLocationOptions(root, selectedSourceLocationId || controls.sourceSelect.value || '', []);
+                    renderTransferDestinationLocationOptions(root, selectedWarehouseId || controls.warehouseSelect.value || '', selectedDestinationLocationId || controls.destinationSelect.value || '');
+                    renderTransferSerialOptions(root, [], selectedSerialIds || [], false);
                     return;
                 }
 
@@ -1382,12 +1626,27 @@
                     throw new Error((payload && payload.errorMessage) || 'Loading transfer variant inventory failed.');
                 }
 
-                transferLocationOptions = Array.isArray(payload.locations) ? payload.locations.slice() : [];
+                transferSourceLocationOptions = Array.isArray(payload.locations) ? payload.locations.slice() : [];
 
-                renderTransferLocationOptions(
+                renderTransferSourceLocationOptions(
                     root,
                     selectedSourceLocationId || controls.sourceSelect.value || '',
+                    transferSourceLocationOptions.map(function (item) { return item.id || item.locationId || ''; }));
+
+                renderTransferDestinationLocationOptions(
+                    root,
+                    selectedWarehouseId || controls.warehouseSelect.value || '',
                     selectedDestinationLocationId || controls.destinationSelect.value || '');
+
+                if (controls.sourceSelect && controls.sourceSelect.value) {
+                    await loadTransferVariantSerials(
+                        root,
+                        variantId,
+                        controls.sourceSelect.value,
+                        selectedSerialIds || []);
+                } else {
+                    renderTransferSerialOptions(root, [], selectedSerialIds || [], false);
+                }
             }
 
             function initializeTransferInventoryChain(root) {
@@ -1406,17 +1665,49 @@
                         root,
                         controls.variantSelect.value || '',
                         controls.sourceSelect.value || '',
-                        controls.destinationSelect.value || '').catch(function (error) {
+                        controls.warehouseSelect ? (controls.warehouseSelect.value || '') : '',
+                        controls.destinationSelect.value || '',
+                        collectTransferSelectedSerialIds(root)).catch(function (error) {
                             console.error(error);
                         });
                 });
 
+                if (controls.sourceSelect) {
+                    controls.sourceSelect.addEventListener('change', function () {
+                        if (!controls.variantSelect.value) {
+                            renderTransferSerialOptions(root, [], [], false);
+                            return;
+                        }
+
+                        loadTransferVariantSerials(
+                            root,
+                            controls.variantSelect.value || '',
+                            controls.sourceSelect.value || '',
+                            collectTransferSelectedSerialIds(root)).catch(function (error) {
+                                console.error(error);
+                            });
+                    });
+                }
+
+                if (controls.warehouseSelect) {
+                    controls.warehouseSelect.addEventListener('change', function () {
+                        renderTransferDestinationLocationOptions(
+                            root,
+                            controls.warehouseSelect.value || '',
+                            controls.destinationSelect.value || '');
+                    });
+                }
+
                 controls.variantSelect.dataset.transferInventoryBound = 'true';
 
                 hydrateTransferInventoryOptions(root);
-                renderTransferLocationOptions(
+                renderTransferSourceLocationOptions(
                     root,
                     controls.sourceSelect.value || '',
+                    []);
+                renderTransferDestinationLocationOptions(
+                    root,
+                    controls.warehouseSelect ? (controls.warehouseSelect.value || '') : '',
                     controls.destinationSelect.value || '');
 
                 if (controls.variantSelect.value) {
@@ -1424,7 +1715,9 @@
                         root,
                         controls.variantSelect.value,
                         controls.sourceSelect.value || '',
-                        controls.destinationSelect.value || '').catch(function (error) {
+                        controls.warehouseSelect ? (controls.warehouseSelect.value || '') : '',
+                        controls.destinationSelect.value || '',
+                        parseTransferSerialSelectionJson(root.dataset ? root.dataset.defaultSerialsJson : '')).catch(function (error) {
                             console.error(error);
                         });
                 }
@@ -1478,6 +1771,7 @@
                 var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var warehouseSelect = modal.querySelector('select[name="LineForm.WarehouseRef"]');
                 var destinationSelect = modal.querySelector('select[name="LineForm.DestinationLocationRef"]');
                 var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
@@ -1485,6 +1779,11 @@
                 var cancelButton = modal.querySelector('.js-transfer-line-cancel');
                 var destinationLocationId = trigger.getAttribute('data-destination-location-id') || '';
                 var qualityId = trigger.getAttribute('data-quality-id') || '';
+                var serialsJson = trigger.getAttribute('data-serials-json') || '';
+                var selectedSerialIds = parseTransferSerialSelectionJson(serialsJson).map(function (item) {
+                    return item.serialItemBusinessKey;
+                });
+                var destinationWarehouseId = resolveTransferWarehouseIdByLocation(destinationLocationId);
 
                 if (lineIdInput) {
                     lineIdInput.value = trigger.getAttribute('data-line-id') || '';
@@ -1492,21 +1791,17 @@
 
                 if (variantSelect) {
                     variantSelect.value = trigger.getAttribute('data-variant-id') || '';
-                    if (window.jQuery) {
-                        window.jQuery(variantSelect).trigger('change');
-                    }
                 }
 
                 if (qtyInput) {
                     qtyInput.value = trigger.getAttribute('data-qty') || '1';
                 }
 
-                if (sourceSelect) {
-                    sourceSelect.value = trigger.getAttribute('data-source-location-id') || '';
-                }
-
-                if (destinationSelect) {
-                    destinationSelect.value = destinationLocationId;
+                if (warehouseSelect) {
+                    warehouseSelect.value = destinationWarehouseId;
+                    if (window.jQuery) {
+                        window.jQuery(warehouseSelect).trigger('change.select2');
+                    }
                 }
 
                 if (qualitySelect) {
@@ -1520,8 +1815,10 @@
                     loadTransferVariantInventory(
                         modal,
                         variantSelect.value,
-                        sourceSelect ? (sourceSelect.value || '') : '',
-                        destinationSelect ? (destinationSelect.value || '') : '').catch(function (error) {
+                        sourceSelect ? (trigger.getAttribute('data-source-location-id') || '') : '',
+                        warehouseSelect ? (warehouseSelect.value || '') : '',
+                        destinationLocationId,
+                        selectedSerialIds).catch(function (error) {
                             console.error(error);
                         });
                 }
@@ -1544,6 +1841,7 @@
                 var lineIdInput = modal.querySelector('input[name="LineForm.LineId"]');
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
+                var warehouseSelect = modal.querySelector('select[name="LineForm.WarehouseRef"]');
                 var destinationSelect = modal.querySelector('select[name="LineForm.DestinationLocationRef"]');
                 var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
@@ -1566,6 +1864,12 @@
                         window.jQuery(sourceSelect).trigger('change.select2');
                     }
                 }
+                if (warehouseSelect) {
+                    warehouseSelect.value = '';
+                    if (window.jQuery) {
+                        window.jQuery(warehouseSelect).trigger('change.select2');
+                    }
+                }
                 if (destinationSelect) {
                     destinationSelect.value = '';
                     destinationSelect.disabled = true;
@@ -1578,6 +1882,19 @@
                     if (window.jQuery) {
                         window.jQuery(qualitySelect).trigger('change.select2');
                     }
+                }
+                var serialControls = getTransferLineSerialControls(modal);
+                if (serialControls.section) {
+                    serialControls.section.classList.add('d-none');
+                }
+                if (serialControls.summary) {
+                    serialControls.summary.textContent = 'ابتدا واریانت و لوکیشن مبدأ را انتخاب کنید.';
+                }
+                if (serialControls.container) {
+                    serialControls.container.innerHTML = '';
+                }
+                if (serialControls.hidden) {
+                    serialControls.hidden.innerHTML = '';
                 }
                 if (qtyInput) {
                     qtyInput.value = '1';

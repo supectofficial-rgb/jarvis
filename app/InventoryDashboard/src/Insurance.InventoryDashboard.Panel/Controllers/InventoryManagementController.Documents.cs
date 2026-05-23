@@ -631,6 +631,74 @@ public sealed partial class InventoryManagementController
         });
     }
 
+    [HttpGet("/InventoryManagement/Documents/Transfer/VariantSerialLookup")]
+    public async Task<IActionResult> SearchTransferVariantSerialLookup(
+        string variantId,
+        string? sourceLocationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!Guid.TryParse(variantId, out var parsedVariantId))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "واریانت انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده سریال‌های واریانت را ندارید."
+            });
+        }
+
+        var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, parsedVariantId.ToString("D"));
+        if (!serialsResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = serialsResult.ErrorMessage
+            });
+        }
+
+        var filteredSerials = serialsResult.Data ?? new List<SerialItemLookupModel>();
+        if (Guid.TryParse(sourceLocationId, out var parsedSourceLocationId))
+        {
+            var sourceLocationKey = parsedSourceLocationId.ToString("D");
+            filteredSerials = filteredSerials
+                .Where(x => string.Equals(x.LocationRef, sourceLocationKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        return Json(new
+        {
+            isSuccess = true,
+            serials = filteredSerials.Select(serial => new
+            {
+                serialItemBusinessKey = serial.SerialItemBusinessKey,
+                serialNo = serial.SerialNo,
+                warehouseRef = serial.WarehouseRef,
+                locationRef = serial.LocationRef,
+                qualityStatusRef = serial.QualityStatusRef,
+                lotBatchNo = serial.LotBatchNo,
+                status = serial.Status
+            }).ToList()
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveReceiptDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
@@ -775,6 +843,31 @@ public sealed partial class InventoryManagementController
             invalidLocationModel.ErrorMessage = "لوکیشن مبدأ و مقصد باید متفاوت باشند.";
             invalidLocationModel.LineForm = form;
             return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidLocationModel);
+        }
+
+        var availableSerialsResult = await _apiService.GetAvailableSerialItemsAsync(token, form.VariantId);
+        if (!availableSerialsResult.IsSuccess)
+        {
+            var serialLookupErrorModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            serialLookupErrorModel.ErrorMessage = availableSerialsResult.ErrorMessage ?? "واکشی سریال‌های واریانت انجام نشد.";
+            serialLookupErrorModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", serialLookupErrorModel);
+        }
+
+        if (Guid.TryParse(form.SourceLocationRef, out var parsedSourceLocationId))
+        {
+            var sourceLocationKey = parsedSourceLocationId.ToString("D");
+            var availableSerialsForSource = (availableSerialsResult.Data ?? new List<SerialItemLookupModel>())
+                .Where(x => string.Equals(x.LocationRef, sourceLocationKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (availableSerialsForSource.Count > 0 && (form.Serials is null || form.Serials.Count == 0))
+            {
+                var serialRequiredModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+                serialRequiredModel.ErrorMessage = "برای این واریانت، انتخاب حداقل یک سریال در انتقال الزامی است.";
+                serialRequiredModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", serialRequiredModel);
+            }
         }
 
         var result = string.IsNullOrWhiteSpace(form.LineId)
@@ -940,6 +1033,74 @@ public sealed partial class InventoryManagementController
         });
     }
 
+    [HttpGet("/InventoryManagement/Documents/Issue/VariantSerialLookup")]
+    public async Task<IActionResult> SearchIssueVariantSerialLookup(
+        string variantId,
+        string? sourceLocationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!Guid.TryParse(variantId, out var parsedVariantId))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "واریانت انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده سریال‌های واریانت را ندارید."
+            });
+        }
+
+        var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, parsedVariantId.ToString("D"));
+        if (!serialsResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = serialsResult.ErrorMessage
+            });
+        }
+
+        var filteredSerials = serialsResult.Data ?? new List<SerialItemLookupModel>();
+        if (Guid.TryParse(sourceLocationId, out var parsedSourceLocationId))
+        {
+            var sourceLocationKey = parsedSourceLocationId.ToString("D");
+            filteredSerials = filteredSerials
+                .Where(x => string.Equals(x.LocationRef, sourceLocationKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        return Json(new
+        {
+            isSuccess = true,
+            serials = filteredSerials.Select(serial => new
+            {
+                serialItemBusinessKey = serial.SerialItemBusinessKey,
+                serialNo = serial.SerialNo,
+                warehouseRef = serial.WarehouseRef,
+                locationRef = serial.LocationRef,
+                qualityStatusRef = serial.QualityStatusRef,
+                lotBatchNo = serial.LotBatchNo,
+                status = serial.Status
+            }).ToList()
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveIssueDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
@@ -1000,6 +1161,31 @@ public sealed partial class InventoryManagementController
             invalidLocationModel.ErrorMessage = "برای سند حواله، لوکیشن مبدأ الزامی است.";
             invalidLocationModel.LineForm = form;
             return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidLocationModel);
+        }
+
+        var availableSerialsResult = await _apiService.GetAvailableSerialItemsAsync(token, form.VariantId);
+        if (!availableSerialsResult.IsSuccess)
+        {
+            var serialLookupErrorModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+            serialLookupErrorModel.ErrorMessage = availableSerialsResult.ErrorMessage ?? "واکشی سریال‌های واریانت انجام نشد.";
+            serialLookupErrorModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", serialLookupErrorModel);
+        }
+
+        if (Guid.TryParse(form.SourceLocationRef, out var parsedSourceLocationId))
+        {
+            var sourceLocationKey = parsedSourceLocationId.ToString("D");
+            var availableSerialsForSource = (availableSerialsResult.Data ?? new List<SerialItemLookupModel>())
+                .Where(x => string.Equals(x.LocationRef, sourceLocationKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (availableSerialsForSource.Count > 0 && (form.Serials is null || form.Serials.Count == 0))
+            {
+                var serialRequiredModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+                serialRequiredModel.ErrorMessage = "برای این واریانت، انتخاب حداقل یک سریال در حواله الزامی است.";
+                serialRequiredModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", serialRequiredModel);
+            }
         }
 
         var result = string.IsNullOrWhiteSpace(form.LineId)
@@ -1448,18 +1634,8 @@ public sealed partial class InventoryManagementController
             });
         }
 
-        var organizationBusinessKey = HttpContext.Session.GetString("OrganizationBusinessKey");
-        if (string.IsNullOrWhiteSpace(organizationBusinessKey))
-        {
-            return Json(new
-            {
-                isSuccess = false,
-                errorMessage = "سازمان فعال کاربر مشخص نیست."
-            });
-        }
-
         var tempPassword = BuildTemporaryPassword();
-        var result = await _apiService.CreateUserAsync(token, organizationBusinessKey, form, tempPassword);
+        var result = await _apiService.CreateUserAsync(token, form, tempPassword);
         return Json(new
         {
             isSuccess = result.IsSuccess,
@@ -2076,6 +2252,12 @@ public sealed partial class InventoryManagementController
         if (string.IsNullOrWhiteSpace(lineForm.ToQualityStatusRef))
         {
             lineForm.ToQualityStatusRef = lineForm.QualityStatusRef;
+        }
+        if (string.IsNullOrWhiteSpace(lineForm.WarehouseRef) && !string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
+        {
+            lineForm.WarehouseRef = locationsTask.Result.Data?
+                .FirstOrDefault(x => string.Equals(x.LocationBusinessKey, lineForm.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
+                ?.WarehouseRef;
         }
 
         return new InventoryDocumentManagementPageViewModel

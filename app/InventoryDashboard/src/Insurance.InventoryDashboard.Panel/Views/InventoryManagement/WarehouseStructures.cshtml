@@ -1,0 +1,257 @@
+@using System
+@using System.Linq
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Html
+@model Insurance.InventoryDashboard.Panel.Models.WarehouseStructurePageViewModel
+@{
+    ViewData["Title"] = "ساختار انبار";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
+    string WarehouseLabel(string? warehouseId)
+    {
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return "-";
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
+        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
+    }
+
+    var warehouseStructuresUrl = Url.Action("WarehouseStructures", "InventoryManagement") ?? string.Empty;
+
+    IEnumerable<Insurance.InventoryDashboard.Panel.Models.LocationStructureTreeItemModel> Flatten(IEnumerable<Insurance.InventoryDashboard.Panel.Models.LocationStructureTreeItemModel> nodes)
+    {
+        foreach (var node in nodes.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
+        {
+            yield return node;
+            foreach (var child in Flatten(node.Children))
+            {
+                yield return child;
+            }
+        }
+    }
+
+    IHtmlContent RenderNode(Insurance.InventoryDashboard.Panel.Models.LocationStructureTreeItemModel node, int depth)
+    {
+        var padding = depth * 20;
+        var childNodes = node.Children.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+        var values = node.Values.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+        var builder = new HtmlContentBuilder();
+
+        builder.AppendHtml($"<div class=\"border rounded mb-2 p-2\" style=\"margin-right:{padding}px\">");
+        builder.AppendHtml("<div class=\"d-flex justify-content-between align-items-start flex-wrap\">");
+        builder.AppendHtml("<div>");
+        builder.AppendHtml($"<div><strong class=\"text-monospace\">{HtmlEncoder.Default.Encode(node.Code)}</strong> - {HtmlEncoder.Default.Encode(node.Name)}</div>");
+        builder.AppendHtml($"<div class=\"small text-muted\">{HtmlEncoder.Default.Encode(WarehouseLabel(node.WarehouseRef))}</div>");
+        builder.AppendHtml("</div>");
+        builder.AppendHtml("<div class=\"btn-group btn-group-sm\">");
+        builder.AppendHtml($"<a class=\"btn btn-outline-primary\" href=\"{HtmlEncoder.Default.Encode($"{warehouseStructuresUrl}?warehouseId={Model.SelectedWarehouseId}&structureId={node.LocationStructureBusinessKey}")}\">فرزند</a>");
+        builder.AppendHtml($"<a class=\"btn btn-outline-success\" href=\"{HtmlEncoder.Default.Encode($"{warehouseStructuresUrl}?warehouseId={Model.SelectedWarehouseId}&structureId={node.LocationStructureBusinessKey}")}\">مقدار</a>");
+        builder.AppendHtml("</div>");
+        builder.AppendHtml("</div>");
+        builder.AppendHtml("</div>");
+
+        if (values.Count > 0)
+        {
+            builder.AppendHtml("<div class=\"mt-2 small\">");
+            foreach (var value in values)
+            {
+                builder.AppendHtml($"<span class=\"badge badge-light border mr-1 mb-1\">{HtmlEncoder.Default.Encode(value.Code)} - {HtmlEncoder.Default.Encode(value.Name)}</span>");
+            }
+            builder.AppendHtml("</div>");
+        }
+
+        foreach (var child in childNodes)
+        {
+            builder.AppendHtml(RenderNode(child, depth + 1));
+        }
+
+        builder.AppendHtml("</div>");
+        return builder;
+    }
+}
+
+<main id="inventory-management-root" class="catalog-page">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-4 d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <h1>ساختار انبار</h1>
+                        <p class="text-muted">تعریف درخت ساختار و مقادیر قابل انتخاب برای لوکیشن‌ها.</p>
+                    </div>
+                    <div>
+                        <a asp-action="Warehouses" class="btn btn-outline-secondary">بازگشت به انبارها</a>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                {
+                    <div class="alert alert-warning">@Model.ErrorMessage</div>
+                }
+                @if (TempData.ContainsKey("CatalogError"))
+                {
+                    <div class="alert alert-danger">@TempData["CatalogError"]</div>
+                }
+                @if (TempData.ContainsKey("CatalogSuccess"))
+                {
+                    <div class="alert alert-success">@TempData["CatalogSuccess"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">انتخاب انبار</h5>
+                        <form method="get" asp-action="WarehouseStructures" class="form-row">
+                            <div class="form-group col-12">
+                                <label>انبار</label>
+                                <select name="warehouseId" class="form-control js-search-select" required>
+                                    <option value="">انتخاب انبار</option>
+                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                    {
+                                        if (string.Equals(warehouse.WarehouseBusinessKey, Model.SelectedWarehouseId, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey" selected="selected">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-12">
+                                <button class="btn btn-primary" type="submit" @(Can("Inventory.Warehouse.View", "Warehouse.Read") ? null : "disabled")>نمایش ساختار</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">افزودن نود ساختار</h5>
+                        <form asp-action="SaveWarehouseStructureNode" method="post" data-loading-form data-dirty-watch>
+                            @Html.AntiForgeryToken()
+                            <input asp-for="StructureNodeForm.LocationStructureBusinessKey" type="hidden" />
+                            <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                            <div class="form-group">
+                                <label>انبار</label>
+                                <select asp-for="StructureNodeForm.WarehouseRef" class="form-control js-search-select" required>
+                                    <option value="">انتخاب انبار</option>
+                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>نود والد</label>
+                                <select asp-for="StructureNodeForm.ParentStructureRef" class="form-control js-search-select">
+                                    <option value="">بدون والد</option>
+                                    @foreach (var structure in Flatten(Model.Structures))
+                                    {
+                                        <option value="@structure.LocationStructureBusinessKey" selected="@(string.Equals(structure.LocationStructureBusinessKey, Model.SelectedStructureId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@structure.Code - @structure.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>کد</label>
+                                <input asp-for="StructureNodeForm.Code" class="form-control text-monospace" required maxlength="50" />
+                            </div>
+                            <div class="form-group">
+                                <label>نام</label>
+                                <input asp-for="StructureNodeForm.Name" class="form-control" required maxlength="160" />
+                            </div>
+                            <div class="form-group">
+                                <label>ترتیب نمایش</label>
+                                <input asp-for="StructureNodeForm.DisplayOrder" class="form-control" type="number" min="0" />
+                            </div>
+                            <button class="btn btn-primary" type="submit" @(Can("Inventory.Warehouse.Create", "Inventory.Warehouse.Update", "Warehouse.Create", "Warehouse.Update") ? null : "disabled")>ذخیره نود</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">افزودن مقدار</h5>
+                        <form asp-action="SaveWarehouseStructureValue" method="post" data-loading-form data-dirty-watch>
+                            @Html.AntiForgeryToken()
+                            <input asp-for="StructureValueForm.LocationStructureValueBusinessKey" type="hidden" />
+                            <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                            <div class="form-group">
+                                <label>نود</label>
+                                <select asp-for="StructureValueForm.StructureRef" class="form-control js-search-select" required>
+                                    <option value="">انتخاب نود</option>
+                                    @foreach (var structure in Flatten(Model.Structures))
+                                    {
+                                        <option value="@structure.LocationStructureBusinessKey" selected="@(string.Equals(structure.LocationStructureBusinessKey, Model.SelectedStructureId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@structure.Code - @structure.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>کد</label>
+                                <input asp-for="StructureValueForm.Code" class="form-control text-monospace" required maxlength="50" />
+                            </div>
+                            <div class="form-group">
+                                <label>نام</label>
+                                <input asp-for="StructureValueForm.Name" class="form-control" required maxlength="160" />
+                            </div>
+                            <div class="form-group">
+                                <label>ترتیب نمایش</label>
+                                <input asp-for="StructureValueForm.DisplayOrder" class="form-control" type="number" min="0" />
+                            </div>
+                            <button class="btn btn-primary" type="submit" @(Can("Inventory.Warehouse.Create", "Inventory.Warehouse.Update", "Warehouse.Create", "Warehouse.Update") ? null : "disabled")>ذخیره مقدار</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">درخت ساختار</h5>
+                            <span class="text-muted small">@Model.Structures.Count نود ریشه</span>
+                        </div>
+
+                        @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
+                        {
+                            <div class="alert alert-info">ابتدا یک انبار انتخاب کنید.</div>
+                        }
+                        else if (Model.Structures.Count == 0)
+                        {
+                            <div class="text-muted">برای این انبار هنوز ساختاری ثبت نشده است.</div>
+                        }
+                        else
+                        {
+                            foreach (var node in Model.Structures.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
+                            {
+                                @RenderNode(node, 0)
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
