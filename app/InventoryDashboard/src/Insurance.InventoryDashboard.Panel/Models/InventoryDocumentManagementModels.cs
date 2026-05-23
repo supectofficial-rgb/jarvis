@@ -20,6 +20,8 @@ public sealed class InventoryDocumentManagementPageViewModel
     public IReadOnlyList<SellerLookupItemModel> SellerLookup { get; set; } = Array.Empty<SellerLookupItemModel>();
     public IReadOnlyList<LocationLookupItemModel> LocationLookup { get; set; } = Array.Empty<LocationLookupItemModel>();
     public IReadOnlyList<QualityStatusLookupItemModel> QualityStatusLookup { get; set; } = Array.Empty<QualityStatusLookupItemModel>();
+    public IReadOnlyList<UserSummaryModel> UserLookup { get; set; } = Array.Empty<UserSummaryModel>();
+    public IReadOnlyList<RoleSummaryModel> RoleLookup { get; set; } = Array.Empty<RoleSummaryModel>();
     public IReadOnlyList<ProductSummaryModel> ProductLookup { get; set; } = Array.Empty<ProductSummaryModel>();
     public IReadOnlyList<ProductVariantSummaryModel> VariantLookup { get; set; } = Array.Empty<ProductVariantSummaryModel>();
     public IReadOnlyList<UnitOfMeasureLookupModel> UnitOfMeasureLookup { get; set; } = Array.Empty<UnitOfMeasureLookupModel>();
@@ -53,6 +55,8 @@ public sealed class InventoryDocumentListItemModel
     public string? ReferenceBusinessId { get; set; }
     public string WarehouseRef { get; set; } = string.Empty;
     public string SellerRef { get; set; } = string.Empty;
+    public string? ReceivedBy { get; set; }
+    public string? DeliveredBy { get; set; }
     public DateTime OccurredAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public DateTime? PostedAt { get; set; }
@@ -126,6 +130,8 @@ public sealed class InventoryDocumentDetailsModel
     public string? ReferenceBusinessId { get; set; }
     public string WarehouseRef { get; set; } = string.Empty;
     public string SellerRef { get; set; } = string.Empty;
+    public string? ReceivedBy { get; set; }
+    public string? DeliveredBy { get; set; }
     public DateTime OccurredAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public DateTime? PostedAt { get; set; }
@@ -192,6 +198,10 @@ public sealed class CreateInventoryDocumentForm
 
     public string SellerRef { get; set; } = string.Empty;
 
+    public string? ReceivedBy { get; set; }
+
+    public string? DeliveredBy { get; set; }
+
     [Required(ErrorMessage = "زمان وقوع الزامی است.")]
     public DateTime OccurredAt { get; set; } = DateTime.Now;
 
@@ -226,6 +236,20 @@ public sealed class CreateInventoryDocumentLineForm
 
     public string? AdjustmentDirection { get; set; }
     public List<InventoryDocumentLineSerialModel> Serials { get; set; } = new();
+}
+
+public sealed class CreateDocumentUserForm
+{
+    [Required(ErrorMessage = "نام کاربر الزامی است.")]
+    [StringLength(150)]
+    public string UserName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "شماره تلفن الزامی است.")]
+    [StringLength(32)]
+    public string MobileNumber { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "نقش الزامی است.")]
+    public string RoleBusinessKey { get; set; } = string.Empty;
 }
 
 public sealed class InventoryDocumentLineForm

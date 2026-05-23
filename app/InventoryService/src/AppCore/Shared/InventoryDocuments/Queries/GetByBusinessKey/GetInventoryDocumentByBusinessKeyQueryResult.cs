@@ -10,6 +10,8 @@ public class GetInventoryDocumentByBusinessKeyQueryResult
     public Guid? ReferenceBusinessId { get; set; }
     public Guid WarehouseRef { get; set; }
     public Guid SellerRef { get; set; }
+    public string? ReceivedBy { get; set; }
+    public string? DeliveredBy { get; set; }
     public DateTime OccurredAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public DateTime? PostedAt { get; set; }

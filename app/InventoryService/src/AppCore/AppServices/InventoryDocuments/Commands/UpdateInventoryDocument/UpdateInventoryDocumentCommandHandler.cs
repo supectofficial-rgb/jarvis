@@ -48,6 +48,8 @@ public sealed class UpdateInventoryDocumentCommandHandler
             string.IsNullOrWhiteSpace(command.DocumentNo) ? document.DocumentNo : command.DocumentNo!,
             command.WarehouseRef,
             command.SellerRef,
+            command.ReceivedBy,
+            command.DeliveredBy,
             command.OccurredAt == default ? DateTime.UtcNow : command.OccurredAt,
             command.ReferenceType,
             command.ReferenceBusinessId,

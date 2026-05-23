@@ -10,6 +10,8 @@ public class CreateInventoryDocumentCommand : ICommand<CreateInventoryDocumentCo
     public Guid? ReferenceBusinessId { get; set; }
     public Guid WarehouseRef { get; set; }
     public Guid SellerRef { get; set; }
+    public string? ReceivedBy { get; set; }
+    public string? DeliveredBy { get; set; }
     public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
     public string? CorrelationId { get; set; }
     public string? IdempotencyKey { get; set; }

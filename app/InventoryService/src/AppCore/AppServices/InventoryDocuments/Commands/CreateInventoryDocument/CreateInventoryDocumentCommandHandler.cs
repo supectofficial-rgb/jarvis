@@ -33,6 +33,8 @@ public class CreateInventoryDocumentCommandHandler
             documentType,
             command.WarehouseRef,
             command.SellerRef,
+            command.ReceivedBy,
+            command.DeliveredBy,
             command.OccurredAt == default ? DateTime.UtcNow : command.OccurredAt,
             command.ReferenceType,
             command.ReferenceBusinessId,

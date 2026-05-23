@@ -47,6 +47,10 @@ public sealed class AuthController : Controller
         HttpContext.Session.SetString("Token", loginData.Token);
         HttpContext.Session.SetString("UserName", loginData.User?.UserName ?? model.UserName);
         HttpContext.Session.SetString("TokenExpiration", loginData.TokenExpiration.ToString("O"));
+        if (loginData.ActiveOrganizationBusinessKey.HasValue)
+        {
+            HttpContext.Session.SetString("OrganizationBusinessKey", loginData.ActiveOrganizationBusinessKey.Value.ToString("D"));
+        }
         HttpContext.Session.SetString("Roles", JsonSerializer.Serialize(roles));
         HttpContext.Session.SetString(
             "Permissions",

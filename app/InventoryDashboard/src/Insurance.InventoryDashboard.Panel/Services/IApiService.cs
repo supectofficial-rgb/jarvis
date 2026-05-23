@@ -8,8 +8,10 @@ public interface IApiService
     Task<ApiResponse<List<OrganizationViewModel>>> GetOrganizationsAsync(string token);
 
     Task<ApiResponse<List<UserSummaryModel>>> GetUsersAsync(string token);
+    Task<ApiResponse<List<RoleSummaryModel>>> GetRolesAsync(string token);
     Task<ApiResponse<List<PersonaSummaryModel>>> GetPersonasAsync(string token);
     Task<ApiResponse<List<PermissionSummaryModel>>> GetPermissionsAsync(string token);
+    Task<ApiResponse<Guid>> CreateUserAsync(string token, string organizationBusinessKey, CreateDocumentUserForm request, string password);
 
     Task<ApiResponse<bool>> AssignPersonaToUserAsync(string userId, string personaId, string token);
     Task<ApiResponse<bool>> RemovePersonaFromUserAsync(string userId, string personaId, string token);

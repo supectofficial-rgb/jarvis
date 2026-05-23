@@ -15,6 +15,7 @@ public sealed class LoginResponse
     public List<object>? Memberships { get; set; }
     public List<string>? Permissions { get; set; }
     public List<string>? Roles { get; set; }
+    public Guid? ActiveOrganizationBusinessKey { get; set; }
 }
 
 public sealed class UserInfo

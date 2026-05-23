@@ -41,6 +41,8 @@ internal sealed class InventoryDocumentCreationService
                 documentType,
                 warehouseRef,
                 sellerRef,
+                receivedBy: null,
+                deliveredBy: null,
                 occurredAt == default ? DateTime.UtcNow : occurredAt,
                 referenceType,
                 referenceBusinessId,

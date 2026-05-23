@@ -1240,6 +1240,8 @@ public sealed partial class InventoryManagementController
         var sellerLookupResult = await _apiService.GetSellerLookupAsync(token, includeInactive: true);
         var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: false);
         var qualityStatusLookupResult = await _apiService.GetQualityStatusLookupAsync(token, includeInactive: false);
+        var userLookupResult = await _apiService.GetUsersAsync(token);
+        var roleLookupResult = await _apiService.GetRolesAsync(token);
         var productLookupResult = await _apiService.SearchProductsAsync(token, page: 1, pageSize: 2000);
         var variantLookupResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
         var unitOfMeasureLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
@@ -1268,6 +1270,8 @@ public sealed partial class InventoryManagementController
             SellerLookup = sellerLookupResult.Data ?? new List<SellerLookupItemModel>(),
             LocationLookup = locationLookupResult.Data ?? new List<LocationLookupItemModel>(),
             QualityStatusLookup = qualityStatusLookupResult.Data ?? new List<QualityStatusLookupItemModel>(),
+            UserLookup = userLookupResult.Data ?? new List<UserSummaryModel>(),
+            RoleLookup = roleLookupResult.Data ?? new List<RoleSummaryModel>(),
             ProductLookup = productLookupResult.Data ?? new List<ProductSummaryModel>(),
             VariantLookup = variantLookupResult.Data ?? new List<ProductVariantSummaryModel>(),
             UnitOfMeasureLookup = unitOfMeasureLookupResult.Data ?? new List<UnitOfMeasureLookupModel>(),
@@ -1289,6 +1293,8 @@ public sealed partial class InventoryManagementController
                 sellerLookupResult.ErrorMessage,
                 locationLookupResult.ErrorMessage,
                 qualityStatusLookupResult.ErrorMessage,
+                userLookupResult.ErrorMessage,
+                roleLookupResult.ErrorMessage,
                 productLookupResult.ErrorMessage,
                 variantLookupResult.ErrorMessage,
                 unitOfMeasureLookupResult.ErrorMessage,
@@ -1349,6 +1355,18 @@ public sealed partial class InventoryManagementController
                 new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, documentId = form.DocumentId, tab = "create" });
         }
 
+        if (string.Equals(form.DocumentType, "Receipt", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(form.DocumentType, "Issue", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(form.ReceivedBy) || string.IsNullOrWhiteSpace(form.DeliveredBy))
+            {
+                TempData["CatalogError"] = "برای رسید و حواله، انتخاب تحویل‌دهنده و تحویل‌گیرنده الزامی است.";
+                return RedirectToAction(
+                    ResolveDocumentRouteActionName(form.DocumentType),
+                    new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, documentId = form.DocumentId, tab = "create" });
+            }
+        }
+
         if (!isUpdate)
         {
             if (!isReceiptDocument)
@@ -1397,6 +1415,57 @@ public sealed partial class InventoryManagementController
         return RedirectToAction(
             ResolveDocumentRouteActionName(form.DocumentType),
             new { documentId = form.DocumentId, documentType = form.DocumentType, tab = "create" });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateDocumentUser(CreateDocumentUserForm form, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفاً دوباره وارد شوید."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "User.Create", "User.Manage"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی ایجاد کاربر را ندارید."
+            });
+        }
+
+        if (!TryValidateModel(form))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = ExtractModelError(ModelState)
+            });
+        }
+
+        var organizationBusinessKey = HttpContext.Session.GetString("OrganizationBusinessKey");
+        if (string.IsNullOrWhiteSpace(organizationBusinessKey))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "سازمان فعال کاربر مشخص نیست."
+            });
+        }
+
+        var tempPassword = BuildTemporaryPassword();
+        var result = await _apiService.CreateUserAsync(token, organizationBusinessKey, form, tempPassword);
+        return Json(new
+        {
+            isSuccess = result.IsSuccess,
+            errorMessage = result.ErrorMessage,
+            temporaryPassword = result.IsSuccess ? tempPassword : null
+        });
     }
 
     [HttpPost]
@@ -1838,6 +1907,8 @@ public sealed partial class InventoryManagementController
             SellerRef = isReceiptDocument
                 ? string.Empty
                 : isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
+            ReceivedBy = isEditMode ? existingDocument?.ReceivedBy : null,
+            DeliveredBy = isEditMode ? existingDocument?.DeliveredBy : null,
             OccurredAt = isEditMode ? existingDocument?.OccurredAt ?? DateTime.Now : DateTime.Now,
             ReasonCode = isEditMode ? existingDocument?.ReasonCode : null,
             Lines = new List<CreateInventoryDocumentLineForm>()
@@ -2075,6 +2146,12 @@ public sealed partial class InventoryManagementController
     {
         PropertyNameCaseInsensitive = true
     };
+
+    private static string BuildTemporaryPassword()
+    {
+        var suffix = Random.Shared.Next(1000, 9999);
+        return $"Tmp@{suffix}A1";
+    }
 
     private static List<PostDocumentLineSerialSelectionModel>? ParsePostDocumentSerialSelections(string? serialSelectionsJson)
     {

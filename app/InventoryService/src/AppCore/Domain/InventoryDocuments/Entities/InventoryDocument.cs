@@ -14,6 +14,8 @@ public sealed class InventoryDocument : AggregateRoot
     public Guid? ReferenceBusinessId { get; private set; }
     public Guid WarehouseRef { get; private set; }
     public Guid SellerRef { get; private set; }
+    public string? ReceivedBy { get; private set; }
+    public string? DeliveredBy { get; private set; }
     public DateTime OccurredAt { get; private set; }
     public DateTime? ApprovedAt { get; private set; }
     public string? ApprovedBy { get; private set; }
@@ -36,6 +38,8 @@ public sealed class InventoryDocument : AggregateRoot
         InventoryDocumentType documentType,
         Guid warehouseRef,
         Guid sellerRef,
+        string? receivedBy,
+        string? deliveredBy,
         DateTime occurredAt,
         string? referenceType,
         Guid? referenceBusinessId,
@@ -50,6 +54,8 @@ public sealed class InventoryDocument : AggregateRoot
         DocumentType = documentType;
         WarehouseRef = warehouseRef;
         SellerRef = sellerRef;
+        ReceivedBy = Normalize(receivedBy);
+        DeliveredBy = Normalize(deliveredBy);
         OccurredAt = occurredAt;
         ReferenceType = Normalize(referenceType);
         ReferenceBusinessId = referenceBusinessId;
@@ -64,6 +70,8 @@ public sealed class InventoryDocument : AggregateRoot
         InventoryDocumentType documentType,
         Guid warehouseRef,
         Guid sellerRef,
+        string? receivedBy,
+        string? deliveredBy,
         DateTime occurredAt,
         string? referenceType = null,
         Guid? referenceBusinessId = null,
@@ -76,6 +84,8 @@ public sealed class InventoryDocument : AggregateRoot
             documentType,
             warehouseRef,
             sellerRef,
+            receivedBy,
+            deliveredBy,
             occurredAt,
             referenceType,
             referenceBusinessId,
@@ -149,6 +159,8 @@ public sealed class InventoryDocument : AggregateRoot
         string documentNo,
         Guid warehouseRef,
         Guid sellerRef,
+        string? receivedBy,
+        string? deliveredBy,
         DateTime occurredAt,
         string? referenceType = null,
         Guid? referenceBusinessId = null,
@@ -163,6 +175,8 @@ public sealed class InventoryDocument : AggregateRoot
         DocumentNo = documentNo.Trim();
         WarehouseRef = warehouseRef;
         SellerRef = sellerRef;
+        ReceivedBy = Normalize(receivedBy);
+        DeliveredBy = Normalize(deliveredBy);
         OccurredAt = occurredAt;
         ReferenceType = Normalize(referenceType);
         ReferenceBusinessId = referenceBusinessId;

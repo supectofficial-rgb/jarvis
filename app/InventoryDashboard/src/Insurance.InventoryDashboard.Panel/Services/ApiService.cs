@@ -54,11 +54,28 @@ public sealed class ApiService : IApiService
     public Task<ApiResponse<List<UserSummaryModel>>> GetUsersAsync(string token) =>
         GetQueryAsync<List<UserSummaryModel>>("/api/UserService/User/get-all", token, "Loading users failed.");
 
+    public Task<ApiResponse<List<RoleSummaryModel>>> GetRolesAsync(string token) =>
+        GetQueryAsync<List<RoleSummaryModel>>("/api/UserService/Role/get-all", token, "Loading roles failed.");
+
     public Task<ApiResponse<List<PersonaSummaryModel>>> GetPersonasAsync(string token) =>
         GetQueryAsync<List<PersonaSummaryModel>>("/api/UserService/Persona/get-all", token, "Loading personas failed.");
 
     public Task<ApiResponse<List<PermissionSummaryModel>>> GetPermissionsAsync(string token) =>
         GetQueryAsync<List<PermissionSummaryModel>>("/api/UserService/Permission/get-all", token, "Loading permissions failed.");
+
+    public Task<ApiResponse<Guid>> CreateUserAsync(string token, string organizationBusinessKey, CreateDocumentUserForm request, string password)
+    {
+        var payload = new
+        {
+            OrganizationBusinessKey = ParseGuidOrEmpty(organizationBusinessKey),
+            MobileNumber = request.MobileNumber?.Trim(),
+            UserName = request.UserName?.Trim(),
+            Password = password,
+            RoleBusinessKey = ParseGuidOrEmpty(request.RoleBusinessKey)
+        };
+
+        return PostCommandWithDataAsync<Guid>("/api/UserService/User/create", payload, token, "Creating user failed.");
+    }
 
     public Task<ApiResponse<bool>> AssignPersonaToUserAsync(string userId, string personaId, string token) =>
         PostCommandAsync("/api/UserService/UserPersona/assign", new { UserId = userId, PersonaId = personaId }, token, "Assigning persona to user failed.");
@@ -1441,6 +1458,8 @@ public sealed class ApiService : IApiService
             ReferenceBusinessId = ParseNullableGuid(form.ReferenceBusinessId),
             WarehouseRef = ParseGuidOrEmpty(form.WarehouseRef),
             SellerRef = ParseGuidOrEmpty(form.SellerRef),
+            ReceivedBy = NormalizeOptional(form.ReceivedBy),
+            DeliveredBy = NormalizeOptional(form.DeliveredBy),
             OccurredAt = form.OccurredAt,
             ReasonCode = NormalizeOptional(form.ReasonCode),
             Lines = (form.Lines ?? new List<CreateInventoryDocumentLineForm>())
@@ -1502,6 +1521,8 @@ public sealed class ApiService : IApiService
             ReferenceBusinessId = ParseNullableGuid(form.ReferenceBusinessId),
             WarehouseRef = ParseGuidOrEmpty(form.WarehouseRef),
             SellerRef = ParseGuidOrEmpty(form.SellerRef),
+            ReceivedBy = NormalizeOptional(form.ReceivedBy),
+            DeliveredBy = NormalizeOptional(form.DeliveredBy),
             OccurredAt = form.OccurredAt,
             ReasonCode = NormalizeOptional(form.ReasonCode)
         };

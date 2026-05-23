@@ -105,6 +105,22 @@
         return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
     }
 
+    string UserNameLabel(Insurance.InventoryDashboard.Panel.Models.UserSummaryModel user)
+    {
+        var name = string.IsNullOrWhiteSpace(user.UserName) ? user.MobileNumber : user.UserName;
+        var phone = string.IsNullOrWhiteSpace(user.MobileNumber) ? null : user.MobileNumber;
+        return string.IsNullOrWhiteSpace(phone) ? (name ?? user.UserBusinessKey) : $"{name} - {phone}";
+    }
+
+    string RoleNameLabel(Insurance.InventoryDashboard.Panel.Models.RoleSummaryModel role)
+    {
+        return string.IsNullOrWhiteSpace(role.Name)
+            ? role.RoleBusinessKey
+            : string.IsNullOrWhiteSpace(role.Scope)
+                ? role.Name
+                : $"{role.Name} ({role.Scope})";
+    }
+
     string UomName(string? uomId)
     {
         if (string.IsNullOrWhiteSpace(uomId))
@@ -212,6 +228,40 @@
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.reason"]</label>
                                     <input asp-for="CreateForm.ReasonCode" class="form-control" />
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
+                                <div>
+                                    <h6 class="mb-0">افراد سند</h6>
+                                    <div class="text-muted small">تحویل‌دهنده و تحویل‌گیرنده را از لیست افراد سازمان انتخاب کنید.</div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-xs js-open-document-user-modal">+</button>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-5">
+                                    <label>تحویل‌دهنده</label>
+                                    <select asp-for="CreateForm.DeliveredBy" class="form-control js-search-select" data-placeholder="انتخاب تحویل‌دهنده" required>
+                                        <option value="">انتخاب تحویل‌دهنده</option>
+                                        @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
+                                        {
+                                            <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.DeliveredBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-5">
+                                    <label>تحویل‌گیرنده</label>
+                                    <select asp-for="CreateForm.ReceivedBy" class="form-control js-search-select" data-placeholder="انتخاب تحویل‌گیرنده" required>
+                                        <option value="">انتخاب تحویل‌گیرنده</option>
+                                        @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
+                                        {
+                                            <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.ReceivedBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2 d-flex align-items-end">
+                                    <div class="text-muted small">این دو فیلد برای ثبت هدر سند الزامی هستند.</div>
                                 </div>
                             </div>
 
@@ -839,8 +889,51 @@
                     <button type="button" class="btn btn-primary" id="receipt-document-action-submit">تایید</button>
                 </div>
             </div>
+    </div>
+</div>
+<div class="modal fade" id="document-user-create-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-0">ایجاد کاربر</h5>
+                    <small class="text-muted">کاربر جدید به سازمان فعال اضافه می‌شود.</small>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger d-none" id="document-user-create-error"></div>
+                <form asp-action="CreateDocumentUser" asp-controller="InventoryManagement" method="post" id="document-user-create-form">
+                    @Html.AntiForgeryToken()
+                    <div class="form-group">
+                        <label>نام</label>
+                        <input type="text" name="UserName" class="form-control" autocomplete="off" required />
+                    </div>
+                    <div class="form-group">
+                        <label>شماره تلفن</label>
+                        <input type="text" name="MobileNumber" class="form-control text-monospace" autocomplete="off" required />
+                    </div>
+                    <div class="form-group">
+                        <label>نقش</label>
+                        <select name="RoleBusinessKey" class="form-control js-search-select" data-placeholder="انتخاب نقش" required>
+                            <option value="">انتخاب نقش</option>
+                            @foreach (var role in Model.RoleLookup.OrderBy(x => x.Name))
+                            {
+                                <option value="@role.RoleBusinessKey">@RoleNameLabel(role)</option>
+                            }
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">بستن</button>
+                <button type="submit" class="btn btn-primary" form="document-user-create-form">ثبت</button>
+            </div>
         </div>
     </div>
+</div>
 </main>
 
 @section Scripts {
@@ -2440,6 +2533,114 @@
                         });
                     }
                 }
+            }
+        })();
+    </script>
+    <script data-ajax-reinit="document-user-create">
+        (function () {
+            var modalSelector = '#document-user-create-modal';
+            var formSelector = '#document-user-create-form';
+            var errorSelector = '#document-user-create-error';
+            var createUserUrl = '@Url.Action("CreateDocumentUser", "InventoryManagement")';
+
+            function showModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalSelector).modal('show');
+                }
+            }
+
+            function hideModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalSelector).modal('hide');
+                }
+            }
+
+            function setError(message) {
+                var errorBox = document.querySelector(errorSelector);
+                if (!errorBox) {
+                    return;
+                }
+
+                if (!message) {
+                    errorBox.textContent = '';
+                    errorBox.classList.add('d-none');
+                    return;
+                }
+
+                errorBox.textContent = message;
+                errorBox.classList.remove('d-none');
+            }
+
+            function resetForm() {
+                var form = document.querySelector(formSelector);
+                if (!form) {
+                    return;
+                }
+
+                form.reset();
+                if (window.jQuery) {
+                    window.jQuery(form).find('select').trigger('change.select2');
+                }
+                setError('');
+            }
+
+            async function submitUserForm(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                var form = event.currentTarget;
+                setError('');
+
+                var response = await fetch(createUserUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(form)
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    setError((payload && payload.errorMessage) || 'ایجاد کاربر انجام نشد.');
+                    return;
+                }
+
+                hideModal();
+                window.location.reload();
+            }
+
+            document.addEventListener('click', function (event) {
+                var trigger = event.target && event.target.closest ? event.target.closest('.js-open-document-user-modal') : null;
+                if (!trigger) {
+                    return;
+                }
+
+                event.preventDefault();
+                resetForm();
+                showModal();
+            }, true);
+
+            var form = document.querySelector(formSelector);
+            if (form && form.dataset.documentUserCreateBound !== 'true') {
+                form.addEventListener('submit', function (event) {
+                    submitUserForm(event).catch(function (error) {
+                        console.error(error);
+                        setError('ایجاد کاربر انجام نشد.');
+                    });
+                });
+                form.dataset.documentUserCreateBound = 'true';
+            }
+
+            var modalElement = document.querySelector(modalSelector);
+            if (modalElement && modalElement.dataset.documentUserCreateInit !== 'true') {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(modalElement);
+                }
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    resetForm();
+                });
+                modalElement.dataset.documentUserCreateInit = 'true';
             }
         })();
     </script>
