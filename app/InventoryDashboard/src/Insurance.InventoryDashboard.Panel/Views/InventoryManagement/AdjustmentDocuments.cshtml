@@ -1,4 +1,4 @@
-@using System
+﻿@using System
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
@@ -266,137 +266,10 @@
                                 </div>
                             </div>
 
-                            <div class="border-top pt-3 mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
-                                        <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
-                                    </div>
-                                </div>
-
-                            @if (!isAdjustmentDocument)
-                            {
-                            <div id="document-lines-panel">
-                                <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
-                                <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
-
-                                <div class="d-flex justify-content-end mb-3">
-                                    <button class="btn btn-outline-primary btn-xs" type="button" id="add-document-line">@UiText["inventory.documents.addLine"]</button>
-                                </div>
-
-                                <div id="document-lines">
-                                @for (var i = 0; i < Model.CreateForm.Lines.Count; i++)
-                                {
-                                    <div class="card mb-3 document-line" data-line-index="@i">
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <strong>ردیف @(i + 1)</strong>
-                                                <button class="btn btn-outline-danger btn-xs remove-document-line" type="button">حذف</button>
-                                            </div>
-                                            <div class="form-row">
-                                                <div class="form-group col-md-4">
-                                                    <label>واریانت</label>
-                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="جستجو با کد یا نام واریانت" required>
-                                                        <option value="">انتخاب واریانت</option>
-                                                        @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
-                                                        {
-                                                            <option value="@variant.Id" data-base-uom-ref="@variant.BaseUomRef" data-product-id="@variant.ProductId" selected="@(variant.Id == Model.CreateForm.Lines[i].VariantId ? "selected" : null)">@VariantLabel(variant)</option>
-                                                        }
-                                                    </select>
-                                                    <input type="hidden" name="CreateForm.Lines[@i].UomRef" value="@Model.CreateForm.Lines[i].UomRef" class="document-uom-ref" />
-                                                    <input type="hidden" name="CreateForm.Lines[@i].BaseUomRef" value="@Model.CreateForm.Lines[i].BaseUomRef" class="document-base-uom-ref" />
-                                                    <div class="text-muted small mt-1 document-uom-hint">UOM از Base UOM واریانت پر می شود.</div>
-                                                </div>
-                                                <div class="form-group col-md-2">
-                                                    <label>تعداد</label>
-                                                    <input name="CreateForm.Lines[@i].Qty" type="number" step="0.0001" min="0.0001" value="@Model.CreateForm.Lines[i].Qty.ToString("0.####")" class="form-control" required />
-                                                </div>
-                                                <div class="form-group col-md-3 line-source">
-                                                    <label>لوکیشن مبدا</label>
-                                                    <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                        <option value="">انتخاب لوکیشن</option>
-                                                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                                        {
-                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                                <div class="form-group col-md-3 line-destination">
-                                                    <label>لوکیشن مقصد</label>
-                                                    <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                        <option value="">انتخاب لوکیشن</option>
-                                                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                                        {
-                                                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                                <div class="form-group col-md-2">
-                                                    <label>لات/بچ</label>
-                                                    <input name="CreateForm.Lines[@i].LotBatchNo" value="@Model.CreateForm.Lines[i].LotBatchNo" class="form-control" />
-                                                </div>
-                                                @if (showQualityChangeFields)
-                                                {
-                                                    <div class="form-group col-md-2 line-from-quality">
-                                                        <label>کیفیت مبدأ</label>
-                                                        <select name="CreateForm.Lines[@i].FromQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                    <div class="form-group col-md-2 line-to-quality">
-                                                        <label>کیفیت مقصد</label>
-                                                        <select name="CreateForm.Lines[@i].ToQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                }
-                                                else if (showConversionQuality)
-                                                {
-                                                    <div class="form-group col-md-2 line-quality">
-                                                        <label>کیفیت</label>
-                                                        <select name="CreateForm.Lines[@i].QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                }
-                                                <div class="form-group col-md-2 line-adjustment">
-                                                    <label>جهت تعدیل</label>
-                                                    <select name="CreateForm.Lines[@i].AdjustmentDirection" class="form-control">
-                                                        <option value="">انتخاب</option>
-                                                        <option value="Increase" selected="@(Model.CreateForm.Lines[i].AdjustmentDirection == "Increase" ? "selected" : null)">افزایش</option>
-                                                        <option value="Decrease" selected="@(Model.CreateForm.Lines[i].AdjustmentDirection == "Decrease" ? "selected" : null)">کاهش</option>
-                                                    </select>
-                                                </div>
-                                                <div class="form-group col-md-4 line-reason">
-                                                    <label>علت ردیف</label>
-                                                    <input name="CreateForm.Lines[@i].ReasonCode" value="@Model.CreateForm.Lines[i].ReasonCode" class="form-control" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                                </div>
+                            <div class="alert alert-info border mb-3" role="status">
+                                <strong>ثبت هدر سند</strong>
+                                <div class="small mt-1">در این فرم فقط اطلاعات هدر ثبت می‌شود. ردیف‌ها و جزئیات سند از تب لیست و جزئیات مدیریت می‌شوند.</div>
                             </div>
-                            }
-                            else
-                            {
-                                <div class="alert alert-info mb-0">
-                                    برای سند تعدیل، آیتم‌ها از دکمه <strong>جزئیات</strong> در تب <strong>لیست اسناد</strong> مدیریت می‌شوند.
-                                </div>
-                            }
-                        </div>
 
                         <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>ایجاد سند</button>
                         </form>
@@ -902,6 +775,10 @@
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
 
+            if (!lineContainer) {
+                return;
+            }
+
             var documentTypeConfig = {
                 Receipt: {
                     title: 'رسید انبار',
@@ -1163,12 +1040,7 @@
 
                 var config = selectedConfig();
                 var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
-                if (lines.length === 0) {
-                    showValidation('حداقل یک ردیف برای سند لازم است.');
-                    return false;
-                }
-
-                for (var i = 0; i < lines.length; i++) {
+for (var i = 0; i < lines.length; i++) {
                     var line = lines[i];
                     var lineTitle = 'ردیف ' + (i + 1);
                     var variant = firstField(line, '.document-variant-select');
@@ -1715,3 +1587,6 @@
         })();
     </script>
 }
+
+
+

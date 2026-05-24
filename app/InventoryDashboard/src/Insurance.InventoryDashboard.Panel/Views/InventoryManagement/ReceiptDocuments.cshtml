@@ -1,5 +1,6 @@
-@using System
+﻿@using System
 @using System.Linq
+@using System.Net
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
     ViewData["Title"] = UiText["inventory.documents.title"];
@@ -22,26 +23,28 @@
         return names.Any(permissionSet.Contains);
     }
 
+    string DecodeHtmlEntities(string? value) => WebUtility.HtmlDecode(value ?? string.Empty);
+
     string TypeLabel(string? type) => type switch
     {
-        "Receipt" => UiText["inventory.documents.type.receipt"],
-        "Issue" => UiText["inventory.documents.type.issue"],
-        "Transfer" => UiText["inventory.documents.type.transfer"],
-        "Adjustment" => UiText["inventory.documents.type.adjustment"],
-        "Return" => UiText["inventory.documents.type.return"],
-        "QualityChange" => UiText["inventory.documents.type.qualityChange"],
-        "Conversion" => UiText["inventory.documents.type.conversion"],
-        _ => type ?? "-"
+        "Receipt" => DecodeHtmlEntities(UiText["inventory.documents.type.receipt"]),
+        "Issue" => DecodeHtmlEntities(UiText["inventory.documents.type.issue"]),
+        "Transfer" => DecodeHtmlEntities(UiText["inventory.documents.type.transfer"]),
+        "Adjustment" => DecodeHtmlEntities(UiText["inventory.documents.type.adjustment"]),
+        "Return" => DecodeHtmlEntities(UiText["inventory.documents.type.return"]),
+        "QualityChange" => DecodeHtmlEntities(UiText["inventory.documents.type.qualityChange"]),
+        "Conversion" => DecodeHtmlEntities(UiText["inventory.documents.type.conversion"]),
+        _ => DecodeHtmlEntities(type ?? "-")
     };
 
     string StatusLabel(string? status) => status switch
     {
-        "Draft" => UiText["inventory.documents.status.draft"],
-        "Approved" => UiText["inventory.documents.status.approved"],
-        "Rejected" => UiText["inventory.documents.status.rejected"],
-        "Cancelled" => UiText["inventory.documents.status.cancelled"],
-        "Posted" => UiText["inventory.documents.status.posted"],
-        _ => status ?? "-"
+        "Draft" => DecodeHtmlEntities(UiText["inventory.documents.status.draft"]),
+        "Approved" => DecodeHtmlEntities(UiText["inventory.documents.status.approved"]),
+        "Rejected" => DecodeHtmlEntities(UiText["inventory.documents.status.rejected"]),
+        "Cancelled" => DecodeHtmlEntities(UiText["inventory.documents.status.cancelled"]),
+        "Posted" => DecodeHtmlEntities(UiText["inventory.documents.status.posted"]),
+        _ => DecodeHtmlEntities(status ?? "-")
     };
 
     string StatusClass(string? status) => status switch
@@ -134,9 +137,9 @@
 
     string AdjustmentDirectionLabel(string? direction) => direction switch
     {
-        "Increase" => UiText["inventory.documents.adjustment.increase"],
-        "Decrease" => UiText["inventory.documents.adjustment.decrease"],
-        _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
+        "Increase" => DecodeHtmlEntities(UiText["inventory.documents.adjustment.increase"]),
+        "Decrease" => DecodeHtmlEntities(UiText["inventory.documents.adjustment.decrease"]),
+        _ => string.IsNullOrWhiteSpace(direction) ? "-" : DecodeHtmlEntities(direction)
     };
 
     var hasListContext = !string.IsNullOrWhiteSpace(Model.DocumentNoFilter)
@@ -1419,19 +1422,19 @@
             function getDocumentTypeLabel(type) {
                 switch ((type || '').toLowerCase()) {
                     case 'receipt':
-                        return '@UiText["inventory.documents.type.receipt"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.type.receipt"]');
                     case 'issue':
-                        return '@UiText["inventory.documents.type.issue"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.type.issue"]');
                     case 'transfer':
-                        return '@UiText["inventory.documents.type.transfer"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.type.transfer"]');
                     case 'adjustment':
-                        return '@UiText["inventory.documents.type.adjustment"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.type.adjustment"]');
                     case 'return':
-                        return '@UiText["inventory.documents.type.return"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.type.return"]');
                     case 'qualitychange':
-                        return '@UiText["inventory.documents.type.qualityChange"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.type.qualityChange"]');
                     case 'conversion':
-                        return '@UiText["inventory.documents.type.conversion"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.type.conversion"]');
                     default:
                         return type || '-';
                 }
@@ -1440,15 +1443,15 @@
             function getStatusLabel(status) {
                 switch ((status || '').toLowerCase()) {
                     case 'draft':
-                        return '@UiText["inventory.documents.status.draft"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.status.draft"]');
                     case 'approved':
-                        return '@UiText["inventory.documents.status.approved"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.status.approved"]');
                     case 'rejected':
-                        return '@UiText["inventory.documents.status.rejected"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.status.rejected"]');
                     case 'cancelled':
-                        return '@UiText["inventory.documents.status.cancelled"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.status.cancelled"]');
                     case 'posted':
-                        return '@UiText["inventory.documents.status.posted"]';
+                        return decodeHtmlEntities('@UiText["inventory.documents.status.posted"]');
                     default:
                         return status || '-';
                 }
@@ -2269,9 +2272,28 @@
                         }
 
                         serialContainer.classList.toggle('d-none', !checkbox.checked);
+                        serialContainer.querySelectorAll('.js-receipt-post-serial').forEach(function (serialCheckbox) {
+                            serialCheckbox.checked = checkbox.checked;
+                        });
                     });
 
                     checkbox.dispatchEvent(new Event('change'));
+                });
+
+                container.querySelectorAll('.js-receipt-post-serial').forEach(function (serialCheckbox) {
+                    serialCheckbox.addEventListener('change', function () {
+                        var lineId = serialCheckbox.getAttribute('data-line-id') || '';
+                        var serialContainer = container.querySelector('.js-receipt-post-line-serial-container[data-line-id="' + lineId.replace(/"/g, '\\"') + '"]');
+                        var lineToggle = container.querySelector('.js-receipt-post-line-unique-toggle[data-line-id="' + lineId.replace(/"/g, '\\"') + '"]');
+                        if (!serialContainer || !lineToggle) {
+                            return;
+                        }
+
+                        var serialCheckboxes = Array.prototype.slice.call(serialContainer.querySelectorAll('.js-receipt-post-serial'));
+                        lineToggle.checked = serialCheckboxes.length > 0 && serialCheckboxes.every(function (item) {
+                            return item.checked;
+                        });
+                    });
                 });
             }
 
@@ -2689,3 +2711,5 @@
         })();
     </script>
 }
+
+

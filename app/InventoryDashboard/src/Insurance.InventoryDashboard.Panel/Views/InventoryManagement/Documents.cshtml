@@ -1,5 +1,6 @@
-@using System
+﻿@using System
 @using System.Linq
+@using System.Net
 @using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
@@ -22,6 +23,8 @@
 
         return names.Any(permissionSet.Contains);
     }
+
+    string DecodeHtmlEntities(string? value) => WebUtility.HtmlDecode(value ?? string.Empty);
 
     string WarehouseName(string? warehouseId)
     {
@@ -47,24 +50,24 @@
 
     string TypeLabel(string? type) => type switch
     {
-        "Receipt" => UiText["inventory.documents.type.receipt"],
-        "Issue" => UiText["inventory.documents.type.issue"],
-        "Transfer" => UiText["inventory.documents.type.transfer"],
-        "Adjustment" => UiText["inventory.documents.type.adjustment"],
-        "Return" => UiText["inventory.documents.type.return"],
-        "QualityChange" => UiText["inventory.documents.type.qualityChange"],
-        "Conversion" => UiText["inventory.documents.type.conversion"],
-        _ => type ?? "-"
+        "Receipt" => DecodeHtmlEntities(UiText["inventory.documents.type.receipt"]),
+        "Issue" => DecodeHtmlEntities(UiText["inventory.documents.type.issue"]),
+        "Transfer" => DecodeHtmlEntities(UiText["inventory.documents.type.transfer"]),
+        "Adjustment" => DecodeHtmlEntities(UiText["inventory.documents.type.adjustment"]),
+        "Return" => DecodeHtmlEntities(UiText["inventory.documents.type.return"]),
+        "QualityChange" => DecodeHtmlEntities(UiText["inventory.documents.type.qualityChange"]),
+        "Conversion" => DecodeHtmlEntities(UiText["inventory.documents.type.conversion"]),
+        _ => DecodeHtmlEntities(type ?? "-")
     };
 
     string StatusLabel(string? status) => status switch
     {
-        "Draft" => UiText["inventory.documents.status.draft"],
-        "Approved" => UiText["inventory.documents.status.approved"],
-        "Rejected" => UiText["inventory.documents.status.rejected"],
-        "Cancelled" => UiText["inventory.documents.status.cancelled"],
-        "Posted" => UiText["inventory.documents.status.posted"],
-        _ => status ?? "-"
+        "Draft" => DecodeHtmlEntities(UiText["inventory.documents.status.draft"]),
+        "Approved" => DecodeHtmlEntities(UiText["inventory.documents.status.approved"]),
+        "Rejected" => DecodeHtmlEntities(UiText["inventory.documents.status.rejected"]),
+        "Cancelled" => DecodeHtmlEntities(UiText["inventory.documents.status.cancelled"]),
+        "Posted" => DecodeHtmlEntities(UiText["inventory.documents.status.posted"]),
+        _ => DecodeHtmlEntities(status ?? "-")
     };
 
     string StatusClass(string? status) => status switch
@@ -141,9 +144,9 @@
 
     string AdjustmentDirectionLabel(string? direction) => direction switch
     {
-        "Increase" => UiText["inventory.documents.adjustment.increase"],
-        "Decrease" => UiText["inventory.documents.adjustment.decrease"],
-        _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
+        "Increase" => DecodeHtmlEntities(UiText["inventory.documents.adjustment.increase"]),
+        "Decrease" => DecodeHtmlEntities(UiText["inventory.documents.adjustment.decrease"]),
+        _ => string.IsNullOrWhiteSpace(direction) ? "-" : DecodeHtmlEntities(direction)
     };
 
     var hasListContext = !string.IsNullOrWhiteSpace(Model.SelectedDocumentId)
@@ -274,12 +277,9 @@
                                 </div>
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
-                                <div>
-                                    <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
-                                    <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
-                                </div>
-                                <button class="btn btn-outline-primary btn-xs" type="button" id="toggle-document-lines">افزودن واریانت</button>
+                            <div class="alert alert-info border mb-3" role="status">
+                                <strong>ثبت هدر سند</strong>
+                                <div class="small mt-1">در این فرم فقط اطلاعات هدر ثبت می‌شود. ردیف‌ها و جزئیات سند از تب لیست و جزئیات مدیریت می‌شوند.</div>
                             </div>
 
                             <div id="document-lines-panel" class="d-none">
@@ -1481,3 +1481,5 @@
         })();
     </script>
 }
+
+
