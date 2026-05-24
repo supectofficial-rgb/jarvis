@@ -3,6 +3,7 @@ namespace OysterFx.Infra.Persistence.RDB.Commands.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
+using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.Infra.Auth.UserServices;
 using OysterFx.Infra.Persistence.EventSourcing.Abstractions;
 using System.Linq.Expressions;
@@ -64,18 +65,39 @@ public static class OrganizationShadowProperties
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Property(OrganizationBusinessKey).CurrentValue = organizationBusinessKey;
-                entry.Property(TenantId).CurrentValue = tenantId;
+                SetOrganizationPropertyValue(entry, OrganizationBusinessKey, organizationBusinessKey);
+                SetOrganizationPropertyValue(entry, TenantId, tenantId);
                 continue;
             }
 
-            if (entry.State == EntityState.Modified && string.IsNullOrWhiteSpace(entry.Property(OrganizationBusinessKey).CurrentValue as string))
-                entry.Property(OrganizationBusinessKey).CurrentValue = organizationBusinessKey;
+            if (entry.State == EntityState.Modified && IsNullOrWhiteSpace(entry.Property(OrganizationBusinessKey).CurrentValue))
+                SetOrganizationPropertyValue(entry, OrganizationBusinessKey, organizationBusinessKey);
 
-            if (entry.State == EntityState.Modified && string.IsNullOrWhiteSpace(entry.Property(TenantId).CurrentValue as string))
-                entry.Property(TenantId).CurrentValue = tenantId;
+            if (entry.State == EntityState.Modified && IsNullOrWhiteSpace(entry.Property(TenantId).CurrentValue))
+                SetOrganizationPropertyValue(entry, TenantId, tenantId);
         }
     }
+
+    private static void SetOrganizationPropertyValue(EntityEntry entry, string propertyName, string? value)
+    {
+        var property = entry.Metadata.FindProperty(propertyName);
+        if (property is null || string.IsNullOrWhiteSpace(value))
+            return;
+
+        if (IsBusinessKeyType(property.ClrType))
+        {
+            entry.Property(propertyName).CurrentValue = BusinessKey.FromGuid(Guid.Parse(value));
+            return;
+        }
+
+        entry.Property(propertyName).CurrentValue = value;
+    }
+
+    private static bool IsBusinessKeyType(Type type)
+        => string.Equals(type.FullName, typeof(BusinessKey).FullName, StringComparison.Ordinal);
+
+    private static bool IsNullOrWhiteSpace(object? value)
+        => value is null || string.IsNullOrWhiteSpace(value as string);
 
     public static string? GetActiveOrganizationBusinessKey(this IUserInfoService? userInfoService)
     {

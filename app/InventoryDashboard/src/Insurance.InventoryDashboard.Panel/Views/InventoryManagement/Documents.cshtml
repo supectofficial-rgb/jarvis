@@ -858,6 +858,12 @@
                 });
             }
 
+            function decodeHtmlEntities(value) {
+                var textarea = document.createElement('textarea');
+                textarea.innerHTML = String(value ?? '');
+                return textarea.value;
+            }
+
             function getFormValue(name) {
                 if (!listForm) {
                     return '';
@@ -955,11 +961,11 @@
                     return [
                         '<tr>',
                         '<td><span class="text-monospace">', escapeHtml(item.documentNo || '-'), '</span></td>',
-                        '<td>', escapeHtml(typeLabel(item.documentType)), '</td>',
-                        '<td>', escapeHtml(getSelectedText(warehouseLabelMap, item.warehouseRef)), '</td>',
-                        '<td>', escapeHtml(getSelectedText(sellerLabelMap, item.sellerRef)), '</td>',
+                        '<td>', escapeHtml(decodeHtmlEntities(typeLabel(item.documentType))), '</td>',
+                        '<td>', escapeHtml(decodeHtmlEntities(getSelectedText(warehouseLabelMap, item.warehouseRef))), '</td>',
+                        '<td>', escapeHtml(decodeHtmlEntities(getSelectedText(sellerLabelMap, item.sellerRef))), '</td>',
                         '<td>', escapeHtml(formatDate(item.occurredAt)), '</td>',
-                        '<td><span class="badge badge-pill ', statusClass(item.status), '">', escapeHtml(statusLabel(item.status)), '</span></td>',
+                        '<td><span class="badge badge-pill ', statusClass(item.status), '">', escapeHtml(decodeHtmlEntities(statusLabel(item.status))), '</span></td>',
                         '<td class="text-right">',
                         '<a class="btn btn-outline-primary btn-xs" href="', escapeHtml(buildDetailsUrl(item)), '" data-ajax-target="#documents-page-root">جزئیات</a>',
                         '</td>',
