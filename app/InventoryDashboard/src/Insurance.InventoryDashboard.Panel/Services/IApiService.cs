@@ -133,6 +133,7 @@ public interface IApiService
     Task<ApiResponse<List<LocationLookupItemModel>>> GetLocationLookupAsync(string token, string? warehouseId = null, bool includeInactive = false);
     Task<ApiResponse<List<QualityStatusLookupItemModel>>> GetQualityStatusLookupAsync(string token, bool includeInactive = false);
     Task<ApiResponse<List<SerialItemLookupModel>>> GetAvailableSerialItemsAsync(string token, string? variantId = null, string? warehouseId = null);
+    Task<ApiResponse<SerialItemLookupModel?>> GetSerialItemBySerialNoAsync(string token, string serialNo, string? variantId = null);
     Task<ApiResponse<StockDetailSearchResultModel>> SearchStockDetailsAsync(string token, string? variantId = null, string? sellerId = null, string? warehouseId = null, string? locationId = null, string? qualityStatusId = null, string? lotBatchNo = null, bool? isEmpty = null, int page = 1, int pageSize = 200);
     Task<ApiResponse<List<InventoryTransactionListItemModel>>> GetInventoryTransactionsByVariantAsync(string variantId, string token);
     Task<ApiResponse<List<ProductVariantSummaryModel>>> SearchVariantsAsync(string token, string? productId = null, string? sku = null, string? barcode = null, bool? isActive = true, int page = 1, int pageSize = 2000);

@@ -1,0 +1,336 @@
+@using System
+@using System.Linq
+@model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
+@{
+    string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
+    {
+        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
+        return string.IsNullOrWhiteSpace(productName)
+            ? variant.Sku
+            : $"{variant.Sku} - {productName}";
+    }
+
+    string VariantName(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return "-";
+        }
+
+        var variant = Model.VariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase));
+        return variant is null ? variantId : VariantLabel(variant);
+    }
+
+    string LocationName(string? locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            return "-";
+        }
+
+        var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
+        return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
+    }
+
+    string QualityName(string? qualityId)
+    {
+        if (string.IsNullOrWhiteSpace(qualityId))
+        {
+            return "-";
+        }
+
+        var quality = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, qualityId, StringComparison.OrdinalIgnoreCase));
+        return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
+    }
+
+    string UomName(string? uomId)
+    {
+        if (string.IsNullOrWhiteSpace(uomId))
+        {
+            return "-";
+        }
+
+        var uom = Model.UnitOfMeasureLookup.FirstOrDefault(x => string.Equals(x.Id, uomId, StringComparison.OrdinalIgnoreCase));
+        return uom is null ? uomId : $"{uom.Code} - {uom.Name}";
+    }
+
+    string AdjustmentDirectionLabel(string? direction) => direction switch
+    {
+        "Increase" => "افزایش",
+        "Decrease" => "کاهش",
+        _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
+    };
+
+    var selectedDocument = Model.SelectedDocumentDetails;
+    var selectedDocumentType = selectedDocument?.DocumentType ?? "Adjustment";
+    var canEditLines = selectedDocument is not null && string.Equals(selectedDocument.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+    var selectedDirection = string.IsNullOrWhiteSpace(Model.LineForm.AdjustmentDirection) ? "Increase" : Model.LineForm.AdjustmentDirection;
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning">@Model.ErrorMessage</div>
+}
+
+@if (selectedDocument is null)
+{
+    <div class="alert alert-light mb-0">سندی برای نمایش انتخاب نشده است.</div>
+}
+else
+{
+    <div class="row">
+        <div class="col-lg-5 mb-3">
+            <div class="border rounded p-3 bg-light h-100">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="mb-1">@(Model.LineForm.LineId is null ? "افزودن آیتم سند" : "ویرایش آیتم سند")</h5>
+                        <div class="text-muted small">برای تعدیل، فقط یکی از بخش‌های افزایش یا کاهش فعال می‌شود.</div>
+                    </div>
+                    <span class="badge badge-pill badge-outline-secondary">@selectedDocument.Status</span>
+                </div>
+
+                <form asp-action="SaveAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" id="adjustment-document-line-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="LineForm.DocumentId" value="@selectedDocument.DocumentBusinessKey" />
+                    <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
+                    <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>واریانت</label>
+                            <select asp-for="LineForm.VariantId" class="form-control js-search-select js-adjustment-variant-select" data-placeholder="جستجو با کد یا نام واریانت" required>
+                                <option value="">انتخاب واریانت</option>
+                                @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+                                {
+                                    <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label>تعداد</label>
+                            <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" required />
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label>جهت تعدیل</label>
+                            <select asp-for="LineForm.AdjustmentDirection" class="form-control js-adjustment-direction-select" required>
+                                <option value="">انتخاب</option>
+                                <option value="Increase" selected="@(string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">افزایش</option>
+                                <option value="Decrease" selected="@(string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">کاهش</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-12">
+                            <label>علت</label>
+                            <input asp-for="LineForm.ReasonCode" class="form-control" required />
+                        </div>
+                        <div class="form-group col-md-3 js-adjustment-source-section">
+                            <label class="js-adjustment-source-label">لوکیشن مبدأ</label>
+                            <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
+                                <option value="">انتخاب لوکیشن</option>
+                                @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                {
+                                    <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.LineForm.SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group col-md-3 js-adjustment-destination-section">
+                            <label class="js-adjustment-destination-label">لوکیشن مقصد</label>
+                            <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
+                                <option value="">انتخاب لوکیشن</option>
+                                @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                {
+                                    <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label>لات/بچ</label>
+                            <input asp-for="LineForm.LotBatchNo" class="form-control" />
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label>کیفیت</label>
+                            <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
+                                <option value="">انتخاب کیفیت</option>
+                                @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                {
+                                    <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3 bg-white mb-3 js-adjustment-increase-section">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>افزایش شناسه</strong>
+                            <span class="text-muted small">شناسه‌ای که قبلاً در حواله خروج داشته است را جستجو کنید.</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-8">
+                                <label>شناسه</label>
+                                <input type="text" class="form-control js-adjustment-serial-no-input text-monospace" autocomplete="off" />
+                            </div>
+                            <div class="form-group col-md-4 d-flex align-items-end">
+                                <button type="button" class="btn btn-outline-primary btn-block js-adjustment-increase-search">جستجو و افزودن</button>
+                            </div>
+                        </div>
+                        <div class="js-adjustment-serial-lookup-status small text-muted mb-2"></div>
+                    </div>
+
+                    <div class="border rounded p-3 bg-white mb-3 js-adjustment-decrease-section">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>کاهش از بین سریال‌های موجود</strong>
+                            <span class="text-muted small">فقط سریال‌هایی که در لوکیشن انتخابی موجودند قابل انتخاب هستند.</span>
+                        </div>
+                        <div class="js-adjustment-decrease-serial-list">
+                            <div class="text-muted small">برای مشاهده سریال‌های موجود، واریانت و لوکیشن مبدأ را انتخاب کنید.</div>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3 bg-white mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>سریال‌های انتخاب‌شده</strong>
+                            <span class="text-muted small">این لیست برای هر دو حالت افزایش و کاهش استفاده می‌شود.</span>
+                        </div>
+                        <div class="js-adjustment-selected-serials">
+                            @if (Model.LineForm.Serials.Count == 0)
+                            {
+                                <div class="text-muted small">سریالی انتخاب نشده است.</div>
+                            }
+                            else
+                            {
+                                foreach (var serial in Model.LineForm.Serials)
+                                {
+                                    <div class="badge badge-light border d-inline-flex align-items-center mr-2 mb-2 py-2 px-3 js-adjustment-selected-serial" data-serial-id="@serial.SerialItemBusinessKey">
+                                        <span class="font-weight-bold">@serial.SerialNo</span>
+                                        <button type="button" class="btn btn-link btn-sm text-danger ml-2 p-0 js-adjustment-remove-serial">&times;</button>
+                                        <input type="hidden" name="LineForm.Serials.Index" value="@serial.SerialItemBusinessKey" />
+                                        <input type="hidden" name="LineForm.Serials[@serial.SerialItemBusinessKey].SerialItemBusinessKey" value="@serial.SerialItemBusinessKey" />
+                                        <input type="hidden" name="LineForm.Serials[@serial.SerialItemBusinessKey].SerialNo" value="@serial.SerialNo" />
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-primary" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="col-lg-7 mb-3">
+            <div class="border rounded p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="mb-0">اطلاعات سند</h5>
+                        <div class="text-muted small">@selectedDocument.DocumentNo</div>
+                    </div>
+                    <span class="badge badge-pill badge-outline-secondary">@selectedDocument.Status</span>
+                </div>
+
+                <p class="mb-1"><strong>شماره:</strong> <span class="text-monospace">@selectedDocument.DocumentNo</span></p>
+                <p class="mb-1"><strong>نوع:</strong> تعدیل</p>
+                <p class="mb-1"><strong>انبار:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.WarehouseRef) ? "-" : selectedDocument.WarehouseRef)</p>
+                <p class="mb-1"><strong>فروشنده:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.SellerRef) ? "-" : selectedDocument.SellerRef)</p>
+                <p class="mb-1"><strong>تاریخ وقوع:</strong> @selectedDocument.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
+                <p class="mb-1"><strong>علت:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.ReasonCode) ? "-" : selectedDocument.ReasonCode)</p>
+                <p class="mb-1"><strong>تاریخ تایید:</strong> @(selectedDocument.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+                <p class="mb-3"><strong>تاریخ پست:</strong> @(selectedDocument.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+
+                <div class="border-top pt-3 mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">آیتم‌های سند</h6>
+                        <span class="text-muted small">@selectedDocument.Lines.Count ردیف</span>
+                    </div>
+                    @if (selectedDocument.Lines.Count == 0)
+                    {
+                        <div class="alert alert-light mb-0">ردیفی برای این سند ثبت نشده است.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>واریانت</th>
+                                        <th>تعداد</th>
+                                        <th>واحد</th>
+                                        <th>لوکیشن</th>
+                                        <th>جهت</th>
+                                        <th>علت</th>
+                                        <th class="text-right">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var line in selectedDocument.Lines)
+                                    {
+                                        <tr>
+                                            <td>@VariantName(line.VariantRef)</td>
+                                            <td>@line.Qty.ToString("0.####")</td>
+                                            <td>@UomName(line.UomRef)</td>
+                                            <td>
+                                                @if (string.Equals(line.AdjustmentDirection, "Increase", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <span>@LocationName(line.DestinationLocationRef)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>@LocationName(line.SourceLocationRef)</span>
+                                                }
+                                            </td>
+                                            <td>@AdjustmentDirectionLabel(line.AdjustmentDirection)</td>
+                                            <td>@(string.IsNullOrWhiteSpace(line.ReasonCode) ? "-" : line.ReasonCode)</td>
+                                            <td class="text-right">
+                                                @if (canEditLines)
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-outline-primary btn-xs js-adjustment-line-edit mr-1"
+                                                            data-document-id="@selectedDocument.DocumentBusinessKey"
+                                                            data-line-id="@line.LineBusinessKey">ویرایش</button>
+                                                    <form asp-action="DeleteAdjustmentDocumentLine"
+                                                          asp-controller="InventoryManagement"
+                                                          method="post"
+                                                          class="d-inline"
+                                                          data-loading-form
+                                                          data-ajax-target="#adjustment-document-details-modal-body"
+                                                          onsubmit="return confirm('این آیتم حذف شود؟');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
+                                                        <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
+                                                        <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
+                                                    </form>
+                                                }
+                                            </td>
+                                        </tr>
+                                        @if (line.Serials.Count > 0)
+                                        {
+                                            <tr>
+                                                <td colspan="7" class="text-muted small">
+                                                    شناسه‌ها:
+                                                    @string.Join(" ، ", line.Serials.Select(x => x.SerialNo))
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <div class="border-top pt-3 mt-3">
+                    <div class="d-flex flex-wrap">
+                        <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
+                            <button class="btn btn-outline-info btn-xs" type="submit" @(canEditLines ? null : "disabled")>تأیید</button>
+                        </form>
+                        <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
+                            <button class="btn btn-outline-success btn-xs" type="submit" @(canEditLines ? null : "disabled")>پست</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

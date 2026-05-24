@@ -44,6 +44,7 @@ public class InventoryServiceCommandDbContext : CommandDbContext
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
     public DbSet<InventoryDocument> InventoryDocuments => Set<InventoryDocument>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
+    public DbSet<InventoryTransactionLineSerial> InventoryTransactionLineSerials => Set<InventoryTransactionLineSerial>();
     public DbSet<StockDetail> StockDetails => Set<StockDetail>();
     public DbSet<SerialItem> SerialItems => Set<SerialItem>();
     public DbSet<SellerAggregate> Sellers => Set<SellerAggregate>();

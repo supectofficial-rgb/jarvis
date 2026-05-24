@@ -158,6 +158,7 @@
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
+    var isAdjustmentDocument = string.Equals(currentDocumentType, "Adjustment", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
 }
 
@@ -265,15 +266,17 @@
                                 </div>
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
-                                <div>
-                                    <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
-                                    <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
+                            <div class="border-top pt-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
+                                        <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
+                                    </div>
                                 </div>
-                                <button class="btn btn-outline-primary btn-xs" type="button" id="toggle-document-lines">افزودن واریانت</button>
-                            </div>
 
-                            <div id="document-lines-panel" class="d-none">
+                            @if (!isAdjustmentDocument)
+                            {
+                            <div id="document-lines-panel">
                                 <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
                                 <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
 
@@ -384,7 +387,15 @@
                                         </div>
                                     </div>
                                 }
+                                </div>
                             </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info mb-0">
+                                    برای سند تعدیل، آیتم‌ها از دکمه <strong>جزئیات</strong> در تب <strong>لیست اسناد</strong> مدیریت می‌شوند.
+                                </div>
+                            }
                         </div>
 
                         <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>ایجاد سند</button>
@@ -494,7 +505,45 @@
                                                 <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
-                                                    <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@document.DocumentBusinessKey" asp-route-documentNo="@Model.DocumentNoFilter" asp-route-documentType="@Model.DocumentTypeFilter" asp-route-status="@Model.DocumentStatusFilter" asp-route-warehouseId="@Model.WarehouseFilter" asp-route-sellerId="@Model.SellerFilter" asp-route-occurredFrom="@Model.OccurredFromFilter" asp-route-occurredTo="@Model.OccurredToFilter" asp-route-page="@Model.DocumentPage" asp-route-pageSize="@Model.DocumentPageSize" data-ajax-target="#documents-page-root">جزئیات</a>
+                                                    <button type="button" class="btn btn-outline-primary btn-xs js-adjustment-document-details mr-1" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">جزئیات</button>
+                                                    @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <a class="btn btn-outline-secondary btn-xs mr-1"
+                                                           asp-action="@documentAction"
+                                                           asp-controller="InventoryManagement"
+                                                           asp-route-documentId="@document.DocumentBusinessKey"
+                                                           asp-route-documentType="@document.DocumentType"
+                                                           asp-route-tab="create"
+                                                           asp-route-page="@Model.DocumentPage"
+                                                           asp-route-pageSize="@Model.DocumentPageSize"
+                                                           asp-route-documentNo="@Model.DocumentNoFilter"
+                                                           asp-route-status="@Model.DocumentStatusFilter"
+                                                           asp-route-warehouseId="@Model.WarehouseFilter"
+                                                           asp-route-sellerId="@Model.SellerFilter"
+                                                           asp-route-occurredFrom="@Model.OccurredFromFilter"
+                                                           asp-route-occurredTo="@Model.OccurredToFilter"
+                                                           data-ajax-target="#documents-page-root">ویرایش</a>
+                                                        <form asp-action="DeleteDocument"
+                                                              asp-controller="InventoryManagement"
+                                                              method="post"
+                                                              class="d-inline"
+                                                              data-loading-form
+                                                              data-ajax-target="#documents-page-root"
+                                                              onsubmit="return confirm('این سند حذف شود؟');">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
+                                                            <input type="hidden" name="documentType" value="@document.DocumentType" />
+                                                            <input type="hidden" name="documentNo" value="@Model.DocumentNoFilter" />
+                                                            <input type="hidden" name="status" value="@Model.DocumentStatusFilter" />
+                                                            <input type="hidden" name="warehouseId" value="@Model.WarehouseFilter" />
+                                                            <input type="hidden" name="sellerId" value="@Model.SellerFilter" />
+                                                            <input type="hidden" name="occurredFrom" value="@Model.OccurredFromFilter" />
+                                                            <input type="hidden" name="occurredTo" value="@Model.OccurredToFilter" />
+                                                            <input type="hidden" name="page" value="@Model.DocumentPage" />
+                                                            <input type="hidden" name="pageSize" value="@Model.DocumentPageSize" />
+                                                            <button class="btn btn-outline-danger btn-xs mr-1" type="submit">حذف</button>
+                                                        </form>
+                                                    }
                                                 </td>
                                             </tr>
                                         }
@@ -533,7 +582,7 @@
                 </div>
             </div>
 
-            <div class="col-xl-4 mb-4">
+            <div class="col-xl-4 mb-4 d-none">
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title">جزئیات سند</h5>
@@ -820,6 +869,25 @@
         </div>
     </div>
 </main>
+
+<div class="modal fade" id="adjustment-document-details-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="adjustment-document-details-modal-title">جزئیات سند تعدیل</h5>
+                    <div class="small text-muted" id="adjustment-document-details-modal-subtitle"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="adjustment-document-details-modal-body">
+                <div class="text-muted">در حال بارگذاری...</div>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script data-ajax-reinit="documents">
@@ -1243,7 +1311,407 @@
             renumberLines();
             toggleTypeFields();
             syncLocationsToWarehouse();
-            setLinesPanelVisible(false);
+            setLinesPanelVisible(true);
+        })();
+
+        (function () {
+            var modalSelector = '#adjustment-document-details-modal';
+            var modalBodySelector = '#adjustment-document-details-modal-body';
+            var modalTitleSelector = '#adjustment-document-details-modal-title';
+            var modalSubtitleSelector = '#adjustment-document-details-modal-subtitle';
+            var modalEndpoint = '/InventoryManagement/Documents/Adjustment/Details';
+
+            function getModal() {
+                return document.querySelector(modalSelector);
+            }
+
+            function openModal() {
+                var modal = getModal();
+                if (!modal || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.modal) {
+                    return;
+                }
+
+                window.jQuery(modal).modal('show');
+            }
+
+            function setModalBody(html, documentNo) {
+                var body = document.querySelector(modalBodySelector);
+                var title = document.querySelector(modalTitleSelector);
+                var subtitle = document.querySelector(modalSubtitleSelector);
+                if (body) {
+                    body.innerHTML = html || '';
+                }
+                if (title) {
+                    title.textContent = documentNo ? ('جزئیات سند تعدیل ' + documentNo) : 'جزئیات سند تعدیل';
+                }
+                if (subtitle) {
+                    subtitle.textContent = documentNo ? ('سند ' + documentNo) : '';
+                }
+
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function' && body) {
+                    window.appUi.initSearchableSelects(body);
+                }
+            }
+
+            function loadDocumentDetails(documentId, documentNo, editingLineId) {
+                var url = modalEndpoint + '?documentId=' + encodeURIComponent(documentId || '');
+                if (editingLineId) {
+                    url += '&editingLineId=' + encodeURIComponent(editingLineId);
+                }
+
+                setModalBody('<div class="text-muted">در حال بارگذاری...</div>', documentNo);
+                openModal();
+
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function (response) { return response.text(); })
+                    .then(function (html) {
+                        setModalBody(html, documentNo);
+                        bindAdjustmentModal();
+                    })
+                    .catch(function () {
+                        setModalBody('<div class="alert alert-danger mb-0">بارگذاری جزئیات سند انجام نشد.</div>', documentNo);
+                    });
+            }
+
+            function escapeAttribute(value) {
+                return String(value == null ? '' : value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/\"/g, '&quot;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            function serialChipHtml(serialId, serialNo, label, indexKey) {
+                var serialKey = String(indexKey == null || indexKey === '' ? serialId : indexKey);
+                return ''
+                    + '<div class="badge badge-light border d-inline-flex align-items-center mr-2 mb-2 py-2 px-3 js-adjustment-selected-serial" data-serial-id="' + escapeAttribute(serialId) + '">'
+                    + '<span class="font-weight-bold">' + escapeAttribute(serialNo || serialId || '-') + '</span>'
+                    + '<span class="text-muted ml-2 small">' + escapeAttribute(label || '') + '</span>'
+                    + '<button type="button" class="btn btn-link btn-sm text-danger ml-2 p-0 js-adjustment-remove-serial">&times;</button>'
+                    + '<input type="hidden" name="LineForm.Serials.Index" value="' + escapeAttribute(serialKey) + '" />'
+                    + '<input type="hidden" name="LineForm.Serials[' + escapeAttribute(serialKey) + '].SerialItemBusinessKey" value="' + escapeAttribute(serialId) + '" />'
+                    + '<input type="hidden" name="LineForm.Serials[' + escapeAttribute(serialKey) + '].SerialNo" value="' + escapeAttribute(serialNo || '') + '" />'
+                    + '</div>';
+            }
+
+            function renderSelectedSerials(container, serials) {
+                if (!container) {
+                    return;
+                }
+
+                var html = '';
+                (serials || []).forEach(function (serial, index) {
+                    html += serialChipHtml(serial.serialItemBusinessKey || serial.SerialItemBusinessKey || serial.serialNo || '', serial.serialNo || serial.SerialNo || '', serial.status || serial.Status || '', serial.serialItemBusinessKey || serial.SerialItemBusinessKey || serial.serialNo || '');
+                });
+                container.innerHTML = html || '<div class="text-muted small">سریالی انتخاب نشده است.</div>';
+            }
+
+            function readSelectedSerials(container) {
+                var items = [];
+                if (!container) {
+                    return items;
+                }
+
+                container.querySelectorAll('.js-adjustment-selected-serial').forEach(function (chip) {
+                    var serialId = chip.getAttribute('data-serial-id') || '';
+                    var serialNoField = chip.querySelector('input[name$=".SerialNo"]');
+                    items.push({
+                        serialItemBusinessKey: serialId,
+                        serialNo: serialNoField ? serialNoField.value : ''
+                    });
+                });
+                return items;
+            }
+
+            function setSectionEnabled(section, enabled) {
+                if (!section) {
+                    return;
+                }
+
+                section.classList.toggle('d-none', !enabled);
+                section.querySelectorAll('input, select, button, textarea').forEach(function (field) {
+                    if (field.classList.contains('js-adjustment-keep-enabled')) {
+                        return;
+                    }
+
+                    if (field.tagName === 'BUTTON' && field.type === 'button') {
+                        field.disabled = !enabled;
+                    } else if (field.tagName !== 'BUTTON' && field.tagName !== 'INPUT' && field.tagName !== 'SELECT' && field.tagName !== 'TEXTAREA') {
+                        return;
+                    } else {
+                        field.disabled = !enabled;
+                    }
+                });
+            }
+
+            function selectedDirection(form) {
+                var directionField = form ? form.querySelector('[name="LineForm.AdjustmentDirection"]') : null;
+                return directionField ? directionField.value : '';
+            }
+
+            function syncAdjustmentLineMode(form) {
+                if (!form) {
+                    return;
+                }
+
+                var direction = selectedDirection(form);
+                var increaseSection = form.querySelector('.js-adjustment-increase-section');
+                var decreaseSection = form.querySelector('.js-adjustment-decrease-section');
+                var sourceSection = form.querySelector('.js-adjustment-source-section');
+                var destinationSection = form.querySelector('.js-adjustment-destination-section');
+                var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
+                var destinationField = form.querySelector('[name="LineForm.DestinationLocationRef"]');
+                var sourceLabel = form.querySelector('.js-adjustment-source-label');
+                var destinationLabel = form.querySelector('.js-adjustment-destination-label');
+
+                var isIncrease = direction === 'Increase';
+                var isDecrease = direction === 'Decrease';
+
+                setSectionEnabled(increaseSection, isIncrease);
+                setSectionEnabled(decreaseSection, isDecrease);
+                setSectionEnabled(sourceSection, isDecrease);
+                setSectionEnabled(destinationSection, isIncrease);
+
+                if (sourceField && isIncrease) {
+                    sourceField.value = '';
+                }
+                if (destinationField && isDecrease) {
+                    destinationField.value = '';
+                }
+
+                if (sourceLabel) {
+                    sourceLabel.textContent = 'لوکیشن مبدأ';
+                }
+                if (destinationLabel) {
+                    destinationLabel.textContent = 'لوکیشن مقصد';
+                }
+            }
+
+            function fetchAvailableAdjustmentSerials(form) {
+                var variantField = form.querySelector('[name="LineForm.VariantId"]');
+                var locationField = form.querySelector('[name="LineForm.SourceLocationRef"]');
+                var direction = selectedDirection(form);
+                var target = form.querySelector('.js-adjustment-decrease-serial-list');
+                if (!variantField || !variantField.value || !target || direction !== 'Decrease') {
+                    return;
+                }
+
+                var url = '/InventoryManagement/Documents/Adjustment/AvailableSerialLookup?variantId=' + encodeURIComponent(variantField.value);
+                if (locationField && locationField.value) {
+                    url += '&locationId=' + encodeURIComponent(locationField.value);
+                }
+
+                target.innerHTML = '<div class="text-muted small">در حال بارگذاری سریال‌های موجود...</div>';
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (!data || !data.isSuccess) {
+                            target.innerHTML = '<div class="alert alert-warning mb-0">' + (data && data.errorMessage ? data.errorMessage : 'بارگذاری سریال‌ها انجام نشد.') + '</div>';
+                            return;
+                        }
+
+                        var serials = Array.isArray(data.serials) ? data.serials : [];
+                        if (serials.length === 0) {
+                            target.innerHTML = '<div class="alert alert-light mb-0">سریال قابل انتخابی یافت نشد.</div>';
+                            return;
+                        }
+
+                        var selectedSerials = readSelectedSerials(form.querySelector('.js-adjustment-selected-serials'));
+                        var selectedLookup = {};
+                        selectedSerials.forEach(function (serial) {
+                            selectedLookup[String(serial.serialItemBusinessKey || serial.SerialItemBusinessKey || '')] = true;
+                        });
+
+                        target.innerHTML = serials.map(function (serial) {
+                            var serialId = String(serial.serialItemBusinessKey || '');
+                            var checked = selectedLookup[serialId] ? ' checked' : '';
+                            return ''
+                                + '<label class="d-block border rounded p-2 mb-2 bg-white">'
+                                + '<input type="checkbox" class="mr-2 js-adjustment-decrease-serial" data-serial-id="' + escapeAttribute(serialId) + '" data-serial-no="' + escapeAttribute(serial.serialNo || '') + '"' + checked + ' />'
+                                + '<span class="font-weight-bold">' + escapeAttribute(serial.serialNo || serialId || '-') + '</span>'
+                                + '<span class="text-muted d-block small">' + escapeAttribute(serial.warehouseRef || '') + ' / ' + escapeAttribute(serial.locationRef || '') + ' / ' + escapeAttribute(serial.status || '') + '</span>'
+                                + '</label>';
+                        }).join('');
+                    })
+                    .catch(function () {
+                        target.innerHTML = '<div class="alert alert-danger mb-0">بارگذاری سریال‌های موجود انجام نشد.</div>';
+                    });
+            }
+
+            function addIncreaseSerial(form, serial) {
+                var container = form.querySelector('.js-adjustment-selected-serials');
+                if (!container || !serial) {
+                    return;
+                }
+
+                var serialId = String(serial.serialItemBusinessKey || '');
+                if (!serialId || container.querySelector('.js-adjustment-selected-serial[data-serial-id="' + serialId.replace(/"/g, '\\"') + '"]')) {
+                    return;
+                }
+
+                var label = serial.status || serial.Status || '';
+                container.insertAdjacentHTML('beforeend', serialChipHtml(serialId, serial.serialNo || serial.SerialNo || '', label, serialId));
+                container.querySelectorAll('.js-adjustment-remove-serial').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        var chip = button.closest('.js-adjustment-selected-serial');
+                        if (chip) {
+                            chip.remove();
+                        }
+                    });
+                });
+            }
+
+            function bindAdjustmentModal() {
+                var modal = getModal();
+                if (!modal) {
+                    return;
+                }
+
+                var form = modal.querySelector('form');
+                if (!form) {
+                    return;
+                }
+
+                if (form.dataset.adjustmentBound === '1') {
+                    return;
+                }
+                form.dataset.adjustmentBound = '1';
+
+                var directionField = form.querySelector('[name="LineForm.AdjustmentDirection"]');
+                if (directionField) {
+                    directionField.addEventListener('change', function () {
+                        syncAdjustmentLineMode(form);
+                        fetchAvailableAdjustmentSerials(form);
+                    });
+                }
+
+                var variantField = form.querySelector('[name="LineForm.VariantId"]');
+                if (variantField) {
+                    variantField.addEventListener('change', function () {
+                        fetchAvailableAdjustmentSerials(form);
+                    });
+                }
+
+                var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
+                if (sourceField) {
+                    sourceField.addEventListener('change', function () {
+                        fetchAvailableAdjustmentSerials(form);
+                    });
+                }
+
+                var searchButton = form.querySelector('.js-adjustment-increase-search');
+                if (searchButton) {
+                    searchButton.addEventListener('click', function () {
+                        var serialNoField = form.querySelector('.js-adjustment-serial-no-input');
+                        var variantSelect = form.querySelector('[name="LineForm.VariantId"]');
+                        if (!serialNoField || !serialNoField.value || !variantSelect || !variantSelect.value) {
+                            return;
+                        }
+
+                        var url = '/InventoryManagement/Documents/Adjustment/SerialLookup?variantId=' + encodeURIComponent(variantSelect.value) + '&serialNo=' + encodeURIComponent(serialNoField.value);
+                        var statusArea = form.querySelector('.js-adjustment-serial-lookup-status');
+                        if (statusArea) {
+                            statusArea.textContent = 'در حال جستجو...';
+                        }
+
+                        fetch(url, { credentials: 'same-origin' })
+                            .then(function (response) { return response.json(); })
+                            .then(function (data) {
+                                if (!data || !data.isSuccess || !data.serial) {
+                                    if (statusArea) {
+                                        statusArea.textContent = data && data.errorMessage ? data.errorMessage : 'شناسه یافت نشد یا برای افزایش قابل استفاده نیست.';
+                                    }
+                                    return;
+                                }
+
+                                addIncreaseSerial(form, data.serial);
+                                if (statusArea) {
+                                    statusArea.textContent = 'شناسه اضافه شد.';
+                                }
+                                serialNoField.value = '';
+                            })
+                            .catch(function () {
+                                if (statusArea) {
+                                    statusArea.textContent = 'جستجوی شناسه انجام نشد.';
+                                }
+                            });
+                    });
+                }
+
+                form.querySelectorAll('.js-adjustment-selected-serial .js-adjustment-remove-serial').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        var chip = button.closest('.js-adjustment-selected-serial');
+                        if (chip) {
+                            chip.remove();
+                        }
+                    });
+                });
+
+                form.querySelectorAll('.js-adjustment-decrease-serial').forEach(function (checkbox) {
+                    checkbox.addEventListener('change', function () {
+                        var wrapper = checkbox.closest('label');
+                        if (!wrapper) {
+                            return;
+                        }
+
+                        var hiddenContainer = form.querySelector('.js-adjustment-selected-serials');
+                        if (!hiddenContainer) {
+                            return;
+                        }
+
+                        var serialId = checkbox.getAttribute('data-serial-id') || '';
+                        var serialNo = checkbox.getAttribute('data-serial-no') || '';
+                        var existing = hiddenContainer.querySelector('.js-adjustment-selected-serial[data-serial-id="' + serialId.replace(/"/g, '\\"') + '"]');
+                        if (checkbox.checked && !existing) {
+                            hiddenContainer.insertAdjacentHTML('beforeend', serialChipHtml(serialId, serialNo, 'کاهش', serialId));
+                        }
+                        else if (!checkbox.checked && existing) {
+                            existing.remove();
+                        }
+                    });
+                });
+
+                syncAdjustmentLineMode(form);
+                fetchAvailableAdjustmentSerials(form);
+            }
+
+            document.addEventListener('click', function (event) {
+                var button = event.target.closest('.js-adjustment-document-details');
+                if (!button) {
+                    var editLineButton = event.target.closest('.js-adjustment-line-edit');
+                    if (!editLineButton) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    var documentId = editLineButton.getAttribute('data-document-id') || '';
+                    var lineId = editLineButton.getAttribute('data-line-id') || '';
+                    loadDocumentDetails(documentId, '', lineId);
+                    return;
+                }
+
+                event.preventDefault();
+                loadDocumentDetails(button.getAttribute('data-document-id') || '', button.getAttribute('data-document-no') || '', null);
+            });
+
+            var modal = getModal();
+            if (modal) {
+                var modalBody = modal.querySelector(modalBodySelector);
+                if (window.MutationObserver && modalBody) {
+                    var observer = new MutationObserver(function () {
+                        bindAdjustmentModal();
+                    });
+
+                    observer.observe(modalBody, {
+                        childList: true,
+                        subtree: true
+                    });
+                }
+
+                modal.addEventListener('hidden.bs.modal', function () {
+                    setModalBody('<div class="text-muted">در حال بارگذاری...</div>', '');
+                });
+            }
         })();
     </script>
 }

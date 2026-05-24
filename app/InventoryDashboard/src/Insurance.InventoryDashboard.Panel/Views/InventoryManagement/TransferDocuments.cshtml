@@ -463,24 +463,7 @@
                                                            asp-route-documentType="@document.DocumentType"
                                                            asp-route-tab="create"
                                                            data-ajax-target="#documents-page-root">ویرایش</a>
-                                                        <form asp-action="DeleteDocument"
-                                                              asp-controller="InventoryManagement"
-                                                              method="post"
-                                                              class="d-inline"
-                                                              data-loading-form
-                                                              data-ajax-target="#documents-page-root"
-                                                              onsubmit="return confirm('این سند حذف شود؟');">
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
-                                                            <input type="hidden" name="documentType" value="@document.DocumentType" />
-                                                            <input type="hidden" name="documentNo" value="@Model.DocumentNoFilter" />
-                                                            <input type="hidden" name="status" value="@Model.DocumentStatusFilter" />
-                                                            <input type="hidden" name="occurredFrom" value="@Model.OccurredFromFilter" />
-                                                            <input type="hidden" name="occurredTo" value="@Model.OccurredToFilter" />
-                                                            <input type="hidden" name="page" value="@Model.DocumentPage" />
-                                                            <input type="hidden" name="pageSize" value="@Model.DocumentPageSize" />
-                                                            <button class="btn btn-outline-danger btn-xs mr-1 js-transfer-document-delete" type="button" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">حذف</button>
-                                                        </form>
+                                                        <button class="btn btn-outline-danger btn-xs mr-1 js-transfer-document-delete" type="button" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">حذف</button>
                                                     }
                                                 </td>
                                             </tr>
@@ -725,12 +708,11 @@
                                                         {
                                                             <td class="text-right">
                                                                 <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@Model.SelectedDocumentDetails.DocumentBusinessKey" asp-route-editingLineId="@line.LineBusinessKey" asp-route-documentType="@Model.SelectedDocumentDetails.DocumentType" data-ajax-target="#documents-page-root">ویرایش</a>
-                                                                <form asp-action="DeleteDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#documents-page-root" onsubmit="return confirm('این آیتم حذف شود؟');">
-                                                                    @Html.AntiForgeryToken()
-                                                                    <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
-                                                                    <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                                    <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
-                                                                </form>
+                                                                <button type="button"
+                                                                        class="btn btn-outline-danger btn-xs js-transfer-line-delete"
+                                                                        data-document-id="@Model.SelectedDocumentDetails.DocumentBusinessKey"
+                                                                        data-document-no="@Model.SelectedDocumentDetails.DocumentNo"
+                                                                        data-line-id="@line.LineBusinessKey">حذف</button>
                                                             </td>
                                                         }
                                                     </tr>
@@ -1735,25 +1717,7 @@
                 });
 
                 var html = await response.text();
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(html, 'text/html');
-                var nextBody = doc.querySelector(modalBodySelector);
-                var currentBody = document.querySelector(modalBodySelector);
-                if (!nextBody || !currentBody) {
-                    throw new Error('Transfer details modal body could not be loaded.');
-                }
-
-                currentBody.replaceWith(nextBody);
-                initModalWidgets(nextBody);
-
-                var titleElement = document.querySelector(modalTitleSelector);
-                var subtitleElement = document.querySelector(modalSubtitleSelector);
-                if (titleElement) {
-                    titleElement.textContent = documentNo ? ('جزئیات سند ' + documentNo) : 'جزئیات سند حواله';
-                }
-                if (subtitleElement) {
-                    subtitleElement.textContent = documentId || '';
-                }
+                replaceTransferDetailsModalBody(html, documentId, documentNo);
 
                 showModal();
             }
@@ -1913,6 +1877,28 @@
                 }
 
                 initializeTransferInventoryChain(root);
+            }
+
+            function replaceTransferDetailsModalBody(html, documentId, documentNo) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var nextBody = doc.querySelector(modalBodySelector);
+                var currentBody = document.querySelector(modalBodySelector);
+                if (!nextBody || !currentBody) {
+                    throw new Error('Transfer details modal body could not be loaded.');
+                }
+
+                currentBody.replaceWith(nextBody);
+                initModalWidgets(nextBody);
+
+                var titleElement = document.querySelector(modalTitleSelector);
+                var subtitleElement = document.querySelector(modalSubtitleSelector);
+                if (titleElement) {
+                    titleElement.textContent = documentNo ? ('جزئیات سند ' + documentNo) : 'جزئیات سند حواله';
+                }
+                if (subtitleElement) {
+                    subtitleElement.textContent = documentId || '';
+                }
             }
 
             function getTransferListForm() {
@@ -2104,6 +2090,38 @@
                 await refreshTransferDocumentList();
             }
 
+            async function deleteTransferDocumentLine(documentId, lineId, documentNo) {
+                if (!documentId || !lineId) {
+                    return;
+                }
+
+                if (!window.confirm('این آیتم حذف شود؟')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                payload.append('documentId', documentId);
+                payload.append('lineId', lineId);
+
+                var response = await fetch('@Url.Action("DeleteTransferDocumentLine", "InventoryManagement")', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Delete transfer line request failed.');
+                }
+
+                var html = await response.text();
+                replaceTransferDetailsModalBody(html, documentId, documentNo);
+            }
+
             function bindTransferDocumentListForm() {
                 var form = document.querySelector(documentListFormSelector);
                 if (!form || form.dataset.transferListBound === 'true') {
@@ -2151,6 +2169,18 @@
                     if (editButton) {
                         event.preventDefault();
                         fillTransferLineForm(editButton);
+                        return;
+                    }
+
+                    var lineDeleteButton = event.target && event.target.closest ? event.target.closest('.js-transfer-line-delete') : null;
+                    if (lineDeleteButton) {
+                        event.preventDefault();
+                        deleteTransferDocumentLine(
+                            lineDeleteButton.getAttribute('data-document-id') || '',
+                            lineDeleteButton.getAttribute('data-line-id') || '',
+                            lineDeleteButton.getAttribute('data-document-no') || '').catch(function (error) {
+                                console.error(error);
+                            });
                         return;
                     }
 

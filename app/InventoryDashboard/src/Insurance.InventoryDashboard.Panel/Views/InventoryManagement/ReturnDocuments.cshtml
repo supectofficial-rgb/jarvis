@@ -227,13 +227,25 @@
                                     <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.referenceType"]</label>
-                                    <input asp-for="CreateForm.ReferenceType" class="form-control" />
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.referenceId"]</label>
-                                    <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
+                                <div class="form-group col-md-4">
+                                    <label>سند حواله مبنا</label>
+                                    <div class="input-group">
+                                        <input type="text" id="return-reference-search-input" class="form-control text-monospace" placeholder="شماره سند حواله را وارد کنید" autocomplete="off" />
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-outline-primary" id="return-reference-search-button">جستجو</button>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="Issue" />
+                                    <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="return-reference-id-input" />
+                                    <div class="mt-2 d-none" id="return-reference-selected">
+                                        <div class="alert alert-light border mb-2 py-2">
+                                            <strong>سند انتخاب شده:</strong>
+                                            <span id="return-reference-selected-label">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-none" id="return-reference-results-panel">
+                                        <div class="list-group small" id="return-reference-results"></div>
+                                    </div>
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.warehouse"]</label>
@@ -495,6 +507,29 @@
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
                                                     <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@document.DocumentBusinessKey" asp-route-documentNo="@Model.DocumentNoFilter" asp-route-documentType="@Model.DocumentTypeFilter" asp-route-status="@Model.DocumentStatusFilter" asp-route-warehouseId="@Model.WarehouseFilter" asp-route-sellerId="@Model.SellerFilter" asp-route-occurredFrom="@Model.OccurredFromFilter" asp-route-occurredTo="@Model.OccurredToFilter" asp-route-page="@Model.DocumentPage" asp-route-pageSize="@Model.DocumentPageSize" data-ajax-target="#documents-page-root">جزئیات</a>
+                                                    @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <form asp-action="DeleteDocument"
+                                                              asp-controller="InventoryManagement"
+                                                              method="post"
+                                                              class="d-inline"
+                                                              data-loading-form
+                                                              data-ajax-target="#documents-page-root"
+                                                              onsubmit="return confirm('این سند حذف شود؟');">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
+                                                            <input type="hidden" name="documentType" value="@document.DocumentType" />
+                                                            <input type="hidden" name="documentNo" value="@Model.DocumentNoFilter" />
+                                                            <input type="hidden" name="status" value="@Model.DocumentStatusFilter" />
+                                                            <input type="hidden" name="warehouseId" value="@Model.WarehouseFilter" />
+                                                            <input type="hidden" name="sellerId" value="@Model.SellerFilter" />
+                                                            <input type="hidden" name="occurredFrom" value="@Model.OccurredFromFilter" />
+                                                            <input type="hidden" name="occurredTo" value="@Model.OccurredToFilter" />
+                                                            <input type="hidden" name="page" value="@Model.DocumentPage" />
+                                                            <input type="hidden" name="pageSize" value="@Model.DocumentPageSize" />
+                                                            <button class="btn btn-outline-danger btn-xs mr-1" type="submit">حذف</button>
+                                                        </form>
+                                                    }
                                                 </td>
                                             </tr>
                                         }
@@ -742,11 +777,11 @@
                                                         {
                                                             <td class="text-right">
                                                                 <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@Model.SelectedDocumentDetails.DocumentBusinessKey" asp-route-editingLineId="@line.LineBusinessKey" asp-route-documentType="@Model.SelectedDocumentDetails.DocumentType" data-ajax-target="#documents-page-root">ویرایش</a>
-                                                                <form asp-action="DeleteDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#documents-page-root" onsubmit="return confirm('این آیتم حذف شود؟');">
+                                                                <form asp-action="DeleteDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#documents-page-root">
                                                                     @Html.AntiForgeryToken()
                                                                     <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
                                                                     <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                                    <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
+                                                                    <button class="btn btn-outline-danger btn-xs js-return-line-delete" type="button">حذف</button>
                                                                 </form>
                                                             </td>
                                                         }
@@ -833,6 +868,19 @@
             var toggleLinesButton = document.getElementById('toggle-document-lines');
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
+            var returnReferenceSearchInput = document.getElementById('return-reference-search-input');
+            var returnReferenceSearchButton = document.getElementById('return-reference-search-button');
+            var returnReferenceSelected = document.getElementById('return-reference-selected');
+            var returnReferenceSelectedLabel = document.getElementById('return-reference-selected-label');
+            var returnReferenceResultsPanel = document.getElementById('return-reference-results-panel');
+            var returnReferenceResults = document.getElementById('return-reference-results');
+            var returnReferenceTypeInput = document.getElementById('return-reference-type-input');
+            var returnReferenceIdInput = document.getElementById('return-reference-id-input');
+            var returnReferenceSearchUrl = '@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")';
+            var returnReferenceDocumentUrl = '@Url.Action("GetReturnReferenceDocument", "InventoryManagement")';
+            var returnSourceDocument = null;
+            var returnAllowedVariantIds = [];
+            var returnVariantSerialLookup = {};
 
             var documentTypeConfig = {
                 Receipt: {
@@ -1021,6 +1069,412 @@
                 });
             }
 
+            function getReturnLineSerialControls(line) {
+                if (!line) {
+                    return {};
+                }
+
+                var section = line.querySelector('.line-serials');
+                if (!section) {
+                    var formRow = line.querySelector('.form-row');
+                    if (!formRow) {
+                        return {};
+                    }
+
+                    section = document.createElement('div');
+                    section.className = 'form-group col-12 line-serials d-none';
+                    section.innerHTML = ''
+                        + '<div class="border-top pt-3 mt-2">'
+                        + '<div class="d-flex justify-content-between align-items-center mb-2">'
+                        + '<div>'
+                        + '<strong>شناسه‌های یکتا</strong>'
+                        + '<div class="small text-muted js-return-line-serial-summary">برای این واریانت شناسه موجود است.</div>'
+                        + '</div>'
+                        + '</div>'
+                        + '<div class="js-return-line-serial-container"></div>'
+                        + '<div class="js-return-line-serial-hidden"></div>'
+                        + '</div>';
+                    formRow.appendChild(section);
+                }
+
+                return {
+                    section: section,
+                    summary: section.querySelector('.js-return-line-serial-summary'),
+                    container: section.querySelector('.js-return-line-serial-container'),
+                    hidden: section.querySelector('.js-return-line-serial-hidden')
+                };
+            }
+
+            function parseReturnSerialSelectionJson(serialJson) {
+                if (!serialJson) {
+                    return [];
+                }
+
+                try {
+                    var parsed = JSON.parse(serialJson);
+                    if (!Array.isArray(parsed)) {
+                        return [];
+                    }
+
+                    return parsed
+                        .map(function (item) {
+                            return {
+                                serialItemBusinessKey: String(item.serialItemBusinessKey || item.SerialItemBusinessKey || ''),
+                                serialNo: String(item.serialNo || item.SerialNo || '')
+                            };
+                        })
+                        .filter(function (item) {
+                            return item.serialItemBusinessKey || item.serialNo;
+                        });
+                } catch (error) {
+                    console.warn('Failed to parse return serial json', error);
+                    return [];
+                }
+            }
+
+            function collectReturnSelectedSerialIds(line) {
+                var controls = getReturnLineSerialControls(line);
+                if (!controls.container) {
+                    return [];
+                }
+
+                var selected = [];
+                controls.container.querySelectorAll('.js-return-line-serial-select').forEach(function (checkbox) {
+                    if (!checkbox.checked) {
+                        return;
+                    }
+
+                    selected.push(checkbox.getAttribute('data-serial-id') || '');
+                });
+
+                return selected.filter(Boolean);
+            }
+
+            function syncReturnLineSerialHiddenInputs(line) {
+                var controls = getReturnLineSerialControls(line);
+                if (!controls.container || !controls.hidden) {
+                    return;
+                }
+
+                controls.hidden.innerHTML = '';
+
+                var lineIndex = line.getAttribute('data-line-index') || '0';
+                var selectedSerials = [];
+                controls.container.querySelectorAll('.js-return-line-serial-select').forEach(function (checkbox) {
+                    if (!checkbox.checked) {
+                        return;
+                    }
+
+                    selectedSerials.push({
+                        serialId: checkbox.getAttribute('data-serial-id') || '',
+                        serialNo: checkbox.getAttribute('data-serial-no') || ''
+                    });
+                });
+
+                selectedSerials.forEach(function (serial, index) {
+                    var idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'CreateForm.Lines[' + lineIndex + '].Serials[' + index + '].SerialItemBusinessKey';
+                    idInput.value = serial.serialId;
+                    controls.hidden.appendChild(idInput);
+
+                    var noInput = document.createElement('input');
+                    noInput.type = 'hidden';
+                    noInput.name = 'CreateForm.Lines[' + lineIndex + '].Serials[' + index + '].SerialNo';
+                    noInput.value = serial.serialNo;
+                    controls.hidden.appendChild(noInput);
+                });
+            }
+
+            function renderReturnLineSerialOptions(line, serials, selectedSerialIds) {
+                var controls = getReturnLineSerialControls(line);
+                if (!controls.section || !controls.container) {
+                    return;
+                }
+
+                var items = Array.isArray(serials) ? serials : [];
+                var selectedLookup = {};
+                (selectedSerialIds || []).forEach(function (serialId) {
+                    selectedLookup[String(serialId || '')] = true;
+                });
+
+                controls.container.innerHTML = '';
+                if (!items.length) {
+                    controls.section.classList.add('d-none');
+                    if (controls.summary) {
+                        controls.summary.textContent = 'برای این واریانت شناسه یکتایی ثبت نشده است.';
+                    }
+                    syncReturnLineSerialHiddenInputs(line);
+                    return;
+                }
+
+                controls.section.classList.remove('d-none');
+                if (controls.summary) {
+                    controls.summary.textContent = 'برای این واریانت می‌توانید شناسه‌های مرجوعی را انتخاب کنید.';
+                }
+
+                items.forEach(function (serial) {
+                    var serialId = String(serial.serialItemBusinessKey || '');
+                    var serialNo = String(serial.serialNo || serialId || '-');
+                    var checkboxId = 'return-serial-' + serialId.replace(/[^a-zA-Z0-9_-]/g, '');
+                    var wrapper = document.createElement('label');
+                    wrapper.className = 'd-flex align-items-start border rounded p-2 mb-2 bg-white';
+
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'mr-2 mt-1 js-return-line-serial-select';
+                    checkbox.id = checkboxId;
+                    checkbox.setAttribute('data-serial-id', serialId);
+                    checkbox.setAttribute('data-serial-no', serial.serialNo || '');
+                    checkbox.checked = !!selectedLookup[serialId];
+                    checkbox.addEventListener('change', function () {
+                        syncReturnLineSerialHiddenInputs(line);
+                    });
+
+                    var body = document.createElement('div');
+                    body.className = 'flex-grow-1';
+
+                    var title = document.createElement('div');
+                    title.className = 'font-weight-medium';
+                    title.textContent = serialNo;
+
+                    var meta = document.createElement('div');
+                    meta.className = 'small text-muted';
+                    meta.textContent = [serial.warehouseRef, serial.locationRef, serial.qualityStatusRef, serial.status || ''].filter(Boolean).join(' / ');
+
+                    body.appendChild(title);
+                    body.appendChild(meta);
+                    wrapper.appendChild(checkbox);
+                    wrapper.appendChild(body);
+                    controls.container.appendChild(wrapper);
+                });
+
+                syncReturnLineSerialHiddenInputs(line);
+            }
+
+            function getReturnVariantSerials(variantId) {
+                if (!variantId || !returnVariantSerialLookup) {
+                    return [];
+                }
+
+                return returnVariantSerialLookup[String(variantId).toLowerCase()] || [];
+            }
+
+            function refreshReturnVariantOptions() {
+                if (!returnSourceDocument) {
+                    lineContainer.querySelectorAll('.document-line').forEach(function (line) {
+                        var variantSelect = line.querySelector('.document-variant-select');
+                        if (!variantSelect) {
+                            return;
+                        }
+
+                        Array.prototype.forEach.call(variantSelect.options, function (option) {
+                            if (!option.value) {
+                                option.hidden = false;
+                                option.disabled = false;
+                            } else {
+                                option.hidden = true;
+                                option.disabled = true;
+                            }
+                        });
+
+                        variantSelect.value = '';
+                        var controls = getReturnLineSerialControls(line);
+                        if (controls.section) {
+                            controls.section.classList.add('d-none');
+                        }
+                        if (controls.container) {
+                            controls.container.innerHTML = '';
+                        }
+                        if (controls.hidden) {
+                            controls.hidden.innerHTML = '';
+                        }
+                    });
+                    return;
+                }
+
+                var allowed = returnAllowedVariantIds && returnAllowedVariantIds.length
+                    ? returnAllowedVariantIds.reduce(function (lookup, variantId) {
+                        lookup[String(variantId || '').toLowerCase()] = true;
+                        return lookup;
+                    }, {})
+                    : null;
+
+                lineContainer.querySelectorAll('.document-line').forEach(function (line) {
+                    var variantSelect = line.querySelector('.document-variant-select');
+                    if (!variantSelect) {
+                        return;
+                    }
+
+                    Array.prototype.forEach.call(variantSelect.options, function (option) {
+                        if (!option.value) {
+                            option.hidden = false;
+                            option.disabled = false;
+                            return;
+                        }
+
+                        var isAllowed = !allowed || !!allowed[String(option.value || '').toLowerCase()];
+                        option.hidden = !isAllowed;
+                        option.disabled = !isAllowed;
+                    });
+
+                    if (variantSelect.value) {
+                        var selectedOption = variantSelect.options[variantSelect.selectedIndex];
+                        if (selectedOption && selectedOption.hidden) {
+                            variantSelect.value = '';
+                        }
+                    }
+                });
+            }
+
+            function updateReturnLineSerials(line) {
+                var variantSelect = line.querySelector('.document-variant-select');
+                if (!variantSelect) {
+                    return;
+                }
+
+                var variantId = variantSelect.value || '';
+                var selectedSerialIds = collectReturnSelectedSerialIds(line);
+                var serials = getReturnVariantSerials(variantId);
+                renderReturnLineSerialOptions(line, serials, selectedSerialIds);
+            }
+
+            async function searchReturnReferenceDocuments() {
+                if (!returnReferenceSearchInput || !returnReferenceResults) {
+                    return;
+                }
+
+                var term = (returnReferenceSearchInput.value || '').trim();
+                if (!term) {
+                    returnReferenceResults.innerHTML = '';
+                    returnReferenceResultsPanel.classList.add('d-none');
+                    return;
+                }
+
+                var url = new URL(returnReferenceSearchUrl, window.location.origin);
+                url.searchParams.set('term', term);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'جستجوی سند حواله مبنا انجام نشد.');
+                }
+
+                var items = Array.isArray(payload.documents) ? payload.documents : [];
+                returnReferenceResults.innerHTML = '';
+
+                if (!items.length) {
+                    returnReferenceResults.innerHTML = '<div class="list-group-item text-muted">سندی پیدا نشد.</div>';
+                    returnReferenceResultsPanel.classList.remove('d-none');
+                    return;
+                }
+
+                items.forEach(function (item) {
+                    var button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                    button.innerHTML = '<span class="text-monospace">' + (item.documentNo || item.documentBusinessKey || '-') + '</span>'
+                        + '<small class="text-muted">' + (item.status || '-') + '</small>';
+                    button.addEventListener('click', function () {
+                        selectReturnReferenceDocument(item);
+                    });
+                    returnReferenceResults.appendChild(button);
+                });
+
+                returnReferenceResultsPanel.classList.remove('d-none');
+            }
+
+            async function loadReturnReferenceDocument(documentId) {
+                if (!documentId) {
+                    return;
+                }
+
+                var url = new URL(returnReferenceDocumentUrl, window.location.origin);
+                url.searchParams.set('documentId', documentId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false || !payload.document) {
+                    throw new Error((payload && payload.errorMessage) || 'واکشی سند حواله مبنا انجام نشد.');
+                }
+
+                return payload.document;
+            }
+
+            async function selectReturnReferenceDocument(item) {
+                if (!item || !item.documentBusinessKey) {
+                    return;
+                }
+
+                var document = await loadReturnReferenceDocument(item.documentBusinessKey);
+                returnSourceDocument = document;
+                returnAllowedVariantIds = [];
+                returnVariantSerialLookup = {};
+
+                (document.lines || []).forEach(function (line) {
+                    var variantId = String(line.variantRef || '');
+                    if (!variantId) {
+                        return;
+                    }
+
+                    returnAllowedVariantIds.push(variantId);
+                    var key = variantId.toLowerCase();
+                    if (!returnVariantSerialLookup[key]) {
+                        returnVariantSerialLookup[key] = [];
+                    }
+
+                    (line.serials || []).forEach(function (serial) {
+                        returnVariantSerialLookup[key].push({
+                            serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
+                            serialNo: String(serial.serialNo || ''),
+                            warehouseRef: String(document.warehouseRef || ''),
+                            locationRef: String(line.destinationLocationRef || line.sourceLocationRef || ''),
+                            qualityStatusRef: String(line.qualityStatusRef || ''),
+                            status: String(serial.status || 'Available')
+                        });
+                    });
+                });
+
+                if (returnReferenceTypeInput) {
+                    returnReferenceTypeInput.value = 'Issue';
+                }
+                if (returnReferenceIdInput) {
+                    returnReferenceIdInput.value = document.documentBusinessKey || item.documentBusinessKey;
+                }
+                if (returnReferenceSelectedLabel) {
+                    returnReferenceSelectedLabel.textContent = (document.documentNo || item.documentNo || document.documentBusinessKey);
+                }
+                if (returnReferenceSelected) {
+                    returnReferenceSelected.classList.remove('d-none');
+                }
+                if (returnReferenceSearchInput) {
+                    returnReferenceSearchInput.value = document.documentNo || item.documentNo || '';
+                }
+                if (returnReferenceResultsPanel) {
+                    returnReferenceResultsPanel.classList.add('d-none');
+                }
+                if (returnReferenceResults) {
+                    returnReferenceResults.innerHTML = '';
+                }
+
+                refreshReturnVariantOptions();
+                lineContainer.querySelectorAll('.document-line').forEach(function (line) {
+                    updateReturnLineSerials(line);
+                });
+            }
+
             function syncVariantUom(line) {
                 var select = line.querySelector('.document-variant-select');
                 var uomRef = line.querySelector('.document-uom-ref');
@@ -1065,8 +1519,16 @@
                 if (variantSelect) {
                     variantSelect.addEventListener('change', function () {
                         syncVariantUom(line);
+                        updateReturnLineSerials(line);
                     });
                     syncVariantUom(line);
+                    if (returnSourceDocument) {
+                        updateReturnLineSerials(line);
+                    }
+                }
+
+                if (line.querySelector('.line-serials')) {
+                    updateReturnLineSerials(line);
                 }
             }
 
@@ -1094,6 +1556,10 @@
                 }
 
                 var config = selectedConfig();
+                if ((documentTypeSelect ? documentTypeSelect.value : 'Receipt') === 'Return' && (!returnReferenceIdInput || !returnReferenceIdInput.value)) {
+                    showValidation('انتخاب سند حواله مبنا الزامی است.', returnReferenceSearchInput || createForm);
+                    return false;
+                }
                 var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
                 if (lines.length === 0) {
                     showValidation('حداقل یک ردیف برای سند لازم است.');
@@ -1196,6 +1662,17 @@
                     select.value = '';
                     delete select.dataset.select2Initialized;
                 });
+                clone.querySelectorAll('.line-serials').forEach(function (section) {
+                    section.classList.add('d-none');
+                    var container = section.querySelector('.js-return-line-serial-container');
+                    var hidden = section.querySelector('.js-return-line-serial-hidden');
+                    if (container) {
+                        container.innerHTML = '';
+                    }
+                    if (hidden) {
+                        hidden.innerHTML = '';
+                    }
+                });
                 lineContainer.appendChild(clone);
                 if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
                     window.appUi.initSearchableSelects(clone);
@@ -1204,6 +1681,7 @@
                 bindLine(clone);
                 toggleTypeFields();
                 syncLocationsToWarehouse();
+                refreshReturnVariantOptions();
             }
 
             if (addLineButton) {
@@ -1230,6 +1708,25 @@
                 });
             }
 
+            if (returnReferenceSearchButton) {
+                returnReferenceSearchButton.addEventListener('click', function () {
+                    searchReturnReferenceDocuments().catch(function (error) {
+                        console.error(error);
+                    });
+                });
+            }
+
+            if (returnReferenceSearchInput) {
+                returnReferenceSearchInput.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        searchReturnReferenceDocuments().catch(function (error) {
+                            console.error(error);
+                        });
+                    }
+                });
+            }
+
             if (createForm) {
                 createForm.addEventListener('submit', function (event) {
                     if (!validateDocumentForm()) {
@@ -1239,10 +1736,71 @@
                 });
             }
 
+            document.addEventListener('click', function (event) {
+                var deleteButton = event.target && event.target.closest ? event.target.closest('.js-return-line-delete') : null;
+                if (!(deleteButton instanceof HTMLElement)) {
+                    return;
+                }
+
+                var form = deleteButton.closest('form');
+                if (!form) {
+                    return;
+                }
+
+                if (!window.confirm('این آیتم حذف شود؟')) {
+                    return;
+                }
+
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            });
+
             lineContainer.querySelectorAll('.document-line').forEach(bindLine);
             renumberLines();
             toggleTypeFields();
             syncLocationsToWarehouse();
+            refreshReturnVariantOptions();
+            if (returnReferenceIdInput && returnReferenceIdInput.value) {
+                loadReturnReferenceDocument(returnReferenceIdInput.value)
+                    .then(function (document) {
+                        if (document) {
+                            returnSourceDocument = document;
+                            returnAllowedVariantIds = [];
+                            returnVariantSerialLookup = {};
+                            (document.lines || []).forEach(function (line) {
+                                var variantId = String(line.variantRef || '');
+                                if (!variantId) {
+                                    return;
+                                }
+                                returnAllowedVariantIds.push(variantId);
+                                var key = variantId.toLowerCase();
+                                if (!returnVariantSerialLookup[key]) {
+                                    returnVariantSerialLookup[key] = [];
+                                }
+                                (line.serials || []).forEach(function (serial) {
+                                    returnVariantSerialLookup[key].push({
+                                        serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
+                                        serialNo: String(serial.serialNo || ''),
+                                        warehouseRef: String(document.warehouseRef || ''),
+                                        locationRef: String(line.destinationLocationRef || line.sourceLocationRef || ''),
+                                        qualityStatusRef: String(line.qualityStatusRef || ''),
+                                        status: String(serial.status || 'Available')
+                                    });
+                                });
+                            });
+                            refreshReturnVariantOptions();
+                            lineContainer.querySelectorAll('.document-line').forEach(function (line) {
+                                updateReturnLineSerials(line);
+                            });
+                        }
+                    })
+                    .catch(function (error) {
+                        console.error(error);
+                    });
+            }
             setLinesPanelVisible(false);
         })();
     </script>

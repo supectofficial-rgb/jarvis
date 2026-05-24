@@ -277,6 +277,7 @@ public class PostInventoryDocumentCommandHandler
             selectedSerialsByLine.TryGetValue(line.BusinessKey.Value, out var selectedSerials);
             var serials = selectedSerials?.Serials ?? Array.Empty<PostInventoryDocumentLineSerialItem>();
             var serialRef = serials.FirstOrDefault(x => x.SerialRef.HasValue)?.SerialRef;
+            var serialTuples = serials.Select(x => (x.SerialRef, x.SerialNo)).ToList();
 
             switch (document.DocumentType)
             {
@@ -289,12 +290,13 @@ public class PostInventoryDocumentCommandHandler
                             line.Qty,
                             line.UomRef,
                             line.BaseQty,
-                            line.BaseUomRef,
-                            destinationLocationRef: line.DestinationLocationRef,
-                            newQualityStatusRef: line.QualityStatusRef,
-                            serialRef: serialRef,
-                            lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode),
+                              line.BaseUomRef,
+                              destinationLocationRef: line.DestinationLocationRef,
+                              newQualityStatusRef: line.QualityStatusRef,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
                         index + 1);
@@ -308,12 +310,13 @@ public class PostInventoryDocumentCommandHandler
                             line.Qty,
                             line.UomRef,
                             -line.BaseQty,
-                            line.BaseUomRef,
-                            sourceLocationRef: line.SourceLocationRef,
-                            oldQualityStatusRef: line.QualityStatusRef,
-                            serialRef: serialRef,
-                            lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode),
+                              line.BaseUomRef,
+                              sourceLocationRef: line.SourceLocationRef,
+                              oldQualityStatusRef: line.QualityStatusRef,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
                         index + 1);
@@ -333,12 +336,13 @@ public class PostInventoryDocumentCommandHandler
                             adjustmentDelta,
                             line.BaseUomRef,
                             sourceLocationRef: adjustmentDelta < 0 ? line.SourceLocationRef ?? line.DestinationLocationRef : null,
-                            destinationLocationRef: adjustmentDelta > 0 ? line.DestinationLocationRef ?? line.SourceLocationRef : null,
-                            oldQualityStatusRef: adjustmentDelta < 0 ? line.QualityStatusRef : null,
-                            newQualityStatusRef: adjustmentDelta > 0 ? line.QualityStatusRef : null,
-                            serialRef: serialRef,
-                            lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode),
+                              destinationLocationRef: adjustmentDelta > 0 ? line.DestinationLocationRef ?? line.SourceLocationRef : null,
+                              oldQualityStatusRef: adjustmentDelta < 0 ? line.QualityStatusRef : null,
+                              newQualityStatusRef: adjustmentDelta > 0 ? line.QualityStatusRef : null,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
                         index + 1);
@@ -352,12 +356,13 @@ public class PostInventoryDocumentCommandHandler
                             line.Qty,
                             line.UomRef,
                             -line.BaseQty,
-                            line.BaseUomRef,
-                            sourceLocationRef: line.SourceLocationRef,
-                            oldQualityStatusRef: line.QualityStatusRef,
-                            serialRef: serialRef,
-                            lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode),
+                              line.BaseUomRef,
+                              sourceLocationRef: line.SourceLocationRef,
+                              oldQualityStatusRef: line.QualityStatusRef,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
                         index + 1);
@@ -369,12 +374,13 @@ public class PostInventoryDocumentCommandHandler
                             line.Qty,
                             line.UomRef,
                             line.BaseQty,
-                            line.BaseUomRef,
-                            destinationLocationRef: line.DestinationLocationRef,
-                            newQualityStatusRef: line.QualityStatusRef,
-                            serialRef: serialRef,
-                            lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode),
+                              line.BaseUomRef,
+                              destinationLocationRef: line.DestinationLocationRef,
+                              newQualityStatusRef: line.QualityStatusRef,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
                         index + 1);
@@ -388,12 +394,13 @@ public class PostInventoryDocumentCommandHandler
                             line.Qty,
                             line.UomRef,
                             -line.BaseQty,
-                            line.BaseUomRef,
-                            sourceLocationRef: line.SourceLocationRef ?? line.DestinationLocationRef,
-                            oldQualityStatusRef: line.FromQualityStatusRef,
-                            serialRef: serialRef,
-                            lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode),
+                              line.BaseUomRef,
+                              sourceLocationRef: line.SourceLocationRef ?? line.DestinationLocationRef,
+                              oldQualityStatusRef: line.FromQualityStatusRef,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
                         index + 1);
@@ -405,12 +412,13 @@ public class PostInventoryDocumentCommandHandler
                             line.Qty,
                             line.UomRef,
                             line.BaseQty,
-                            line.BaseUomRef,
-                            destinationLocationRef: line.DestinationLocationRef ?? line.SourceLocationRef,
-                            newQualityStatusRef: line.ToQualityStatusRef,
-                            serialRef: serialRef,
-                            lotBatchNo: line.LotBatchNo,
-                            reasonCode: line.ReasonCode),
+                              line.BaseUomRef,
+                              destinationLocationRef: line.DestinationLocationRef ?? line.SourceLocationRef,
+                              newQualityStatusRef: line.ToQualityStatusRef,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
                         index + 1);
@@ -430,6 +438,7 @@ public class PostInventoryDocumentCommandHandler
                                 sourceLocationRef: line.SourceLocationRef,
                                 oldQualityStatusRef: line.QualityStatusRef,
                                 serialRef: serialRef,
+                                serials: serialTuples,
                                 lotBatchNo: line.LotBatchNo,
                                 reasonCode: line.ReasonCode),
                             serials,
@@ -450,6 +459,7 @@ public class PostInventoryDocumentCommandHandler
                                 destinationLocationRef: line.DestinationLocationRef,
                                 newQualityStatusRef: line.QualityStatusRef,
                                 serialRef: serialRef,
+                                serials: serialTuples,
                                 lotBatchNo: line.LotBatchNo,
                                 reasonCode: line.ReasonCode),
                             serials,
@@ -474,7 +484,10 @@ public class PostInventoryDocumentCommandHandler
         InventoryDocumentPostingEffect effect,
         StockDetail stockDetail)
     {
-        if (document.DocumentType != InventoryDocumentType.Receipt)
+        var shouldGenerateSerials = document.DocumentType == InventoryDocumentType.Receipt
+            || (document.DocumentType == InventoryDocumentType.Conversion && effect.DocumentLine.BaseQty > 0);
+
+        if (!shouldGenerateSerials)
         {
             foreach (var selectedSerial in effect.Serials)
             {
@@ -541,6 +554,7 @@ public class PostInventoryDocumentCommandHandler
 
             await _serialRepository.InsertAsync(serialItem);
             serialItem.LinkStockDetail(stockDetail.BusinessKey);
+            effect.TransactionLine.AddSerial(serialItem.BusinessKey.Value, serialNo);
         }
 
         return (true, null);

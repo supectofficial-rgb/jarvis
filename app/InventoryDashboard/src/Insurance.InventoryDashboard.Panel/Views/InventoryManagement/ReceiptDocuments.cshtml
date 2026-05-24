@@ -479,18 +479,10 @@
                                                     }
                                                     @if (canDeleteDocument)
                                                     {
-                                                        <form asp-action="DeleteDocument" asp-controller="InventoryManagement" method="post" class="d-inline mr-1" data-loading-form data-ajax-target="#documents-page-root" onsubmit="return confirm('این سند و همه آیتم‌های آن حذف شوند؟');">
-                                                            @Html.AntiForgeryToken()
-                                                            <input type="hidden" name="DocumentId" value="@document.DocumentBusinessKey" />
-                                                            <input type="hidden" name="documentType" value="@document.DocumentType" />
-                                                            <input type="hidden" name="documentNo" value="@Model.DocumentNoFilter" />
-                                                            <input type="hidden" name="status" value="@Model.DocumentStatusFilter" />
-                                                            <input type="hidden" name="occurredFrom" value="@Model.OccurredFromFilter" />
-                                                            <input type="hidden" name="occurredTo" value="@Model.OccurredToFilter" />
-                                                            <input type="hidden" name="page" value="@Model.DocumentPage" />
-                                                            <input type="hidden" name="pageSize" value="@Model.DocumentPageSize" />
-                                                            <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
-                                                        </form>
+                                                        <button type="button"
+                                                                class="btn btn-outline-danger btn-xs mr-1 js-receipt-document-delete"
+                                                                data-document-id="@document.DocumentBusinessKey"
+                                                                data-document-no="@document.DocumentNo">حذف</button>
                                                     }
                                                     <button type="button"
                                                             class="btn btn-outline-info btn-xs js-receipt-document-action"
@@ -743,12 +735,11 @@
                                                         {
                                                             <td class="text-right">
                                                                 <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@Model.SelectedDocumentDetails.DocumentBusinessKey" asp-route-editingLineId="@line.LineBusinessKey" asp-route-documentType="@Model.SelectedDocumentDetails.DocumentType" data-ajax-target="#documents-page-root">ویرایش</a>
-                                                                <form asp-action="DeleteDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#documents-page-root" onsubmit="return confirm('این آیتم حذف شود؟');">
-                                                                    @Html.AntiForgeryToken()
-                                                                    <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
-                                                                    <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                                    <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
-                                                                </form>
+                                                                <button type="button"
+                                                                        class="btn btn-outline-danger btn-xs js-receipt-line-delete"
+                                                                        data-document-id="@Model.SelectedDocumentDetails.DocumentBusinessKey"
+                                                                        data-document-no="@Model.SelectedDocumentDetails.DocumentNo"
+                                                                        data-line-id="@line.LineBusinessKey">حذف</button>
                                                             </td>
                                                         }
                                                     </tr>
@@ -1377,6 +1368,7 @@
             var documentListPaginationWrapperSelector = '#receipt-document-list-pagination-wrapper';
             var documentListPaginationSelector = '#receipt-document-list-pagination';
             var deleteDocumentUrl = '@Url.Action("DeleteDocument", "InventoryManagement")';
+            var deleteReceiptDocumentLineUrl = '@Url.Action("DeleteReceiptDocumentLine", "InventoryManagement")';
             var receiptWarehouseLookupUrl = '@Url.Action("SearchReceiptWarehousesLookup", "InventoryManagement")';
             var receiptLocationLookupUrl = '@Url.Action("SearchReceiptWarehouseLocationsLookup", "InventoryManagement")';
             var receiptWarehouseOptions = [];
@@ -1690,7 +1682,43 @@
                     throw new Error('Delete document request failed.');
                 }
 
+                if (window.jQuery) {
+                    window.jQuery(modalSelector).modal('hide');
+                }
+
                 await refreshReceiptDocumentList();
+            }
+
+            async function deleteReceiptDocumentLine(documentId, lineId, documentNo) {
+                if (!documentId || !lineId) {
+                    return;
+                }
+
+                if (!window.confirm('این آیتم حذف شود؟')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                payload.append('documentId', documentId);
+                payload.append('lineId', lineId);
+
+                var response = await fetch(deleteReceiptDocumentLineUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Delete receipt line request failed.');
+                }
+
+                var html = await response.text();
+                replaceReceiptDetailsModalBody(html, documentId, documentNo);
             }
 
             function bindReceiptDocumentListForm() {
@@ -1950,18 +1978,7 @@
                 return tokenInput ? tokenInput.value : '';
             }
 
-            async function loadReceiptDetails(documentId, documentNo) {
-                var url = new URL(detailsUrl, window.location.origin);
-                url.searchParams.set('documentId', documentId || '');
-
-                var response = await fetch(url.toString(), {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
-                    }
-                });
-
-                var html = await response.text();
+            function replaceReceiptDetailsModalBody(html, documentId, documentNo) {
                 var parser = new DOMParser();
                 var doc = parser.parseFromString(html, 'text/html');
                 var nextBody = doc.querySelector(modalBodySelector);
@@ -1981,6 +1998,21 @@
                 if (subtitleElement) {
                     subtitleElement.textContent = documentId || '';
                 }
+            }
+
+            async function loadReceiptDetails(documentId, documentNo) {
+                var url = new URL(detailsUrl, window.location.origin);
+                url.searchParams.set('documentId', documentId || '');
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+
+                var html = await response.text();
+                replaceReceiptDetailsModalBody(html, documentId, documentNo);
 
                 showModal();
             }
@@ -2449,6 +2481,18 @@
                     if (editButton) {
                         event.preventDefault();
                         fillReceiptLineForm(editButton);
+                        return;
+                    }
+
+                    var deleteLineButton = event.target && event.target.closest ? event.target.closest('.js-receipt-line-delete') : null;
+                    if (deleteLineButton) {
+                        event.preventDefault();
+                        deleteReceiptDocumentLine(
+                            deleteLineButton.getAttribute('data-document-id') || '',
+                            deleteLineButton.getAttribute('data-line-id') || '',
+                            deleteLineButton.getAttribute('data-document-no') || '').catch(function (error) {
+                                console.error(error);
+                            });
                         return;
                     }
 

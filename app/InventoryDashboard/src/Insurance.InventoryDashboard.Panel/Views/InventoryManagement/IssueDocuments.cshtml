@@ -425,9 +425,9 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="card-title mb-0">لیست اسناد</h5>
-                            <span class="text-muted small">@Model.DocumentTotalCount رکورد</span>
+                            <span class="text-muted small" id="issue-document-list-count">@Model.DocumentTotalCount رکورد</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="issue-document-list-form">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
@@ -478,7 +478,7 @@
                                         <th class="text-right">عملیات</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="issue-document-list-body">
                                     @if (Model.Documents.Count == 0)
                                     {
                                         <tr><td colspan="5" class="text-center text-muted">سندی پیدا نشد.</td></tr>
@@ -494,9 +494,29 @@
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
                                                     <button type="button"
-                                                            class="btn btn-outline-primary btn-xs js-issue-document-details"
+                                                            class="btn btn-outline-primary btn-xs js-issue-document-details mr-1"
                                                             data-document-id="@document.DocumentBusinessKey"
                                                             data-document-no="@document.DocumentNo">جزئیات</button>
+                                                    @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+                                                    {
+                                                        <a class="btn btn-outline-secondary btn-xs mr-1"
+                                                           asp-action="@documentAction"
+                                                           asp-controller="InventoryManagement"
+                                                           asp-route-documentId="@document.DocumentBusinessKey"
+                                                           asp-route-documentType="@document.DocumentType"
+                                                           asp-route-tab="create"
+                                                           asp-route-page="@Model.DocumentPage"
+                                                           asp-route-pageSize="@Model.DocumentPageSize"
+                                                           asp-route-documentNo="@Model.DocumentNoFilter"
+                                                           asp-route-status="@Model.DocumentStatusFilter"
+                                                           asp-route-occurredFrom="@Model.OccurredFromFilter"
+                                                           asp-route-occurredTo="@Model.OccurredToFilter"
+                                                           data-ajax-target="#documents-page-root">ویرایش</a>
+                                                        <button type="button"
+                                                                class="btn btn-outline-danger btn-xs mr-1 js-issue-document-delete"
+                                                                data-document-id="@document.DocumentBusinessKey"
+                                                                data-document-no="@document.DocumentNo">حذف</button>
+                                                    }
                                                 </td>
                                             </tr>
                                         }
@@ -507,7 +527,7 @@
 
                         @if (Model.DocumentTotalPages > 1)
                         {
-                            <nav class="mt-3">
+                            <nav class="mt-3" id="issue-document-list-pagination-wrapper">
                                 <ul class="pagination pagination-sm mb-0">
                                     @for (var i = 1; i <= Model.DocumentTotalPages; i++)
                                     {
@@ -749,12 +769,11 @@
                                                         {
                                                             <td class="text-right">
                                                                 <a class="btn btn-outline-primary btn-xs" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@Model.SelectedDocumentDetails.DocumentBusinessKey" asp-route-editingLineId="@line.LineBusinessKey" asp-route-documentType="@Model.SelectedDocumentDetails.DocumentType" data-ajax-target="#documents-page-root">ویرایش</a>
-                                                                <form asp-action="DeleteDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#documents-page-root" onsubmit="return confirm('این آیتم حذف شود؟');">
-                                                                    @Html.AntiForgeryToken()
-                                                                    <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
-                                                                    <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                                    <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
-                                                                </form>
+                                                <button type="button"
+                                                        class="btn btn-outline-danger btn-xs js-issue-line-delete"
+                                                        data-document-id="@Model.SelectedDocumentDetails.DocumentBusinessKey"
+                                                        data-document-no="@Model.SelectedDocumentDetails.DocumentNo"
+                                                        data-line-id="@line.LineBusinessKey">حذف</button>
                                                             </td>
                                                         }
                                                     </tr>
@@ -900,6 +919,19 @@
             var warehouseSelect = document.getElementById('create-warehouse-select');
             var createForm = document.getElementById('document-create-form');
             var linesPanel = document.getElementById('document-lines-panel');
+            var modalSelector = '#issue-document-details-modal';
+            var modalBodySelector = '#issue-document-details-modal-body';
+            var modalTitleSelector = '#issue-document-details-modal-title';
+            var modalSubtitleSelector = '#issue-document-details-modal-subtitle';
+            var detailsUrl = '@Url.Action("IssueDocumentDetails", "InventoryManagement")';
+            var documentListUrl = '@Url.Action("DocumentList", "InventoryManagement")';
+            var documentListFormSelector = '#issue-document-list-form';
+            var documentListBodySelector = '#issue-document-list-body';
+            var documentListPaginationWrapperSelector = '#issue-document-list-pagination-wrapper';
+            var documentListPaginationSelector = '#issue-document-list-pagination';
+            var documentListCountSelector = '#issue-document-list-count';
+            var deleteDocumentUrl = '@Url.Action("DeleteDocument", "InventoryManagement")';
+            var deleteIssueDocumentLineUrl = '@Url.Action("DeleteIssueDocumentLine", "InventoryManagement")';
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
 
@@ -1314,6 +1346,239 @@
                 }
             }
 
+            function replaceIssueDetailsModalBody(html, documentId, documentNo) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var nextBody = doc.querySelector(modalBodySelector);
+                var currentBody = document.querySelector(modalBodySelector);
+                if (!nextBody || !currentBody) {
+                    throw new Error('Issue details modal body could not be loaded.');
+                }
+
+                currentBody.replaceWith(nextBody);
+
+                var titleElement = document.querySelector(modalTitleSelector);
+                var subtitleElement = document.querySelector(modalSubtitleSelector);
+                if (titleElement) {
+                    titleElement.textContent = documentNo ? ('جزئیات سند ' + documentNo) : 'جزئیات سند حواله';
+                }
+                if (subtitleElement) {
+                    subtitleElement.textContent = documentId || '';
+                }
+            }
+
+            function getIssueListForm() {
+                return document.querySelector(documentListFormSelector);
+            }
+
+            function getIssueListValue(name) {
+                var form = getIssueListForm();
+                if (!form) {
+                    return '';
+                }
+
+                var field = form.querySelector('[name="' + name + '"]');
+                return field ? (field.value || '') : '';
+            }
+
+            function getCurrentIssueListPage() {
+                var activeLink = document.querySelector(documentListPaginationSelector + ' .page-item.active .page-link');
+                if (activeLink) {
+                    var value = parseInt(activeLink.textContent || '1', 10);
+                    if (!isNaN(value) && value > 0) {
+                        return value;
+                    }
+                }
+
+                var currentUrl = new URL(window.location.href);
+                var page = parseInt(currentUrl.searchParams.get('page') || '1', 10);
+                return !isNaN(page) && page > 0 ? page : 1;
+            }
+
+            function getIssueListQuery(page) {
+                var params = new URLSearchParams();
+                params.set('documentType', 'Issue');
+                params.set('page', String(page && page > 0 ? page : 1));
+                params.set('pageSize', getIssueListValue('pageSize') || '@Model.DocumentPageSize');
+                params.set('documentNo', getIssueListValue('documentNo'));
+                params.set('status', getIssueListValue('status'));
+                params.set('occurredFrom', getIssueListValue('occurredFrom'));
+                params.set('occurredTo', getIssueListValue('occurredTo'));
+                return params;
+            }
+
+            function buildIssueDocumentActionHtml(document, currentPage) {
+                var documentId = escapeHtml(document.documentBusinessKey || '');
+                var documentNo = escapeHtml(document.documentNo || '');
+                var status = escapeHtml(document.status || '');
+                var canEditDocument = String(document.status || '').toLowerCase() === 'draft';
+                var canDeleteDocument = String(document.status || '').toLowerCase() === 'draft';
+                var editUrl = '@Url.Action("IssueDocuments", "InventoryManagement")'
+                    + '?documentId=' + encodeURIComponent(document.documentBusinessKey || '')
+                    + '&documentType=' + encodeURIComponent(document.documentType || 'Issue')
+                    + '&tab=create'
+                    + '&page=' + encodeURIComponent(currentPage || 1)
+                    + '&pageSize=' + encodeURIComponent(getIssueListValue('pageSize') || '@Model.DocumentPageSize')
+                    + '&documentNo=' + encodeURIComponent(getIssueListValue('documentNo') || '')
+                    + '&status=' + encodeURIComponent(getIssueListValue('status') || '')
+                    + '&occurredFrom=' + encodeURIComponent(getIssueListValue('occurredFrom') || '')
+                    + '&occurredTo=' + encodeURIComponent(getIssueListValue('occurredTo') || '');
+
+                var html = '';
+                html += '<td><span class="text-monospace">' + documentNo + '</span></td>';
+                html += '<td>' + escapeHtml(getDocumentTypeLabel(document.documentType)) + '</td>';
+                html += '<td>' + escapeHtml(formatDocumentDateTime(document.occurredAt)) + '</td>';
+                html += '<td><span class="badge badge-pill ' + getStatusClass(document.status) + '">' + escapeHtml(getStatusLabel(document.status)) + '</span></td>';
+                html += '<td class="text-right">';
+                html += '<button type="button" class="btn btn-outline-primary btn-xs js-issue-document-details mr-1" data-document-id="' + documentId + '" data-document-no="' + documentNo + '">جزئیات</button>';
+                if (canEditDocument) {
+                    html += '<a class="btn btn-outline-secondary btn-xs mr-1" href="' + editUrl + '" data-ajax-target="#documents-page-root">ویرایش</a>';
+                }
+                if (canDeleteDocument) {
+                    html += '<button type="button" class="btn btn-outline-danger btn-xs mr-1 js-issue-document-delete" data-document-id="' + documentId + '" data-document-no="' + documentNo + '">حذف</button>';
+                }
+                html += '</td>';
+                return html;
+            }
+
+            function renderIssueDocumentRows(items, currentPage) {
+                var body = document.querySelector(documentListBodySelector);
+                if (!body) {
+                    return;
+                }
+
+                var rows = Array.isArray(items) ? items : [];
+                if (rows.length === 0) {
+                    body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">سندی پیدا نشد.</td></tr>';
+                    return;
+                }
+
+                body.innerHTML = rows.map(function (document) {
+                    return '<tr>' + buildIssueDocumentActionHtml(document, currentPage) + '</tr>';
+                }).join('');
+            }
+
+            function renderIssueDocumentPagination(totalPages, currentPage) {
+                var wrapper = document.querySelector(documentListPaginationWrapperSelector);
+                if (!wrapper) {
+                    return;
+                }
+
+                var pageCount = parseInt(totalPages || '0', 10) || 0;
+                var page = parseInt(currentPage || '1', 10) || 1;
+                if (pageCount <= 1) {
+                    wrapper.innerHTML = '';
+                    return;
+                }
+
+                var links = [];
+                for (var i = 1; i <= pageCount; i++) {
+                    links.push('<li class="page-item ' + (i === page ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + i + '">' + i + '</a></li>');
+                }
+
+                wrapper.innerHTML = '<nav id="issue-document-list-pagination"><ul class="pagination pagination-sm mb-0">' + links.join('') + '</ul></nav>';
+            }
+
+            async function refreshIssueDocumentList(page) {
+                var query = getIssueListQuery(page || getCurrentIssueListPage());
+                var response = await fetch(documentListUrl + '?' + query.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Document list refresh failed.');
+                }
+
+                var payload = await response.json();
+                if (!payload) {
+                    throw new Error('Document list refresh returned empty payload.');
+                }
+
+                var totalCount = typeof payload.totalCount === 'number' ? payload.totalCount : 0;
+                var currentPage = typeof payload.page === 'number' ? payload.page : getCurrentIssueListPage();
+                var totalPages = typeof payload.totalPages === 'number' ? payload.totalPages : 1;
+
+                var countElement = document.querySelector(documentListCountSelector);
+                if (countElement) {
+                    countElement.textContent = totalCount + ' رکورد';
+                }
+
+                renderIssueDocumentRows(payload.items || [], currentPage);
+                renderIssueDocumentPagination(totalPages, currentPage);
+            }
+
+            async function deleteIssueDocument(documentId, documentNo) {
+                if (!documentId) {
+                    return;
+                }
+
+                if (!window.confirm('این سند ' + (documentNo ? '(' + documentNo + ')' : '') + ' و همه آیتم‌های آن حذف شوند؟')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                payload.append('documentId', documentId);
+                payload.append('documentType', 'Issue');
+                payload.append('page', String(getCurrentIssueListPage() || 1));
+                payload.append('pageSize', getIssueListValue('pageSize') || '@Model.DocumentPageSize');
+                payload.append('documentNo', getIssueListValue('documentNo'));
+                payload.append('status', getIssueListValue('status'));
+                payload.append('occurredFrom', getIssueListValue('occurredFrom'));
+                payload.append('occurredTo', getIssueListValue('occurredTo'));
+
+                var response = await fetch(deleteDocumentUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Delete document request failed.');
+                }
+
+                await refreshIssueDocumentList();
+            }
+
+            async function deleteIssueDocumentLine(documentId, lineId, documentNo) {
+                if (!documentId || !lineId) {
+                    return;
+                }
+
+                if (!window.confirm('این آیتم حذف شود؟')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                payload.append('documentId', documentId);
+                payload.append('lineId', lineId);
+
+                var response = await fetch('@Url.Action("DeleteIssueDocumentLine", "InventoryManagement")', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Delete issue line request failed.');
+                }
+
+                var html = await response.text();
+                replaceIssueDetailsModalBody(html, documentId, documentNo);
+            }
+
             function initModalWidgets(root) {
                 if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
                     window.appUi.initSearchableSelects(root);
@@ -1702,25 +1967,8 @@
                 });
 
                 var html = await response.text();
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(html, 'text/html');
-                var nextBody = doc.querySelector(modalBodySelector);
-                var currentBody = document.querySelector(modalBodySelector);
-                if (!nextBody || !currentBody) {
-                    throw new Error('Issue details modal body could not be loaded.');
-                }
-
-                currentBody.replaceWith(nextBody);
-                initModalWidgets(nextBody);
-
-                var titleElement = document.querySelector(modalTitleSelector);
-                var subtitleElement = document.querySelector(modalSubtitleSelector);
-                if (titleElement) {
-                    titleElement.textContent = documentNo ? ('جزئیات سند ' + documentNo) : 'جزئیات سند حواله';
-                }
-                if (subtitleElement) {
-                    subtitleElement.textContent = documentId || '';
-                }
+                replaceIssueDetailsModalBody(html, documentId, documentNo);
+                initModalWidgets(document.querySelector(modalBodySelector));
 
                 showModal();
             }
@@ -1853,6 +2101,17 @@
                     return;
                 }
 
+                var deleteTrigger = event.target && event.target.closest ? event.target.closest('.js-issue-document-delete') : null;
+                if (deleteTrigger) {
+                    event.preventDefault();
+                    deleteIssueDocument(
+                        deleteTrigger.getAttribute('data-document-id') || '',
+                        deleteTrigger.getAttribute('data-document-no') || '').catch(function (error) {
+                            console.error(error);
+                        });
+                    return;
+                }
+
                 var editButton = event.target && event.target.closest ? event.target.closest('.js-issue-line-edit') : null;
                 if (editButton) {
                     event.preventDefault();
@@ -1860,10 +2119,31 @@
                     return;
                 }
 
+                var lineDeleteButton = event.target && event.target.closest ? event.target.closest('.js-issue-line-delete') : null;
+                if (lineDeleteButton) {
+                    event.preventDefault();
+                    deleteIssueDocumentLine(
+                        lineDeleteButton.getAttribute('data-document-id') || '',
+                        lineDeleteButton.getAttribute('data-line-id') || '',
+                        lineDeleteButton.getAttribute('data-document-no') || '').catch(function (error) {
+                            console.error(error);
+                        });
+                    return;
+                }
+
                 var cancelButton = event.target && event.target.closest ? event.target.closest('.js-issue-line-cancel') : null;
                 if (cancelButton) {
                     event.preventDefault();
                     resetIssueLineForm();
+                }
+
+                var paginationLink = event.target && event.target.closest ? event.target.closest(documentListPaginationSelector + ' .page-link') : null;
+                if (paginationLink) {
+                    event.preventDefault();
+                    var page = parseInt(paginationLink.getAttribute('data-page') || '1', 10);
+                    refreshIssueDocumentList(page).catch(function (error) {
+                        console.error(error);
+                    });
                 }
             });
 
@@ -1873,6 +2153,18 @@
                 modalElement.addEventListener('hidden.bs.modal', function () {
                     resetIssueLineForm();
                 });
+            }
+
+            var listForm = document.querySelector(documentListFormSelector);
+            if (listForm && listForm.dataset.issueListBound !== 'true') {
+                listForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    refreshIssueDocumentList(1).catch(function (error) {
+                        console.error(error);
+                    });
+                }, true);
+                listForm.dataset.issueListBound = 'true';
             }
         })();
     </script>

@@ -5,6 +5,8 @@ using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class InventoryTransactionLine : Aggregate
 {
+    private readonly List<InventoryTransactionLineSerial> _serials = new();
+
     public Guid? StockDetailRef { get; private set; }
     public Guid VariantRef { get; private set; }
     public decimal InputQty { get; private set; }
@@ -18,6 +20,7 @@ public sealed class InventoryTransactionLine : Aggregate
     public string? LotBatchNo { get; private set; }
     public Guid? SerialRef { get; private set; }
     public string? ReasonCode { get; private set; }
+    public IReadOnlyCollection<InventoryTransactionLineSerial> Serials => _serials.AsReadOnly();
 
     private InventoryTransactionLine()
     {
@@ -35,6 +38,7 @@ public sealed class InventoryTransactionLine : Aggregate
         Guid? newQualityStatusRef,
         string? lotBatchNo,
         Guid? serialRef,
+        IReadOnlyCollection<(Guid? SerialRef, string SerialNo)>? serials,
         string? reasonCode)
     {
         if (inputQty <= 0)
@@ -57,6 +61,7 @@ public sealed class InventoryTransactionLine : Aggregate
         NewQualityStatusRef = newQualityStatusRef;
         LotBatchNo = Normalize(lotBatchNo);
         SerialRef = serialRef;
+        LoadSerials(serials);
         ReasonCode = Normalize(reasonCode);
     }
 
@@ -72,6 +77,7 @@ public sealed class InventoryTransactionLine : Aggregate
         Guid? newQualityStatusRef = null,
         string? lotBatchNo = null,
         Guid? serialRef = null,
+        IReadOnlyCollection<(Guid? SerialRef, string SerialNo)>? serials = null,
         string? reasonCode = null)
     {
         return new InventoryTransactionLine(
@@ -86,6 +92,7 @@ public sealed class InventoryTransactionLine : Aggregate
             newQualityStatusRef,
             lotBatchNo,
             serialRef,
+            serials,
             reasonCode);
     }
 
@@ -94,9 +101,36 @@ public sealed class InventoryTransactionLine : Aggregate
         StockDetailRef = stockDetailBusinessKey.Value;
     }
 
-    public void SetSerial(Guid serialRef)
+    public void AddSerial(Guid? serialRef, string serialNo)
     {
-        SerialRef = serialRef;
+        var normalizedSerialNo = Normalize(serialNo);
+        if (string.IsNullOrWhiteSpace(normalizedSerialNo))
+            throw new ArgumentException("Serial number is required.", nameof(serialNo));
+
+        if (_serials.Any(x => string.Equals(x.SerialNo, normalizedSerialNo, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        _serials.Add(InventoryTransactionLineSerial.Create(BusinessKey.Value, serialRef, normalizedSerialNo));
+
+        if (!SerialRef.HasValue && serialRef.HasValue)
+            SerialRef = serialRef;
+    }
+
+    public void ClearSerials()
+    {
+        _serials.Clear();
+        SerialRef = null;
+    }
+
+    private void LoadSerials(IReadOnlyCollection<(Guid? SerialRef, string SerialNo)>? serials)
+    {
+        if (serials is null || serials.Count == 0)
+            return;
+
+        foreach (var serial in serials)
+        {
+            AddSerial(serial.SerialRef, serial.SerialNo);
+        }
     }
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

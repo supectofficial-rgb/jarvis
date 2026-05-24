@@ -1763,6 +1763,46 @@ public sealed class ApiService : IApiService
         };
     }
 
+    public async Task<ApiResponse<SerialItemLookupModel?>> GetSerialItemBySerialNoAsync(string token, string serialNo, string? variantId = null)
+    {
+        var route = BuildRouteWithQuery(
+            $"{InventoryApiPrefix}/SerialItem/by-serial/{Uri.EscapeDataString(serialNo)}",
+            ("variantRef", variantId));
+
+        var result = await GetQueryAsync<GetSerialItemBySerialNoQueryResultDto>(route, token, "Loading serial item failed.");
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<SerialItemLookupModel?>
+            {
+                IsSuccess = false,
+                ErrorMessage = result.ErrorMessage
+            };
+        }
+
+        return new ApiResponse<SerialItemLookupModel?>
+        {
+            IsSuccess = true,
+            Data = result.Data is null
+                ? null
+                : new SerialItemLookupModel
+                {
+                    SerialItemBusinessKey = result.Data.Item.SerialItemBusinessKey.ToString("D"),
+                    SerialNo = result.Data.Item.SerialNo,
+                    VariantRef = result.Data.Item.VariantRef.ToString("D"),
+                    SellerRef = result.Data.Item.SellerRef.ToString("D"),
+                    WarehouseRef = result.Data.Item.WarehouseRef.ToString("D"),
+                    LocationRef = result.Data.Item.LocationRef.ToString("D"),
+                    StockDetailRef = result.Data.Item.StockDetailRef?.ToString("D"),
+                    QualityStatusRef = result.Data.Item.QualityStatusRef.ToString("D"),
+                    LotBatchNo = result.Data.Item.LotBatchNo,
+                    Status = result.Data.Item.Status,
+                    DateScannedIn = result.Data.Item.DateScannedIn,
+                    LastTransactionRef = result.Data.Item.LastTransactionRef?.ToString("D"),
+                    LastUpdatedAt = result.Data.Item.LastUpdatedAt
+                }
+        };
+    }
+
     public async Task<ApiResponse<List<SellerLookupItemModel>>> GetSellerLookupAsync(string token, bool includeInactive = true)
     {
         var route = BuildRouteWithQuery(
@@ -2894,6 +2934,11 @@ public sealed class ApiService : IApiService
     private sealed class GetAvailableSerialItemsQueryResultDto
     {
         public List<SerialItemLookupItemDto> Items { get; set; } = new();
+    }
+
+    private sealed class GetSerialItemBySerialNoQueryResultDto
+    {
+        public SerialItemLookupItemDto Item { get; set; } = new();
     }
 
     private sealed class SerialItemLookupItemDto

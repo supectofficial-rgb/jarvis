@@ -241,19 +241,6 @@
           "route": "/InventoryManagement/Documents/Return"
         },
         {
-          "itemId": "quality_change_documents",
-          "title": "تغییر کیفیت",
-          "icon": "simple-icon-refresh",
-          "isEnabled": true,
-          "roles": [
-            "SysAdmin",
-            "Admin",
-            "InventoryManager"
-          ],
-          "description": "ثبت و جستجوی اسناد تغییر کیفیت",
-          "route": "/InventoryManagement/Documents/QualityChange"
-        },
-        {
           "itemId": "conversion_documents",
           "title": "تبدیل",
           "icon": "simple-icon-reload",

@@ -208,6 +208,12 @@ public sealed class CreateInventoryDocumentForm
     [StringLength(120)]
     public string? ReasonCode { get; set; }
 
+    public string? ConversionVariantId { get; set; }
+
+    public string ConversionOperationType { get; set; } = "Assemble";
+
+    public decimal ConversionQuantity { get; set; } = 1m;
+
     public List<CreateInventoryDocumentLineForm> Lines { get; set; } = new();
 }
 

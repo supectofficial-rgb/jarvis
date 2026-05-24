@@ -9,5 +9,9 @@ public sealed class InventoryTransactionLineConfig : IEntityTypeConfiguration<In
     public void Configure(EntityTypeBuilder<InventoryTransactionLine> builder)
     {
         builder.ToTable("InventoryTransactionLines");
+
+        builder.HasMany(x => x.Serials)
+            .WithOne()
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
