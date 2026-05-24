@@ -58,6 +58,23 @@ public static class AuditableShadowProperties
                 continue;
             }
 
+            if (entityType.ClrType == typeof(User))
+            {
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<string>(CreatedByOrganizationBusinessKey).HasMaxLength(50);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<string>(ModifiedByOrganizationBusinessKey).HasMaxLength(50);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<string>(CreatedByUserId).HasMaxLength(50);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<string>(ModifiedByUserId).HasMaxLength(50);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<DateTime?>(CreatedDateTime);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<DateTime?>(ModifiedDateTime);
+                continue;
+            }
+
             modelBuilder.Entity(entityType.ClrType)
                         .Property<string>(CreatedByOrganizationBusinessKey).HasMaxLength(50);
             modelBuilder.Entity(entityType.ClrType)

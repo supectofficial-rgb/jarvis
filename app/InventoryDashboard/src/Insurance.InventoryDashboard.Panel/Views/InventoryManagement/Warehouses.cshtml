@@ -708,12 +708,12 @@
 
                 var html = await response.text();
                 var doc = new DOMParser().parseFromString(html, 'text/html');
-                var nextPanel = doc.querySelector('#warehouse-structure-panel');
+                var nextPanel = doc.querySelector('#inventory-management-root') || doc.querySelector('#warehouse-structure-panel');
                 if (!nextPanel) {
                     throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
                 }
 
-                panelElement.innerHTML = nextPanel.innerHTML;
+                panelElement.innerHTML = nextPanel.outerHTML;
                 refreshWidgets(panelElement);
             }
 

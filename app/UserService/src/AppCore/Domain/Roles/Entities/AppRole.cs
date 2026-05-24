@@ -4,10 +4,11 @@ using Insurance.UserService.AppCore.Domain.Permissions.Entities;
 using Insurance.UserService.AppCore.Domain.Roles.Enums;
 using Insurance.UserService.AppCore.Domain.Tenants.Entities;
 using Microsoft.AspNetCore.Identity;
+using OysterFx.AppCore.Domain.Aggregates;
 using OysterFx.AppCore.Domain.Exceptions;
 using OysterFx.AppCore.Domain.ValueObjects;
 
-public sealed class AppRole : IdentityRole<long>
+public sealed class AppRole : IdentityRole<long>, IAuditableEntity
 {
     public TenantId TenantId { get; private set; }
     public BusinessKey BusinessKey { get; private set; }
