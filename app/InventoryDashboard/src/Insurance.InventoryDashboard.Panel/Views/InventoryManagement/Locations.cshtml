@@ -27,6 +27,7 @@
     var selectedWarehouseName = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, Model.SelectedWarehouseId, StringComparison.OrdinalIgnoreCase))?.Name;
     var locationTypeOptions = new[] { "Bulk", "Pick", "Return", "Damage", "Quarantine" };
     var locationListUrl = Url.Action("LocationList", "InventoryManagement") ?? string.Empty;
+    var warehouseStructuresUrl = Url.Action("WarehouseStructures", "InventoryManagement") ?? string.Empty;
     var warehouseLabelMap = Model.WarehouseLookup
         .OrderBy(x => x.Code)
         .ToDictionary(x => x.WarehouseBusinessKey, x => $"{x.Code} - {x.Name}", StringComparer.OrdinalIgnoreCase);
@@ -111,7 +112,11 @@
                                     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
                                     <div class="form-group">
                                         <label>@UiText["inventory.warehouses.warehouse"]</label>
-                                        <select asp-for="LocationForm.WarehouseId" class="form-control js-search-select" data-placeholder="@UiText["inventory.warehouses.selectWarehouse"]" required>
+                                        <select asp-for="LocationForm.WarehouseId"
+                                                class="form-control js-search-select"
+                                                data-placeholder="@UiText["inventory.warehouses.selectWarehouse"]"
+                                                data-warehouse-structure-select
+                                                required>
                                             <option value="">@UiText["inventory.warehouses.selectWarehouse"]</option>
                                             @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
                                             {
@@ -162,6 +167,26 @@
                                         @(isLocationEditMode ? UiText["inventory.warehouses.updateLocation"] : UiText["inventory.warehouses.createLocationTitle"])
                                     </button>
                                 </form>
+
+                                <div class="border-top mt-4 pt-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h5 class="card-title mb-0">ساختار انبار</h5>
+                                            <div class="text-muted small">درخت ساختار انتخاب‌شده اینجا لود می‌شود و بعد از تغییر انبار به‌روز می‌شود.</div>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-secondary btn-xs" data-warehouse-structure-refresh>رفرش</button>
+                                    </div>
+                                    <div id="warehouse-structure-panel" class="p-0">
+                                        @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
+                                        {
+                                            <div class="alert alert-light mb-0">ابتدا یک انبار انتخاب کنید تا ساختار آن نمایش داده شود.</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="text-muted">در حال بارگذاری...</div>
+                                        }
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -174,12 +199,12 @@
                                     <span class="text-muted small"><span data-location-total-count>@Model.LocationTotalCount</span> رکورد</span>
                                 </div>
 
-                                @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
-                                {
-                                    <div class="alert alert-info" data-location-warehouse-empty-state>
-                                        ابتدا یک انبار انتخاب کنید تا لیست لوکیشن‌های همان انبار نمایش داده شود.
-                                    </div>
-                                }
+                        @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
+                        {
+                            <div class="alert alert-info" data-location-warehouse-empty-state>
+                                ابتدا یک انبار انتخاب کنید تا لیست لوکیشن‌های همان انبار نمایش داده شود.
+                            </div>
+                        }
 
                                 <div class="mb-3" data-location-list-alert hidden></div>
 
@@ -437,9 +462,64 @@
             var emptyStateAlert = document.querySelector('[data-location-warehouse-empty-state]');
             var alertBox = document.querySelector('[data-location-list-alert]');
             var pageInput = document.querySelector('[data-location-page-input]');
+            var structurePanel = document.getElementById('warehouse-structure-panel');
+            var structureSelect = document.querySelector('[data-warehouse-structure-select]');
+            var structureRefreshButton = document.querySelector('[data-warehouse-structure-refresh]');
 
             if (!listForm || !listBody || !pagination) {
                 return;
+            }
+
+            function refreshStructureWidgets(root) {
+                if (!window.appUi || !root) {
+                    return;
+                }
+
+                if (typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(root);
+                }
+
+                if (typeof window.appUi.initAutoSubmit === 'function') {
+                    window.appUi.initAutoSubmit(root);
+                }
+            }
+
+            async function loadStructurePanel(url) {
+                if (!url || !structurePanel) {
+                    return;
+                }
+
+                structurePanel.innerHTML = '<div class="text-muted">در حال بارگذاری...</div>';
+
+                var response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+
+                var html = await response.text();
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var nextPanel = doc.querySelector('#warehouse-structure-panel');
+                if (!nextPanel) {
+                    throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
+                }
+
+                structurePanel.innerHTML = nextPanel.innerHTML;
+                refreshStructureWidgets(structurePanel);
+            }
+
+            function getSelectedStructureUrl() {
+                var warehouseId = structureSelect ? structureSelect.value : '';
+                if (!warehouseId) {
+                    return '';
+                }
+
+                return @Html.Raw(JsonSerializer.Serialize(warehouseStructuresUrl)) + '?warehouseId=' + encodeURIComponent(warehouseId);
+            }
+
+            function refreshStructurePanel() {
+                return loadStructurePanel(getSelectedStructureUrl());
             }
 
             function escapeHtml(value) {
@@ -740,6 +820,33 @@
                     });
                 }
             }, true);
+
+            if (structureSelect) {
+                structureSelect.addEventListener('change', function () {
+                    refreshStructurePanel().catch(function (error) {
+                        if (structurePanel) {
+                            structurePanel.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                        }
+                    });
+                });
+            }
+
+            if (structureRefreshButton) {
+                structureRefreshButton.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    refreshStructurePanel().catch(function (error) {
+                        if (structurePanel) {
+                            structurePanel.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                        }
+                    });
+                });
+            }
+
+            if (structurePanel && structureSelect && structureSelect.value) {
+                refreshStructurePanel().catch(function () {
+                    // Keep the initial placeholder if the first load fails.
+                });
+            }
         })();
     </script>
 }

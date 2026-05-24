@@ -28,6 +28,7 @@
     var showWarehouses = !showLocations;
     var selectedWarehouseName = Model.SelectedWarehouseDetails?.Name
         ?? Model.Warehouses.FirstOrDefault(x => x.WarehouseBusinessKey == Model.SelectedWarehouseId)?.Name;
+    var warehouseStructuresUrl = Url.Action("WarehouseStructures", "InventoryManagement") ?? string.Empty;
     string WarehouseName(string? warehouseId)
     {
         if (string.IsNullOrWhiteSpace(warehouseId))
@@ -384,6 +385,12 @@
                                                 </td>
                                                 <td class="text-right">
                                                     <a class="btn btn-outline-primary btn-xs" asp-action="Warehouses" asp-route-warehouseId="@warehouse.WarehouseBusinessKey" data-ajax-target="#inventory-management-root">ویرایش</a>
+                                                    <button type="button"
+                                                            class="btn btn-outline-info btn-xs"
+                                                            data-open-warehouse-structure-modal
+                                                            data-warehouse-structure-url="@($"{warehouseStructuresUrl}?warehouseId={warehouse.WarehouseBusinessKey}")">
+                                                        ساختار
+                                                    </button>
                                                     <form asp-action="ActivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="warehouseId" value="@warehouse.WarehouseBusinessKey" />
@@ -629,4 +636,102 @@
         </div>
     </div>
 </main>
+
+<div class="modal fade" id="warehouse-structure-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-0">ساختار انبار</h5>
+                    <small class="text-muted">درخت ساختار و مقادیر انبار را بدون خروج از این صفحه مدیریت کنید.</small>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="warehouse-structure-panel" class="p-3">
+                    <div class="text-muted">در حال بارگذاری...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var modalElement = document.getElementById('warehouse-structure-modal');
+            var panelElement = document.getElementById('warehouse-structure-panel');
+
+            function showModal() {
+                if (!modalElement) {
+                    return;
+                }
+
+                if (window.jQuery && typeof window.jQuery(modalElement).modal === 'function') {
+                    window.jQuery(modalElement).modal('show');
+                } else {
+                    modalElement.classList.add('show');
+                    modalElement.style.display = 'block';
+                }
+            }
+
+            function refreshWidgets(root) {
+                if (!window.appUi || !root) {
+                    return;
+                }
+
+                if (typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(root);
+                }
+
+                if (typeof window.appUi.initAutoSubmit === 'function') {
+                    window.appUi.initAutoSubmit(root);
+                }
+            }
+
+            async function loadStructurePanel(url) {
+                if (!url || !panelElement) {
+                    return;
+                }
+
+                showModal();
+                panelElement.innerHTML = '<div class="text-muted">در حال بارگذاری...</div>';
+
+                var response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+
+                var html = await response.text();
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var nextPanel = doc.querySelector('#warehouse-structure-panel');
+                if (!nextPanel) {
+                    throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
+                }
+
+                panelElement.innerHTML = nextPanel.innerHTML;
+                refreshWidgets(panelElement);
+            }
+
+            document.addEventListener('click', function (event) {
+                var button = event.target && event.target.closest ? event.target.closest('[data-open-warehouse-structure-modal]') : null;
+                if (!(button instanceof HTMLButtonElement)) {
+                    return;
+                }
+
+                event.preventDefault();
+                loadStructurePanel(button.getAttribute('data-warehouse-structure-url') || '').catch(function (error) {
+                    if (panelElement) {
+                        panelElement.innerHTML = '<div class="alert alert-danger mb-0">' + (error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                    }
+                    showModal();
+                });
+            }, true);
+        })();
+    </script>
+}
 

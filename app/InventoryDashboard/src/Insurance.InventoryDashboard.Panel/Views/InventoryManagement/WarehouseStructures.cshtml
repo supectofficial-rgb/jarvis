@@ -35,6 +35,7 @@
     }
 
     var warehouseStructuresUrl = Url.Action("WarehouseStructures", "InventoryManagement") ?? string.Empty;
+    var saveWarehouseStructureValueUrl = Url.Action("SaveWarehouseStructureValue", "InventoryManagement") ?? string.Empty;
 
     IEnumerable<Insurance.InventoryDashboard.Panel.Models.LocationStructureTreeItemModel> Flatten(IEnumerable<Insurance.InventoryDashboard.Panel.Models.LocationStructureTreeItemModel> nodes)
     {
@@ -53,6 +54,8 @@
         var padding = depth * 20;
         var childNodes = node.Children.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
         var values = node.Values.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name).ToList();
+        var valueFormId = $"structure-value-form-{node.LocationStructureBusinessKey}";
+        var valueListId = $"structure-values-{node.LocationStructureBusinessKey}";
         var builder = new HtmlContentBuilder();
 
         builder.AppendHtml($"<div class=\"border rounded mb-2 p-2\" style=\"margin-right:{padding}px\">");
@@ -62,10 +65,38 @@
         builder.AppendHtml($"<div class=\"small text-muted\">{HtmlEncoder.Default.Encode(WarehouseLabel(node.WarehouseRef))}</div>");
         builder.AppendHtml("</div>");
         builder.AppendHtml("<div class=\"btn-group btn-group-sm\">");
-        builder.AppendHtml($"<a class=\"btn btn-outline-primary\" href=\"{HtmlEncoder.Default.Encode($"{warehouseStructuresUrl}?warehouseId={Model.SelectedWarehouseId}&structureId={node.LocationStructureBusinessKey}")}\">فرزند</a>");
-        builder.AppendHtml($"<a class=\"btn btn-outline-success\" href=\"{HtmlEncoder.Default.Encode($"{warehouseStructuresUrl}?warehouseId={Model.SelectedWarehouseId}&structureId={node.LocationStructureBusinessKey}")}\">مقدار</a>");
+        builder.AppendHtml($"<a class=\"btn btn-outline-primary\" href=\"{HtmlEncoder.Default.Encode($"{warehouseStructuresUrl}?warehouseId={Model.SelectedWarehouseId}&structureId={node.LocationStructureBusinessKey}")}\" data-ajax-target=\"#warehouse-structure-panel\">فرزند</a>");
+        builder.AppendHtml($"<button type=\"button\" class=\"btn btn-outline-success\" data-structure-value-toggle=\"{HtmlEncoder.Default.Encode(valueFormId)}\">+ مقدار</button>");
         builder.AppendHtml("</div>");
         builder.AppendHtml("</div>");
+        builder.AppendHtml("</div>");
+
+        builder.AppendHtml($"<div class=\"mt-2 d-none\" id=\"{HtmlEncoder.Default.Encode(valueFormId)}\">");
+        builder.AppendHtml($"<form action=\"{HtmlEncoder.Default.Encode($"{saveWarehouseStructureValueUrl}?warehouseId={Model.SelectedWarehouseId}")}\" method=\"post\" data-loading-form data-dirty-watch data-ajax-target=\"#warehouse-structure-panel\" class=\"border rounded bg-light p-2\">");
+        builder.AppendHtml(Html.AntiForgeryToken());
+        builder.AppendHtml($"<input type=\"hidden\" name=\"StructureValueForm.LocationStructureValueBusinessKey\" value=\"\" />");
+        builder.AppendHtml($"<input type=\"hidden\" name=\"StructureValueForm.StructureRef\" value=\"{HtmlEncoder.Default.Encode(node.LocationStructureBusinessKey)}\" />");
+        builder.AppendHtml($"<input type=\"hidden\" name=\"StructureValueForm.Name\" value=\"\" />");
+        builder.AppendHtml("<div class=\"form-row align-items-end\">");
+        builder.AppendHtml("<div class=\"form-group col-md-8 mb-2 mb-md-0\">");
+        builder.AppendHtml($"<label class=\"small mb-1\" for=\"{HtmlEncoder.Default.Encode($"{valueFormId}-code")}\">مقدار جدید</label>");
+        builder.AppendHtml($"<input id=\"{HtmlEncoder.Default.Encode($"{valueFormId}-code")}\" name=\"StructureValueForm.Code\" class=\"form-control form-control-sm text-monospace\" maxlength=\"50\" placeholder=\"مقدار را وارد کنید\" list=\"{HtmlEncoder.Default.Encode(valueListId)}\" />");
+        builder.AppendHtml("</div>");
+        builder.AppendHtml("<div class=\"form-group col-md-4 mb-2 mb-md-0\">");
+        builder.AppendHtml("<button type=\"submit\" class=\"btn btn-success btn-sm btn-block\">ثبت مقدار</button>");
+        builder.AppendHtml("</div>");
+        builder.AppendHtml("</div>");
+        builder.AppendHtml("<div class=\"small text-muted mt-2\">اگر همین مقدار قبلاً وجود داشته باشد، دوباره ساخته نمی‌شود و از همان آیتم قبلی استفاده می‌شود.</div>");
+        builder.AppendHtml("</form>");
+        if (values.Count > 0)
+        {
+            builder.AppendHtml($"<datalist id=\"{HtmlEncoder.Default.Encode(valueListId)}\">");
+            foreach (var value in values)
+            {
+                builder.AppendHtml($"<option value=\"{HtmlEncoder.Default.Encode(value.Code)}\">{HtmlEncoder.Default.Encode(value.Name)}</option>");
+            }
+            builder.AppendHtml("</datalist>");
+        }
         builder.AppendHtml("</div>");
 
         if (values.Count > 0)
@@ -73,7 +104,7 @@
             builder.AppendHtml("<div class=\"mt-2 small\">");
             foreach (var value in values)
             {
-                builder.AppendHtml($"<span class=\"badge badge-light border mr-1 mb-1\">{HtmlEncoder.Default.Encode(value.Code)} - {HtmlEncoder.Default.Encode(value.Name)}</span>");
+                builder.AppendHtml($"<button type=\"button\" class=\"badge badge-light border mr-1 mb-1\" data-structure-value-fill=\"{HtmlEncoder.Default.Encode(valueFormId)}\" data-structure-value-code=\"{HtmlEncoder.Default.Encode(value.Code)}\">{HtmlEncoder.Default.Encode(value.Code)} - {HtmlEncoder.Default.Encode(value.Name)}</button>");
             }
             builder.AppendHtml("</div>");
         }
@@ -122,7 +153,7 @@
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title">انتخاب انبار</h5>
-                        <form method="get" asp-action="WarehouseStructures" class="form-row">
+                        <form method="get" asp-action="WarehouseStructures" class="form-row" data-loading-form data-ajax-target="#warehouse-structure-panel">
                             <div class="form-group col-12">
                                 <label>انبار</label>
                                 <select name="warehouseId" class="form-control js-search-select" required>
@@ -150,7 +181,7 @@
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title">افزودن نود ساختار</h5>
-                        <form asp-action="SaveWarehouseStructureNode" method="post" data-loading-form data-dirty-watch>
+                        <form asp-action="SaveWarehouseStructureNode" method="post" data-loading-form data-dirty-watch data-ajax-target="#warehouse-structure-panel">
                             @Html.AntiForgeryToken()
                             <input asp-for="StructureNodeForm.LocationStructureBusinessKey" type="hidden" />
                             <div asp-validation-summary="All" class="text-danger small mb-2"></div>
@@ -192,36 +223,10 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">افزودن مقدار</h5>
-                        <form asp-action="SaveWarehouseStructureValue" method="post" data-loading-form data-dirty-watch>
-                            @Html.AntiForgeryToken()
-                            <input asp-for="StructureValueForm.LocationStructureValueBusinessKey" type="hidden" />
-                            <div asp-validation-summary="All" class="text-danger small mb-2"></div>
-                            <div class="form-group">
-                                <label>نود</label>
-                                <select asp-for="StructureValueForm.StructureRef" class="form-control js-search-select" required>
-                                    <option value="">انتخاب نود</option>
-                                    @foreach (var structure in Flatten(Model.Structures))
-                                    {
-                                        <option value="@structure.LocationStructureBusinessKey" selected="@(string.Equals(structure.LocationStructureBusinessKey, Model.SelectedStructureId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@structure.Code - @structure.Name</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>کد</label>
-                                <input asp-for="StructureValueForm.Code" class="form-control text-monospace" required maxlength="50" />
-                            </div>
-                            <div class="form-group">
-                                <label>نام</label>
-                                <input asp-for="StructureValueForm.Name" class="form-control" required maxlength="160" />
-                            </div>
-                            <div class="form-group">
-                                <label>ترتیب نمایش</label>
-                                <input asp-for="StructureValueForm.DisplayOrder" class="form-control" type="number" min="0" />
-                            </div>
-                            <button class="btn btn-primary" type="submit" @(Can("Inventory.Warehouse.Create", "Inventory.Warehouse.Update", "Warehouse.Create", "Warehouse.Update") ? null : "disabled")>ذخیره مقدار</button>
-                        </form>
+                    <div class="card-body" id="warehouse-structure-panel">
+                        <h5 class="card-title">مقادیر ساختار</h5>
+                        <p class="text-muted mb-2">برای هر نود از دکمه <strong>+ مقدار</strong> همان نود استفاده کنید. مقدارهای تکراری دوباره ساخته نمی‌شوند و از آیتم قبلی استفاده می‌شوند.</p>
+                        <div class="small text-muted">مقدارهای هر نود پایین همان نود نمایش داده می‌شوند و با کلیک روی آن‌ها می‌توانی مقدار را برای استفاده دوباره در فرم inline بگذاری.</div>
                     </div>
                 </div>
             </div>
@@ -255,3 +260,67 @@
         </div>
     </div>
 </main>
+<script data-ajax-reinit>
+    (function () {
+        if (window.__warehouseStructureInlineBindingAttached) {
+            return;
+        }
+
+        window.__warehouseStructureInlineBindingAttached = true;
+
+        function getInlineForm(formId) {
+            if (!formId) {
+                return null;
+            }
+
+            return document.getElementById(formId);
+        }
+
+        function getCodeInput(form) {
+            return form ? form.querySelector('input[name="StructureValueForm.Code"]') : null;
+        }
+
+        function getNameInput(form) {
+            return form ? form.querySelector('input[name="StructureValueForm.Name"]') : null;
+        }
+
+        function openInlineForm(formId, presetValue) {
+            var form = getInlineForm(formId);
+            if (!form) {
+                return;
+            }
+
+            form.classList.remove('d-none');
+            var codeInput = getCodeInput(form);
+            if (codeInput && typeof presetValue === 'string') {
+                codeInput.value = presetValue;
+                var nameInput = getNameInput(form);
+                if (nameInput) {
+                    nameInput.value = presetValue;
+                }
+                codeInput.focus();
+                codeInput.select();
+            } else if (codeInput) {
+                codeInput.focus();
+            }
+        }
+
+        document.addEventListener('click', function (event) {
+            var toggleButton = event.target && event.target.closest ? event.target.closest('[data-structure-value-toggle]') : null;
+            if (toggleButton) {
+                event.preventDefault();
+                openInlineForm(toggleButton.getAttribute('data-structure-value-toggle'));
+                return;
+            }
+
+            var fillButton = event.target && event.target.closest ? event.target.closest('[data-structure-value-fill]') : null;
+            if (fillButton) {
+                event.preventDefault();
+                openInlineForm(
+                    fillButton.getAttribute('data-structure-value-fill'),
+                    fillButton.getAttribute('data-structure-value-code') || ''
+                );
+            }
+        }, true);
+    })();
+</script>

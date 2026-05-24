@@ -1,5 +1,6 @@
 ﻿namespace Insurance.UserService.Infra.Persistence.RDB.Commands.Extensions;
 
+using Insurance.UserService.AppCore.Domain.Organizations.Entities;
 using Insurance.UserService.AppCore.Domain.Users.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -8,6 +9,22 @@ using OysterFx.Infra.Auth.UserServices;
 
 public static class AuditableShadowProperties
 {
+    public static readonly Func<object, string> EFPropertyCreatedByOrganizationBusinessKey =
+                                    entity => EF.Property<string>(entity, CreatedByOrganizationBusinessKey);
+    public static readonly string CreatedByOrganizationBusinessKey = nameof(CreatedByOrganizationBusinessKey);
+
+    public static readonly Func<object, string> EFPropertyModifiedByOrganizationBusinessKey =
+                                    entity => EF.Property<string>(entity, ModifiedByOrganizationBusinessKey);
+    public static readonly string ModifiedByOrganizationBusinessKey = nameof(ModifiedByOrganizationBusinessKey);
+
+    public static readonly Func<object, string> EFPropertyCreatedByPersonaBusinessKey =
+                                    entity => EF.Property<string>(entity, CreatedByPersonaBusinessKey);
+    public static readonly string CreatedByPersonaBusinessKey = nameof(CreatedByPersonaBusinessKey);
+
+    public static readonly Func<object, string> EFPropertyModifiedByPersonaBusinessKey =
+                                    entity => EF.Property<string>(entity, ModifiedByPersonaBusinessKey);
+    public static readonly string ModifiedByPersonaBusinessKey = nameof(ModifiedByPersonaBusinessKey);
+
     public static readonly Func<object, string> EFPropertyCreatedByUserId =
                                     entity => EF.Property<string>(entity, CreatedByUserId);
     public static readonly string CreatedByUserId = nameof(CreatedByUserId);
@@ -24,26 +41,20 @@ public static class AuditableShadowProperties
                                     entity => EF.Property<DateTime?>(entity, ModifiedDateTime);
     public static readonly string ModifiedDateTime = nameof(ModifiedDateTime);
 
-    public static readonly string CreatedByOrganizationBusinessKey = nameof(CreatedByOrganizationBusinessKey);
-    public static readonly string ModifiedByOrganizationBusinessKey = nameof(ModifiedByOrganizationBusinessKey);
-    public static readonly string CreatedByPersonaBusinessKey = nameof(CreatedByPersonaBusinessKey);
-    public static readonly string ModifiedByPersonaBusinessKey = nameof(ModifiedByPersonaBusinessKey);
-
     public static void AddAuditableShadowProperties(this ModelBuilder modelBuilder)
     {
         foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(c => typeof(IAuditableEntity).IsAssignableFrom(c.ClrType)))
         {
-            modelBuilder.Entity(entityType.ClrType)
-                        .Property<string>(CreatedByUserId).HasMaxLength(50);
-            modelBuilder.Entity(entityType.ClrType)
-                        .Property<string>(ModifiedByUserId).HasMaxLength(50);
-            modelBuilder.Entity(entityType.ClrType)
-                        .Property<DateTime?>(CreatedDateTime);
-            modelBuilder.Entity(entityType.ClrType)
-                        .Property<DateTime?>(ModifiedDateTime);
-
-            if (entityType.ClrType == typeof(User))
+            if (entityType.ClrType == typeof(Organization))
             {
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<string>(CreatedByUserId).HasMaxLength(50);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<string>(ModifiedByUserId).HasMaxLength(50);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<DateTime?>(CreatedDateTime);
+                modelBuilder.Entity(entityType.ClrType)
+                            .Property<DateTime?>(ModifiedDateTime);
                 continue;
             }
 
@@ -55,6 +66,14 @@ public static class AuditableShadowProperties
                         .Property<string>(CreatedByPersonaBusinessKey).HasMaxLength(50);
             modelBuilder.Entity(entityType.ClrType)
                         .Property<string>(ModifiedByPersonaBusinessKey).HasMaxLength(50);
+            modelBuilder.Entity(entityType.ClrType)
+                        .Property<string>(CreatedByUserId).HasMaxLength(50);
+            modelBuilder.Entity(entityType.ClrType)
+                        .Property<string>(ModifiedByUserId).HasMaxLength(50);
+            modelBuilder.Entity(entityType.ClrType)
+                        .Property<DateTime?>(CreatedDateTime);
+            modelBuilder.Entity(entityType.ClrType)
+                        .Property<DateTime?>(ModifiedDateTime);
         }
     }
 
@@ -65,35 +84,34 @@ public static class AuditableShadowProperties
 
         var now = DateTime.UtcNow;
         var userId = userInfoService.UserIdOrDefault();
-
-        var organizationBusinessKey =
-            userInfoService.GetClaim("activeOrganizationBusinessKey")
-            ?? userInfoService.GetClaim("currentOrganizationKey");
-
-        var personaBusinessKey =
-            userInfoService.GetClaim("activePersonaBusinessKey")
-            ?? userInfoService.GetClaim("activeMembershipBusinessKey")
-            ?? userInfoService.GetClaim("currentMembershipKey")
-            ?? userInfoService.GetClaim("personaKey");
+        var organizationBusinessKey = userInfoService.GetClaim("activeOrganizationBusinessKey")
+               ?? userInfoService.GetClaim("currentOrganizationKey")
+               ?? userInfoService.GetClaim("organizationBusinessKey")
+               ?? userInfoService.GetClaim("OrganizationBusinessKey")
+               ?? userInfoService.GetClaim("activeOrganizationId")
+               ?? userInfoService.GetClaim("organizationId")
+               ?? userInfoService.GetClaim("OrganizationId");
+        var personaBusinessKey = userInfoService.GetClaim("activePersonaBusinessKey")
+               ?? userInfoService.GetClaim("currentPersonaBusinessKey")
+               ?? userInfoService.GetClaim("personaBusinessKey")
+               ?? userInfoService.GetClaim("PersonaBusinessKey");
 
         var modifiedEntries = changeTracker.Entries<IAuditableEntity>().Where(x => x.State == EntityState.Modified);
         foreach (var modifiedEntry in modifiedEntries)
         {
             modifiedEntry.Property(ModifiedDateTime).CurrentValue = now;
-            modifiedEntry.Property(ModifiedByUserId).CurrentValue = userId;
-
             TrySetShadowProperty(modifiedEntry, ModifiedByOrganizationBusinessKey, organizationBusinessKey);
             TrySetShadowProperty(modifiedEntry, ModifiedByPersonaBusinessKey, personaBusinessKey);
+            modifiedEntry.Property(ModifiedByUserId).CurrentValue = userId;
         }
 
         var addedEntries = changeTracker.Entries<IAuditableEntity>().Where(x => x.State == EntityState.Added);
         foreach (var addedEntry in addedEntries)
         {
             addedEntry.Property(CreatedDateTime).CurrentValue = now;
-            addedEntry.Property(CreatedByUserId).CurrentValue = userId;
-
             TrySetShadowProperty(addedEntry, CreatedByOrganizationBusinessKey, organizationBusinessKey);
             TrySetShadowProperty(addedEntry, CreatedByPersonaBusinessKey, personaBusinessKey);
+            addedEntry.Property(CreatedByUserId).CurrentValue = userId;
         }
     }
 

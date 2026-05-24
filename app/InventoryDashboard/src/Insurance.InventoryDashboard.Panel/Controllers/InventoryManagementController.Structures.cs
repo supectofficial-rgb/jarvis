@@ -47,10 +47,34 @@ public sealed partial class InventoryManagementController
             return RedirectToAction("Login", "Auth");
         }
 
+        form.Code = form.Code?.Trim() ?? string.Empty;
+        form.Name = form.Name?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(form.Name) && !string.IsNullOrWhiteSpace(form.Code))
+        {
+            form.Name = form.Code;
+        }
+
+        if (string.IsNullOrWhiteSpace(form.Code) && !string.IsNullOrWhiteSpace(form.Name))
+        {
+            form.Code = form.Name;
+        }
+
         if (!TryValidateModel(form))
         {
             TempData["CatalogError"] = ExtractModelError(ModelState);
             return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, tab = "nodes" });
+        }
+
+        if (string.IsNullOrWhiteSpace(form.LocationStructureValueBusinessKey))
+        {
+            var existingValuesResult = await _apiService.GetLocationStructureValuesAsync(form.StructureRef, token, includeInactive: true);
+            var existingValue = existingValuesResult.Data?.FirstOrDefault(x => string.Equals(x.Code?.Trim(), form.Code, StringComparison.OrdinalIgnoreCase));
+            if (existingValue is not null)
+            {
+                TempData["CatalogSuccess"] = "مقدار انتخاب‌شده از قبل وجود داشت و دوباره استفاده شد.";
+                return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, tab = "nodes" });
+            }
         }
 
         var result = string.IsNullOrWhiteSpace(form.LocationStructureValueBusinessKey)
@@ -112,7 +136,7 @@ public sealed partial class InventoryManagementController
             },
             StructureValueForm = new LocationStructureValueForm
             {
-                StructureRef = structureId ?? string.Empty
+                StructureRef = structureId ?? string.Empty,
             }
         };
 

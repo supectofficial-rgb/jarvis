@@ -78,11 +78,22 @@ public sealed class LocationStructureQueryRepository : QueryRepository<Inventory
         };
     }
 
-    public async Task<GetLocationStructureValuesQueryResult?> GetValuesAsync(Guid structureRef, bool includeInactive = false)
+    public async Task<GetLocationStructureValuesQueryResult?> GetValuesAsync(Guid structureRef, bool includeInactive = false, string? searchTerm = null)
     {
-        var items = await _dbContext.Set<LocationStructureValueReadModel>()
+        var normalizedSearchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm.Trim();
+
+        var query = _dbContext.Set<LocationStructureValueReadModel>()
             .Where(x => x.StructureRef == structureRef)
-            .Where(x => includeInactive || x.IsActive)
+            .Where(x => includeInactive || x.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearchTerm))
+        {
+            query = query.Where(x =>
+                EF.Functions.ILike(x.Code, $"%{normalizedSearchTerm}%")
+                || EF.Functions.ILike(x.Name, $"%{normalizedSearchTerm}%"));
+        }
+
+        var items = await query
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
             .Select(x => new LocationStructureValueItem

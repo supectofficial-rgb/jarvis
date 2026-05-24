@@ -7,5 +7,5 @@ using OysterFx.AppCore.Shared.Queries;
 public interface ILocationStructureQueryRepository : IQueryRepository
 {
     Task<GetWarehouseLocationStructureTreeQueryResult?> GetTreeAsync(Guid warehouseRef, bool includeInactive = false);
-    Task<GetLocationStructureValuesQueryResult?> GetValuesAsync(Guid structureRef, bool includeInactive = false);
+    Task<GetLocationStructureValuesQueryResult?> GetValuesAsync(Guid structureRef, bool includeInactive = false, string? searchTerm = null);
 }
