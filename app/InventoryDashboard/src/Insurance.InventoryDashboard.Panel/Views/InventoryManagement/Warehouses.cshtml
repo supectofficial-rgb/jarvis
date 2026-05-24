@@ -28,7 +28,7 @@
     var showWarehouses = !showLocations;
     var selectedWarehouseName = Model.SelectedWarehouseDetails?.Name
         ?? Model.Warehouses.FirstOrDefault(x => x.WarehouseBusinessKey == Model.SelectedWarehouseId)?.Name;
-    var warehouseStructuresUrl = Url.Action("WarehouseStructures", "InventoryManagement") ?? string.Empty;
+    var warehouseStructureTreeUrl = Url.Action("WarehouseStructureTree", "InventoryManagement") ?? string.Empty;
     string WarehouseName(string? warehouseId)
     {
         if (string.IsNullOrWhiteSpace(warehouseId))
@@ -373,7 +373,8 @@
                                                     <button type="button"
                                                             class="btn btn-outline-info btn-xs"
                                                             data-open-warehouse-structure-modal
-                                                            data-warehouse-structure-url="@($"{warehouseStructuresUrl}?warehouseId={warehouse.WarehouseBusinessKey}")">
+                                                            data-warehouse-structure-url="@($"{warehouseStructureTreeUrl}?warehouseId={warehouse.WarehouseBusinessKey}")"
+                                                            data-warehouse-label="@($"{warehouse.Code} - {warehouse.Name}")">
                                                         ساختار
                                                     </button>
                                                     <form asp-action="ActivateWarehouse" method="post" class="d-inline inventory-status-action" data-loading-form data-ajax-target="#inventory-management-root">
@@ -676,7 +677,71 @@
                 }
             }
 
-            async function loadStructurePanel(url) {
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#39;');
+            }
+
+            function renderTreeNode(node, depth) {
+                var children = Array.isArray(node.children) ? node.children : [];
+                var padding = depth * 18;
+
+                var html = '';
+                html += '<div class="border rounded mb-2 p-2" style="margin-right:' + padding + 'px">';
+                html += '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">';
+                html += '<div>';
+                html += '<div><strong class="text-monospace">' + escapeHtml(node.code) + '</strong> - ' + escapeHtml(node.name) + '</div>';
+                html += '<div class="small text-muted">' + escapeHtml(node.warehouseRef) + '</div>';
+                html += '<div class="mt-1"><span class="badge badge-pill ' + (node.isActive ? 'badge-primary' : 'badge-secondary') + '">' + (node.isActive ? 'فعال' : 'غیرفعال') + '</span></div>';
+                html += '</div>';
+                html += '</div>';
+
+                for (var i = 0; i < children.length; i++) {
+                    html += renderTreeNode(children[i], depth + 1);
+                }
+
+                html += '</div>';
+                return html;
+            }
+
+            function renderStructureTree(payload, warehouseLabel) {
+                if (!panelElement) {
+                    return;
+                }
+
+                var items = Array.isArray(payload && payload.items) ? payload.items : [];
+                var warehouseId = (payload && payload.warehouseId) || '';
+                var html = '';
+                html += '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">';
+                html += '<div>';
+                html += '<h5 class="mb-0">ساختار انبار</h5>';
+                html += '<div class="text-muted small">این نمای درختی فقط برای مشاهده و انتخاب سریع بارگذاری شده است.</div>';
+                if (warehouseLabel) {
+                    html += '<div class="small text-muted">انبار: <strong>' + escapeHtml(warehouseLabel) + '</strong></div>';
+                }
+                html += '</div>';
+                html += '</div>';
+
+                if (items.length === 0) {
+                    html += '<div class="alert alert-info mb-0">برای این انبار ساختاری ثبت نشده است.</div>';
+                    panelElement.innerHTML = html;
+                    refreshWidgets(panelElement);
+                    return;
+                }
+
+                for (var i = 0; i < items.length; i++) {
+                    html += renderTreeNode(items[i], 0);
+                }
+
+                panelElement.innerHTML = html;
+                refreshWidgets(panelElement);
+            }
+
+            async function loadStructurePanel(url, warehouseLabel) {
                 if (!url || !panelElement) {
                     return;
                 }
@@ -687,19 +752,16 @@
                 var response = await fetch(url, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
+                        'Accept': 'application/json'
                     }
                 });
 
-                var html = await response.text();
-                var doc = new DOMParser().parseFromString(html, 'text/html');
-                var nextPanel = doc.querySelector('#warehouse-structure-content') || doc.querySelector('#inventory-management-root') || doc.querySelector('#warehouse-structure-panel');
-                if (!nextPanel) {
-                    throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'بارگذاری ساختار انبار با خطا مواجه شد.');
                 }
 
-                panelElement.innerHTML = nextPanel.outerHTML;
-                refreshWidgets(panelElement);
+                renderStructureTree(payload, warehouseLabel || payload.warehouseLabel || '');
             }
 
             document.addEventListener('click', function (event) {
@@ -709,7 +771,9 @@
                 }
 
                 event.preventDefault();
-                loadStructurePanel(button.getAttribute('data-warehouse-structure-url') || '').catch(function (error) {
+                var url = button.getAttribute('data-warehouse-structure-url') || '';
+                var label = button.getAttribute('data-warehouse-label') || '';
+                loadStructurePanel(url, label).catch(function (error) {
                     if (panelElement) {
                         panelElement.innerHTML = '<div class="alert alert-danger mb-0">' + (error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
                     }

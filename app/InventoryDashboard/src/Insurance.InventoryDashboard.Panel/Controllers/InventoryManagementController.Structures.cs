@@ -40,6 +40,7 @@ public sealed partial class InventoryManagementController
         {
             isSuccess = result.IsSuccess,
             errorMessage = result.ErrorMessage,
+            warehouseId = warehouseId.Trim(),
             items = result.Data ?? new List<LocationStructureTreeItemModel>()
         });
     }
