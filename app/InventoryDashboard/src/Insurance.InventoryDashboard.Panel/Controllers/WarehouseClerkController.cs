@@ -94,6 +94,7 @@ public sealed class WarehouseClerkController : Controller
                     new WarehouseClerkActionCard { Title = "حواله", Description = "ثبت و بررسی حواله‌های خروج/ورود", Route = Url.Action("IssueDocuments", "InventoryManagement"), Icon = "simple-icon-logout" },
                     new WarehouseClerkActionCard { Title = "انتقال", Description = "ثبت اسناد انتقال بین لوکیشن‌ها", Route = Url.Action("TransferDocuments", "InventoryManagement"), Icon = "simple-icon-shuffle" },
                     new WarehouseClerkActionCard { Title = "برگشت", Description = "ثبت کالای برگشتی به انبار", Route = Url.Action("ReturnDocuments", "InventoryManagement"), Icon = "simple-icon-action-undo" },
+                    // Small no-op touch to keep the dashboard image rebuild path explicit.
                     new WarehouseClerkActionCard { Title = "تبدیل", Description = "ورود به جریان سند تبدیل", Route = Url.Action("ConversionDocuments", "InventoryManagement"), Icon = "simple-icon-reload" }
                 ],
                 [

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.ConfigureServices().ConfigurePipeline();
 
+// Intentional no-op marker so API image rebuilds are easy to detect in source diffs.
 // Inventory API bootstrap intentionally stays thin; service wiring lives in Hosting.cs.
 // Deployment marker: inventory API image rebuild trigger.
 using (var scope = app.Services.CreateScope())

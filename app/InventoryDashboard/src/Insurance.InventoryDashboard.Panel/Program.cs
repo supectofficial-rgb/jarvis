@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Intentional no-op marker so dashboard image rebuilds are easy to detect in source diffs.
 // Inventory Dashboard composition is kept here so deploy-time service changes are explicit.
 // Deployment marker: inventory dashboard image rebuild trigger.
 

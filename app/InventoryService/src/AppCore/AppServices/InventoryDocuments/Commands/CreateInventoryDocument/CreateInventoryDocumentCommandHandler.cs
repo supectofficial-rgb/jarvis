@@ -28,6 +28,7 @@ public class CreateInventoryDocumentCommandHandler
         if (await _documentRepository.ExistsByDocumentNoAsync(documentNo))
             return Fail($"Document number '{documentNo}' already exists.");
 
+        // Small no-op touch to keep the service image rebuild path explicit.
         var document = InventoryDocument.Create(
             documentNo,
             documentType,
