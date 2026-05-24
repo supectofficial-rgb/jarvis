@@ -45,13 +45,14 @@ public class UpdateLocationCommandHandler : CommandHandler<UpdateLocationCommand
             aggregate.ChangeWarehouse(command.WarehouseRef);
             aggregate.ChangeCode(normalizedCode);
             aggregate.ChangeType(locationType);
-            aggregate.UpdateCoordinates(command.Aisle, command.Rack, command.Shelf, command.Bin);
+            aggregate.UpdateCoordinates(null, null, null, null);
 
             if (command.IsActive)
                 aggregate.Activate();
             else
                 aggregate.Deactivate();
 
+            await _repository.ReplaceStructureSelectionsAsync(aggregate.BusinessKey.Value, command.StructureSelections);
             await _repository.CommitAsync();
 
             return Ok(new UpdateLocationCommandResult

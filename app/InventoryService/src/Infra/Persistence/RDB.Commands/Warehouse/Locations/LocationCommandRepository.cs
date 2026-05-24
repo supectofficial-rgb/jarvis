@@ -29,4 +29,33 @@ public class LocationCommandRepository : CommandRepository<Location, InventorySe
 
         return query.AnyAsync();
     }
+
+    public async Task ReplaceStructureSelectionsAsync(Guid locationBusinessKey, IReadOnlyCollection<LocationStructureSelectionItem> selections)
+    {
+        var existingSelections = await _dbContext.Set<LocationStructureSelection>()
+            .Where(x => x.LocationRef == locationBusinessKey)
+            .ToListAsync();
+
+        if (existingSelections.Count > 0)
+        {
+            _dbContext.RemoveRange(existingSelections);
+        }
+
+        var normalizedSelections = (selections ?? Array.Empty<LocationStructureSelectionItem>())
+            .Where(x => x.StructureRef != Guid.Empty && x.StructureValueRef != Guid.Empty)
+            .GroupBy(x => x.StructureRef)
+            .Select(x => x.Last())
+            .ToList();
+
+        if (normalizedSelections.Count == 0)
+        {
+            return;
+        }
+
+        var aggregates = normalizedSelections
+            .Select(x => LocationStructureSelection.Create(locationBusinessKey, x.StructureRef, x.StructureValueRef))
+            .ToList();
+
+        await _dbContext.Set<LocationStructureSelection>().AddRangeAsync(aggregates);
+    }
 }

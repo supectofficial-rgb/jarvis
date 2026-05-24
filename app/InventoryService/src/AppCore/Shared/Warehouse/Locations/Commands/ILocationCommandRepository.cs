@@ -8,4 +8,6 @@ public interface ILocationCommandRepository : ICommandRepository<Location, long>
     Task<Location?> GetByBusinessKeyAsync(Guid locationBusinessKey);
 
     Task<bool> ExistsByCodeAsync(string locationCode, Guid? exceptBusinessKey = null);
+
+    Task ReplaceStructureSelectionsAsync(Guid locationBusinessKey, IReadOnlyCollection<LocationStructureSelectionItem> selections);
 }

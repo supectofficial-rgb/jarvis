@@ -1337,6 +1337,45 @@ public sealed class ApiService : IApiService
         return new ApiResponse<WarehouseWithLocationsModel> { IsSuccess = true, Data = result.Data?.Item };
     }
 
+    public async Task<ApiResponse<LocationDetailModel>> GetLocationByBusinessKeyAsync(string locationId, string token)
+    {
+        var result = await GetQueryAsync<LocationDetailQueryResultDto>(
+            $"{InventoryApiPrefix}/Location/{locationId}",
+            token,
+            "Loading location details failed.");
+
+        if (!result.IsSuccess)
+        {
+            return new ApiResponse<LocationDetailModel> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
+        }
+
+        if (result.Data?.Item is null)
+        {
+            return new ApiResponse<LocationDetailModel> { IsSuccess = false, ErrorMessage = "Location details were not found." };
+        }
+
+        var item = result.Data.Item;
+        return new ApiResponse<LocationDetailModel>
+        {
+            IsSuccess = true,
+            Data = new LocationDetailModel
+            {
+                LocationBusinessKey = item.LocationBusinessKey.ToString("D"),
+                WarehouseId = item.WarehouseRef.ToString("D"),
+                LocationCode = item.LocationCode,
+                LocationType = item.LocationType,
+                IsActive = item.IsActive,
+                StructureSelections = item.StructureSelections
+                    .Select(x => new LocationStructureSelectionForm
+                    {
+                        StructureRef = x.StructureRef.ToString("D"),
+                        StructureValueRef = x.StructureValueRef.ToString("D")
+                    })
+                    .ToList()
+            }
+        };
+    }
+
     public async Task<ApiResponse<List<LocationStructureTreeItemModel>>> GetWarehouseLocationStructureTreeAsync(string warehouseId, string token, bool includeInactive = true)
     {
         var route = BuildRouteWithQuery(
@@ -1436,10 +1475,14 @@ public sealed class ApiService : IApiService
             WarehouseRef = ParseNullableGuid(request.WarehouseId),
             LocationCode = NormalizeCode(request.LocationCode, request.LocationCode, "LOC"),
             LocationType = request.LocationType.Trim(),
-            Aisle = NormalizeOptional(request.Aisle),
-            Rack = NormalizeOptional(request.Rack),
-            Shelf = NormalizeOptional(request.Shelf),
-            Bin = NormalizeOptional(request.Bin)
+            StructureSelections = (request.StructureSelections ?? new List<LocationStructureSelectionForm>())
+                .Where(x => Guid.TryParse(x.StructureRef, out _) && Guid.TryParse(x.StructureValueRef, out _))
+                .Select(x => new
+                {
+                    StructureRef = ParseGuidOrEmpty(x.StructureRef),
+                    StructureValueRef = ParseGuidOrEmpty(x.StructureValueRef)
+                })
+                .ToList()
         };
 
         return PostCommandAsync($"{InventoryApiPrefix}/Location", payload, token, "Creating location failed.");
@@ -1452,10 +1495,14 @@ public sealed class ApiService : IApiService
             WarehouseRef = ParseNullableGuid(request.WarehouseId),
             LocationCode = NormalizeCode(request.LocationCode, request.LocationCode, "LOC"),
             LocationType = request.LocationType.Trim(),
-            Aisle = NormalizeOptional(request.Aisle),
-            Rack = NormalizeOptional(request.Rack),
-            Shelf = NormalizeOptional(request.Shelf),
-            Bin = NormalizeOptional(request.Bin),
+            StructureSelections = (request.StructureSelections ?? new List<LocationStructureSelectionForm>())
+                .Where(x => Guid.TryParse(x.StructureRef, out _) && Guid.TryParse(x.StructureValueRef, out _))
+                .Select(x => new
+                {
+                    StructureRef = ParseGuidOrEmpty(x.StructureRef),
+                    StructureValueRef = ParseGuidOrEmpty(x.StructureValueRef)
+                })
+                .ToList(),
             IsActive = request.IsActive
         };
 
@@ -1485,7 +1532,8 @@ public sealed class ApiService : IApiService
         string? bin = null,
         bool? isActive = null,
         int page = 1,
-        int pageSize = 20)
+        int pageSize = 20,
+        string? structureSelectionsJson = null)
     {
         var normalizedLocationTypes = locationTypes?
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -1502,6 +1550,7 @@ public sealed class ApiService : IApiService
             ("Rack", rack),
             ("Shelf", shelf),
             ("Bin", bin),
+            ("StructureSelectionsJson", structureSelectionsJson),
             ("IsActive", isActive?.ToString().ToLowerInvariant()),
             ("Page", Math.Max(page, 1).ToString()),
             ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));
@@ -3111,6 +3160,11 @@ public sealed class ApiService : IApiService
         public WarehouseWithLocationsModel? Item { get; set; }
     }
 
+    private sealed class LocationDetailQueryResultDto
+    {
+        public LocationDetailItemDto? Item { get; set; }
+    }
+
     private sealed class LocationStructureTreeQueryResultDto
     {
         public List<LocationStructureTreeItemModel> Items { get; set; } = new();
@@ -3129,6 +3183,24 @@ public sealed class ApiService : IApiService
     private sealed class LocationLookupQueryResultDto
     {
         public List<LocationLookupItemModel> Items { get; set; } = new();
+    }
+
+    private sealed class LocationDetailItemDto
+    {
+        public Guid LocationBusinessKey { get; set; }
+        public Guid WarehouseRef { get; set; }
+        public string LocationCode { get; set; } = string.Empty;
+        public string LocationType { get; set; } = string.Empty;
+        public List<LocationStructureSelectionItemDto> StructureSelections { get; set; } = new();
+        public bool IsActive { get; set; }
+    }
+
+    private sealed class LocationStructureSelectionItemDto
+    {
+        public Guid LocationStructureSelectionBusinessKey { get; set; }
+        public Guid LocationRef { get; set; }
+        public Guid StructureRef { get; set; }
+        public Guid StructureValueRef { get; set; }
     }
 
     private sealed class QualityStatusLookupQueryResultDto

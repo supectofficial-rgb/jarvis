@@ -100,6 +100,7 @@ public class InventoryServiceQueryDbContext : QueryDbContext
     public DbSet<LocationReadModel> Locations => Set<LocationReadModel>();
     public DbSet<LocationStructureNodeReadModel> LocationStructureNodes => Set<LocationStructureNodeReadModel>();
     public DbSet<LocationStructureValueReadModel> LocationStructureValues => Set<LocationStructureValueReadModel>();
+    public DbSet<LocationStructureSelectionReadModel> LocationStructureSelections => Set<LocationStructureSelectionReadModel>();
     public DbSet<QualityStatusReadModel> QualityStatuses => Set<QualityStatusReadModel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

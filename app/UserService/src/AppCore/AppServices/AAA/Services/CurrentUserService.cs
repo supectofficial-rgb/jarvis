@@ -44,7 +44,11 @@ public class CurrentUserService : ICurrentUserService
         get
         {
             var organizationKeyClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("activeOrganizationBusinessKey")?.Value
-                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("currentOrganizationKey")?.Value;
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("currentOrganizationKey")?.Value
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("organizationBusinessKey")?.Value
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("businessId")?.Value
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("OrganizationBusinessKey")?.Value
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("BusinessId")?.Value;
 
             return organizationKeyClaim != null ? BusinessKey.FromGuid(Guid.Parse(organizationKeyClaim)) : null;
         }

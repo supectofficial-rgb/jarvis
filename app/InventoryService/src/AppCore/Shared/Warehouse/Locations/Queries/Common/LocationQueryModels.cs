@@ -10,7 +10,16 @@ public class LocationListItem
     public string? Rack { get; set; }
     public string? Shelf { get; set; }
     public string? Bin { get; set; }
+    public string StructureSummary { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+}
+
+public class LocationStructureSelectionSummaryItem
+{
+    public Guid StructureRef { get; set; }
+    public string StructureName { get; set; } = string.Empty;
+    public Guid StructureValueRef { get; set; }
+    public string StructureValueName { get; set; } = string.Empty;
 }
 
 public class LocationLookupItem

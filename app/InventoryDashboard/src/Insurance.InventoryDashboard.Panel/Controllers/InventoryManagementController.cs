@@ -70,6 +70,7 @@ public sealed partial class InventoryManagementController : Controller
         string? warehouseId,
         string? locationCode,
         string[]? locationTypes,
+        string? structureSelectionsJson,
         string? locationAisle,
         string? locationRack,
         string? locationShelf,
@@ -125,7 +126,8 @@ public sealed partial class InventoryManagementController : Controller
             locationBin,
             locationStatusValue,
             Math.Max(locationPage, 1),
-            locationPageSize);
+            locationPageSize,
+            structureSelectionsJson);
 
         var locations = locationsResult.Data?.Items ?? new List<LocationListItemModel>();
         var totalCount = locationsResult.Data?.TotalCount ?? locations.Count;
@@ -278,6 +280,10 @@ public sealed partial class InventoryManagementController : Controller
 
         var selectedLocationId = ResolveSelectedLocationId(locationId, locations);
         var selectedLocation = locations.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, selectedLocationId, StringComparison.OrdinalIgnoreCase));
+        var selectedLocationDetailResult = !string.IsNullOrWhiteSpace(selectedLocationId)
+            ? await _apiService.GetLocationByBusinessKeyAsync(selectedLocationId, token)
+            : null;
+        var selectedLocationDetail = selectedLocationDetailResult?.Data;
 
         var selectedWarehouseDetailsResult = includeWarehouseDetails && !string.IsNullOrWhiteSpace(selectedWarehouseId)
             ? await _apiService.GetWarehouseWithLocationsAsync(selectedWarehouseId, token, includeInactiveLocations: true)
@@ -339,15 +345,18 @@ public sealed partial class InventoryManagementController : Controller
             },
             LocationForm = new LocationForm
             {
-                LocationId = selectedLocation?.LocationBusinessKey,
-                WarehouseId = selectedLocation?.WarehouseRef ?? selectedWarehouseId ?? string.Empty,
-                LocationCode = selectedLocation?.LocationCode ?? string.Empty,
-                LocationType = NormalizeLocationType(selectedLocation?.LocationType) ?? "Bulk",
-                Aisle = selectedLocation?.Aisle,
-                Rack = selectedLocation?.Rack,
-                Shelf = selectedLocation?.Shelf,
-                Bin = selectedLocation?.Bin,
-                IsActive = selectedLocation?.IsActive ?? true
+                LocationId = selectedLocationDetail?.LocationBusinessKey ?? selectedLocation?.LocationBusinessKey,
+                WarehouseId = selectedLocationDetail?.WarehouseId ?? selectedLocation?.WarehouseRef ?? selectedWarehouseId ?? string.Empty,
+                LocationCode = selectedLocationDetail?.LocationCode ?? selectedLocation?.LocationCode ?? string.Empty,
+                LocationType = NormalizeLocationType(selectedLocationDetail?.LocationType ?? selectedLocation?.LocationType) ?? "Bulk",
+                StructureSelections = selectedLocationDetail?.StructureSelections?
+                    .Select(x => new LocationStructureSelectionForm
+                    {
+                        StructureRef = x.StructureRef.ToString(),
+                        StructureValueRef = x.StructureValueRef.ToString()
+                    })
+                    .ToList() ?? new List<LocationStructureSelectionForm>(),
+                IsActive = selectedLocationDetail?.IsActive ?? selectedLocation?.IsActive ?? true
             }
         };
 
@@ -433,10 +442,14 @@ public sealed partial class InventoryManagementController : Controller
             WarehouseId = form.WarehouseId,
             LocationCode = form.LocationCode,
             LocationType = NormalizeLocationType(form.LocationType) ?? form.LocationType,
-            Aisle = form.Aisle,
-            Rack = form.Rack,
-            Shelf = form.Shelf,
-            Bin = form.Bin,
+            StructureSelections = form.StructureSelections
+                .Where(x => Guid.TryParse(x.StructureRef, out _) && Guid.TryParse(x.StructureValueRef, out _))
+                .Select(x => new LocationStructureSelectionForm
+                {
+                    StructureRef = x.StructureRef.Trim(),
+                    StructureValueRef = x.StructureValueRef.Trim()
+                })
+                .ToList(),
             IsActive = form.IsActive
         };
 

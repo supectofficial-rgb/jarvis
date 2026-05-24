@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Insurance.InventoryDashboard.Panel.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,9 +12,37 @@ public sealed partial class InventoryManagementController
     public Task<IActionResult> WarehouseStructures(
         string? warehouseId,
         string? structureId,
+        string? mode,
         string? tab,
         CancellationToken cancellationToken = default)
-        => BuildWarehouseStructuresPageAsync(warehouseId, structureId, tab, cancellationToken);
+        => BuildWarehouseStructuresPageAsync(warehouseId, structureId, mode, tab, cancellationToken);
+
+    [HttpGet]
+    public async Task<IActionResult> WarehouseStructureTree(string warehouseId, bool includeInactive = true, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربر در دسترس نیست." });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Warehouse.View", "Warehouse.Read", "Warehouse.Search"))
+        {
+            return StatusCode(403, new { isSuccess = false, errorMessage = "شما دسترسی مشاهده ساختار انبار را ندارید." });
+        }
+
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return Json(new { isSuccess = true, items = Array.Empty<LocationStructureTreeItemModel>() });
+        }
+
+        var result = await _apiService.GetWarehouseLocationStructureTreeAsync(warehouseId.Trim(), token, includeInactive);
+        return Json(new
+        {
+            isSuccess = result.IsSuccess,
+            errorMessage = result.ErrorMessage,
+            items = result.Data ?? new List<LocationStructureTreeItemModel>()
+        });
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -25,7 +56,7 @@ public sealed partial class InventoryManagementController
         if (!TryValidateModel(form))
         {
             TempData["CatalogError"] = ExtractModelError(ModelState);
-            return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = form.WarehouseRef, structureId = form.LocationStructureBusinessKey, tab = "nodes" });
+            return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = form.WarehouseRef, structureId = form.LocationStructureBusinessKey, mode = Request.Query["mode"].ToString(), tab = "nodes" });
         }
 
         var result = string.IsNullOrWhiteSpace(form.LocationStructureBusinessKey)
@@ -35,7 +66,7 @@ public sealed partial class InventoryManagementController
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "ساختار لوکیشن با موفقیت ذخیره شد." : result.ErrorMessage ?? "ذخیره ساختار با خطا مواجه شد.";
 
-        return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = form.WarehouseRef, structureId = form.LocationStructureBusinessKey, tab = "nodes" });
+        return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = form.WarehouseRef, structureId = form.LocationStructureBusinessKey, mode = Request.Query["mode"].ToString(), tab = "nodes" });
     }
 
     [HttpPost]
@@ -62,8 +93,14 @@ public sealed partial class InventoryManagementController
 
         if (!TryValidateModel(form))
         {
-            TempData["CatalogError"] = ExtractModelError(ModelState);
-            return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, tab = "nodes" });
+            var error = ExtractModelError(ModelState);
+            TempData["CatalogError"] = error;
+            if (IsAjaxRequest())
+            {
+                return Json(new { isSuccess = false, errorMessage = error });
+            }
+
+            return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, mode = Request.Query["mode"].ToString(), tab = "nodes" });
         }
 
         if (string.IsNullOrWhiteSpace(form.LocationStructureValueBusinessKey))
@@ -73,7 +110,20 @@ public sealed partial class InventoryManagementController
             if (existingValue is not null)
             {
                 TempData["CatalogSuccess"] = "مقدار انتخاب‌شده از قبل وجود داشت و دوباره استفاده شد.";
-                return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, tab = "nodes" });
+                if (IsAjaxRequest())
+                {
+                    return Json(new
+                    {
+                        isSuccess = true,
+                        isReused = true,
+                        structureRef = form.StructureRef,
+                        value = existingValue.Code,
+                        name = existingValue.Name,
+                        locationStructureValueBusinessKey = existingValue.LocationStructureValueBusinessKey
+                    });
+                }
+
+                return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, mode = Request.Query["mode"].ToString(), tab = "nodes" });
             }
         }
 
@@ -84,12 +134,26 @@ public sealed partial class InventoryManagementController
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "مقدار ساختار با موفقیت ذخیره شد." : result.ErrorMessage ?? "ذخیره مقدار ساختار با خطا مواجه شد.";
 
-        return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, tab = "nodes" });
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                isSuccess = result.IsSuccess,
+                errorMessage = result.ErrorMessage,
+                structureRef = form.StructureRef,
+                value = form.Code,
+                name = form.Name,
+                locationStructureValueBusinessKey = form.LocationStructureValueBusinessKey
+            });
+        }
+
+        return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = Request.Query["warehouseId"].ToString(), structureId = form.StructureRef, mode = Request.Query["mode"].ToString(), tab = "nodes" });
     }
 
     private async Task<IActionResult> BuildWarehouseStructuresPageAsync(
         string? warehouseId,
         string? structureId,
+        string? mode,
         string? tab,
         CancellationToken cancellationToken)
     {
@@ -127,6 +191,8 @@ public sealed partial class InventoryManagementController
             WarehouseLookup = warehouseLookup,
             SelectedWarehouseId = selectedWarehouseId,
             SelectedStructureId = structureId,
+            StructureMode = string.Equals(mode, "select", StringComparison.OrdinalIgnoreCase) ? "select" : "manage",
+            StructureAjaxTarget = string.Equals(mode, "select", StringComparison.OrdinalIgnoreCase) ? "#warehouse-structure-panel" : "#warehouse-structure-content",
             Structures = structuresResult.Data ?? new List<LocationStructureTreeItemModel>(),
             ErrorMessage = JoinErrors(warehouseLookupResult.ErrorMessage, structuresResult.ErrorMessage),
             StructureNodeForm = new LocationStructureNodeForm

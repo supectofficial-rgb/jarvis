@@ -16,6 +16,8 @@ public sealed class WarehouseStructurePageViewModel
     public string? ErrorMessage { get; set; }
     public IReadOnlyList<LocationStructureTreeItemModel> Structures { get; set; } = Array.Empty<LocationStructureTreeItemModel>();
     public string? SelectedStructureId { get; set; }
+    public string StructureMode { get; set; } = "manage";
+    public string StructureAjaxTarget { get; set; } = "#warehouse-structure-content";
 
     public LocationStructureNodeForm StructureNodeForm { get; set; } = new();
     public LocationStructureValueForm StructureValueForm { get; set; } = new();

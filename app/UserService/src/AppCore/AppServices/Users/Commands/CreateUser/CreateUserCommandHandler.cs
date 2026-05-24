@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Identity;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
 using OysterFx.AppCore.Domain.ValueObjects;
-using OysterFx.Infra.Auth.UserServices;
+using Insurance.UserService.AppCore.Shared.AAA.Services;
 using System;
 using System.Threading.Tasks;
 
@@ -27,7 +27,7 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
     private readonly IOrganizationCommandRepository _organizationCommandRepository;
     private readonly IMembershipCommandRepository _membershipCommandRepository;
     private readonly IMembershipRoleAssignmentCommandRepository _membershipRoleAssignmentCommandRepository;
-    private readonly IUserInfoService _userInfoService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly RoleManager<AppRole> _roleManager;
 
     public CreateUserCommandHandler(
@@ -37,7 +37,7 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         IOrganizationCommandRepository organizationCommandRepository,
         IMembershipCommandRepository membershipCommandRepository,
         IMembershipRoleAssignmentCommandRepository membershipRoleAssignmentCommandRepository,
-        IUserInfoService userInfoService,
+        ICurrentUserService currentUserService,
         RoleManager<AppRole> roleManager)
     {
         _userCommandRepository = userCommandRepository;
@@ -46,7 +46,7 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         _organizationCommandRepository = organizationCommandRepository;
         _membershipCommandRepository = membershipCommandRepository;
         _membershipRoleAssignmentCommandRepository = membershipRoleAssignmentCommandRepository;
-        _userInfoService = userInfoService;
+        _currentUserService = currentUserService;
         _roleManager = roleManager;
     }
 
@@ -108,14 +108,10 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         //    }
         //}
 
-        var organizationBusinessKeyValue =
-            _userInfoService.GetClaim("activeOrganizationBusinessKey")
-            ?? _userInfoService.GetClaim("currentOrganizationKey");
+        var organizationBusinessKey = _currentUserService.CurrentOrganizationKey;
 
-        if (!string.IsNullOrWhiteSpace(organizationBusinessKeyValue) &&
-            Guid.TryParse(organizationBusinessKeyValue, out var organizationGuid))
+        if (organizationBusinessKey is not null)
         {
-            var organizationBusinessKey = BusinessKey.FromGuid(organizationGuid);
             var organization = await _organizationCommandRepository.GetAsync(organizationBusinessKey);
 
             if (organization is not null)

@@ -35,13 +35,10 @@ public class CreateLocationCommandHandler : CommandHandler<CreateLocationCommand
             var aggregate = Domain.Warehouse.Entities.Location.Create(
                 command.WarehouseRef,
                 normalizedCode,
-                locationType,
-                command.Aisle,
-                command.Rack,
-                command.Shelf,
-                command.Bin);
+                locationType);
 
             await _repository.InsertAsync(aggregate);
+            await _repository.ReplaceStructureSelectionsAsync(aggregate.BusinessKey.Value, command.StructureSelections);
             await _repository.CommitAsync();
 
             return Ok(new CreateLocationCommandResult

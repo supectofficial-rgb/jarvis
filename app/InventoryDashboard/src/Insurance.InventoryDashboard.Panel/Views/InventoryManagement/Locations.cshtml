@@ -138,22 +138,25 @@
                                             <option value="Quarantine">Quarantine</option>
                                         </select>
                                     </div>
-                                    <div class="form-row">
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.aisle"]</label>
-                                            <input asp-for="LocationForm.Aisle" class="form-control" maxlength="40" />
+                                    <div data-structure-selections-hidden hidden>
+                                        @for (var i = 0; i < Model.LocationForm.StructureSelections.Count; i++)
+                                        {
+                                            <input type="hidden" name="LocationForm.StructureSelections[@i].StructureRef" value="@Model.LocationForm.StructureSelections[i].StructureRef" />
+                                            <input type="hidden" name="LocationForm.StructureSelections[@i].StructureValueRef" value="@Model.LocationForm.StructureSelections[i].StructureValueRef" />
+                                        }
+                                    </div>
+                                    <div class="border rounded p-3 bg-white">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div>
+                                                <h5 class="card-title mb-0">ساختار داینامیک انبار</h5>
+                                                <div class="text-muted small">پس از انتخاب انبار، levelهای ساختار اینجا ساخته می‌شوند و برای هر level می‌توانید value جدید اضافه کنید.</div>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-secondary btn-xs" data-warehouse-structure-refresh>رفرش</button>
                                         </div>
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.rack"]</label>
-                                            <input asp-for="LocationForm.Rack" class="form-control" maxlength="40" />
-                                        </div>
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.shelf"]</label>
-                                            <input asp-for="LocationForm.Shelf" class="form-control" maxlength="40" />
-                                        </div>
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.bin"]</label>
-                                            <input asp-for="LocationForm.Bin" class="form-control" maxlength="40" />
+                                        <div data-structure-dynamic-builder
+                                             data-warehouse-structure-tree-url="@Url.Action("WarehouseStructureTree", "InventoryManagement")"
+                                             data-warehouse-structure-value-url="@Url.Action("SaveWarehouseStructureValue", "InventoryManagement", new { mode = "select" })">
+                                            <div class="text-muted">ابتدا انبار را انتخاب کنید تا ساختار داینامیک آن اینجا ساخته شود.</div>
                                         </div>
                                     </div>
                                     @if (isLocationEditMode)
@@ -168,25 +171,6 @@
                                     </button>
                                 </form>
 
-                                <div class="border-top mt-4 pt-4">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <div>
-                                            <h5 class="card-title mb-0">ساختار انبار</h5>
-                                            <div class="text-muted small">درخت ساختار انتخاب‌شده اینجا لود می‌شود و بعد از تغییر انبار به‌روز می‌شود.</div>
-                                        </div>
-                                        <button type="button" class="btn btn-outline-secondary btn-xs" data-warehouse-structure-refresh>رفرش</button>
-                                    </div>
-                                    <div id="warehouse-structure-panel" class="p-0">
-                                        @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
-                                        {
-                                            <div class="alert alert-light mb-0">ابتدا یک انبار انتخاب کنید تا ساختار آن نمایش داده شود.</div>
-                                        }
-                                        else
-                                        {
-                                            <div class="text-muted">در حال بارگذاری...</div>
-                                        }
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -248,21 +232,12 @@
                                             }
                                         </select>
                                     </div>
-                                    <div class="form-group col-md-2">
-                                        <label>راهرو</label>
-                                        <input name="locationAisle" value="@Model.LocationAisleFilter" class="form-control" />
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <label>رک</label>
-                                        <input name="locationRack" value="@Model.LocationRackFilter" class="form-control" />
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <label>طبقه</label>
-                                        <input name="locationShelf" value="@Model.LocationShelfFilter" class="form-control" />
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <label>باکس</label>
-                                        <input name="locationBin" value="@Model.LocationBinFilter" class="form-control" />
+                                    <input type="hidden" name="structureSelectionsJson" value="" data-location-structure-selections-json />
+                                    <div class="form-group col-12">
+                                        <label>ساختارهای انبار</label>
+                                        <div class="border rounded p-3 bg-white" data-location-structure-filter-builder>
+                                            <div class="text-muted">ابتدا انبار را انتخاب کنید تا فیلترهای ساختاری به‌صورت داینامیک نمایش داده شوند.</div>
+                                        </div>
                                     </div>
                                     <div class="form-group col-md-2">
                                         <label>وضعیت</label>
@@ -314,7 +289,7 @@
                                                 <th>کد</th>
                                                 <th>انبار</th>
                                                 <th>نوع</th>
-                                                <th>راهرو/رک/طبقه/باکس</th>
+                                                <th>ساختار</th>
                                                 <th>وضعیت</th>
                                                 <th class="text-right">عملیات</th>
                                             </tr>
@@ -334,7 +309,7 @@
                                                         <td><span class="text-monospace">@location.LocationCode</span></td>
                                                         <td>@WarehouseName(location.WarehouseRef)</td>
                                                         <td>@location.LocationType</td>
-                                                        <td>@($"{location.Aisle ?? "-"} / {location.Rack ?? "-"} / {location.Shelf ?? "-"} / {location.Bin ?? "-"}")</td>
+                                                        <td>@(string.IsNullOrWhiteSpace(location.StructureSummary) ? "-" : location.StructureSummary)</td>
                                                         <td>
                                                             <span class="badge badge-pill @(location.IsActive ? "badge-primary" : "badge-secondary")">
                                                                 @(location.IsActive ? "فعال" : "غیرفعال")
@@ -404,7 +379,7 @@
                                         <ul class="pagination pagination-sm mb-0">
                                             @for (var i = 1; i <= Model.LocationTotalPages; i++)
                                             {
-                                                <li class="page-item @(i == Model.LocationPage ? "active" : null)">
+                                                        <li class="page-item @(i == Model.LocationPage ? "active" : null)">
                                                     <a class="page-link"
                                                        asp-action="LocationList"
                                                        data-location-page-link
@@ -414,10 +389,6 @@
                                                        asp-route-warehouseStatus="@Model.WarehouseStatusFilter"
                                                        asp-route-locationCode="@Model.LocationCodeFilter"
                                                        asp-route-locationTypes="@Model.LocationTypesFilter"
-                                                       asp-route-locationAisle="@Model.LocationAisleFilter"
-                                                       asp-route-locationRack="@Model.LocationRackFilter"
-                                                       asp-route-locationShelf="@Model.LocationShelfFilter"
-                                                       asp-route-locationBin="@Model.LocationBinFilter"
                                                        asp-route-locationStatus="@Model.LocationStatusFilter"
                                                        asp-route-tab="list"
                                                        asp-route-warehousePage="@Model.WarehousePage"
@@ -462,9 +433,11 @@
             var emptyStateAlert = document.querySelector('[data-location-warehouse-empty-state]');
             var alertBox = document.querySelector('[data-location-list-alert]');
             var pageInput = document.querySelector('[data-location-page-input]');
-            var structurePanel = document.getElementById('warehouse-structure-panel');
             var structureSelect = document.querySelector('[data-warehouse-structure-select]');
             var structureRefreshButton = document.querySelector('[data-warehouse-structure-refresh]');
+            var locationWarehouseSelect = document.querySelector('[data-location-warehouse-select]');
+            var locationStructureFilterBuilder = document.querySelector('[data-location-structure-filter-builder]');
+            var locationStructureSelectionsJson = document.querySelector('[data-location-structure-selections-json]');
 
             if (!listForm || !listBody || !pagination) {
                 return;
@@ -484,29 +457,33 @@
                 }
             }
 
-            async function loadStructurePanel(url) {
-                if (!url || !structurePanel) {
-                    return;
-                }
+            var structureBuilder = document.querySelector('[data-structure-dynamic-builder]');
+            var structureTreeUrl = structureBuilder ? structureBuilder.getAttribute('data-warehouse-structure-tree-url') || '' : '';
+            var structureValueUrl = structureBuilder ? structureBuilder.getAttribute('data-warehouse-structure-value-url') || '' : '';
+            var structureSelectionsHidden = document.querySelector('[data-structure-selections-hidden]');
+            var structureState = {
+                treeItems: []
+            };
 
-                structurePanel.innerHTML = '<div class="text-muted">در حال بارگذاری...</div>';
+            function flattenStructureNodes(nodes, depth, items) {
+                var list = items || [];
+                var level = Number(depth || 0);
 
-                var response = await fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
+                (nodes || []).forEach(function (node) {
+                    list.push({
+                        key: node.locationStructureBusinessKey || '',
+                        code: node.code || '',
+                        name: node.name || '',
+                        depth: level,
+                        values: node.values || []
+                    });
+
+                    if (node.children && node.children.length) {
+                        flattenStructureNodes(node.children, level + 1, list);
                     }
                 });
 
-                var html = await response.text();
-                var doc = new DOMParser().parseFromString(html, 'text/html');
-                var nextPanel = doc.querySelector('#warehouse-structure-panel');
-                if (!nextPanel) {
-                    throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
-                }
-
-                structurePanel.innerHTML = nextPanel.innerHTML;
-                refreshStructureWidgets(structurePanel);
+                return list;
             }
 
             function getSelectedStructureUrl() {
@@ -515,11 +492,385 @@
                     return '';
                 }
 
-                return @Html.Raw(JsonSerializer.Serialize(warehouseStructuresUrl)) + '?warehouseId=' + encodeURIComponent(warehouseId);
+                var treeUrl = structureTreeUrl || '';
+                if (!treeUrl) {
+                    return '';
+                }
+
+                return treeUrl + '?warehouseId=' + encodeURIComponent(warehouseId) + '&includeInactive=true';
             }
 
-            function refreshStructurePanel() {
-                return loadStructurePanel(getSelectedStructureUrl());
+            function getSelectedStructureSelections() {
+                var map = {};
+                if (!structureSelectionsHidden) {
+                    return map;
+                }
+
+                var structureInputs = structureSelectionsHidden.querySelectorAll('input[name$=".StructureRef"]');
+                structureInputs.forEach(function (input) {
+                    var ref = String(input.value || '').trim();
+                    var indexMatch = input.name.match(/StructureSelections\[(\d+)\]\.StructureRef$/);
+                    if (!ref || !indexMatch) {
+                        return;
+                    }
+
+                    var valueInput = structureSelectionsHidden.querySelector('input[name="LocationForm.StructureSelections[' + indexMatch[1] + '].StructureValueRef"]');
+                    var valueRef = valueInput ? String(valueInput.value || '').trim() : '';
+                    if (valueRef) {
+                        map[ref] = valueRef;
+                    }
+                });
+
+                return map;
+            }
+
+            function applyStructureSelectionHighlights() {
+                if (!structureBuilder) {
+                    return;
+                }
+
+                var selection = getSelectedStructureSelections();
+                var cards = structureBuilder.querySelectorAll('[data-structure-level-card]');
+                cards.forEach(function (card) {
+                    var structureRef = String(card.getAttribute('data-structure-ref') || '').trim();
+                    var selectedValue = structureRef ? selection[structureRef] || '' : '';
+                    var select = card.querySelector('[data-structure-level-select]');
+                    var currentValue = select ? String(select.value || '').trim() : '';
+
+                    card.classList.toggle('border-primary', !!selectedValue && !!currentValue && String(selectedValue) === String(currentValue));
+                    card.classList.toggle('bg-light', !!selectedValue && !!currentValue && String(selectedValue) === String(currentValue));
+                });
+            }
+
+            function renderStructureBuilder(items) {
+                if (!structureBuilder) {
+                    return;
+                }
+
+                var flatItems = flattenStructureNodes(items || [], 0, []);
+                structureState.treeItems = items || [];
+
+                if (!flatItems.length) {
+                    structureBuilder.innerHTML = '<div class="alert alert-info mb-0">برای این انبار هنوز ساختاری ثبت نشده است.</div>';
+                    if (structureSelectionsHidden) {
+                        structureSelectionsHidden.innerHTML = '';
+                    }
+                    return;
+                }
+
+                var selection = getSelectedStructureSelections();
+                var html = [];
+
+                flatItems.forEach(function (item, index) {
+                    var selectId = 'location-structure-level-' + index;
+                    var selectedValue = selection[item.key] || '';
+                    var values = Array.isArray(item.values) ? item.values.slice().sort(function (a, b) {
+                        var aOrder = Number(a.displayOrder || 0);
+                        var bOrder = Number(b.displayOrder || 0);
+                        if (aOrder !== bOrder) {
+                            return aOrder - bOrder;
+                        }
+                        return String(a.code || '').localeCompare(String(b.code || ''));
+                    }) : [];
+
+                    html.push('<div class="border rounded p-3 mb-3 bg-white" data-structure-level-card data-structure-level-index="' + index + '" data-structure-ref="' + escapeAttr(item.key) + '">');
+                    html.push('<div class="d-flex justify-content-between align-items-start flex-wrap mb-2">');
+                    html.push('<div>');
+                    html.push('<div class="font-weight-bold">' + escapeHtml(item.code || '-') + ' - ' + escapeHtml(item.name || '-') + '</div>');
+                    html.push('<div class="small text-muted">سطح ' + (index + 1) + ' ساختار</div>');
+                    html.push('</div>');
+                    html.push('<button type="button" class="btn btn-outline-success btn-sm" data-structure-value-create-toggle="' + escapeAttr(index) + '">+</button>');
+                    html.push('</div>');
+                    html.push('<div class="input-group">');
+                    html.push('<select id="' + selectId + '" class="form-control js-search-select" data-structure-level-select data-structure-level-index="' + index + '" data-placeholder="انتخاب یا جستجو">');
+                    html.push('<option value="">انتخاب یا جستجو</option>');
+                    values.forEach(function (value) {
+                        var optionSelected = selectedValue && String(value.locationStructureValueBusinessKey || '') === selectedValue ? ' selected="selected"' : '';
+                        html.push('<option value="' + escapeAttr(value.locationStructureValueBusinessKey || '') + '"' + optionSelected + '>' + escapeHtml(value.code || '') + ' - ' + escapeHtml(value.name || '') + '</option>');
+                    });
+                    html.push('</select>');
+                    html.push('</div>');
+                    html.push('<div class="d-none mt-2 border rounded p-2 bg-light" data-structure-value-create-panel="' + escapeAttr(index) + '">');
+                    html.push('<div class="form-row">');
+                    html.push('<div class="form-group col-md-6 mb-2"><input type="text" class="form-control form-control-sm" maxlength="50" placeholder="کد مقدار جدید" data-structure-value-create-input-code="' + escapeAttr(index) + '" /></div>');
+                    html.push('<div class="form-group col-md-6 mb-2"><input type="text" class="form-control form-control-sm" maxlength="160" placeholder="نام مقدار جدید" data-structure-value-create-input-name="' + escapeAttr(index) + '" /></div>');
+                    html.push('</div>');
+                    html.push('<button type="button" class="btn btn-success btn-sm" data-structure-value-create-submit="' + escapeAttr(index) + '">ثبت مقدار</button>');
+                    html.push('</div>');
+                    html.push('</div>');
+                });
+
+                structureBuilder.innerHTML = html.join('');
+                refreshStructureWidgets(structureBuilder);
+                syncStructureHiddenFieldsFromBuilder();
+            }
+
+            function renderLocationFilterBuilder(items) {
+                if (!locationStructureFilterBuilder) {
+                    return;
+                }
+
+                var flatItems = flattenStructureNodes(items || [], 0, []);
+                if (!flatItems.length) {
+                    locationStructureFilterBuilder.innerHTML = '<div class="text-muted">برای این انبار هنوز ساختاری ثبت نشده است.</div>';
+                    if (locationStructureSelectionsJson) {
+                        locationStructureSelectionsJson.value = '';
+                    }
+                    return;
+                }
+
+                var html = [];
+                flatItems.forEach(function (item, index) {
+                    var selectId = 'location-filter-structure-level-' + index;
+                    html.push('<div class="border rounded p-3 mb-3 bg-white" data-location-filter-structure-card data-location-filter-structure-ref="' + escapeAttr(item.key) + '">');
+                    html.push('<div class="font-weight-bold mb-1">' + escapeHtml(item.code || '-') + ' - ' + escapeHtml(item.name || '-') + '</div>');
+                    html.push('<div class="small text-muted mb-2">فیلتر سطح ' + (index + 1) + '</div>');
+                    html.push('<select id="' + selectId + '" class="form-control js-search-select" data-location-filter-structure-select data-location-filter-structure-index="' + index + '" multiple data-placeholder="انتخاب چند مقدار">');
+                    var values = Array.isArray(item.values) ? item.values.slice().sort(function (a, b) {
+                        var aOrder = Number(a.displayOrder || 0);
+                        var bOrder = Number(b.displayOrder || 0);
+                        if (aOrder !== bOrder) {
+                            return aOrder - bOrder;
+                        }
+                        return String(a.code || '').localeCompare(String(b.code || ''));
+                    }) : [];
+
+                    values.forEach(function (value) {
+                        html.push('<option value="' + escapeAttr(value.locationStructureValueBusinessKey || '') + '">' + escapeHtml(value.code || '') + ' - ' + escapeHtml(value.name || '') + '</option>');
+                    });
+                    html.push('</select>');
+                    html.push('</div>');
+                });
+
+                locationStructureFilterBuilder.innerHTML = html.join('');
+                refreshStructureWidgets(locationStructureFilterBuilder);
+                syncLocationFilterJson();
+            }
+
+            function syncLocationFilterJson() {
+                if (!locationStructureFilterBuilder || !locationStructureSelectionsJson) {
+                    return;
+                }
+
+                var filters = [];
+                var cards = locationStructureFilterBuilder.querySelectorAll('[data-location-filter-structure-card]');
+                cards.forEach(function (card) {
+                    var structureRef = String(card.getAttribute('data-location-filter-structure-ref') || '').trim();
+                    var select = card.querySelector('[data-location-filter-structure-select]');
+                    if (!structureRef || !select) {
+                        return;
+                    }
+
+                    var valueRefs = Array.prototype.slice.call(select.selectedOptions || [])
+                        .map(function (option) { return String(option.value || '').trim(); })
+                        .filter(function (value) { return !!value; });
+
+                    if (valueRefs.length) {
+                        filters.push({
+                            structureRef: structureRef,
+                            structureValueRefs: valueRefs
+                        });
+                    }
+                });
+
+                locationStructureSelectionsJson.value = filters.length ? JSON.stringify(filters) : '';
+            }
+
+            function syncStructureHiddenFieldsFromBuilder() {
+                if (!structureBuilder) {
+                    return;
+                }
+
+                var items = [];
+                var cards = structureBuilder.querySelectorAll('[data-structure-level-card]');
+                cards.forEach(function (card) {
+                    var select = card.querySelector('[data-structure-level-select]');
+                    var structureRef = String(card.getAttribute('data-structure-ref') || '').trim();
+                    var valueRef = select ? String(select.value || '').trim() : '';
+
+                    if (structureRef && valueRef) {
+                        items.push({
+                            structureRef: structureRef,
+                            valueRef: valueRef
+                        });
+                    }
+                });
+
+                if (!structureSelectionsHidden) {
+                    return;
+                }
+
+                var hiddenHtml = [];
+                items.forEach(function (item, index) {
+                    hiddenHtml.push('<input type="hidden" name="LocationForm.StructureSelections[' + index + '].StructureRef" value="' + escapeAttr(item.structureRef) + '" />');
+                    hiddenHtml.push('<input type="hidden" name="LocationForm.StructureSelections[' + index + '].StructureValueRef" value="' + escapeAttr(item.valueRef) + '" />');
+                });
+
+                structureSelectionsHidden.innerHTML = hiddenHtml.join('');
+            }
+
+            async function loadStructureTreeData() {
+                if (!structureBuilder) {
+                    return;
+                }
+
+                var url = getSelectedStructureUrl();
+                if (!url) {
+                    structureBuilder.innerHTML = '<div class="text-muted">ابتدا یک انبار انتخاب کنید تا ساختار آن بارگذاری شود.</div>';
+                    if (structureSelectionsHidden) {
+                        structureSelectionsHidden.innerHTML = '';
+                    }
+                    return;
+                }
+
+                structureBuilder.innerHTML = '<div class="text-muted">در حال بارگذاری ساختار...</div>';
+
+                var response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
+                }
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'بارگذاری ساختار انبار با خطا مواجه شد.');
+                }
+
+                renderStructureBuilder(payload.items || []);
+                applyStructureSelectionHighlights();
+            }
+
+            async function loadLocationFilterTreeData() {
+                if (!locationStructureFilterBuilder || !locationWarehouseSelect) {
+                    return;
+                }
+
+                var warehouseId = String(locationWarehouseSelect.value || '').trim();
+                if (!warehouseId) {
+                    locationStructureFilterBuilder.innerHTML = '<div class="text-muted">ابتدا یک انبار انتخاب کنید تا فیلترهای ساختاری آن نمایش داده شود.</div>';
+                    if (locationStructureSelectionsJson) {
+                        locationStructureSelectionsJson.value = '';
+                    }
+                    return;
+                }
+
+                var url = structureTreeUrl || '';
+                if (!url) {
+                    return;
+                }
+
+                locationStructureFilterBuilder.innerHTML = '<div class="text-muted">در حال بارگذاری فیلترهای ساختار...</div>';
+
+                var response = await fetch(url + '?warehouseId=' + encodeURIComponent(warehouseId) + '&includeInactive=true', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    throw new Error('بارگذاری فیلترهای ساختار با خطا مواجه شد.');
+                }
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'بارگذاری فیلترهای ساختار با خطا مواجه شد.');
+                }
+
+                renderLocationFilterBuilder(payload.items || []);
+            }
+
+            function getStructureLevelCard(index) {
+                if (!structureBuilder && !document.querySelector('[data-structure-dynamic-builder]')) {
+                    return null;
+                }
+
+                return document.querySelector('[data-structure-level-card][data-structure-level-index="' + index + '"]');
+            }
+
+            function setStructureCreatePanelVisible(index, visible) {
+                var panel = document.querySelector('[data-structure-value-create-panel="' + index + '"]');
+                if (!panel) {
+                    return;
+                }
+
+                panel.classList.toggle('d-none', !visible);
+            }
+
+            async function submitStructureValue(index) {
+                var card = getStructureLevelCard(index);
+                if (!card) {
+                    return;
+                }
+
+                var structureRef = card.getAttribute('data-structure-ref') || '';
+                var codeInput = card.querySelector('[data-structure-value-create-input-code="' + index + '"]');
+                var nameInput = card.querySelector('[data-structure-value-create-input-name="' + index + '"]');
+                var code = codeInput ? String(codeInput.value || '').trim() : '';
+                var name = nameInput ? String(nameInput.value || '').trim() : '';
+
+                if (!code && !name) {
+                    throw new Error('لطفاً کد یا نام مقدار را وارد کنید.');
+                }
+
+                if (!code) {
+                    code = name;
+                }
+
+                if (!name) {
+                    name = code;
+                }
+
+                var token = document.querySelector('input[name="__RequestVerificationToken"]');
+                var formData = new FormData();
+                if (token) {
+                    formData.append('__RequestVerificationToken', token.value);
+                }
+
+                formData.append('StructureValueForm.StructureRef', structureRef);
+                formData.append('StructureValueForm.Code', code);
+                formData.append('StructureValueForm.Name', name);
+                formData.append('StructureValueForm.DisplayOrder', '0');
+                formData.append('StructureValueForm.IsActive', 'true');
+
+                var response = await fetch(structureValueUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: formData,
+                    cache: 'no-store'
+                });
+
+                var payload = null;
+                try {
+                    payload = await response.json();
+                } catch (error) {
+                    payload = null;
+                }
+
+                if (!response.ok || !payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'ثبت مقدار ساختار با خطا مواجه شد.');
+                }
+
+                var select = card.querySelector('[data-structure-level-select]');
+                if (select) {
+                    select.value = payload.locationStructureValueBusinessKey || payload.value || '';
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                setStructureCreatePanelVisible(index, false);
+
+                await loadStructureTreeData();
+                applyStructureSelectionHighlights();
             }
 
             function escapeHtml(value) {
@@ -616,7 +967,7 @@
                     '<td><span class="text-monospace">' + escapeHtml(item.locationCode || '-') + '</span></td>' +
                     '<td>' + escapeHtml(getWarehouseLabel(item.warehouseRef)) + '</td>' +
                     '<td>' + escapeHtml(item.locationType || '-') + '</td>' +
-                    '<td>' + escapeHtml((item.aisle || '-') + ' / ' + (item.rack || '-') + ' / ' + (item.shelf || '-') + ' / ' + (item.bin || '-')) + '</td>' +
+                    '<td>' + escapeHtml(item.structureSummary || '-') + '</td>' +
                     '<td><span class="badge badge-pill ' + statusClass + '">' + statusText + '</span></td>' +
                     '<td class="text-right">' + actionButtons.join(' ') + '</td>' +
                     '</tr>';
@@ -787,9 +1138,49 @@
                 }
 
                 event.preventDefault();
+                syncLocationFilterJson();
                 loadLocationList(1).catch(function (error) {
                     setAlert(error.message || 'خطا در بارگذاری لیست لوکیشن‌ها.', 'danger');
                 });
+            }, true);
+
+            document.addEventListener('change', function (event) {
+                var levelSelect = event.target && event.target.closest ? event.target.closest('[data-structure-level-select]') : null;
+                if (!levelSelect) {
+                    var filterSelect = event.target && event.target.closest ? event.target.closest('[data-location-filter-structure-select]') : null;
+                    if (!filterSelect) {
+                        return;
+                    }
+
+                    syncLocationFilterJson();
+                    return;
+                }
+
+                syncStructureHiddenFieldsFromBuilder();
+                applyStructureSelectionHighlights();
+            }, true);
+
+            document.addEventListener('click', function (event) {
+                var createToggle = event.target && event.target.closest ? event.target.closest('[data-structure-value-create-toggle]') : null;
+                if (createToggle) {
+                    event.preventDefault();
+                    var toggleIndex = createToggle.getAttribute('data-structure-value-create-toggle') || '';
+                    var togglePanel = document.querySelector('[data-structure-value-create-panel="' + toggleIndex + '"]');
+                    if (togglePanel) {
+                        togglePanel.classList.toggle('d-none');
+                    }
+                    return;
+                }
+
+                var createSubmit = event.target && event.target.closest ? event.target.closest('[data-structure-value-create-submit]') : null;
+                if (createSubmit) {
+                    event.preventDefault();
+                    var createIndex = Number(createSubmit.getAttribute('data-structure-value-create-submit') || '0');
+                    submitStructureValue(createIndex).catch(function (error) {
+                        setAlert(error.message || 'ثبت مقدار ساختار با خطا مواجه شد.', 'danger');
+                    });
+                    return;
+                }
             }, true);
 
             document.addEventListener('click', function (event) {
@@ -823,9 +1214,9 @@
 
             if (structureSelect) {
                 structureSelect.addEventListener('change', function () {
-                    refreshStructurePanel().catch(function (error) {
-                        if (structurePanel) {
-                            structurePanel.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                    loadStructureTreeData().catch(function (error) {
+                        if (structureBuilder) {
+                            structureBuilder.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
                         }
                     });
                 });
@@ -834,17 +1225,39 @@
             if (structureRefreshButton) {
                 structureRefreshButton.addEventListener('click', function (event) {
                     event.preventDefault();
-                    refreshStructurePanel().catch(function (error) {
-                        if (structurePanel) {
-                            structurePanel.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                    loadStructureTreeData().catch(function (error) {
+                        if (structureBuilder) {
+                            structureBuilder.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
                         }
                     });
                 });
             }
 
-            if (structurePanel && structureSelect && structureSelect.value) {
-                refreshStructurePanel().catch(function () {
+            if (locationWarehouseSelect) {
+                locationWarehouseSelect.addEventListener('change', function () {
+                    loadLocationFilterTreeData().catch(function (error) {
+                        if (locationStructureFilterBuilder) {
+                            locationStructureFilterBuilder.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری فیلترهای ساختار با خطا مواجه شد.') + '</div>';
+                        }
+                    });
+                });
+            }
+
+            if (locationStructureFilterBuilder) {
+                locationStructureFilterBuilder.addEventListener('change', function () {
+                    syncLocationFilterJson();
+                });
+            }
+
+            if (structureBuilder && structureSelect && structureSelect.value) {
+                loadStructureTreeData().catch(function () {
                     // Keep the initial placeholder if the first load fails.
+                });
+            }
+
+            if (locationStructureFilterBuilder && locationWarehouseSelect && locationWarehouseSelect.value) {
+                loadLocationFilterTreeData().catch(function () {
+                    // Keep placeholder if list filter tree fails to load.
                 });
             }
         })();

@@ -94,7 +94,18 @@ public sealed class LocationListItemModel
     public string? Rack { get; set; }
     public string? Shelf { get; set; }
     public string? Bin { get; set; }
+    public string StructureSummary { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+}
+
+public sealed class LocationDetailModel
+{
+    public string LocationBusinessKey { get; set; } = string.Empty;
+    public string WarehouseId { get; set; } = string.Empty;
+    public string LocationCode { get; set; } = string.Empty;
+    public string LocationType { get; set; } = "Bulk";
+    public bool IsActive { get; set; } = true;
+    public List<LocationStructureSelectionForm> StructureSelections { get; set; } = new();
 }
 
 public sealed class WarehouseSearchResultModel
@@ -154,19 +165,18 @@ public sealed class LocationForm
     [StringLength(60, ErrorMessage = "نوع لوکیشن نمی‌تواند بیشتر از ۶۰ کاراکتر باشد.")]
     public string LocationType { get; set; } = "Bulk";
 
-    [StringLength(40)]
-    public string? Aisle { get; set; }
-
-    [StringLength(40)]
-    public string? Rack { get; set; }
-
-    [StringLength(40)]
-    public string? Shelf { get; set; }
-
-    [StringLength(40)]
-    public string? Bin { get; set; }
+    public List<LocationStructureSelectionForm> StructureSelections { get; set; } = new();
 
     public bool IsActive { get; set; } = true;
+}
+
+public sealed class LocationStructureSelectionForm
+{
+    [Required]
+    public string StructureRef { get; set; } = string.Empty;
+
+    [Required]
+    public string StructureValueRef { get; set; } = string.Empty;
 }
 
 public sealed class UpsertWarehouseRequest
@@ -181,9 +191,6 @@ public sealed class UpsertLocationRequest
     public string WarehouseId { get; set; } = string.Empty;
     public string LocationCode { get; set; } = string.Empty;
     public string LocationType { get; set; } = string.Empty;
-    public string? Aisle { get; set; }
-    public string? Rack { get; set; }
-    public string? Shelf { get; set; }
-    public string? Bin { get; set; }
+    public List<LocationStructureSelectionForm> StructureSelections { get; set; } = new();
     public bool IsActive { get; set; } = true;
 }

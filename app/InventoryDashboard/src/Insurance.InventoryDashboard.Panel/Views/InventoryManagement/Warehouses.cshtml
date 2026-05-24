@@ -198,23 +198,8 @@
                                             <option value="Quarantine">Quarantine</option>
                                         </select>
                                     </div>
-                                    <div class="form-row">
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.aisle"]</label>
-                                            <input asp-for="LocationForm.Aisle" class="form-control" maxlength="40" />
-                                        </div>
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.rack"]</label>
-                                            <input asp-for="LocationForm.Rack" class="form-control" maxlength="40" />
-                                        </div>
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.shelf"]</label>
-                                            <input asp-for="LocationForm.Shelf" class="form-control" maxlength="40" />
-                                        </div>
-                                        <div class="form-group col-md-3">
-                                            <label>@UiText["inventory.warehouses.bin"]</label>
-                                            <input asp-for="LocationForm.Bin" class="form-control" maxlength="40" />
-                                        </div>
+                                    <div class="alert alert-info mt-3 mb-0">
+                                        ساختار لوکیشن در حال انتقال به مدل داینامیک است و از این پس از طریق درخت ساختار و selectionهای آن ذخیره می‌شود.
                                     </div>
                                     @if (isLocationEditMode)
                                     {
@@ -708,7 +693,7 @@
 
                 var html = await response.text();
                 var doc = new DOMParser().parseFromString(html, 'text/html');
-                var nextPanel = doc.querySelector('#inventory-management-root') || doc.querySelector('#warehouse-structure-panel');
+                var nextPanel = doc.querySelector('#warehouse-structure-content') || doc.querySelector('#inventory-management-root') || doc.querySelector('#warehouse-structure-panel');
                 if (!nextPanel) {
                     throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
                 }
