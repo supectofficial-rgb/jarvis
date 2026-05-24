@@ -16,6 +16,7 @@ using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
 using OysterFx.AppCore.Domain.ValueObjects;
 using Insurance.UserService.AppCore.Shared.AAA.Services;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
@@ -29,6 +30,7 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
     private readonly IMembershipRoleAssignmentCommandRepository _membershipRoleAssignmentCommandRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly RoleManager<AppRole> _roleManager;
+    private readonly ILogger<CreateUserCommandHandler> _logger;
 
     public CreateUserCommandHandler(
         IUserCommandRepository userCommandRepository,
@@ -38,7 +40,8 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         IMembershipCommandRepository membershipCommandRepository,
         IMembershipRoleAssignmentCommandRepository membershipRoleAssignmentCommandRepository,
         ICurrentUserService currentUserService,
-        RoleManager<AppRole> roleManager)
+        RoleManager<AppRole> roleManager,
+        ILogger<CreateUserCommandHandler> logger)
     {
         _userCommandRepository = userCommandRepository;
         _userManager = userManager;
@@ -48,84 +51,95 @@ public class CreateUserCommandHandler : CommandHandler<CreateUserCommand, Guid>
         _membershipRoleAssignmentCommandRepository = membershipRoleAssignmentCommandRepository;
         _currentUserService = currentUserService;
         _roleManager = roleManager;
+        _logger = logger;
     }
 
     public override async Task<CommandResult<Guid>> Handle(CreateUserCommand command)
     {
-        var user = User.NewUser(command.MobileNumber!);
-        await _userCommandRepository.InsertAsync(user);
-
-        var account = Account.Create(user.BusinessKey, command.UserName!);
-
-        var createdUserResult = await _userManager.CreateAsync(account, command.Password!);
-        if (!createdUserResult.Succeeded)
+        try
         {
-            var errors = string.Join(" | ", createdUserResult.Errors.Select(c => c.Description));
-            return await FailAsync(errors);
-        }
+            var user = User.NewUser(command.MobileNumber!);
+            await _userCommandRepository.InsertAsync(user);
 
-        var selectedRole = await _roleCommandRepository.GetAsync(command.RoleBusinessKey);
+            var account = Account.Create(user.BusinessKey, command.UserName!);
 
-        var identityRole = await _roleManager.FindByIdAsync(selectedRole.Id.ToString());
-        if (identityRole != null)
-        {
-            // Check if normalized name is set
+            var createdUserResult = await _userManager.CreateAsync(account, command.Password!);
+            if (!createdUserResult.Succeeded)
+            {
+                var errors = string.Join(" | ", createdUserResult.Errors.Select(c => c.Description));
+                return await FailAsync(errors);
+            }
+
+            var selectedRole = await _roleCommandRepository.GetAsync(command.RoleBusinessKey);
+            if (selectedRole is null)
+            {
+                throw new InvalidOperationException($"Role not found for BusinessKey: {command.RoleBusinessKey:D}");
+            }
+
+            var identityRole = await _roleManager.FindByIdAsync(selectedRole.Id.ToString());
+            if (identityRole is null)
+            {
+                throw new InvalidOperationException($"Identity role not found for Role Id: {selectedRole.Id}");
+            }
+
+            if (string.IsNullOrWhiteSpace(identityRole.Name))
+            {
+                throw new InvalidOperationException($"Identity role name is empty for Role Id: {selectedRole.Id}");
+            }
+
             if (string.IsNullOrEmpty(identityRole.NormalizedName))
             {
-                identityRole.NormalizedName = _roleManager.KeyNormalizer.NormalizeName(identityRole.Name!);
+                identityRole.NormalizedName = _roleManager.KeyNormalizer.NormalizeName(identityRole.Name);
                 await _roleManager.UpdateAsync(identityRole);
             }
 
-            // Verify the role can be found by name in the role manager
-            var roleByName = await _roleManager.FindByNameAsync(identityRole.Name!);
-            if (roleByName == null)
+            var roleByName = await _roleManager.FindByNameAsync(identityRole.Name);
+            if (roleByName is null)
             {
-                // Force update the normalized name
-                identityRole.NormalizedName = identityRole.Name!.ToUpperInvariant();
-                await _roleManager.UpdateAsync(identityRole);
+                throw new InvalidOperationException($"Identity role could not be resolved by name: {identityRole.Name}");
             }
 
-            await _userManager.AddToRoleAsync(account, identityRole.Name!);
-        }
+            var addToRoleResult = await _userManager.AddToRoleAsync(account, identityRole.Name);
+            if (!addToRoleResult.Succeeded)
+            {
+                var errors = string.Join(" | ", addToRoleResult.Errors.Select(c => c.Description));
+                throw new InvalidOperationException($"Failed to assign identity role '{identityRole.Name}' to user '{account.UserName}'. Errors: {errors}");
+            }
 
-        //if (selectedRole is not null)
-        //{
-        //    //await _userManager.AddToRoleAsync(account, selectedRole.Name!);
+            var organizationBusinessKey = _currentUserService.CurrentOrganizationKey;
 
-        //    var identityRole = await _roleManager.FindByIdAsync(selectedRole.Id.ToString());
-        //    if (identityRole != null)
-        //    {
-        //        await _userManager.AddToRoleAsync(account, identityRole.Name!);
-        //    }
-        //    else
-        //    {
-        //        // If role exists in your repo but not in Identity, sync it
-        //        var createResult = await _roleManager.CreateAsync(selectedRole);
-        //        if (createResult.Succeeded)
-        //        {
-        //            await _userManager.AddToRoleAsync(account, selectedRole.Name!);
-        //        }
-        //    }
-        //}
+            if (organizationBusinessKey is null)
+            {
+                throw new InvalidOperationException("CurrentOrganizationKey claim was not found. Membership and role assignment cannot be created.");
+            }
 
-        var organizationBusinessKey = _currentUserService.CurrentOrganizationKey;
-
-        if (organizationBusinessKey is not null)
-        {
             var organization = await _organizationCommandRepository.GetAsync(organizationBusinessKey);
-
-            if (organization is not null)
+            if (organization is null)
             {
-                var membership = Membership.Create(organization.TenantId, user.BusinessKey, organization.BusinessKey);
-                await _membershipCommandRepository.InsertAsync(membership);
-
-                var membershipRoleAssignment = MembershipRoleAssignment.Create(membership.BusinessKey, BusinessKey.FromGuid(command.RoleBusinessKey));
-                await _membershipRoleAssignmentCommandRepository.InsertAsync(membershipRoleAssignment);
+                throw new InvalidOperationException($"Organization not found for BusinessKey: {organizationBusinessKey.Value:D}");
             }
+
+            var membership = Membership.Create(organization.TenantId, user.BusinessKey, organization.BusinessKey);
+            await _membershipCommandRepository.InsertAsync(membership);
+
+            var membershipRoleAssignment = MembershipRoleAssignment.Create(membership.BusinessKey, BusinessKey.FromGuid(command.RoleBusinessKey));
+            await _membershipRoleAssignmentCommandRepository.InsertAsync(membershipRoleAssignment);
+
+            await _userCommandRepository.CommitAsync();
+
+            return await OkAsync(user.BusinessKey.Value);
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Create user failed. Command: {@Command}", command);
 
-        await _userCommandRepository.CommitAsync();
+            var errorDetails = ex.ToString();
+            if (ex.InnerException is not null)
+            {
+                errorDetails += Environment.NewLine + "INNER:" + Environment.NewLine + ex.InnerException;
+            }
 
-        return await OkAsync(user.BusinessKey.Value);
+            return await FailAsync(errorDetails);
+        }
     }
 }
