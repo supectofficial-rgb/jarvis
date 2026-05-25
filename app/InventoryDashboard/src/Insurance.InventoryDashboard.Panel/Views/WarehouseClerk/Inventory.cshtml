@@ -67,6 +67,8 @@
                         <div class="tab-content">
                             <div class="tab-pane fade show active" id="inventory-search-tab" role="tabpanel">
                                 <form method="get"
+                                      data-loading-form
+                                      data-ajax-target="#warehouse-clerk-inventory-root"
                                       data-inventory-search-form
                                       data-structure-tree-url="@warehouseStructureTreeUrl"
                                       data-serials-url="@inventorySerialsUrl"
@@ -620,7 +622,11 @@
                     event.preventDefault();
                     pageInput.value = pageLink.getAttribute('data-page') || '1';
                     syncSelectionsJson();
-                    form.submit();
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                    }
                 }
 
                 var refreshButton = event.target && event.target.closest ? event.target.closest('[data-structure-refresh]') : null;

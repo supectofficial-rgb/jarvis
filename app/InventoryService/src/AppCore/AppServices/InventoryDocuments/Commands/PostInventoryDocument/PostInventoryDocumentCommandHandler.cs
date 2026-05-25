@@ -10,6 +10,7 @@ using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
 using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryTransactions.Commands;
 using Insurance.InventoryService.AppCore.Shared.StockDetails.Commands;
+using Insurance.InventoryService.AppCore.Shared.Warehouse.Locations.Queries;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.AppCore.Shared.Commands.Common;
@@ -22,19 +23,22 @@ public class PostInventoryDocumentCommandHandler
     private readonly IStockDetailCommandRepository _stockDetailRepository;
     private readonly IInventorySourceBalanceCommandRepository _sourceBalanceRepository;
     private readonly ISerialItemCommandRepository _serialRepository;
+    private readonly ILocationQueryRepository _locationRepository;
 
     public PostInventoryDocumentCommandHandler(
         IInventoryDocumentCommandRepository documentRepository,
         IInventoryTransactionCommandRepository transactionRepository,
         IStockDetailCommandRepository stockDetailRepository,
         IInventorySourceBalanceCommandRepository sourceBalanceRepository,
-        ISerialItemCommandRepository serialRepository)
+        ISerialItemCommandRepository serialRepository,
+        ILocationQueryRepository locationRepository)
     {
         _documentRepository = documentRepository;
         _transactionRepository = transactionRepository;
         _stockDetailRepository = stockDetailRepository;
         _sourceBalanceRepository = sourceBalanceRepository;
         _serialRepository = serialRepository;
+        _locationRepository = locationRepository;
     }
 
     public override async Task<CommandResult<PostInventoryDocumentCommandResult>> Handle(PostInventoryDocumentCommand command)
@@ -52,10 +56,17 @@ public class PostInventoryDocumentCommandHandler
         if (document.Lines.Count == 0)
             return Fail($"Inventory document '{document.DocumentNo}' ({document.BusinessKey.Value:D}) must contain at least one line before posting.");
 
+        var resolvedTransactionWarehouseRef = document.WarehouseRef != Guid.Empty
+            ? document.WarehouseRef
+            : await ResolveDocumentWarehouseRefAsync(document);
+
+        if (resolvedTransactionWarehouseRef == Guid.Empty)
+            return Fail($"Inventory document '{document.DocumentNo}' ({document.BusinessKey.Value:D}) does not resolve to a valid warehouse.");
+
         var transaction = InventoryTransaction.Create(
             transactionNo: $"TX-{document.DocumentNo}",
             transactionType: MapTransactionType(document.DocumentType),
-            warehouseRef: document.WarehouseRef,
+            warehouseRef: resolvedTransactionWarehouseRef,
             sellerRef: document.SellerRef,
             occurredAt: document.OccurredAt,
             referenceType: nameof(InventoryDocument),
@@ -71,6 +82,9 @@ public class PostInventoryDocumentCommandHandler
             var line = effect.TransactionLine;
             transaction.AddLine(line);
             var effectLabel = DescribeEffect(document, effect);
+            var effectWarehouseRef = await ResolveEffectWarehouseRefAsync(document, effect, resolvedTransactionWarehouseRef);
+            if (effectWarehouseRef == Guid.Empty)
+                return Fail($"{effectLabel}: unable to resolve warehouse from document header or line locations.");
 
             var locationRef = line.BaseQtyDelta >= 0
                 ? line.DestinationLocationRef
@@ -86,7 +100,7 @@ public class PostInventoryDocumentCommandHandler
             var stockDetail = await _stockDetailRepository.FindByBucketAsync(
                 line.VariantRef,
                 document.SellerRef,
-                document.WarehouseRef,
+                effectWarehouseRef,
                 locationRef.Value,
                 qualityStatusRef.Value,
                 line.LotBatchNo);
@@ -99,7 +113,7 @@ public class PostInventoryDocumentCommandHandler
                 stockDetail = StockDetail.Create(
                     line.VariantRef,
                     document.SellerRef,
-                    document.WarehouseRef,
+                    effectWarehouseRef,
                     locationRef.Value,
                     qualityStatusRef.Value,
                     line.LotBatchNo,
@@ -112,12 +126,12 @@ public class PostInventoryDocumentCommandHandler
             stockDetail.ApplyQuantity(line.BaseQtyDelta, document.OccurredAt);
             line.LinkStockDetail(stockDetail.BusinessKey);
 
-            var serialResult = await HandleSerialItemsAsync(document, effect, stockDetail);
+            var serialResult = await HandleSerialItemsAsync(document, effect, stockDetail, effectWarehouseRef);
             if (!serialResult.Success)
                 return Fail($"{effectLabel}: {serialResult.Error ?? "Serial item processing failed."}");
         }
 
-        var sourceTracingResult = await ApplySourceTracingAsync(document, transaction, effects);
+        var sourceTracingResult = await ApplySourceTracingAsync(document, transaction, effects, resolvedTransactionWarehouseRef);
         if (!sourceTracingResult.Success)
             return Fail($"Source tracing failed for inventory document '{document.DocumentNo}': {sourceTracingResult.Error ?? "Unknown source tracing error."}");
 
@@ -152,11 +166,16 @@ public class PostInventoryDocumentCommandHandler
     private async Task<(bool Success, string? Error)> ApplySourceTracingAsync(
         InventoryDocument document,
         InventoryTransaction transaction,
-        IReadOnlyList<InventoryDocumentPostingEffect> effects)
+        IReadOnlyList<InventoryDocumentPostingEffect> effects,
+        Guid defaultWarehouseRef)
     {
         foreach (var effect in effects)
         {
             var line = effect.TransactionLine;
+            var effectWarehouseRef = await ResolveEffectWarehouseRefAsync(document, effect, defaultWarehouseRef);
+            if (effectWarehouseRef == Guid.Empty)
+                return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) does not resolve to a valid warehouse.");
+
             if (line.BaseQtyDelta > 0)
             {
                 var sourceType = ResolveSourceType(document.DocumentType, line.BaseQtyDelta);
@@ -172,7 +191,7 @@ public class PostInventoryDocumentCommandHandler
                     sourceType.Value,
                     line.VariantRef,
                     document.SellerRef,
-                    document.WarehouseRef,
+                    effectWarehouseRef,
                     locationRef.Value,
                     qualityStatusRef.Value,
                     line.BaseUomRef,
@@ -202,7 +221,7 @@ public class PostInventoryDocumentCommandHandler
                 var sourceBalances = await _sourceBalanceRepository.GetOpenByBucketAsync(
                     line.VariantRef,
                     document.SellerRef,
-                    document.WarehouseRef,
+                    effectWarehouseRef,
                     locationRef.Value,
                     qualityStatusRef.Value,
                     line.LotBatchNo,
@@ -492,7 +511,8 @@ public class PostInventoryDocumentCommandHandler
     private async Task<(bool Success, string? Error)> HandleSerialItemsAsync(
         InventoryDocument document,
         InventoryDocumentPostingEffect effect,
-        StockDetail stockDetail)
+        StockDetail stockDetail,
+        Guid warehouseRef)
     {
         var shouldGenerateSerials = document.DocumentType == InventoryDocumentType.Receipt
             || (document.DocumentType == InventoryDocumentType.Conversion && effect.DocumentLine.BaseQty > 0);
@@ -548,7 +568,7 @@ public class PostInventoryDocumentCommandHandler
                 selectedSerial.SerialNo,
                 documentLine.VariantRef,
                 document.SellerRef,
-                document.WarehouseRef,
+                warehouseRef,
                 stockDetail.LocationRef,
                 stockDetail.QualityStatusRef,
                 documentLine.LotBatchNo);
@@ -577,7 +597,7 @@ public class PostInventoryDocumentCommandHandler
                 serialNo,
                 documentLine.VariantRef,
                 document.SellerRef,
-                document.WarehouseRef,
+                warehouseRef,
                 stockDetail.LocationRef,
                 stockDetail.QualityStatusRef,
                 documentLine.LotBatchNo);
@@ -622,6 +642,59 @@ public class PostInventoryDocumentCommandHandler
         normalized = normalized.Replace(':', '-');
         normalized = normalized.Replace('.', '-');
         return normalized;
+    }
+
+    private async Task<Guid> ResolveDocumentWarehouseRefAsync(InventoryDocument document)
+    {
+        foreach (var line in document.Lines)
+        {
+            var lineWarehouseRef = await ResolveLineWarehouseRefAsync(document, line);
+            if (lineWarehouseRef != Guid.Empty)
+                return lineWarehouseRef;
+        }
+
+        return Guid.Empty;
+    }
+
+    private async Task<Guid> ResolveEffectWarehouseRefAsync(
+        InventoryDocument document,
+        InventoryDocumentPostingEffect effect,
+        Guid defaultWarehouseRef)
+    {
+        var line = effect.DocumentLine;
+        var locationRef = effect.TransactionLine.BaseQtyDelta >= 0
+            ? line.DestinationLocationRef
+            : line.SourceLocationRef;
+
+        if (locationRef.HasValue)
+        {
+            var resolvedWarehouseRef = await ResolveLocationWarehouseRefAsync(locationRef.Value);
+            if (resolvedWarehouseRef != Guid.Empty)
+                return resolvedWarehouseRef;
+        }
+
+        if (defaultWarehouseRef != Guid.Empty)
+            return defaultWarehouseRef;
+
+        return await ResolveLineWarehouseRefAsync(document, line);
+    }
+
+    private async Task<Guid> ResolveLineWarehouseRefAsync(InventoryDocument document, InventoryDocumentLine line)
+    {
+        if (document.WarehouseRef != Guid.Empty)
+            return document.WarehouseRef;
+
+        var locationRef = line.DestinationLocationRef ?? line.SourceLocationRef;
+        if (!locationRef.HasValue)
+            return Guid.Empty;
+
+        return await ResolveLocationWarehouseRefAsync(locationRef.Value);
+    }
+
+    private async Task<Guid> ResolveLocationWarehouseRefAsync(Guid locationBusinessKey)
+    {
+        var location = await _locationRepository.GetByBusinessKeyAsync(locationBusinessKey);
+        return location?.WarehouseRef ?? Guid.Empty;
     }
 
     private sealed record InventoryDocumentPostingEffect(

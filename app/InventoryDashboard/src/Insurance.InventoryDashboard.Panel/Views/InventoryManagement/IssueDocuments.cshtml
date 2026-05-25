@@ -2146,7 +2146,7 @@
 
                 var documentId = idInput.value || '';
                 var action = select.value || 'approve';
-                if (!changeStatusUrl) {
+                if (!safeChangeStatusUrl) {
                     return;
                 }
 
@@ -2170,7 +2170,7 @@
                     payload.append('ReasonCode', reasonInput ? reasonInput.value || '' : '');
                 }
 
-                var response = await fetch(changeStatusUrl, {
+                var response = await fetch(safeChangeStatusUrl, {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
@@ -2396,6 +2396,7 @@
             var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#issue-document-action-submit';
             var safeDocumentListFormSelector = (typeof documentListFormSelector === 'string' && documentListFormSelector) ? documentListFormSelector : '#issue-document-list-form';
             var safeActionErrorSelector = (typeof actionErrorSelector === 'string' && actionErrorSelector) ? actionErrorSelector : '.js-issue-document-action-error';
+            var safeChangeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
 
             var actionModalElement = document.querySelector(safeActionModalSelector);
             if (actionModalElement) {
