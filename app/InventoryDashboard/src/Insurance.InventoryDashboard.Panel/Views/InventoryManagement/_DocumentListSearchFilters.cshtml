@@ -57,15 +57,15 @@
         </select>
     </div>
     <div class="form-group col-md-2">
-        <label>از تاریخ</label>
-        <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
+        <label>@UiText["common.fromDate"]</label>
+        <input name="occurredFrom" type="text" value="@Model.OccurredFromFilter" class="form-control datepicker" autocomplete="off" data-date-format="yyyy/mm/dd" />
     </div>
     <div class="form-group col-md-2">
-        <label>تا تاریخ</label>
-        <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
+        <label>@UiText["common.toDate"]</label>
+        <input name="occurredTo" type="text" value="@Model.OccurredToFilter" class="form-control datepicker" autocomplete="off" data-date-format="yyyy/mm/dd" />
     </div>
     <div class="form-group col-md-2">
-        <label>تعداد</label>
+        <label>@UiText["inventory.documents.list.pageSize"]</label>
         <select name="pageSize" class="form-control">
             @foreach (var size in Model.PageSizeOptions)
             {
@@ -124,6 +124,7 @@
             });
 
             locationSelect.value = selectedValue || '';
+            locationSelect.disabled = false;
             if (window.jQuery) {
                 window.jQuery(locationSelect).trigger('change');
                 window.jQuery(locationSelect).trigger('change.select2');

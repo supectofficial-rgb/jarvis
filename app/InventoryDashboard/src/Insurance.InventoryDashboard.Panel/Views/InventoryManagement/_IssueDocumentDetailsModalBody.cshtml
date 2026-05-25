@@ -176,20 +176,20 @@
                                     }
                                 </select>
                             </div>
-                            <div class="form-group col-md-4 line-serials d-none">
-                                <label>سریال‌های قابل خروج</label>
-                                <div class="text-muted small js-issue-line-serial-summary mb-2">ابتدا واریانت و مبدأ را انتخاب کنید.</div>
-                                <div class="border rounded bg-light p-2 js-issue-line-serial-container" style="max-height: 220px; overflow:auto;"></div>
+                            <div class="form-group col-12 col-lg-4 line-serials d-none">
+                                <label>@UiText["inventory.documents.issue.serial.title"]</label>
+                                <div class="text-muted small js-issue-line-serial-summary mb-2" data-select-prompt="@UiText["inventory.documents.issue.serial.selectLocationPrompt"]" data-no-available="@UiText["inventory.documents.issue.serial.noAvailable"]" data-select-available="@UiText["inventory.documents.issue.serial.selectPrompt"]">@UiText["inventory.documents.issue.serial.selectLocationPrompt"]</div>
+                                <div class="list-group js-issue-line-serial-container" style="max-height: 240px; overflow:auto;"></div>
                                 <div class="js-issue-line-serial-hidden d-none"></div>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-10">
-                                <label>تعداد</label>
+                                <label>@UiText["inventory.documents.line.quantity"]</label>
                                 <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
                             </div>
                             <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-primary btn-block js-issue-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
+                                <button class="btn btn-primary btn-block js-issue-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.action.addItem"] : UiText["inventory.documents.action.saveChanges"])</button>
                             </div>
                         </div>
                     </form>
@@ -217,12 +217,12 @@
                     <table class="table table-sm table-striped mb-0">
                         <thead>
                             <tr>
-                                <th>واریانت</th>
-                                <th>تعداد</th>
-                                <th>واحد</th>
-                                <th>کیفیت</th>
-                                <th>مبدأ</th>
-                                <th class="text-right">عملیات</th>
+                                <th>@UiText["inventory.documents.line.variant"]</th>
+                                <th>@UiText["inventory.documents.line.quantity"]</th>
+                                <th>@UiText["inventory.documents.line.uom"]</th>
+                                <th>@UiText["inventory.documents.line.quality"]</th>
+                                <th>@UiText["inventory.documents.line.sourceLocation"]</th>
+                                <th class="text-right">@UiText["inventory.documents.action.action"]</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -244,17 +244,17 @@
                                             data-source-location-id="@line.SourceLocationRef"
                                             data-quality-id="@line.QualityStatusRef"
                                             data-qty="@line.Qty.ToString("0.####")"
-                                            data-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>ویرایش</button>
-                                            <form asp-action="DeleteIssueDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#issue-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">
+                                            data-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>@UiText["inventory.documents.action.editDocument"]</button>
+                                            <form asp-action="DeleteIssueDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#issue-document-details-modal-body" onsubmit="return confirm('@UiText["inventory.documents.confirm.deleteLine"]');">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
                                                 <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
+                                                <button class="btn btn-outline-danger btn-xs" type="submit">@UiText["inventory.documents.action.deleteDocument"]</button>
                                             </form>
                                         }
                                         else
                                         {
-                                            <span class="text-muted small">غیر قابل ویرایش</span>
+                                            <span class="text-muted small">@UiText["inventory.documents.line.notEditable"]</span>
                                         }
                                     </td>
                                 </tr>
@@ -265,7 +265,7 @@
                                             Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
                                             @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
                                             {
-                                                <span> | لات/بچ: @line.LotBatchNo</span>
+                                                <span> | @UiText["inventory.documents.line.lotBatch"]: @line.LotBatchNo</span>
                                             }
                                         </td>
                                     </tr>

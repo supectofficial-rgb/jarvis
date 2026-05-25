@@ -269,7 +269,8 @@
                                 </div>
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
-                                    <input asp-for="CreateForm.OccurredAt" type="datetime-local" class="form-control" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
+                                    <input type="hidden" asp-for="CreateForm.OccurredAt" id="documents-occurred-at-value" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
+                                    <input type="text" class="form-control datepicker" data-date-picker-target="#documents-occurred-at-value" data-date-format="yyyy/mm/dd" value="@Model.CreateForm.OccurredAt.ToString("yyyy/MM/dd")" autocomplete="off" />
                                 </div>
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.reason"]</label>

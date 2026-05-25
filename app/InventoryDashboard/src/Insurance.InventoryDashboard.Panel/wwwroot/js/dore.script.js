@@ -3383,18 +3383,36 @@ $.dore = function (element, options) {
 
     /* 03.19. Datepicker */
     if ($().datepicker) {
-      $("input.datepicker").datepicker({
-        autoclose: true,
-        rtl: isRtl,
-        templates: {
-          leftArrow: '<i class="simple-icon-arrow-left"></i>',
-          rightArrow: '<i class="simple-icon-arrow-right"></i>'
-        }
+      var datepickerLanguage = (document.documentElement.getAttribute("lang") || "").toLowerCase();
+      datepickerLanguage = datepickerLanguage.indexOf("fa") === 0 ? "fa" : "en";
+
+      function getDatepickerOptions(element) {
+        var dateFormat = $(element).attr("data-date-format") || "yyyy/mm/dd";
+        var elementLanguage = $(element).attr("data-date-language") || datepickerLanguage;
+
+        return {
+          autoclose: true,
+          rtl: isRtl,
+          language: elementLanguage,
+          format: dateFormat,
+          templates: {
+            leftArrow: '<i class="simple-icon-arrow-left"></i>',
+            rightArrow: '<i class="simple-icon-arrow-right"></i>'
+          }
+        };
+      }
+
+      $("input.datepicker").each(function () {
+        var input = this;
+        $(input).datepicker(getDatepickerOptions(input));
+        input.dataset.datePickerInitialized = "true";
       });
 
       $(".input-daterange").datepicker({
         autoclose: true,
         rtl: isRtl,
+        language: datepickerLanguage,
+        format: "yyyy/mm/dd",
         templates: {
           leftArrow: '<i class="simple-icon-arrow-left"></i>',
           rightArrow: '<i class="simple-icon-arrow-right"></i>'
@@ -3404,6 +3422,8 @@ $.dore = function (element, options) {
       $(".input-group.date").datepicker({
         autoclose: true,
         rtl: isRtl,
+        language: datepickerLanguage,
+        format: "yyyy/mm/dd",
         templates: {
           leftArrow: '<i class="simple-icon-arrow-left"></i>',
           rightArrow: '<i class="simple-icon-arrow-right"></i>'
@@ -3413,6 +3433,8 @@ $.dore = function (element, options) {
       $(".date-inline").datepicker({
         autoclose: true,
         rtl: isRtl,
+        language: datepickerLanguage,
+        format: "yyyy/mm/dd",
         templates: {
           leftArrow: '<i class="simple-icon-arrow-left"></i>',
           rightArrow: '<i class="simple-icon-arrow-right"></i>'

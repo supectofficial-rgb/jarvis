@@ -216,6 +216,154 @@
         });
     }
 
+    function initDatePickers(root) {
+        root = getScope(root);
+        if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.datepicker) {
+            return;
+        }
+
+        var $ = window.jQuery;
+        var htmlLang = (document.documentElement.getAttribute("lang") || "").toLowerCase();
+        var defaultLanguage = htmlLang.indexOf("fa") === 0 ? "fa" : "en";
+        var defaultRtl = (document.documentElement.getAttribute("dir") || "").toLowerCase() === "rtl";
+
+        function parseDateValue(value) {
+            if (typeof value !== "string") {
+                return null;
+            }
+
+            var match = value.trim().match(/^(\d{4})[\/-](\d{2})[\/-](\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+            if (!match) {
+                return null;
+            }
+
+            return new Date(
+                Number(match[1]),
+                Number(match[2]) - 1,
+                Number(match[3]),
+                Number(match[4] || 0),
+                Number(match[5] || 0),
+                Number(match[6] || 0)
+            );
+        }
+
+        function pad(value) {
+            return String(value).padStart(2, "0");
+        }
+
+        function formatDateTimeValue(date, timeSource) {
+            var time = timeSource instanceof Date && !Number.isNaN(timeSource.getTime())
+                ? timeSource
+                : parseDateValue(String(timeSource || ""));
+            var hours = time ? time.getHours() : 0;
+            var minutes = time ? time.getMinutes() : 0;
+            var year = date.getFullYear();
+            var month = pad(date.getMonth() + 1);
+            var day = pad(date.getDate());
+
+            return year + "-" + month + "-" + day + "T" + pad(hours) + ":" + pad(minutes);
+        }
+
+        function initSingleDatePicker(input) {
+            if (!(input instanceof HTMLInputElement)) {
+                return;
+            }
+
+            var dateFormat = input.getAttribute("data-date-format") || "yyyy/mm/dd";
+            var language = (input.getAttribute("data-date-language") || defaultLanguage || "en").toLowerCase();
+            language = language.indexOf("fa") === 0 ? "fa" : "en";
+            var options = {
+                autoclose: true,
+                rtl: defaultRtl,
+                language: language,
+                format: dateFormat,
+                templates: {
+                    leftArrow: '<i class="simple-icon-arrow-left"></i>',
+                    rightArrow: '<i class="simple-icon-arrow-right"></i>'
+                }
+            };
+            var isInitialized = input.dataset.datePickerInitialized === "true";
+            var targetSelector = input.getAttribute("data-date-picker-target") || "";
+            var target = targetSelector ? (root.querySelector(targetSelector) || document.querySelector(targetSelector)) : null;
+
+            if (!isInitialized) {
+                $(input).datepicker(options);
+                input.dataset.datePickerInitialized = "true";
+            }
+
+            if (!target || !(target instanceof HTMLInputElement)) {
+                return;
+            }
+
+            if (input.dataset.datePickerSyncBound !== "true") {
+                var updateTarget = function (date) {
+                    if (!date) {
+                        target.value = "";
+                        return;
+                    }
+
+                    var previousValue = parseDateValue(target.value);
+                    target.value = formatDateTimeValue(date, previousValue || new Date());
+                };
+
+                $(input).on("changeDate", function (event) {
+                    updateTarget(event.date || $(input).datepicker("getDate"));
+                });
+
+                $(input).on("change blur", function () {
+                    var currentDate = $(input).datepicker("getDate") || parseDateValue(input.value);
+                    updateTarget(currentDate);
+                });
+
+                input.dataset.datePickerSyncBound = "true";
+            }
+
+            var initialValue = target.value || input.value;
+            var initialDate = parseDateValue(initialValue);
+            if (initialDate) {
+                $(input).datepicker("setDate", initialDate);
+            }
+        }
+
+        root.querySelectorAll('input[type="datetime-local"]').forEach(function (input) {
+            if (!(input instanceof HTMLInputElement) || input.dataset.datePickerUpgraded === "true") {
+                return;
+            }
+
+            var targetId = input.id || "";
+            if (!targetId) {
+                targetId = "date-picker-" + Math.random().toString(36).slice(2, 10);
+                input.id = targetId;
+            }
+
+            var display = document.createElement("input");
+            display.type = "text";
+            display.className = "form-control datepicker";
+            display.setAttribute("data-date-picker-target", "#" + targetId);
+            display.setAttribute("data-date-format", input.getAttribute("data-date-format") || "yyyy/mm/dd");
+            display.setAttribute("autocomplete", "off");
+            display.value = (() => {
+                var parsed = parseDateValue(input.value || "");
+                if (!parsed) {
+                    return "";
+                }
+
+                return [
+                    parsed.getFullYear(),
+                    pad(parsed.getMonth() + 1),
+                    pad(parsed.getDate())
+                ].join("/");
+            })();
+
+            input.type = "hidden";
+            input.dataset.datePickerUpgraded = "true";
+            input.parentNode.insertBefore(display, input.nextSibling);
+            initSingleDatePicker(display);
+        });
+
+        root.querySelectorAll("input.datepicker").forEach(initSingleDatePicker);
+    }
+
     function initAutoSubmit(root) {
         root = getScope(root);
 
@@ -383,12 +531,14 @@
     onReady(function () {
         window.appUi = window.appUi || {};
         window.appUi.initSearchableSelects = initSearchableSelects;
+        window.appUi.initDatePickers = initDatePickers;
         window.appUi.initAutoSubmit = initAutoSubmit;
         window.appUi.initBulkActions = initBulkActions;
         window.appUi.initInventoryManagementPage = initInventoryManagementPage;
 
         initLocalizationBridge();
         initSearchableSelects();
+        initDatePickers();
         initAutoSubmit();
         initBulkActions();
         initInventoryManagementPage();

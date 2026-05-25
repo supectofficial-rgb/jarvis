@@ -188,10 +188,10 @@
                                     <option value="">ابتدا واریانت را انتخاب کنید</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-4 line-serials d-none">
-                                <label>سریال‌های قابل خروج</label>
-                                <div class="text-muted small js-transfer-line-serial-summary mb-2">ابتدا واریانت و لوکیشن مبدأ را انتخاب کنید.</div>
-                                <div class="border rounded bg-light p-2 js-transfer-line-serial-container" style="max-height: 220px; overflow:auto;"></div>
+                            <div class="form-group col-12 col-lg-4 line-serials d-none">
+                                <label>@UiText["inventory.documents.serial.title"]</label>
+                                <div class="text-muted small js-transfer-line-serial-summary mb-2" data-select-prompt="@UiText["inventory.documents.action.selectVariantAndLocation"]" data-required-hint="@UiText["inventory.documents.serial.requiredHint"]" data-no-available="@UiText["inventory.documents.serial.noAvailable"]">@UiText["inventory.documents.serial.requiredHint"]</div>
+                                <div class="list-group js-transfer-line-serial-container" style="max-height: 240px; overflow:auto;"></div>
                                 <div class="js-transfer-line-serial-hidden d-none"></div>
                             </div>
                         </div>
@@ -225,11 +225,11 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-10">
-                                <label>تعداد</label>
+                                <label>@UiText["inventory.documents.line.quantity"]</label>
                                 <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
                             </div>
                             <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-primary btn-block js-transfer-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
+                                <button class="btn btn-primary btn-block js-transfer-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.action.addItem"] : UiText["inventory.documents.action.saveChanges"])</button>
                             </div>
                         </div>
                     </form>
