@@ -1,0 +1,637 @@
+@using System.Text.Json
+@model Insurance.InventoryDashboard.Panel.Models.WarehouseClerkInventoryPageViewModel
+@{
+    ViewData["Title"] = "موجودی";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    ViewBag.UserDisplayName = Model.UserName;
+    ViewBag.MenuModules = Model.Modules;
+    ViewBag.ActiveModuleId = Model.ActiveModule?.ModuleId;
+    ViewBag.ActiveItemId = Model.ActiveItem?.ItemId;
+
+    var warehouseStructureTreeUrl = Url.Action("WarehouseStructureTree", "InventoryManagement") ?? string.Empty;
+    var inventorySerialsUrl = Url.Action("InventorySerials", "WarehouseClerk") ?? string.Empty;
+}
+
+<style>
+    .inventory-page-tabs .nav-link {
+        cursor: pointer;
+    }
+
+    .inventory-structure-card .select2-container {
+        width: 100% !important;
+    }
+</style>
+
+<main id="warehouse-clerk-inventory-root" class="catalog-page">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-4 d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <div class="d-flex align-items-center flex-wrap mb-2">
+                            <span class="badge badge-pill badge-primary ml-2">موجودی</span>
+                            <h1 class="mb-0">موجودی</h1>
+                        </div>
+                        <p class="text-muted mb-2">جستجوی موجودی بر اساس انبار و ساختارهای پایین‌دست همان انبار.</p>
+                        <div class="small text-muted">
+                            @if (!string.IsNullOrWhiteSpace(Model.SelectedWarehouseName))
+                            {
+                                <span class="badge badge-pill badge-outline-secondary mb-1">انبار انتخابی: @Model.SelectedWarehouseName</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-pill badge-outline-secondary mb-1">ابتدا یک انبار انتخاب کنید</span>
+                            }
+                            <span class="badge badge-pill badge-outline-primary mb-1">نتیجه: @Model.TotalCount</span>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                {
+                    <div class="alert alert-warning">@Model.ErrorMessage</div>
+                }
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <ul class="nav nav-tabs separator-tabs ml-0 mb-4 inventory-page-tabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-toggle="tab" href="#inventory-search-tab" role="tab">جستجو و لیست</a>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="inventory-search-tab" role="tabpanel">
+                                <form method="get"
+                                      data-inventory-search-form
+                                      data-structure-tree-url="@warehouseStructureTreeUrl"
+                                      data-serials-url="@inventorySerialsUrl"
+                                      class="mb-4">
+                                    <input type="hidden" name="structureSelectionsJson" value="@Model.StructureSelectionsJson" data-structure-selections-json />
+                                    <input type="hidden" name="page" value="@Model.Page" data-page-input />
+
+                                    <div class="form-row">
+                                        <div class="form-group col-md-3">
+                                            <label>انبار</label>
+                                            <select name="warehouseId" class="form-control js-search-select" data-warehouse-select>
+                                                <option value="">انتخاب انبار</option>
+                                                @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                                {
+                                                    <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.SelectedWarehouseId ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-md-2">
+                                            <label>تعداد در صفحه</label>
+                                            <select name="pageSize" class="form-control">
+                                                @foreach (var size in Model.PageSizeOptions)
+                                                {
+                                                    <option value="@size" selected="@(Model.PageSize == size ? "selected" : null)">@size</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-md-7 d-flex align-items-end justify-content-end">
+                                            <button class="btn btn-outline-primary mr-2" type="submit">جستجو</button>
+                                            <button type="button" class="btn btn-outline-secondary" data-structure-refresh>رفرش ساختار</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="border rounded p-3 bg-white">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div>
+                                                <h5 class="card-title mb-0">ساختارهای انبار</h5>
+                                                <div class="text-muted small">بعد از انتخاب انبار، ساختارهای همان انبار لود می‌شوند و می‌توانی روی هر سطح، valueهای همان سطح را انتخاب کنی.</div>
+                                            </div>
+                                        </div>
+                                        <div class="inventory-structure-card" data-inventory-structure-builder>
+                                            @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
+                                            {
+                                                <div class="text-muted">ابتدا یک انبار انتخاب کنید تا ساختار آن نمایش داده شود.</div>
+                                            }
+                                            else
+                                            {
+                                                <div class="text-muted">در حال بارگذاری ساختار...</div>
+                                            }
+                                        </div>
+                                    </div>
+                                </form>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">لیست موجودی</h5>
+                                    <span class="text-muted small"><span data-total-count>@Model.TotalCount</span> ردیف</span>
+                                </div>
+
+                                @if (string.IsNullOrWhiteSpace(Model.SelectedWarehouseId))
+                                {
+                                    <div class="alert alert-info mb-0">برای مشاهده موجودی، ابتدا یک انبار انتخاب کنید.</div>
+                                }
+                                else if (Model.Items.Count == 0)
+                                {
+                                    <div class="alert alert-light mb-0">برای فیلترهای انتخاب‌شده موجودی‌ای پیدا نشد.</div>
+                                }
+                                else
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>واریانت</th>
+                                                    <th class="text-right">تعداد</th>
+                                                    <th class="text-right">باکت</th>
+                                                    <th class="text-right">سریال</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody data-inventory-list-body>
+                                                @foreach (var item in Model.Items)
+                                                {
+                                                    var variantLabel = string.IsNullOrWhiteSpace(item.VariantSku)
+                                                        ? (string.IsNullOrWhiteSpace(item.VariantName) ? item.VariantRef : item.VariantName)
+                                                        : string.IsNullOrWhiteSpace(item.VariantName) ? item.VariantSku : $"{item.VariantSku} - {item.VariantName}";
+
+                                                    <tr>
+                                                        <td>
+                                                            <div class="font-weight-bold">@variantLabel</div>
+                                                            <div class="text-monospace small text-muted">@item.VariantRef</div>
+                                                        </td>
+                                                        <td class="text-right text-monospace">@item.QuantityOnHand</td>
+                                                        <td class="text-right">@item.BucketCount</td>
+                                                        <td class="text-right">
+                                                            @if (item.SerialCount > 0)
+                                                            {
+                                                                <span class="badge badge-pill badge-info mb-1">سریال‌دار (@item.SerialCount)</span>
+                                                                <button type="button"
+                                                                        class="btn btn-outline-primary btn-xs d-block ml-auto"
+                                                                        data-inventory-serial-button
+                                                                        data-variant-id="@item.VariantRef">
+                                                                    سریال‌ها
+                                                                </button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted">-</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <nav class="mt-3" data-inventory-pagination @(Model.TotalPages > 1 ? null : "hidden")>
+                                        @if (Model.TotalPages > 1)
+                                        {
+                                            <ul class="pagination pagination-sm mb-0">
+                                                @for (var i = 1; i <= Model.TotalPages; i++)
+                                                {
+                                                    <li class="page-item @(i == Model.Page ? "active" : null)">
+                                                        <a class="page-link" href="#" data-inventory-page-link data-page="@i">@i</a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        }
+                                    </nav>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="warehouse-clerk-inventory-serial-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-0">سریال‌ها</h5>
+                    <small class="text-muted">سریال‌های موجود برای واریانت انتخاب‌شده در همین محدوده نمایش داده می‌شوند.</small>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3" data-inventory-serial-alert hidden></div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>سریال</th>
+                                <th>انبار</th>
+                                <th>لوکیشن</th>
+                                <th>وضعیت کیفیت</th>
+                                <th>لات</th>
+                                <th>وضعیت</th>
+                                <th>تاریخ</th>
+                            </tr>
+                        </thead>
+                        <tbody data-inventory-serial-body>
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">برای مشاهده سریال‌ها یک آیتم را انتخاب کنید.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script data-ajax-reinit="warehouse-clerk-inventory">
+        (function () {
+            if (window.__warehouseClerkInventoryBound) {
+                return;
+            }
+
+            window.__warehouseClerkInventoryBound = true;
+
+            var form = document.querySelector('[data-inventory-search-form]');
+            var warehouseSelect = form ? form.querySelector('[data-warehouse-select]') : null;
+            var structureBuilder = document.querySelector('[data-inventory-structure-builder]');
+            var structureTreeUrl = form ? form.getAttribute('data-structure-tree-url') || '' : '';
+            var serialsUrl = form ? form.getAttribute('data-serials-url') || '' : '';
+            var structureSelectionsInput = form ? form.querySelector('[data-structure-selections-json]') : null;
+            var pageInput = form ? form.querySelector('[data-page-input]') : null;
+            var serialModal = document.getElementById('warehouse-clerk-inventory-serial-modal');
+            var serialModalBody = document.querySelector('[data-inventory-serial-body]');
+            var serialAlert = document.querySelector('[data-inventory-serial-alert]');
+            var totalCountElement = document.querySelector('[data-total-count]');
+
+            function escapeHtml(value) {
+                return String(value ?? '').replace(/[&<>"']/g, function (character) {
+                    switch (character) {
+                        case '&': return '&amp;';
+                        case '<': return '&lt;';
+                        case '>': return '&gt;';
+                        case '"': return '&quot;';
+                        case '\'': return '&#39;';
+                        default: return character;
+                    }
+                });
+            }
+
+            function escapeAttr(value) {
+                return escapeHtml(value).replace(/`/g, '&#96;');
+            }
+
+            function refreshWidgets(root) {
+                if (!window.appUi || !root) {
+                    return;
+                }
+
+                if (typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(root);
+                }
+            }
+
+            function flattenNodes(nodes, depth, items) {
+                var list = items || [];
+                var level = Number(depth || 0);
+
+                (nodes || []).forEach(function (node) {
+                    list.push({
+                        key: node.locationStructureBusinessKey || '',
+                        code: node.code || '',
+                        name: node.name || '',
+                        depth: level,
+                        values: node.values || []
+                    });
+
+                    if (node.children && node.children.length) {
+                        flattenNodes(node.children, level + 1, list);
+                    }
+                });
+
+                return list;
+            }
+
+            function getCurrentSelections() {
+                if (!structureSelectionsInput || !structureSelectionsInput.value) {
+                    return {};
+                }
+
+                try {
+                    var parsed = JSON.parse(structureSelectionsInput.value || '[]');
+                    var map = {};
+                    (parsed || []).forEach(function (item) {
+                        var structureRef = String(item.structureRef || '').trim();
+                        if (!structureRef) {
+                            return;
+                        }
+
+                        var values = Array.isArray(item.structureValueRefs) ? item.structureValueRefs : [];
+                        map[structureRef] = values.map(function (value) { return String(value || '').trim(); }).filter(function (value) { return !!value; });
+                    });
+                    return map;
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            function syncSelectionsJson() {
+                if (!structureBuilder || !structureSelectionsInput) {
+                    return;
+                }
+
+                var filters = [];
+                var cards = structureBuilder.querySelectorAll('[data-inventory-structure-card]');
+                cards.forEach(function (card) {
+                    var structureRef = String(card.getAttribute('data-structure-ref') || '').trim();
+                    var select = card.querySelector('[data-structure-level-select]');
+                    if (!structureRef || !select) {
+                        return;
+                    }
+
+                    var valueRefs = Array.prototype.slice.call(select.selectedOptions || [])
+                        .map(function (option) { return String(option.value || '').trim(); })
+                        .filter(function (value) { return !!value; });
+
+                    if (valueRefs.length) {
+                        filters.push({
+                            structureRef: structureRef,
+                            structureValueRefs: valueRefs
+                        });
+                    }
+                });
+
+                structureSelectionsInput.value = filters.length ? JSON.stringify(filters) : '';
+            }
+
+            function applySelectionsToBuilder() {
+                if (!structureBuilder) {
+                    return;
+                }
+
+                var selections = getCurrentSelections();
+                var cards = structureBuilder.querySelectorAll('[data-inventory-structure-card]');
+                cards.forEach(function (card) {
+                    var structureRef = String(card.getAttribute('data-structure-ref') || '').trim();
+                    var select = card.querySelector('[data-structure-level-select]');
+                    if (!structureRef || !select) {
+                        return;
+                    }
+
+                    var selectedValues = selections[structureRef] || [];
+                    Array.prototype.slice.call(select.options || []).forEach(function (option) {
+                        option.selected = selectedValues.indexOf(String(option.value || '').trim()) > -1;
+                    });
+                });
+            }
+
+            function renderStructureBuilder(items) {
+                if (!structureBuilder) {
+                    return;
+                }
+
+                var flatItems = flattenNodes(items || [], 0, []);
+                if (!flatItems.length) {
+                    structureBuilder.innerHTML = '<div class="text-muted">برای این انبار هنوز ساختاری ثبت نشده است.</div>';
+                    if (structureSelectionsInput) {
+                        structureSelectionsInput.value = '';
+                    }
+                    return;
+                }
+
+                var html = [];
+                flatItems.forEach(function (item, index) {
+                    var selectId = 'inventory-structure-level-' + index;
+                    var values = Array.isArray(item.values) ? item.values.slice().sort(function (a, b) {
+                        var aOrder = Number(a.displayOrder || 0);
+                        var bOrder = Number(b.displayOrder || 0);
+                        if (aOrder !== bOrder) {
+                            return aOrder - bOrder;
+                        }
+                        return String(a.code || '').localeCompare(String(b.code || ''));
+                    }) : [];
+
+                    html.push('<div class="border rounded p-3 mb-3 bg-white" data-inventory-structure-card data-structure-ref="' + escapeAttr(item.key) + '">');
+                    html.push('<div class="font-weight-bold mb-1">' + escapeHtml(item.code || '-') + ' - ' + escapeHtml(item.name || '-') + '</div>');
+                    html.push('<div class="small text-muted mb-2">سطح ' + (index + 1) + ' ساختار</div>');
+                    html.push('<select id="' + selectId + '" class="form-control js-search-select" data-structure-level-select multiple data-placeholder="انتخاب valueها">');
+                    html.push('<option value="">انتخاب valueها</option>');
+                    values.forEach(function (value) {
+                        html.push('<option value="' + escapeAttr(value.locationStructureValueBusinessKey || '') + '">' + escapeHtml(value.code || '') + ' - ' + escapeHtml(value.name || '') + '</option>');
+                    });
+                    html.push('</select>');
+                    html.push('</div>');
+                });
+
+                structureBuilder.innerHTML = html.join('');
+                refreshWidgets(structureBuilder);
+                applySelectionsToBuilder();
+                syncSelectionsJson();
+            }
+
+            async function loadStructureTree() {
+                if (!structureBuilder) {
+                    return;
+                }
+
+                var warehouseId = warehouseSelect ? String(warehouseSelect.value || '').trim() : '';
+                if (!warehouseId) {
+                    structureBuilder.innerHTML = '<div class="text-muted">ابتدا یک انبار انتخاب کنید تا ساختار آن نمایش داده شود.</div>';
+                    if (structureSelectionsInput) {
+                        structureSelectionsInput.value = '';
+                    }
+                    return;
+                }
+
+                structureBuilder.innerHTML = '<div class="text-muted">در حال بارگذاری ساختار...</div>';
+
+                var url = new URL(structureTreeUrl, window.location.origin);
+                url.searchParams.set('warehouseId', warehouseId);
+                url.searchParams.set('includeInactive', 'true');
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    throw new Error('بارگذاری ساختار انبار با خطا مواجه شد.');
+                }
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'بارگذاری ساختار انبار با خطا مواجه شد.');
+                }
+
+                renderStructureBuilder(payload.items || []);
+            }
+
+            function showModal() {
+                if (!serialModal) {
+                    return;
+                }
+
+                if (window.jQuery && typeof window.jQuery(serialModal).modal === 'function') {
+                    window.jQuery(serialModal).modal('show');
+                } else {
+                    serialModal.classList.add('show');
+                    serialModal.style.display = 'block';
+                }
+            }
+
+            function setSerialAlert(message, type) {
+                if (!serialAlert) {
+                    return;
+                }
+
+                if (!message) {
+                    serialAlert.hidden = true;
+                    serialAlert.innerHTML = '';
+                    return;
+                }
+
+                serialAlert.hidden = false;
+                serialAlert.innerHTML = '<div class="alert alert-' + (type || 'warning') + ' mb-0">' + escapeHtml(message) + '</div>';
+            }
+
+            function renderSerialRows(items) {
+                if (!serialModalBody) {
+                    return;
+                }
+
+                if (!items || !items.length) {
+                    serialModalBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">برای این محدوده سریالی پیدا نشد.</td></tr>';
+                    return;
+                }
+
+                var html = items.map(function (item) {
+                    var scannedDate = item.dateScannedIn ? new Date(item.dateScannedIn) : null;
+                    var updatedDate = item.lastUpdatedAt ? new Date(item.lastUpdatedAt) : null;
+                    var dateLabel = updatedDate && !isNaN(updatedDate.getTime())
+                        ? updatedDate.toLocaleString('fa-IR')
+                        : (scannedDate && !isNaN(scannedDate.getTime()) ? scannedDate.toLocaleString('fa-IR') : '-');
+
+                    return '<tr>' +
+                        '<td class="text-monospace">' + escapeHtml(item.serialNo || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.warehouseLabel || item.warehouseRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.locationLabel || item.locationRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.qualityStatusLabel || item.qualityStatusRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.lotBatchNo || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.status || '-') + '</td>' +
+                        '<td>' + escapeHtml(dateLabel) + '</td>' +
+                        '</tr>';
+                });
+
+                serialModalBody.innerHTML = html.join('');
+            }
+
+            async function loadSerials(variantId) {
+                if (!variantId) {
+                    return;
+                }
+
+                setSerialAlert('');
+                showModal();
+                if (serialModalBody) {
+                    serialModalBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">در حال بارگذاری...</td></tr>';
+                }
+
+                var warehouseId = warehouseSelect ? String(warehouseSelect.value || '').trim() : '';
+                var url = new URL(serialsUrl, window.location.origin);
+                url.searchParams.set('variantId', variantId);
+                if (warehouseId) {
+                    url.searchParams.set('warehouseId', warehouseId);
+                }
+                if (structureSelectionsInput && structureSelectionsInput.value) {
+                    url.searchParams.set('structureSelectionsJson', structureSelectionsInput.value);
+                }
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-store'
+                });
+
+                var payload = null;
+                try {
+                    payload = await response.json();
+                } catch (error) {
+                    payload = null;
+                }
+
+                if (!response.ok || !payload || payload.isSuccess === false) {
+                    var errorMessage = (payload && payload.errorMessage) || 'بارگذاری سریال‌ها با خطا مواجه شد.';
+                    setSerialAlert(errorMessage, 'danger');
+                    renderSerialRows([]);
+                    return;
+                }
+
+                renderSerialRows(payload.items || []);
+            }
+
+            if (form) {
+                form.addEventListener('submit', function () {
+                    syncSelectionsJson();
+                });
+            }
+
+            if (warehouseSelect) {
+                warehouseSelect.addEventListener('change', function () {
+                    if (structureSelectionsInput) {
+                        structureSelectionsInput.value = '';
+                    }
+
+                    loadStructureTree().catch(function (error) {
+                        if (structureBuilder) {
+                            structureBuilder.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                        }
+                    });
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                var serialButton = event.target && event.target.closest ? event.target.closest('[data-inventory-serial-button]') : null;
+                if (serialButton) {
+                    event.preventDefault();
+                    loadSerials(serialButton.getAttribute('data-variant-id') || '').catch(function (error) {
+                        setSerialAlert(error.message || 'بارگذاری سریال‌ها با خطا مواجه شد.', 'danger');
+                    });
+                    return;
+                }
+
+                var pageLink = event.target && event.target.closest ? event.target.closest('[data-inventory-page-link]') : null;
+                if (pageLink && form && pageInput) {
+                    event.preventDefault();
+                    pageInput.value = pageLink.getAttribute('data-page') || '1';
+                    syncSelectionsJson();
+                    form.submit();
+                }
+
+                var refreshButton = event.target && event.target.closest ? event.target.closest('[data-structure-refresh]') : null;
+                if (refreshButton) {
+                    event.preventDefault();
+                    loadStructureTree().catch(function (error) {
+                        if (structureBuilder) {
+                            structureBuilder.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                        }
+                    });
+                }
+            }, true);
+
+            if (warehouseSelect && warehouseSelect.value) {
+                loadStructureTree().catch(function (error) {
+                    if (structureBuilder) {
+                        structureBuilder.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(error.message || 'بارگذاری ساختار انبار با خطا مواجه شد.') + '</div>';
+                    }
+                });
+            } else if (structureBuilder) {
+                structureBuilder.innerHTML = '<div class="text-muted">ابتدا یک انبار انتخاب کنید تا ساختار آن نمایش داده شود.</div>';
+            }
+        })();
+    </script>
+}

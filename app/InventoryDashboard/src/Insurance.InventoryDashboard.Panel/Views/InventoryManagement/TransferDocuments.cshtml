@@ -695,7 +695,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">@UiText["common.close"]</button>
-                <button type="button" class="btn btn-primary" id="transfer-document-action-submit">@UiText["inventory.documents.action.submit"]</button>
+                <button type="button" class="btn btn-primary" id="transfer-document-action-submit">@Html.Raw(WebUtility.HtmlDecode(UiText["inventory.documents.action.submit"]))</button>
             </div>
         </div>
     </div>
@@ -1988,6 +1988,11 @@ for (var i = 0; i < lines.length; i++) {
                 }
             }
 
+            function getAntiForgeryToken() {
+                var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+                return tokenInput ? tokenInput.value : '';
+            }
+
             function updateTransferActionReasonVisibility() {
                 var select = document.querySelector(safeActionSelectSelector);
                 var reasonGroup = document.querySelector(safeActionReasonGroupSelector);
@@ -2014,12 +2019,12 @@ for (var i = 0; i < lines.length; i++) {
 
                 if (submitButton) {
                     var labelMap = {
-                        approve: '@UiText["inventory.documents.action.approve"]',
-                        post: '@UiText["inventory.documents.action.post"]',
-                        reject: '@UiText["inventory.documents.action.reject"]',
-                        cancel: '@UiText["inventory.documents.action.cancel"]'
+                        approve: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(WebUtility.HtmlDecode(UiText["inventory.documents.action.approve"]))),
+                        post: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(WebUtility.HtmlDecode(UiText["inventory.documents.action.post"]))),
+                        reject: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(WebUtility.HtmlDecode(UiText["inventory.documents.action.reject"]))),
+                        cancel: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(WebUtility.HtmlDecode(UiText["inventory.documents.action.cancel"])))
                     };
-                    submitButton.textContent = labelMap[select.value || 'approve'] || '@UiText["inventory.documents.action.submit"]';
+                    submitButton.textContent = labelMap[select.value || 'approve'] || @Html.Raw(System.Text.Json.JsonSerializer.Serialize(WebUtility.HtmlDecode(UiText["inventory.documents.action.submit"])));
                 }
             }
 

@@ -28,7 +28,7 @@
     </div>
     <div class="form-group col-md-2">
         <label>@UiText["common.warehouse"]</label>
-        <select name="warehouseId" class="form-control js-search-select">
+        <select name="warehouseId" class="form-control js-search-select" data-document-search-warehouse-select>
             <option value="">@UiText["common.all"]</option>
             @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
             {
@@ -38,7 +38,7 @@
     </div>
     <div class="form-group col-md-2">
         <label>@UiText["common.location"]</label>
-        <select name="locationId" class="form-control js-search-select">
+        <select name="locationId" class="form-control js-search-select" data-document-search-location-select>
             <option value="">@UiText["common.all"]</option>
             @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
             {
@@ -80,14 +80,15 @@
 
 <script data-ajax-reinit="document-search-filters">
     (function () {
-        var form = document.querySelector('form[data-document-search-filters]');
+        var script = document.currentScript;
+        var form = script && script.closest ? script.closest('form[data-document-search-filters]') : document.querySelector('form[data-document-search-filters]');
         if (!form || form.dataset.documentSearchFiltersBound === 'true') {
             return;
         }
 
         var locationLookupUrl = form.getAttribute('data-location-lookup-url') || '';
-        var warehouseSelect = form.querySelector('select[name="warehouseId"]');
-        var locationSelect = form.querySelector('select[name="locationId"]');
+        var warehouseSelect = form.querySelector('[data-document-search-warehouse-select]') || form.querySelector('select[name="warehouseId"]');
+        var locationSelect = form.querySelector('[data-document-search-location-select]') || form.querySelector('select[name="locationId"]');
         var applyButton = form.querySelector('[data-document-search-apply]');
 
         function getOptionByValue(select, value) {

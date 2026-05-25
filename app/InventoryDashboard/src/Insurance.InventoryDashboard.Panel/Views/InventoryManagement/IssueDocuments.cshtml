@@ -1536,6 +1536,11 @@
                 initializeIssueInventoryChain(root);
             }
 
+            function getAntiForgeryToken() {
+                var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+                return tokenInput ? tokenInput.value : '';
+            }
+
             function hydrateIssueInventoryOptions(root) {
                 root = root || document;
                 var locationJson = root.dataset ? root.dataset.locationOptions : '';

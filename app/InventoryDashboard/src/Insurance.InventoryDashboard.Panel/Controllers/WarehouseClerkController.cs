@@ -5,12 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Insurance.InventoryDashboard.Panel.Controllers;
 
-public sealed class WarehouseClerkController : Controller
+public sealed partial class WarehouseClerkController : Controller
 {
+    private readonly IApiService _apiService;
     private readonly IDashboardConfigService _dashboardConfigService;
 
-    public WarehouseClerkController(IDashboardConfigService dashboardConfigService)
+    public WarehouseClerkController(IApiService apiService, IDashboardConfigService dashboardConfigService)
     {
+        _apiService = apiService;
         _dashboardConfigService = dashboardConfigService;
     }
 
@@ -23,8 +25,13 @@ public sealed class WarehouseClerkController : Controller
         BuildSectionAsync("inbound", cancellationToken);
 
     [HttpGet]
-    public Task<IActionResult> Inventory(CancellationToken cancellationToken = default) =>
-        BuildSectionAsync("inventory", cancellationToken);
+    public Task<IActionResult> Inventory(
+        string? warehouseId = null,
+        string? structureSelectionsJson = null,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default) =>
+        BuildInventoryPageAsync(warehouseId, structureSelectionsJson, page, pageSize, cancellationToken);
 
     [HttpGet]
     public Task<IActionResult> StockControl(CancellationToken cancellationToken = default) =>

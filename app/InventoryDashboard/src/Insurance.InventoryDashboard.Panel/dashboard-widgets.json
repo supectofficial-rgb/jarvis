@@ -160,6 +160,19 @@
           ],
           "description": "تعریف لوکیشن‌های مختلف برای هر انبار",
           "route": "/InventoryManagement/Locations?tab=create"
+        },
+        {
+          "itemId": "inventory",
+          "title": "موجودی",
+          "icon": "simple-icon-layers",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "مشاهده موجودی انبار و ساختارهای پایین‌دست",
+          "route": "/WarehouseClerk/Inventory"
         }
       ]
     },
