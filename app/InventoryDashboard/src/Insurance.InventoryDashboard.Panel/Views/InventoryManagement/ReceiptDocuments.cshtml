@@ -394,47 +394,11 @@
                             <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
                         <span class="text-muted small" id="receipt-document-list-count">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" id="receipt-document-list-form" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" id="receipt-document-list-form" data-loading-form data-ajax-target="#documents-page-root" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.number"]</label>
-                                <input name="documentNo" value="@Model.DocumentNoFilter" class="form-control text-monospace" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.status"]</label>
-                                <select name="status" class="form-control">
-                                    <option value="">@UiText["inventory.documents.list.status.all"]</option>
-                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">@UiText["inventory.documents.status.draft"]</option>
-                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">@UiText["inventory.documents.status.approved"]</option>
-                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">@UiText["inventory.documents.status.rejected"]</option>
-                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">@UiText["inventory.documents.status.cancelled"]</option>
-                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">@UiText["inventory.documents.status.posted"]</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.filterFromDate"]</label>
-                                <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.filterToDate"]</label>
-                                <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.pageSize"]</label>
-                                <select name="pageSize" class="form-control">
-                                    @foreach (var size in Model.PageSizeOptions)
-                                    {
-                                        <option value="@size" selected="@(Model.DocumentPageSize == size ? "selected" : null)">@size</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-primary btn-block" type="submit">@UiText["inventory.documents.list.apply"]</button>
-                            </div>
-                        </form>
-
                         @await Html.PartialAsync("_DocumentListSearchFilters", Model)
+                        </form>
 
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">

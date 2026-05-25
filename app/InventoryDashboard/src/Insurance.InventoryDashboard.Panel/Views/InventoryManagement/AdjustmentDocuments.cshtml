@@ -264,64 +264,8 @@
                         <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.number"]</label>
-                                <input name="documentNo" value="@Model.DocumentNoFilter" class="form-control text-monospace" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.status"]</label>
-                                <select name="status" class="form-control">
-                                    <option value="">@UiText["common.all"]</option>
-                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">@UiText["inventory.documents.status.draft"]</option>
-                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">@UiText["inventory.documents.status.approved"]</option>
-                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">@UiText["inventory.documents.status.rejected"]</option>
-                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">@UiText["inventory.documents.status.cancelled"]</option>
-                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">@UiText["inventory.documents.status.posted"]</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-3">
-                                <label>@UiText["common.warehouse"]</label>
-                                <select name="warehouseId" class="form-control js-search-select">
-                                    <option value="">@UiText["common.all"]</option>
-                                    @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.WarehouseFilter ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-3">
-                                <label>@UiText["common.seller"]</label>
-                                <select name="sellerId" class="form-control js-search-select">
-                                    <option value="">@UiText["common.all"]</option>
-                                    @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@seller.SellerBusinessKey" selected="@(seller.SellerBusinessKey == Model.SellerFilter ? "selected" : null)">@seller.Code - @seller.Name</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["common.fromDate"]</label>
-                                <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["common.toDate"]</label>
-                                <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["common.quantity"]</label>
-                                <select name="pageSize" class="form-control">
-                                    @foreach (var size in Model.PageSizeOptions)
-                                    {
-                                        <option value="@size" selected="@(Model.DocumentPageSize == size ? "selected" : null)">@size</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-primary btn-block" type="submit">@UiText["common.apply"]</button>
-                            </div>
-                        </form>
-
                         @await Html.PartialAsync("_DocumentListSearchFilters", Model)
+                        </form>
 
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">

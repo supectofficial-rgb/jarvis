@@ -311,44 +311,8 @@
                         <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="issue-document-list-form" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.number"]</label>
-                                <input name="documentNo" value="@Model.DocumentNoFilter" class="form-control text-monospace" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.status"]</label>
-                                <select name="status" class="form-control">
-                                    <option value="">@UiText["common.all"]</option>
-                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">@UiText["inventory.documents.status.draft"]</option>
-                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">@UiText["inventory.documents.status.approved"]</option>
-                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">@UiText["inventory.documents.status.rejected"]</option>
-                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">@UiText["inventory.documents.status.cancelled"]</option>
-                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">@UiText["inventory.documents.status.posted"]</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.filterFromDate"]</label>
-                                <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.filterToDate"]</label>
-                                <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.list.pageSize"]</label>
-                                <select name="pageSize" class="form-control">
-                                    @foreach (var size in Model.PageSizeOptions)
-                                    {
-                                        <option value="@size" selected="@(Model.DocumentPageSize == size ? "selected" : null)">@size</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-primary btn-block" type="submit">@UiText["inventory.documents.list.apply"]</button>
-                            </div>
-                        </form>
-
                         @await Html.PartialAsync("_DocumentListSearchFilters", Model)
+                        </form>
 
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">
@@ -1990,14 +1954,14 @@
 
             function showActionModal() {
                 if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
-                    window.jQuery(actionModalSelector).modal('show');
+                    window.jQuery(safeActionModalSelector).modal('show');
                 }
             }
 
             function updateIssueActionReasonVisibility() {
-                var select = document.querySelector(actionSelectSelector);
-                var reasonGroup = document.querySelector(actionReasonGroupSelector);
-                var reasonInput = document.querySelector(actionReasonSelector);
+                var select = document.querySelector(safeActionSelectSelector);
+                var reasonGroup = document.querySelector(safeActionReasonGroupSelector);
+                var reasonInput = document.querySelector(safeActionReasonSelector);
                 if (!select || !reasonGroup) {
                     return;
                 }
@@ -2010,8 +1974,8 @@
             }
 
             function updateIssueActionDependentSections() {
-                var select = document.querySelector(actionSelectSelector);
-                var submitButton = document.querySelector(actionSubmitSelector);
+                var select = document.querySelector(safeActionSelectSelector);
+                var submitButton = document.querySelector(safeActionSubmitSelector);
                 updateIssueActionReasonVisibility();
 
                 if (!select) {
@@ -2030,15 +1994,15 @@
             }
 
             function openIssueActionModal(trigger) {
-                var modal = document.querySelector(actionModalSelector);
+                var modal = document.querySelector(safeActionModalSelector);
                 if (!modal || !trigger) {
                     return;
                 }
 
-                var idInput = modal.querySelector(actionIdSelector);
-                var select = modal.querySelector(actionSelectSelector);
-                var reasonInput = modal.querySelector(actionReasonSelector);
-                var subtitle = modal.querySelector(actionSubtitleSelector);
+                var idInput = modal.querySelector(safeActionIdSelector);
+                var select = modal.querySelector(safeActionSelectSelector);
+                var reasonInput = modal.querySelector(safeActionReasonSelector);
+                var subtitle = modal.querySelector(safeActionSubtitleSelector);
 
                 if (idInput) {
                     idInput.value = trigger.getAttribute('data-document-id') || '';
@@ -2063,14 +2027,14 @@
             }
 
             async function submitIssueAction() {
-                var modal = document.querySelector(actionModalSelector);
+                var modal = document.querySelector(safeActionModalSelector);
                 if (!modal) {
                     return;
                 }
 
-                var idInput = modal.querySelector(actionIdSelector);
-                var select = modal.querySelector(actionSelectSelector);
-                var reasonInput = modal.querySelector(actionReasonSelector);
+                var idInput = modal.querySelector(safeActionIdSelector);
+                var select = modal.querySelector(safeActionSelectSelector);
+                var reasonInput = modal.querySelector(safeActionReasonSelector);
                 if (!idInput || !select) {
                     return;
                 }
@@ -2317,6 +2281,7 @@
             var safeActionModalSelector = (typeof actionModalSelector === 'string' && actionModalSelector) ? actionModalSelector : '#issue-document-action-modal';
             var safeActionSubtitleSelector = (typeof actionSubtitleSelector === 'string' && actionSubtitleSelector) ? actionSubtitleSelector : '#issue-document-action-modal-subtitle';
             var safeActionReasonSelector = (typeof actionReasonSelector === 'string' && actionReasonSelector) ? actionReasonSelector : '#issue-document-action-reason';
+            var safeActionReasonGroupSelector = (typeof actionReasonGroupSelector === 'string' && actionReasonGroupSelector) ? actionReasonGroupSelector : '#issue-document-action-reason-group';
             var safeActionIdSelector = (typeof actionIdSelector === 'string' && actionIdSelector) ? actionIdSelector : '#issue-document-action-id';
             var safeActionSelectSelector = (typeof actionSelectSelector === 'string' && actionSelectSelector) ? actionSelectSelector : '#issue-document-action-select';
             var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#issue-document-action-submit';

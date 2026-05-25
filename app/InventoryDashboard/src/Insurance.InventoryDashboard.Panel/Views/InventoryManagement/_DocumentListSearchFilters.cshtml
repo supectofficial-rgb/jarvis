@@ -74,7 +74,7 @@
         </select>
     </div>
     <div class="form-group col-md-2 d-flex align-items-end">
-        <button class="btn btn-outline-primary btn-block" type="submit">@UiText["common.apply"]</button>
+        <button class="btn btn-outline-primary btn-block" type="submit" data-document-search-apply>@UiText["common.apply"]</button>
     </div>
 </div>
 
@@ -88,6 +88,7 @@
         var locationLookupUrl = form.getAttribute('data-location-lookup-url') || '';
         var warehouseSelect = form.querySelector('select[name="warehouseId"]');
         var locationSelect = form.querySelector('select[name="locationId"]');
+        var applyButton = form.querySelector('[data-document-search-apply]');
 
         function getOptionByValue(select, value) {
             if (!select || !value) {
@@ -170,6 +171,22 @@
                     console.error(error);
                 });
             });
+        }
+
+        if (applyButton && applyButton.dataset.documentSearchApplyBound !== 'true') {
+            applyButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit(applyButton);
+                    return;
+                }
+
+                form.submit();
+            });
+
+            applyButton.dataset.documentSearchApplyBound = 'true';
         }
 
         var currentWarehouseId = warehouseSelect ? (warehouseSelect.value || '') : '';
