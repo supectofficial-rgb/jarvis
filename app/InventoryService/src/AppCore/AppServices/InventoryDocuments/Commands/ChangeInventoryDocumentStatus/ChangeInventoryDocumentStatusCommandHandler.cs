@@ -33,9 +33,7 @@ public class ChangeInventoryDocumentStatusCommandHandler : CommandHandler<Change
         {
             var postResult = await _postHandler.Handle(new PostInventoryDocumentCommand
             {
-                DocumentBusinessKey = command.DocumentBusinessKey,
-                PostedBy = command.Actor,
-                LineSerials = command.LineSerials ?? new List<PostInventoryDocumentLineSerialSelectionItem>()
+                DocumentBusinessKey = command.DocumentBusinessKey
             });
 
             if (!postResult.IsSuccess)

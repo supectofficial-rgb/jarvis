@@ -44,13 +44,13 @@ public class PostInventoryDocumentCommandHandler
     {
         var document = await _documentRepository.GetByBusinessKeyAsync(command.DocumentBusinessKey);
         if (document is null || document.Id == 0)
-            return Fail("Inventory document was not found.");
+            return Fail($"Inventory document '{command.DocumentBusinessKey:D}' was not found.");
 
         if (document.Status == InventoryDocumentStatus.Posted)
-            return Fail("Inventory document is already posted.");
+            return Fail($"Inventory document '{document.DocumentNo}' is already posted.");
 
         if (document.Lines.Count == 0)
-            return Fail("Inventory document must contain at least one line.");
+            return Fail($"Inventory document '{document.DocumentNo}' ({document.BusinessKey.Value:D}) must contain at least one line before posting.");
 
         var transaction = InventoryTransaction.Create(
             transactionNo: $"TX-{document.DocumentNo}",
@@ -64,12 +64,13 @@ public class PostInventoryDocumentCommandHandler
             idempotencyKey: document.IdempotencyKey,
             reasonCode: document.ReasonCode);
 
-        var selectedSerialsByLine = BuildSelectedSerialsByLine(command.LineSerials);
+        var selectedSerialsByLine = BuildSelectedSerialsByLine(document);
         var effects = BuildEffects(document, selectedSerialsByLine).ToList();
         foreach (var effect in effects)
         {
             var line = effect.TransactionLine;
             transaction.AddLine(line);
+            var effectLabel = DescribeEffect(document, effect);
 
             var locationRef = line.BaseQtyDelta >= 0
                 ? line.DestinationLocationRef
@@ -80,7 +81,7 @@ public class PostInventoryDocumentCommandHandler
                 : line.OldQualityStatusRef;
 
             if (locationRef is null || qualityStatusRef is null)
-                return Fail("Posting requires resolved location and quality status for every stock effect.");
+                return Fail($"Posting failed for {effectLabel}: location and quality status must be resolved before posting.");
 
             var stockDetail = await _stockDetailRepository.FindByBucketAsync(
                 line.VariantRef,
@@ -93,7 +94,7 @@ public class PostInventoryDocumentCommandHandler
             if (stockDetail is null)
             {
                 if (line.BaseQtyDelta < 0)
-                    return Fail("Cannot issue or reduce stock from a bucket that does not exist.");
+                    return Fail($"Posting failed for {effectLabel}: cannot issue or reduce stock because the source bucket does not exist.");
 
                 stockDetail = StockDetail.Create(
                     line.VariantRef,
@@ -113,16 +114,16 @@ public class PostInventoryDocumentCommandHandler
 
             var serialResult = await HandleSerialItemsAsync(document, effect, stockDetail);
             if (!serialResult.Success)
-                return Fail(serialResult.Error ?? "Serial item processing failed.");
+                return Fail($"{effectLabel}: {serialResult.Error ?? "Serial item processing failed."}");
         }
 
         var sourceTracingResult = await ApplySourceTracingAsync(document, transaction, effects);
         if (!sourceTracingResult.Success)
-            return Fail(sourceTracingResult.Error ?? "Source tracing failed.");
+            return Fail($"Source tracing failed for inventory document '{document.DocumentNo}': {sourceTracingResult.Error ?? "Unknown source tracing error."}");
 
         transaction.MarkPosted();
         await _transactionRepository.InsertAsync(transaction);
-        document.MarkPosted(transaction.BusinessKey, command.PostedBy);
+        document.MarkPosted(transaction.BusinessKey, postedBy: null);
         await _transactionRepository.CommitAsync();
 
         return Ok(new PostInventoryDocumentCommandResult
@@ -165,7 +166,7 @@ public class PostInventoryDocumentCommandHandler
                 var locationRef = line.DestinationLocationRef;
                 var qualityStatusRef = line.NewQualityStatusRef;
                 if (locationRef is null || qualityStatusRef is null)
-                    return (false, "Opening a source balance requires destination location and quality status.");
+                    return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) requires destination location and quality status to open a source balance.");
 
                 var sourceBalance = InventorySourceBalance.Open(
                     sourceType.Value,
@@ -195,7 +196,7 @@ public class PostInventoryDocumentCommandHandler
                 var locationRef = line.SourceLocationRef;
                 var qualityStatusRef = line.OldQualityStatusRef;
                 if (locationRef is null || qualityStatusRef is null)
-                    return (false, "Consuming source balance requires source location and quality status.");
+                    return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) requires source location and quality status to consume a source balance.");
 
                 var remainingToConsume = Math.Abs(line.BaseQtyDelta);
                 var sourceBalances = await _sourceBalanceRepository.GetOpenByBucketAsync(
@@ -227,7 +228,7 @@ public class PostInventoryDocumentCommandHandler
 
                 if (remainingToConsume > 0)
                 {
-                    return (false, "Open source balances are not enough to cover this outbound inventory document.");
+                    return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) does not have enough open source balance to cover {Math.Abs(line.BaseQtyDelta)} base units.");
                 }
             }
         }
@@ -254,23 +255,20 @@ public class PostInventoryDocumentCommandHandler
         => documentType is InventoryDocumentType.Issue or InventoryDocumentType.Adjustment or InventoryDocumentType.Conversion;
 
     private static IReadOnlyDictionary<Guid, PostLineSerialSelectionContext> BuildSelectedSerialsByLine(
-        IReadOnlyCollection<PostInventoryDocumentLineSerialSelectionItem>? selections)
+        InventoryDocument document)
     {
-        if (selections is null || selections.Count == 0)
-        {
-            return new Dictionary<Guid, PostLineSerialSelectionContext>();
-        }
-
-        return selections
-            .Where(x => x.DocumentLineBusinessKey != Guid.Empty)
-            .GroupBy(x => x.DocumentLineBusinessKey)
+        return document.Lines
+            .Where(line => line.Serials.Count > 0)
             .ToDictionary(
-                group => group.Key,
-                group => new PostLineSerialSelectionContext(
-                    group.Any(x => x.UseUniqueSerialItems),
-                    (IReadOnlyList<PostInventoryDocumentLineSerialItem>)group
-                        .SelectMany(x => x.Serials ?? new List<PostInventoryDocumentLineSerialItem>())
-                        .Where(x => x.SerialRef.HasValue || !string.IsNullOrWhiteSpace(x.SerialNo))
+                line => line.BusinessKey.Value,
+                line => new PostLineSerialSelectionContext(
+                    true,
+                    (IReadOnlyList<PostInventoryDocumentLineSerialItem>)line.Serials
+                        .Select(serial => new PostInventoryDocumentLineSerialItem
+                        {
+                            SerialRef = serial.SerialRef,
+                            SerialNo = serial.SerialNo
+                        })
                         .ToList()));
     }
 
@@ -488,6 +486,9 @@ public class PostInventoryDocumentCommandHandler
         int lineNo)
         => new(documentLine, transactionLine, serials, useUniqueSerialItems, lineNo);
 
+    private static string DescribeEffect(InventoryDocument document, InventoryDocumentPostingEffect effect)
+        => $"inventory document '{document.DocumentNo}' ({document.BusinessKey.Value:D}, {document.DocumentType}) line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}, variant {effect.DocumentLine.VariantRef:D})";
+
     private async Task<(bool Success, string? Error)> HandleSerialItemsAsync(
         InventoryDocument document,
         InventoryDocumentPostingEffect effect,
@@ -505,7 +506,7 @@ public class PostInventoryDocumentCommandHandler
 
                 var serialItem = await _serialRepository.GetByBusinessKeyAsync(selectedSerial.SerialRef.Value);
                 if (serialItem is null)
-                    return (false, "One of the selected serial items was not found.");
+                    return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) references serial item '{selectedSerial.SerialRef.Value:D}' which was not found.");
 
                 serialItem.LinkStockDetail(stockDetail.BusinessKey);
             }
@@ -520,10 +521,10 @@ public class PostInventoryDocumentCommandHandler
         if (effect.UseUniqueSerialItems)
         {
             if (documentLine.BaseQty <= 0)
-                return (false, "Receipt line quantity is invalid for serial item generation.");
+                return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({documentLine.VariantRef:D}) has invalid quantity for serial item generation.");
 
             if (documentLine.BaseQty != decimal.Truncate(documentLine.BaseQty))
-                return (false, "Receipt line quantity must be a whole number when unique serial items are enabled.");
+                return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({documentLine.VariantRef:D}) must have a whole base quantity when unique serial items are enabled.");
         }
 
         var createdOrLinkedSerialCount = 0;
@@ -533,7 +534,7 @@ public class PostInventoryDocumentCommandHandler
             {
                 var serialItem = await _serialRepository.GetByBusinessKeyAsync(selectedSerial.SerialRef.Value);
                 if (serialItem is null)
-                    return (false, "One of the selected serial items was not found.");
+                    return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) references serial item '{selectedSerial.SerialRef.Value:D}' which was not found.");
 
                 serialItem.LinkStockDetail(stockDetail.BusinessKey);
                 createdOrLinkedSerialCount++;
@@ -541,7 +542,7 @@ public class PostInventoryDocumentCommandHandler
             }
 
             if (string.IsNullOrWhiteSpace(selectedSerial.SerialNo))
-                return (false, "One of the selected serial items was not found.");
+                return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) is missing a serial number for serial item generation.");
 
             var generatedSerialItem = SerialItem.Create(
                 selectedSerial.SerialNo,
@@ -563,7 +564,7 @@ public class PostInventoryDocumentCommandHandler
 
         var desiredSerialCount = (int)documentLine.BaseQty;
         if (createdOrLinkedSerialCount > desiredSerialCount)
-            return (false, "Too many serial items were selected for this receipt line.");
+            return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({documentLine.BusinessKey.Value:D}) has more selected serial items than base quantity allows.");
 
         var remainingToGenerate = desiredSerialCount - createdOrLinkedSerialCount;
         if (remainingToGenerate <= 0)

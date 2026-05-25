@@ -109,7 +109,7 @@ public interface IApiService
     Task<ApiResponse<LocationDetailModel>> GetLocationByBusinessKeyAsync(string locationId, string token);
     Task<ApiResponse<bool>> CreateLocationStructureNodeAsync(LocationStructureNodeForm request, string token);
     Task<ApiResponse<bool>> UpdateLocationStructureNodeAsync(string structureId, LocationStructureNodeForm request, string token);
-    Task<ApiResponse<bool>> CreateLocationStructureValueAsync(LocationStructureValueForm request, string token);
+    Task<ApiResponse<LocationStructureValueCreateResultModel>> CreateLocationStructureValueAsync(LocationStructureValueForm request, string token);
     Task<ApiResponse<bool>> UpdateLocationStructureValueAsync(string structureValueId, LocationStructureValueForm request, string token);
     Task<ApiResponse<bool>> CreateLocationAsync(UpsertLocationRequest request, string token);
     Task<ApiResponse<bool>> UpdateLocationAsync(string locationId, UpsertLocationRequest request, string token);
@@ -133,7 +133,7 @@ public interface IApiService
     Task<ApiResponse<bool>> ApproveInventoryDocumentAsync(string documentId, string approvedBy, string token);
     Task<ApiResponse<bool>> RejectInventoryDocumentAsync(string documentId, string? reasonCode, string token);
     Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token);
-    Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string? postedBy, IReadOnlyList<PostDocumentLineSerialSelectionModel>? lineSerialSelections, string token);
+    Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string token);
     Task<ApiResponse<bool>> AddInventoryDocumentLineAsync(string documentId, InventoryDocumentLineForm line, string token);
     Task<ApiResponse<bool>> UpdateInventoryDocumentLineAsync(string documentId, string lineId, InventoryDocumentLineForm line, string token);
     Task<ApiResponse<bool>> DeleteInventoryDocumentLineAsync(string documentId, string lineId, string token);

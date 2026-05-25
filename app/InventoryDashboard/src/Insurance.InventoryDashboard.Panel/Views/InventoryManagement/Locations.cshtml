@@ -574,14 +574,14 @@
                     }) : [];
 
                     html.push('<div class="border rounded p-3 mb-3 bg-white" data-structure-level-card data-structure-level-index="' + index + '" data-structure-ref="' + escapeAttr(item.key) + '">');
-                    html.push('<div class="d-flex justify-content-between align-items-start flex-wrap mb-2">');
-                    html.push('<div>');
-                    html.push('<div class="font-weight-bold">' + escapeHtml(item.code || '-') + ' - ' + escapeHtml(item.name || '-') + '</div>');
-                    html.push('<div class="small text-muted">سطح ' + (index + 1) + ' ساختار</div>');
+                    html.push('<div class="d-flex align-items-center justify-content-between flex-wrap mb-2">');
+                    html.push('<div class="d-flex align-items-center flex-wrap">');
+                    html.push('<span class="font-weight-bold mr-2">' + escapeHtml(item.code || '-') + ' - ' + escapeHtml(item.name || '-') + '</span>');
+                    html.push('<span class="small text-muted">سطح ' + (index + 1) + ' ساختار</span>');
                     html.push('</div>');
-                    html.push('<button type="button" class="btn btn-outline-success btn-sm" data-structure-value-create-toggle="' + escapeAttr(index) + '">+</button>');
+                    html.push('<button type="button" class="btn btn-outline-success btn-sm mt-1 mt-md-0" data-structure-value-create-toggle="' + escapeAttr(index) + '">+</button>');
                     html.push('</div>');
-                    html.push('<div class="input-group">');
+                    html.push('<div class="input-group flex-nowrap">');
                     html.push('<select id="' + selectId + '" class="form-control js-search-select" data-structure-level-select data-structure-level-index="' + index + '" data-placeholder="انتخاب یا جستجو">');
                     html.push('<option value="">انتخاب یا جستجو</option>');
                     values.forEach(function (value) {
@@ -591,11 +591,11 @@
                     html.push('</select>');
                     html.push('</div>');
                     html.push('<div class="d-none mt-2 border rounded p-2 bg-light" data-structure-value-create-panel="' + escapeAttr(index) + '">');
-                    html.push('<div class="form-row">');
-                    html.push('<div class="form-group col-md-6 mb-2"><input type="text" class="form-control form-control-sm" maxlength="50" placeholder="کد مقدار جدید" data-structure-value-create-input-code="' + escapeAttr(index) + '" /></div>');
-                    html.push('<div class="form-group col-md-6 mb-2"><input type="text" class="form-control form-control-sm" maxlength="160" placeholder="نام مقدار جدید" data-structure-value-create-input-name="' + escapeAttr(index) + '" /></div>');
+                    html.push('<div class="d-flex align-items-center flex-wrap">');
+                    html.push('<input type="text" class="form-control form-control-sm mr-2 mb-2" style="max-width:240px" maxlength="50" placeholder="کد مقدار جدید" data-structure-value-create-input-code="' + escapeAttr(index) + '" />');
+                    html.push('<input type="text" class="form-control form-control-sm mr-2 mb-2" style="max-width:320px" maxlength="160" placeholder="نام مقدار جدید" data-structure-value-create-input-name="' + escapeAttr(index) + '" />');
+                    html.push('<button type="button" class="btn btn-success btn-sm mb-2" data-structure-value-create-submit="' + escapeAttr(index) + '">ثبت مقدار</button>');
                     html.push('</div>');
-                    html.push('<button type="button" class="btn btn-success btn-sm" data-structure-value-create-submit="' + escapeAttr(index) + '">ثبت مقدار</button>');
                     html.push('</div>');
                     html.push('</div>');
                 });

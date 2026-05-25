@@ -1605,7 +1605,7 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
         }
 
-        var postResult = await _inventoryApiService.PostInventoryDocumentAsync(createResult.Data.DocumentId, approvedBy, null, token);
+        var postResult = await _inventoryApiService.PostInventoryDocumentAsync(createResult.Data.DocumentId, token);
         if (!postResult.IsSuccess)
         {
             TempData["CatalogError"] = postResult.ErrorMessage ?? "Ã˜Â³Ã™â€ Ã˜Â¯ Ã˜ÂªÃ˜Â¨Ã˜Â¯Ã›Å’Ã™â€ž Ã˜ÂªÃ˜Â§Ã›Å’Ã›Å’Ã˜Â¯ Ã˜Â´Ã˜Â¯ Ã˜Â§Ã™â€¦Ã˜Â§ Ã™Â¾Ã˜Â³Ã˜Âª Ã˜Â®Ã™Ë†Ã˜Â¯ÃšÂ©Ã˜Â§Ã˜Â± Ã˜Â¢Ã™â€  Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";

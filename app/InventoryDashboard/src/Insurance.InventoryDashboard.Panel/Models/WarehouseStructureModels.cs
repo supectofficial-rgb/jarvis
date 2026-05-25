@@ -48,6 +48,16 @@ public sealed class LocationStructureValueItemModel
     public bool IsActive { get; set; }
 }
 
+public sealed class LocationStructureValueCreateResultModel
+{
+    public string LocationStructureValueBusinessKey { get; set; } = string.Empty;
+    public string StructureRef { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+    public bool IsActive { get; set; }
+}
+
 public sealed class LocationStructureNodeForm
 {
     public string? LocationStructureBusinessKey { get; set; }

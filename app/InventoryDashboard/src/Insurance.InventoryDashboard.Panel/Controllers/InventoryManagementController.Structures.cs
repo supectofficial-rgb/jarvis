@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Insurance.InventoryDashboard.Panel.Models;
@@ -22,12 +22,12 @@ public sealed partial class InventoryManagementController
     {
         if (!TryGetToken(out var token))
         {
-            return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربر در دسترس نیست." });
+            return Unauthorized(new { isSuccess = false, errorMessage = "Ù†Ø´Ø³Øª Ú©Ø§Ø±Ø¨Ø± Ø¯Ø± Ø¯Ø³ØªØ±Ø³ Ù†ÛŒØ³Øª." });
         }
 
         if (!IsAuthorizedFor(token, "Inventory.Warehouse.View", "Warehouse.Read", "Warehouse.Search"))
         {
-            return StatusCode(403, new { isSuccess = false, errorMessage = "شما دسترسی مشاهده ساختار انبار را ندارید." });
+            return StatusCode(403, new { isSuccess = false, errorMessage = "Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ø³Ø§Ø®ØªØ§Ø± Ø§Ù†Ø¨Ø§Ø± Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯." });
         }
 
         if (string.IsNullOrWhiteSpace(warehouseId))
@@ -65,7 +65,7 @@ public sealed partial class InventoryManagementController
             : await _apiService.UpdateLocationStructureNodeAsync(form.LocationStructureBusinessKey, form, token);
 
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
-            result.IsSuccess ? "ساختار لوکیشن با موفقیت ذخیره شد." : result.ErrorMessage ?? "ذخیره ساختار با خطا مواجه شد.";
+            result.IsSuccess ? "Ø³Ø§Ø®ØªØ§Ø± Ù„ÙˆÚ©ÛŒØ´Ù† Ø¨Ø§ Ù…ÙˆÙÙ‚ÛŒØª Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯." : result.ErrorMessage ?? "Ø°Ø®ÛŒØ±Ù‡ Ø³Ø§Ø®ØªØ§Ø± Ø¨Ø§ Ø®Ø·Ø§ Ù…ÙˆØ§Ø¬Ù‡ Ø´Ø¯.";
 
         return RedirectToAction(nameof(WarehouseStructures), new { warehouseId = form.WarehouseRef, structureId = form.LocationStructureBusinessKey, mode = Request.Query["mode"].ToString(), tab = "nodes" });
     }
@@ -110,7 +110,7 @@ public sealed partial class InventoryManagementController
             var existingValue = existingValuesResult.Data?.FirstOrDefault(x => string.Equals(x.Code?.Trim(), form.Code, StringComparison.OrdinalIgnoreCase));
             if (existingValue is not null)
             {
-                TempData["CatalogSuccess"] = "مقدار انتخاب‌شده از قبل وجود داشت و دوباره استفاده شد.";
+                TempData["CatalogSuccess"] = "Ù…Ù‚Ø¯Ø§Ø± Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ø§Ø² Ù‚Ø¨Ù„ ÙˆØ¬ÙˆØ¯ Ø¯Ø§Ø´Øª Ùˆ Ø¯ÙˆØ¨Ø§Ø±Ù‡ Ø§Ø³ØªÙØ§Ø¯Ù‡ Ø´Ø¯.";
                 if (IsAjaxRequest())
                 {
                     return Json(new
@@ -128,23 +128,33 @@ public sealed partial class InventoryManagementController
             }
         }
 
-        var result = string.IsNullOrWhiteSpace(form.LocationStructureValueBusinessKey)
-            ? await _apiService.CreateLocationStructureValueAsync(form, token)
-            : await _apiService.UpdateLocationStructureValueAsync(form.LocationStructureValueBusinessKey, form, token);
+        ApiResponse<LocationStructureValueCreateResultModel>? createResult = null;
+        ApiResponse<bool>? updateResult = null;
+        if (string.IsNullOrWhiteSpace(form.LocationStructureValueBusinessKey))
+        {
+            createResult = await _apiService.CreateLocationStructureValueAsync(form, token);
+        }
+        else
+        {
+            updateResult = await _apiService.UpdateLocationStructureValueAsync(form.LocationStructureValueBusinessKey, form, token);
+        }
 
-        TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
-            result.IsSuccess ? "مقدار ساختار با موفقیت ذخیره شد." : result.ErrorMessage ?? "ذخیره مقدار ساختار با خطا مواجه شد.";
+        var isSuccess = createResult?.IsSuccess ?? updateResult?.IsSuccess ?? false;
+        var errorMessage = createResult?.ErrorMessage ?? updateResult?.ErrorMessage;
+
+        TempData[isSuccess ? "CatalogSuccess" : "CatalogError"] =
+            isSuccess ? "Ù…Ù‚Ø¯Ø§Ø± Ø³Ø§Ø®ØªØ§Ø± Ø¨Ø§ Ù…ÙˆÙÙ‚ÛŒØª Ø°Ø®ÛŒØ±Ù‡ Ø´Ø¯." : errorMessage ?? "Ø°Ø®ÛŒØ±Ù‡ Ù…Ù‚Ø¯Ø§Ø± Ø³Ø§Ø®ØªØ§Ø± Ø¨Ø§ Ø®Ø·Ø§ Ù…ÙˆØ§Ø¬Ù‡ Ø´Ø¯.";
 
         if (IsAjaxRequest())
         {
             return Json(new
             {
-                isSuccess = result.IsSuccess,
-                errorMessage = result.ErrorMessage,
+                isSuccess,
+                errorMessage,
                 structureRef = form.StructureRef,
-                value = form.Code,
-                name = form.Name,
-                locationStructureValueBusinessKey = form.LocationStructureValueBusinessKey
+                value = createResult?.Data?.Code ?? form.Code,
+                name = createResult?.Data?.Name ?? form.Name,
+                locationStructureValueBusinessKey = createResult?.Data?.LocationStructureValueBusinessKey ?? form.LocationStructureValueBusinessKey
             });
         }
 
@@ -165,7 +175,7 @@ public sealed partial class InventoryManagementController
 
         if (!IsAuthorizedFor(token, "Inventory.Warehouse.View", "Warehouse.Read", "Warehouse.Search"))
         {
-            TempData["CatalogError"] = "شما دسترسی مشاهده مدیریت ساختار انبار را ندارید.";
+            TempData["CatalogError"] = "Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ù…Ø¯ÛŒØ±ÛŒØª Ø³Ø§Ø®ØªØ§Ø± Ø§Ù†Ø¨Ø§Ø± Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.";
             return RedirectToAction("Index", "Dashboard");
         }
 
@@ -183,7 +193,7 @@ public sealed partial class InventoryManagementController
 
         var model = new WarehouseStructurePageViewModel
         {
-            UserName = HttpContext.Session.GetString("UserName") ?? "کاربر",
+            UserName = HttpContext.Session.GetString("UserName") ?? "Ú©Ø§Ø±Ø¨Ø±",
             Roles = roles,
             Permissions = ResolvePermissionsFromSession(),
             Modules = modules,
@@ -211,3 +221,4 @@ public sealed partial class InventoryManagementController
         return View("~/Views/InventoryManagement/WarehouseStructures.cshtml", model);
     }
 }
+

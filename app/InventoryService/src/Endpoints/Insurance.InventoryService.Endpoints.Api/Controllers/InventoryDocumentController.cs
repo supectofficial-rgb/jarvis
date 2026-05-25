@@ -97,12 +97,12 @@ public class InventoryDocumentController : OysterFxController
         });
 
     [HttpPost("{documentBusinessKey:guid}/post")]
-    public Task<IActionResult> Post([FromRoute] Guid documentBusinessKey, [FromBody] PostInventoryDocumentCommand? command)
-    {
-        var request = command ?? new PostInventoryDocumentCommand();
-        request.DocumentBusinessKey = documentBusinessKey;
-        return SendCommand<PostInventoryDocumentCommand, PostInventoryDocumentCommandResult>(request);
-    }
+    public Task<IActionResult> Post([FromRoute] Guid documentBusinessKey)
+        => SendCommand<PostInventoryDocumentCommand, PostInventoryDocumentCommandResult>(
+            new PostInventoryDocumentCommand
+            {
+                DocumentBusinessKey = documentBusinessKey
+            });
 
     [HttpPost("{documentBusinessKey:guid}/status")]
     public Task<IActionResult> ChangeStatus([FromRoute] Guid documentBusinessKey, [FromBody] ChangeInventoryDocumentStatusCommand? command)

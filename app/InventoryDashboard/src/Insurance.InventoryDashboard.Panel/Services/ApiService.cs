@@ -1441,7 +1441,7 @@ public sealed class ApiService : IApiService
         return PutCommandAsync($"{InventoryApiPrefix}/WarehouseStructure/node/{structureId}", payload, token, "Updating location structure failed.");
     }
 
-    public Task<ApiResponse<bool>> CreateLocationStructureValueAsync(LocationStructureValueForm request, string token)
+    public Task<ApiResponse<LocationStructureValueCreateResultModel>> CreateLocationStructureValueAsync(LocationStructureValueForm request, string token)
     {
         var payload = new
         {
@@ -1451,7 +1451,11 @@ public sealed class ApiService : IApiService
             DisplayOrder = request.DisplayOrder
         };
 
-        return PostCommandAsync($"{InventoryApiPrefix}/WarehouseStructure/value", payload, token, "Creating location structure value failed.");
+        return PostCommandWithDataAsync<LocationStructureValueCreateResultModel>(
+            $"{InventoryApiPrefix}/WarehouseStructure/value",
+            payload,
+            token,
+            "Creating location structure value failed.");
     }
 
     public Task<ApiResponse<bool>> UpdateLocationStructureValueAsync(string structureValueId, LocationStructureValueForm request, string token)
@@ -1779,12 +1783,8 @@ public sealed class ApiService : IApiService
         return PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/status", payload, token, "Changing inventory document status failed.");
     }
 
-    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(
-        string documentId,
-        string? postedBy,
-        IReadOnlyList<PostDocumentLineSerialSelectionModel>? lineSerialSelections,
-        string token)
-        => ChangeInventoryDocumentStatusAsync(documentId, "post", null, postedBy, lineSerialSelections, token);
+    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(string documentId, string token)
+        => PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/post", new { }, token, "Posting inventory document failed.");
 
     public async Task<ApiResponse<List<SerialItemLookupModel>>> GetAvailableSerialItemsAsync(string token, string? variantId = null, string? warehouseId = null)
     {
@@ -3188,6 +3188,16 @@ public sealed class ApiService : IApiService
     private sealed class LocationStructureValuesQueryResultDto
     {
         public List<LocationStructureValueItemModel> Items { get; set; } = new();
+    }
+
+    private sealed class CreateLocationStructureValueCommandResultDto
+    {
+        public Guid LocationStructureValueBusinessKey { get; set; }
+        public Guid StructureRef { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
+        public bool IsActive { get; set; }
     }
 
     private sealed class SellerLookupQueryResultDto

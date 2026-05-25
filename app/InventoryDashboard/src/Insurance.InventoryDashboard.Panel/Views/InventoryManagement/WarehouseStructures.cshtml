@@ -60,13 +60,16 @@
         var targetField = $"level-{depth}";
 
         builder.AppendHtml($"<div class=\"border rounded mb-2 p-2\" style=\"margin-right:{padding}px\" data-structure-node data-node-key=\"{HtmlEncoder.Default.Encode(node.LocationStructureBusinessKey)}\" data-node-code=\"{HtmlEncoder.Default.Encode(node.Code)}\" data-node-name=\"{HtmlEncoder.Default.Encode(node.Name)}\" data-node-depth=\"{depth}\">");
-        builder.AppendHtml("<div class=\"d-flex justify-content-between align-items-start flex-wrap gap-2\">");
-        builder.AppendHtml("<div>");
-        builder.AppendHtml($"<div><strong class=\"text-monospace\">{HtmlEncoder.Default.Encode(node.Code)}</strong> - {HtmlEncoder.Default.Encode(node.Name)}</div>");
-        builder.AppendHtml($"<div class=\"small text-muted\">{HtmlEncoder.Default.Encode(WarehouseLabel(node.WarehouseRef))}</div>");
-        builder.AppendHtml($"<div class=\"mt-1\"><span class=\"badge badge-pill {(node.IsActive ? "badge-primary" : "badge-secondary")}\">" + (node.IsActive ? "فعال" : "غیرفعال") + "</span></div>");
+        builder.AppendHtml("<div class=\"d-flex align-items-center justify-content-between flex-wrap\">");
+        builder.AppendHtml("<div class=\"d-flex align-items-center flex-wrap\">");
+        builder.AppendHtml($"<strong class=\"text-monospace mr-2\">{HtmlEncoder.Default.Encode(node.Code)}</strong>");
+        builder.AppendHtml($"<span class=\"mr-2\">{HtmlEncoder.Default.Encode(node.Name)}</span>");
+        builder.AppendHtml($"<span class=\"small text-muted mr-2\">{HtmlEncoder.Default.Encode(WarehouseLabel(node.WarehouseRef))}</span>");
+        builder.AppendHtml($"<span class=\"badge badge-pill {(node.IsActive ? "badge-primary" : "badge-secondary")} mr-2\">");
+        builder.AppendHtml(node.IsActive ? "فعال" : "غیرفعال");
+        builder.AppendHtml("</span>");
         builder.AppendHtml("</div>");
-        builder.AppendHtml("<div class=\"btn-group btn-group-sm align-items-start\">");
+        builder.AppendHtml("<div class=\"btn-group btn-group-sm align-items-center mt-1 mt-md-0\">");
         if (canSelectValue)
         {
             builder.AppendHtml($"<button type=\"button\" class=\"btn btn-outline-success\" data-structure-node-choose=\"true\" data-structure-target-field=\"{targetField}\" data-node-code=\"{HtmlEncoder.Default.Encode(node.Code)}\" data-node-name=\"{HtmlEncoder.Default.Encode(node.Name)}\">+</button>");
