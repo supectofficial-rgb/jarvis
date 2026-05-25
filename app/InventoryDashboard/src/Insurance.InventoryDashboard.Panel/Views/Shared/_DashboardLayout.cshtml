@@ -424,7 +424,7 @@
                 var response = await fetch(url.toString(), requestInit);
                 var html = await response.text();
                 var refreshed = replaceTargetFromHtml(targetSelector, html);
-                if (refreshed && response.url) {
+                if (refreshed && response.url && form.getAttribute('data-ajax-preserve-url') !== 'true') {
                     try {
                         history.replaceState(null, '', response.url);
                     } catch (error) {

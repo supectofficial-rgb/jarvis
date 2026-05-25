@@ -380,7 +380,7 @@
                             <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
                             <span class="text-muted small">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" data-ajax-preserve-url="true" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                         @await Html.PartialAsync("_DocumentListSearchFilters", Model)
@@ -520,6 +520,7 @@
             var lineContainer = document.getElementById('document-lines');
             var addLineButton = document.getElementById('add-document-line');
             var documentTypeSelect = document.getElementById('document-type-input');
+            var warehouseSelect = document.getElementById('create-warehouse-select');
             var createWarehouseInput = document.getElementById('return-warehouse-ref-input');
             var createSellerInput = document.getElementById('return-seller-ref-input');
             var createForm = document.getElementById('document-create-form');
@@ -536,6 +537,7 @@
             var returnReferenceSelectedLabel = document.getElementById('return-reference-selected-label');
             var returnReferenceTypeInput = document.getElementById('return-reference-type-input');
             var returnReferenceIdInput = document.getElementById('return-reference-id-input');
+            var returnReferenceTypeLabel = document.querySelector('label[for="return-reference-select"]');
             var returnReferenceSearchUrl = '@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")';
             var returnReferenceDocumentUrl = '@Url.Action("GetReturnReferenceDocument", "InventoryManagement")';
             var returnSourceDocument = null;
@@ -1365,6 +1367,16 @@
                     showValidation('@UiText["inventory.documents.return.referenceLabel"]', returnReferenceSelect || createForm);
                     return false;
                 }
+
+                if ((documentTypeSelect ? documentTypeSelect.value : 'Receipt') === 'Return') {
+                    if (createWarehouseInput && !createWarehouseInput.value && returnSourceDocument && returnSourceDocument.warehouseRef) {
+                        createWarehouseInput.value = String(returnSourceDocument.warehouseRef || '');
+                    }
+                    if (createSellerInput && !createSellerInput.value && returnSourceDocument && returnSourceDocument.sellerRef) {
+                        createSellerInput.value = String(returnSourceDocument.sellerRef || '');
+                    }
+                }
+
                 var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
 for (var i = 0; i < lines.length; i++) {
                     var line = lines[i];

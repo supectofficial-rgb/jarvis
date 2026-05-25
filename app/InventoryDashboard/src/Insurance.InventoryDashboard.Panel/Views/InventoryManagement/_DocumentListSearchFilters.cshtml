@@ -125,6 +125,7 @@
 
             locationSelect.value = selectedValue || '';
             if (window.jQuery) {
+                window.jQuery(locationSelect).trigger('change');
                 window.jQuery(locationSelect).trigger('change.select2');
             }
         }
@@ -172,9 +173,13 @@
                 });
             };
 
+            var queueWarehouseChange = function () {
+                window.setTimeout(onWarehouseChange, 0);
+            };
+
             warehouseSelect.addEventListener('change', onWarehouseChange);
             if (window.jQuery) {
-                window.jQuery(warehouseSelect).on('select2:select.documentSearch select2:clear.documentSearch', onWarehouseChange);
+                window.jQuery(warehouseSelect).on('select2:select.documentSearch select2:clear.documentSearch', queueWarehouseChange);
             }
         }
 

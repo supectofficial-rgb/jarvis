@@ -246,75 +246,6 @@
                                 </div>
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
-                                <div>
-                                    <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
-                                    <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
-                                </div>
-                                <button class="btn btn-outline-primary btn-xs" type="button" id="add-document-line">@UiText["inventory.documents.addLine"]</button>
-                            </div>
-
-                            <div id="document-lines-panel">
-                                <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
-                                <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
-                                <div id="document-lines">
-                                    @for (var i = 0; i < Model.CreateForm.Lines.Count; i++)
-                                    {
-                                        <div class="card mb-3 document-line" data-line-index="@i">
-                                            <div class="card-body">
-                                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <strong>@UiText["common.line"] @(i + 1)</strong>
-                                                    <button class="btn btn-outline-danger btn-xs remove-document-line" type="button">@UiText["common.delete"]</button>
-                                                </div>
-                                                <div class="form-row">
-                                                    <div class="form-group col-md-4">
-                                                        <label>@UiText["inventory.documents.line.variant"]</label>
-                                                        <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" required>
-                                                            <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
-                                                            @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
-                                                            {
-                                                                <option value="@variant.Id" data-base-uom-ref="@variant.BaseUomRef" data-product-id="@variant.ProductId" selected="@(variant.Id == Model.CreateForm.Lines[i].VariantId ? "selected" : null)">@VariantLabel(variant)</option>
-                                                            }
-                                                        </select>
-                                                        <input type="hidden" name="CreateForm.Lines[@i].UomRef" value="@Model.CreateForm.Lines[i].UomRef" class="document-uom-ref" />
-                                                        <input type="hidden" name="CreateForm.Lines[@i].BaseUomRef" value="@Model.CreateForm.Lines[i].BaseUomRef" class="document-base-uom-ref" />
-                                                        <div class="text-muted small mt-1 document-uom-hint">@UiText["inventory.documents.line.baseUomHint"]</div>
-                                                    </div>
-                                                    <div class="form-group col-md-2">
-                                                        <label>@UiText["common.quantity"]</label>
-                                                        <input name="CreateForm.Lines[@i].Qty" type="number" step="0.0001" min="0.0001" value="@Model.CreateForm.Lines[i].Qty.ToString("0.####")" class="form-control" required />
-                                                    </div>
-                                                    <div class="form-group col-md-3 line-source">
-                                                        <label>@UiText["inventory.documents.line.sourceLocation"]</label>
-                                                        <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
-                                                            <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
-                                                            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                                            {
-                                                                <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                    <div class="form-group col-md-3 line-destination">
-                                                        <label>@UiText["inventory.documents.line.destinationLocation"]</label>
-                                                        <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
-                                                            <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
-                                                            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                                            {
-                                                                <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                    <div class="form-group col-md-2">
-                                                        <label>@UiText["inventory.documents.line.lotBatch"]</label>
-                                                        <input name="CreateForm.Lines[@i].LotBatchNo" value="@Model.CreateForm.Lines[i].LotBatchNo" class="form-control" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-
                             <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@UiText["common.create"] @UiText["common.document"]</button>
                         </form>
                     </div>
@@ -332,7 +263,7 @@
                             <h5 class="card-title mb-0">&#x0644;&#x06CC;&#x0633;&#x062A; &#x0627;&#x0633;&#x0646;&#x0627;&#x062F;</h5>
                             <span class="text-muted small" id="transfer-document-list-count">@Model.DocumentTotalCount &#x0631;&#x06A9;&#x0648;&#x0631;&#x062F;</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="transfer-document-list-form" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" data-ajax-preserve-url="true" id="transfer-document-list-form" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             @await Html.PartialAsync("_DocumentListSearchFilters", Model)

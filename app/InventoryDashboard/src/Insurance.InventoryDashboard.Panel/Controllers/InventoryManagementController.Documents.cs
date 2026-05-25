@@ -1984,6 +1984,16 @@ public sealed partial class InventoryManagementController
         var productLookupResult = await _apiService.SearchProductsAsync(token, page: 1, pageSize: 2000);
         var variantLookupResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
         var unitOfMeasureLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
+        var createWarehouseId = warehouseId;
+        if (string.IsNullOrWhiteSpace(createWarehouseId))
+        {
+            createWarehouseId = warehouseLookupResult.Data?.FirstOrDefault()?.WarehouseBusinessKey;
+        }
+
+        if (string.IsNullOrWhiteSpace(createSellerId))
+        {
+            createSellerId = sellerLookupResult.Data?.FirstOrDefault()?.SellerBusinessKey;
+        }
 
         var documents = searchResult.Data?.Items ?? new List<InventoryDocumentListItemModel>();
         var selectedDocumentId = ResolveSelectedDocumentId(documentId, documents);
@@ -2042,7 +2052,7 @@ public sealed partial class InventoryManagementController
                 selectedDocumentResult.ErrorMessage),
             CreateForm = BuildCreateForm(
                 selectedDocumentResult.Data,
-                warehouseId,
+                createWarehouseId,
                 createSellerId,
                 resolvedDocumentType,
                 tab),
@@ -2120,6 +2130,15 @@ public sealed partial class InventoryManagementController
             return RedirectToAction(
                 ResolveDocumentRouteActionName(form.DocumentType),
                 new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, documentId = form.DocumentId, tab = "create" });
+        }
+
+        if (string.Equals(form.DocumentType, "Adjustment", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(form.WarehouseRef))
+        {
+            TempData["CatalogError"] = "انتخاب انبار برای سند تعدیل الزامی است.";
+            return RedirectToAction(
+                ResolveDocumentRouteActionName(form.DocumentType),
+                new { documentType = form.DocumentType, documentId = form.DocumentId, tab = "create" });
         }
 
         if (!isUpdate)

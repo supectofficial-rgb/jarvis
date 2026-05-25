@@ -220,11 +220,20 @@
                             @Html.AntiForgeryToken()
                             <div class="form-row">
                                 <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
-                                <input type="hidden" asp-for="CreateForm.WarehouseRef" id="create-warehouse-select" />
                                 <input type="hidden" asp-for="CreateForm.SellerRef" />
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["common.warehouse"]</label>
+                                    <select asp-for="CreateForm.WarehouseRef" class="form-control js-search-select" id="create-warehouse-select" data-placeholder='@UiText["common.select"]' required>
+                                        <option value="">@UiText["common.select"]</option>
+                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.CreateForm.WarehouseRef ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                    </select>
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.referenceType"]</label>
@@ -261,7 +270,7 @@
                             <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
                             <span class="text-muted small">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" data-ajax-preserve-url="true" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                         @await Html.PartialAsync("_DocumentListSearchFilters", Model)
