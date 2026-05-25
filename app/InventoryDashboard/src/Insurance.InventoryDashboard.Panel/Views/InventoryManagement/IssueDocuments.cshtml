@@ -2047,7 +2047,7 @@
 
             function setActionError(message) {
                 var modal = document.querySelector(safeActionModalSelector);
-                var errorBox = modal ? modal.querySelector(actionErrorSelector) : null;
+                var errorBox = modal ? modal.querySelector(safeActionErrorSelector) : null;
                 if (!errorBox) {
                     return;
                 }
@@ -2395,6 +2395,7 @@
             var safeActionSelectSelector = (typeof actionSelectSelector === 'string' && actionSelectSelector) ? actionSelectSelector : '#issue-document-action-select';
             var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#issue-document-action-submit';
             var safeDocumentListFormSelector = (typeof documentListFormSelector === 'string' && documentListFormSelector) ? documentListFormSelector : '#issue-document-list-form';
+            var safeActionErrorSelector = (typeof actionErrorSelector === 'string' && actionErrorSelector) ? actionErrorSelector : '.js-issue-document-action-error';
 
             var actionModalElement = document.querySelector(safeActionModalSelector);
             if (actionModalElement) {

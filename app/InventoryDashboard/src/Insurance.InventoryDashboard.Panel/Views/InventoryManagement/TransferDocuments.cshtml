@@ -1704,33 +1704,45 @@ for (var i = 0; i < lines.length; i++) {
                     return;
                 }
 
-                controls.variantSelect.addEventListener('change', function () {
+                var onVariantChange = function () {
                     loadTransferVariantInventory(
                         root,
                         controls.variantSelect.value || '',
                         controls.sourceSelect.value || '',
                         controls.warehouseSelect ? (controls.warehouseSelect.value || '') : '',
-                            controls.destinationSelect.value || '',
-                            collectTransferSelectedSerialIds(root)).catch(function (error) {
+                        controls.destinationSelect.value || '',
+                        collectTransferSelectedSerialIds(root)).catch(function (error) {
+                        console.error(error);
+                    });
+                };
+
+                var onSourceChange = function () {
+                    if (!controls.variantSelect.value) {
+                        renderTransferSerialOptionsV2(root, [], [], false);
+                        return;
+                    }
+
+                    loadTransferVariantSerials(
+                        root,
+                        controls.variantSelect.value || '',
+                        controls.sourceSelect.value || '',
+                        collectTransferSelectedSerialIds(root)).catch(function (error) {
                             console.error(error);
                         });
-                });
+                };
+
+                controls.variantSelect.addEventListener('change', onVariantChange);
 
                 if (controls.sourceSelect) {
-                    controls.sourceSelect.addEventListener('change', function () {
-                        if (!controls.variantSelect.value) {
-                            renderTransferSerialOptionsV2(root, [], [], false);
-                            return;
-                        }
-
-                        loadTransferVariantSerials(
-                            root,
-                            controls.variantSelect.value || '',
-                            controls.sourceSelect.value || '',
-                            collectTransferSelectedSerialIds(root)).catch(function (error) {
-                                console.error(error);
-                            });
-                    });
+                    controls.sourceSelect.addEventListener('change', onSourceChange);
+                    if (window.jQuery) {
+                        window.jQuery(controls.variantSelect).on('select2:select.transferChain select2:clear.transferChain', function () {
+                            window.setTimeout(onVariantChange, 0);
+                        });
+                        window.jQuery(controls.sourceSelect).on('select2:select.transferChain select2:clear.transferChain', function () {
+                            window.setTimeout(onSourceChange, 0);
+                        });
+                    }
                 }
 
                 if (controls.warehouseSelect) {
