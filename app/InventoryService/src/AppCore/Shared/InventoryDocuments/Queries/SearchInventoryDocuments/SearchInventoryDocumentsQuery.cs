@@ -7,7 +7,9 @@ public class SearchInventoryDocumentsQuery : IQuery<SearchInventoryDocumentsQuer
     public string? DocumentNo { get; set; }
     public string? DocumentType { get; set; }
     public string? Status { get; set; }
+    public Guid? VariantRef { get; set; }
     public Guid? WarehouseRef { get; set; }
+    public Guid? LocationRef { get; set; }
     public Guid? SellerRef { get; set; }
     public DateTime? OccurredFrom { get; set; }
     public DateTime? OccurredTo { get; set; }

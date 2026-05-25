@@ -139,6 +139,24 @@ public class InventoryDocumentQueryRepository : QueryRepository<InventoryService
         if (query.WarehouseRef.HasValue)
             dbQuery = dbQuery.Where(x => x.WarehouseRef == query.WarehouseRef.Value);
 
+        if (query.VariantRef.HasValue)
+        {
+            var variantRef = query.VariantRef.Value;
+            dbQuery = dbQuery.Where(document =>
+                _dbContext.InventoryDocumentLines.Any(line =>
+                    line.InventoryDocumentId == document.Id &&
+                    line.VariantRef == variantRef));
+        }
+
+        if (query.LocationRef.HasValue)
+        {
+            var locationRef = query.LocationRef.Value;
+            dbQuery = dbQuery.Where(document =>
+                _dbContext.InventoryDocumentLines.Any(line =>
+                    line.InventoryDocumentId == document.Id &&
+                    (line.SourceLocationRef == locationRef || line.DestinationLocationRef == locationRef)));
+        }
+
         if (query.SellerRef.HasValue)
             dbQuery = dbQuery.Where(x => x.SellerRef == query.SellerRef.Value);
 

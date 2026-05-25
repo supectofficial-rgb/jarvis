@@ -448,7 +448,21 @@
                     return;
                 }
 
-                var response = await fetch(href, {
+                var url = new URL(href, window.location.origin);
+                var sourceForm = link.closest('.card') ? link.closest('.card').querySelector('form[data-loading-form][method="get"]') : null;
+                if (sourceForm instanceof HTMLFormElement) {
+                    new FormData(sourceForm).forEach(function (value, key) {
+                        if (value === null || value === undefined || String(value).trim() === '') {
+                            return;
+                        }
+
+                        if (!url.searchParams.has(key)) {
+                            url.searchParams.append(key, value);
+                        }
+                    });
+                }
+
+                var response = await fetch(url.toString(), {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'text/html'
@@ -465,7 +479,7 @@
                 }
 
                 if (!refreshed) {
-                    window.location.href = response.url || href;
+                    window.location.href = response.url || url.toString();
                 }
             }
 

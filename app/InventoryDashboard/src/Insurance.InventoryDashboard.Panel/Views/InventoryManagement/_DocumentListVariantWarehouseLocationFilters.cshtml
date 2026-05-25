@@ -1,0 +1,34 @@
+@model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
+
+<div class="form-row mt-2">
+    <div class="form-group col-md-4">
+        <label>@UiText["common.variant"]</label>
+        <select name="variantId" class="form-control js-search-select">
+            <option value="">@UiText["common.all"]</option>
+            @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+            {
+                <option value="@variant.Id" selected="@(variant.Id == Model.VariantFilter ? "selected" : null)">@variant.Sku - @variant.Name</option>
+            }
+        </select>
+    </div>
+    <div class="form-group col-md-4">
+        <label>@UiText["common.warehouse"]</label>
+        <select name="warehouseId" class="form-control js-search-select">
+            <option value="">@UiText["common.all"]</option>
+            @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+            {
+                <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.WarehouseFilter ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+            }
+        </select>
+    </div>
+    <div class="form-group col-md-4">
+        <label>@UiText["common.location"]</label>
+        <select name="locationId" class="form-control js-search-select">
+            <option value="">@UiText["common.all"]</option>
+            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+            {
+                <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LocationFilter ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+            }
+        </select>
+    </div>
+</div>

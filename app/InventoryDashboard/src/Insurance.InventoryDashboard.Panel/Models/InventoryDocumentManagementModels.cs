@@ -29,7 +29,9 @@ public sealed class InventoryDocumentManagementPageViewModel
     public string? DocumentNoFilter { get; set; }
     public string? DocumentTypeFilter { get; set; }
     public string? DocumentStatusFilter { get; set; }
+    public string? VariantFilter { get; set; }
     public string? WarehouseFilter { get; set; }
+    public string? LocationFilter { get; set; }
     public string? SellerFilter { get; set; }
     public string? OccurredFromFilter { get; set; }
     public string? OccurredToFilter { get; set; }

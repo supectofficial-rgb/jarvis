@@ -165,7 +165,7 @@
         || !string.IsNullOrWhiteSpace(Model.OccurredToFilter)
         || Model.DocumentPage > 1;
 
-    var showListTab = hasListContext;
+    var showListTab = false;
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
@@ -282,6 +282,8 @@
                             </div>
                         </form>
 
+                        @await Html.PartialAsync("_DocumentListVariantWarehouseLocationFilters", Model)
+
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">
                                 <thead>
@@ -312,29 +314,24 @@
                                                             class="btn btn-outline-primary btn-xs js-transfer-document-details"
                                                             data-document-id="@document.DocumentBusinessKey"
                                                             data-document-no="@document.DocumentNo">@UiText["inventory.documents.action.details"]</button>
-                                                    <a class="btn btn-outline-info btn-xs mr-1"
-                                                       asp-action="@documentAction"
-                                                       asp-controller="InventoryManagement"
-                                                       asp-route-documentId="@document.DocumentBusinessKey"
-                                                       asp-route-documentNo="@Model.DocumentNoFilter"
-                                                       asp-route-documentType="@Model.DocumentTypeFilter"
-                                                       asp-route-status="@Model.DocumentStatusFilter"
-                                                       asp-route-warehouseId="@Model.WarehouseFilter"
-                                                       asp-route-sellerId="@Model.SellerFilter"
-                                                       asp-route-occurredFrom="@Model.OccurredFromFilter"
-                                                       asp-route-occurredTo="@Model.OccurredToFilter"
-                                                       asp-route-page="@Model.DocumentPage"
-                                                       asp-route-pageSize="@Model.DocumentPageSize"
-                                                       data-ajax-target="#documents-page-root">@UiText["inventory.documents.action.changeStatus"]</a>
+                                                    <button type="button"
+                                                            class="btn btn-outline-info btn-xs mr-1 js-transfer-document-action"
+                                                            data-document-id="@document.DocumentBusinessKey"
+                                                            data-document-no="@document.DocumentNo"
+                                                            data-document-status="@document.Status"
+                                                            @(string.Equals(document.Status, "Posted", StringComparison.OrdinalIgnoreCase) ? "disabled" : null)>@UiText["inventory.documents.action.action"]</button>
                                                     @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         <a class="btn btn-outline-secondary btn-xs mr-1"
                                                            asp-action="@documentAction"
                                                            asp-controller="InventoryManagement"
-                                                           asp-route-documentId="@document.DocumentBusinessKey"
-                                                           asp-route-documentType="@document.DocumentType"
-                                                           asp-route-tab="create"
-                                                           data-ajax-target="#documents-page-root">@UiText["common.edit"]</a>
+                                                       asp-route-documentId="@document.DocumentBusinessKey"
+                                                       asp-route-documentType="@document.DocumentType"
+                                                       asp-route-tab="create"
+                                                       asp-route-variantId="@Model.VariantFilter"
+                                                       asp-route-warehouseId="@Model.WarehouseFilter"
+                                                       asp-route-locationId="@Model.LocationFilter"
+                                                       data-ajax-target="#documents-page-root">@UiText["common.edit"]</a>
                                                         <button class="btn btn-outline-danger btn-xs mr-1 js-transfer-document-delete" type="button" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">@UiText["common.delete"]</button>
                                                     }
                                                 </td>
@@ -359,6 +356,9 @@
                                                asp-route-documentNo="@Model.DocumentNoFilter"
                                                asp-route-documentType="@Model.DocumentTypeFilter"
                                                asp-route-status="@Model.DocumentStatusFilter"
+                                               asp-route-variantId="@Model.VariantFilter"
+                                               asp-route-warehouseId="@Model.WarehouseFilter"
+                                               asp-route-locationId="@Model.LocationFilter"
                                                asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                asp-route-occurredTo="@Model.OccurredToFilter"
                                                asp-route-page="@i"
@@ -660,10 +660,10 @@
 
 <div class="modal fade" id="transfer-document-details-modal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
-        <div class="modal-content">
+            <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <h5 class="modal-title" id="transfer-document-details-modal-title">@UiText["inventory.documents.details.title"] @UiText["inventory.documents.type.transfer"]</h5>
+                    <h5 class="modal-title" id="transfer-document-details-modal-title">@DecodeHtmlEntities(UiText["inventory.documents.details.title"]) @DecodeHtmlEntities(UiText["inventory.documents.type.transfer"])</h5>
                     <div class="small text-muted" id="transfer-document-details-modal-subtitle"></div>
                 </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="@UiText["common.close"]">
@@ -672,6 +672,45 @@
             </div>
             <div class="modal-body" id="transfer-document-details-modal-body">
                 <div class="text-muted">@UiText["common.loading"]</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="transfer-document-action-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">اقدام روی سند انتقال</h5>
+                    <div class="small text-muted" id="transfer-document-action-modal-subtitle"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="@UiText["common.close"]">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="transfer-document-action-id" />
+                <div class="form-group">
+                    <label>اقدام</label>
+                    <select class="form-control" id="transfer-document-action-select">
+                        <option value="approve">@UiText["inventory.documents.action.approve"]</option>
+                        <option value="post">@UiText["inventory.documents.action.post"]</option>
+                        <option value="reject">@UiText["inventory.documents.action.reject"]</option>
+                        <option value="cancel">@UiText["inventory.documents.action.cancel"]</option>
+                    </select>
+                </div>
+                <div class="form-group" id="transfer-document-action-reason-group">
+                    <label>علت</label>
+                    <input type="text" class="form-control" id="transfer-document-action-reason" />
+                </div>
+                <div class="alert alert-light border mb-0 small">
+                    برای تایید و پست، علت اختیاری نیست. برای رد و لغو، علت ثبت می‌شود.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">@UiText["common.close"]</button>
+                <button type="button" class="btn btn-primary" id="transfer-document-action-submit">@UiText["inventory.documents.action.submit"]</button>
             </div>
         </div>
     </div>
@@ -688,6 +727,21 @@
             var linesPanel = document.getElementById('document-lines-panel');
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
+            var detailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.details.title"])));
+            var transferTypeText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.type.transfer"])));
+            var actionModalSelector = '#transfer-document-action-modal';
+            var actionIdSelector = '#transfer-document-action-id';
+            var actionSelectSelector = '#transfer-document-action-select';
+            var actionReasonSelector = '#transfer-document-action-reason';
+            var actionReasonGroupSelector = '#transfer-document-action-reason-group';
+            var actionSubtitleSelector = '#transfer-document-action-modal-subtitle';
+            var actionSubmitSelector = '#transfer-document-action-submit';
+            var actionUrls = {
+                approve: '@Url.Action("ApproveDocument", "InventoryManagement")',
+                post: '@Url.Action("PostDocument", "InventoryManagement")',
+                reject: '@Url.Action("RejectDocument", "InventoryManagement")',
+                cancel: '@Url.Action("CancelDocument", "InventoryManagement")'
+            };
 
             if (!lineContainer) {
                 return;
@@ -1219,6 +1273,32 @@ for (var i = 0; i < lines.length; i++) {
                 }
             }
 
+            function syncTransferLineQtyFromSerialSelection(root, serialMode) {
+                root = root || document;
+                var qtyInput = root.querySelector('input[name="LineForm.Qty"]');
+                if (!qtyInput) {
+                    return;
+                }
+
+                if (!serialMode) {
+                    qtyInput.removeAttribute('readonly');
+                    qtyInput.disabled = false;
+                    return;
+                }
+
+                var serialControls = getTransferLineSerialControls(root);
+                if (!serialControls.container || !serialControls.container.querySelector('.js-transfer-line-serial-select')) {
+                    qtyInput.removeAttribute('readonly');
+                    qtyInput.disabled = false;
+                    return;
+                }
+
+                var selectedCount = collectTransferSelectedSerialIds(root).length;
+                qtyInput.value = String(selectedCount > 0 ? selectedCount : 0);
+                qtyInput.setAttribute('readonly', 'readonly');
+                qtyInput.disabled = false;
+            }
+
             function collectTransferSelectedSerialIds(root) {
                 var controls = getTransferLineSerialControls(root);
                 if (!controls.container) {
@@ -1293,6 +1373,7 @@ for (var i = 0; i < lines.length; i++) {
                 if (!hasVariant || !hasSource) {
                     controls.section.classList.add('d-none');
                     controls.summary.textContent = '@UiText["inventory.documents.action.selectVariantAndLocation"]';
+                    syncTransferLineQtyFromSerialSelection(root, false);
                     return;
                 }
 
@@ -1301,6 +1382,7 @@ for (var i = 0; i < lines.length; i++) {
                 if (!items.length) {
                     controls.summary.textContent = '@UiText["inventory.documents.action.serialNotFound"]';
                     controls.container.innerHTML = '<div class="text-muted small">@UiText["common.noRecords"]</div>';
+                    syncTransferLineQtyFromSerialSelection(root, false);
                     return;
                 }
 
@@ -1325,6 +1407,7 @@ for (var i = 0; i < lines.length; i++) {
 
                     checkbox.addEventListener('change', function () {
                         syncTransferLineSerialHiddenInputs(root);
+                        syncTransferLineQtyFromSerialSelection(root, true);
                     });
 
                     var content = document.createElement('span');
@@ -1347,6 +1430,7 @@ for (var i = 0; i < lines.length; i++) {
                 });
 
                 syncTransferLineSerialHiddenInputs(root);
+                syncTransferLineQtyFromSerialSelection(root, true);
             }
 
             function renderTransferSourceLocationOptions(root, selectedSourceLocationId, allowedLocationIds) {
@@ -1519,8 +1603,8 @@ for (var i = 0; i < lines.length; i++) {
                         controls.variantSelect.value || '',
                         controls.sourceSelect.value || '',
                         controls.warehouseSelect ? (controls.warehouseSelect.value || '') : '',
-                        controls.destinationSelect.value || '',
-                        collectTransferSelectedSerialIds(root)).catch(function (error) {
+                            controls.destinationSelect.value || '',
+                            collectTransferSelectedSerialIds(root)).catch(function (error) {
                             console.error(error);
                         });
                 });
@@ -1635,6 +1719,7 @@ for (var i = 0; i < lines.length; i++) {
                 if (warehouseSelect) {
                     warehouseSelect.value = destinationWarehouseId;
                     if (window.jQuery) {
+                        window.jQuery(warehouseSelect).trigger('change');
                         window.jQuery(warehouseSelect).trigger('change.select2');
                     }
                 }
@@ -1696,12 +1781,14 @@ for (var i = 0; i < lines.length; i++) {
                     sourceSelect.value = '';
                     sourceSelect.disabled = true;
                     if (window.jQuery) {
+                        window.jQuery(sourceSelect).trigger('change');
                         window.jQuery(sourceSelect).trigger('change.select2');
                     }
                 }
                 if (warehouseSelect) {
                     warehouseSelect.value = '';
                     if (window.jQuery) {
+                        window.jQuery(warehouseSelect).trigger('change');
                         window.jQuery(warehouseSelect).trigger('change.select2');
                     }
                 }
@@ -1709,6 +1796,7 @@ for (var i = 0; i < lines.length; i++) {
                     destinationSelect.value = '';
                     destinationSelect.disabled = true;
                     if (window.jQuery) {
+                        window.jQuery(destinationSelect).trigger('change');
                         window.jQuery(destinationSelect).trigger('change.select2');
                     }
                 }
@@ -1733,6 +1821,8 @@ for (var i = 0; i < lines.length; i++) {
                 }
                 if (qtyInput) {
                     qtyInput.value = '1';
+                    qtyInput.removeAttribute('readonly');
+                    qtyInput.disabled = false;
                 }
                 if (submitButton) {
                     submitButton.textContent = '@UiText["inventory.documents.action.addItem"]';
@@ -1765,11 +1855,146 @@ for (var i = 0; i < lines.length; i++) {
                 var titleElement = document.querySelector(modalTitleSelector);
                 var subtitleElement = document.querySelector(modalSubtitleSelector);
                 if (titleElement) {
-                    titleElement.textContent = documentNo ? ('@UiText["inventory.documents.details.title"] ' + documentNo) : '@UiText["inventory.documents.details.title"] @UiText["inventory.documents.type.transfer"]';
+                    titleElement.textContent = documentNo ? (detailsTitleText + ' ' + documentNo) : (detailsTitleText + ' ' + transferTypeText);
                 }
                 if (subtitleElement) {
-                    subtitleElement.textContent = documentId || '';
+                    subtitleElement.textContent = '';
                 }
+            }
+
+            function showTransferActionModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(actionModalSelector).modal('show');
+                }
+            }
+
+            function updateTransferActionReasonVisibility() {
+                var select = document.querySelector(actionSelectSelector);
+                var reasonGroup = document.querySelector(actionReasonGroupSelector);
+                var reasonInput = document.querySelector(actionReasonSelector);
+                if (!select || !reasonGroup) {
+                    return;
+                }
+
+                var requiresReason = select.value === 'reject' || select.value === 'cancel';
+                reasonGroup.style.display = requiresReason ? '' : 'none';
+                if (reasonInput && !requiresReason) {
+                    reasonInput.value = '';
+                }
+            }
+
+            function updateTransferActionDependentSections() {
+                var select = document.querySelector(actionSelectSelector);
+                var submitButton = document.querySelector(actionSubmitSelector);
+                updateTransferActionReasonVisibility();
+
+                if (!select) {
+                    return;
+                }
+
+                if (submitButton) {
+                    var labelMap = {
+                        approve: '@UiText["inventory.documents.action.approve"]',
+                        post: '@UiText["inventory.documents.action.post"]',
+                        reject: '@UiText["inventory.documents.action.reject"]',
+                        cancel: '@UiText["inventory.documents.action.cancel"]'
+                    };
+                    submitButton.textContent = labelMap[select.value || 'approve'] || '@UiText["inventory.documents.action.submit"]';
+                }
+            }
+
+            function openTransferActionModal(trigger) {
+                var modal = document.querySelector(actionModalSelector);
+                if (!modal || !trigger) {
+                    return;
+                }
+
+                var idInput = modal.querySelector(actionIdSelector);
+                var select = modal.querySelector(actionSelectSelector);
+                var reasonInput = modal.querySelector(actionReasonSelector);
+                var subtitle = modal.querySelector(actionSubtitleSelector);
+
+                if (idInput) {
+                    idInput.value = trigger.getAttribute('data-document-id') || '';
+                }
+
+                if (select) {
+                    select.value = 'approve';
+                }
+
+                if (reasonInput) {
+                    reasonInput.value = '';
+                }
+
+                if (subtitle) {
+                    var documentNo = trigger.getAttribute('data-document-no') || '';
+                    var status = trigger.getAttribute('data-document-status') || '';
+                    subtitle.textContent = [documentNo, status].filter(Boolean).join(' - ');
+                }
+
+                updateTransferActionDependentSections();
+                showTransferActionModal();
+            }
+
+            async function submitTransferAction() {
+                var modal = document.querySelector(actionModalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var idInput = modal.querySelector(actionIdSelector);
+                var select = modal.querySelector(actionSelectSelector);
+                var reasonInput = modal.querySelector(actionReasonSelector);
+                if (!idInput || !select) {
+                    return;
+                }
+
+                var documentId = idInput.value || '';
+                var action = select.value || 'approve';
+                var url = actionUrls[action];
+                if (!url) {
+                    return;
+                }
+
+                var actionLabelMap = {
+                    approve: '@UiText["inventory.documents.action.approve"]',
+                    post: '@UiText["inventory.documents.action.post"]',
+                    reject: '@UiText["inventory.documents.action.reject"]',
+                    cancel: '@UiText["inventory.documents.action.cancel"]'
+                };
+                var actionLabel = actionLabelMap[action] || '@UiText["inventory.documents.action.action"]';
+                if (!window.confirm('@UiText["inventory.documents.confirm.action"]')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                if (action === 'approve' || action === 'post') {
+                    payload.append('documentId', documentId);
+                } else {
+                    payload.append('DocumentId', documentId);
+                    payload.append('ReasonCode', reasonInput ? reasonInput.value || '' : '');
+                }
+
+                var response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Action request failed.');
+                }
+
+                if (window.jQuery) {
+                    window.jQuery(actionModalSelector).modal('hide');
+                }
+
+                await refreshTransferDocumentList();
             }
 
             function getTransferListForm() {
@@ -1842,6 +2067,7 @@ for (var i = 0; i < lines.length; i++) {
                 html += '<td><span class="badge badge-pill ' + getStatusClass(document.status) + '">' + escapeHtml(getStatusLabel(document.status)) + '</span></td>';
                 html += '<td class="text-right">';
                 html += '<button type="button" class="btn btn-outline-primary btn-xs js-transfer-document-details mr-1" data-document-id="' + documentId + '" data-document-no="' + documentNo + '">' + '@UiText["inventory.documents.action.details"]' + '</button>';
+                html += '<button type="button" class="btn btn-outline-info btn-xs mr-1 js-transfer-document-action" data-document-id="' + documentId + '" data-document-no="' + documentNo + '" data-document-status="' + status + '"' + (canActDocument ? '' : ' disabled') + '>' + '@UiText["inventory.documents.action.action"]' + '</button>';
 
                 if (canEditDocument) {
                     html += '<a class="btn btn-outline-secondary btn-xs mr-1" href="' + editUrl + '" data-ajax-target="#documents-page-root">' + '@UiText["common.edit"]' + '</a>';
@@ -2025,6 +2251,13 @@ for (var i = 0; i < lines.length; i++) {
                         return;
                     }
 
+                    var actionTrigger = event.target && event.target.closest ? event.target.closest('.js-transfer-document-action') : null;
+                    if (actionTrigger) {
+                        event.preventDefault();
+                        openTransferActionModal(actionTrigger);
+                        return;
+                    }
+
                     var deleteTrigger = event.target && event.target.closest ? event.target.closest('.js-transfer-document-delete') : null;
                     if (deleteTrigger) {
                         event.preventDefault();
@@ -2082,6 +2315,49 @@ for (var i = 0; i < lines.length; i++) {
                     modalElement.addEventListener('hidden.bs.modal', function () {
                         resetTransferLineForm();
                     });
+                }
+
+                var actionModalElement = document.querySelector(actionModalSelector);
+                if (actionModalElement) {
+                    actionModalElement.addEventListener('hidden.bs.modal', function () {
+                        var subtitle = document.querySelector(actionSubtitleSelector);
+                        var reasonInput = document.querySelector(actionReasonSelector);
+                        var idInput = document.querySelector(actionIdSelector);
+                        var select = document.querySelector(actionSelectSelector);
+                        var submitButton = document.querySelector(actionSubmitSelector);
+                        if (subtitle) {
+                            subtitle.textContent = '';
+                        }
+                        if (reasonInput) {
+                            reasonInput.value = '';
+                        }
+                        if (idInput) {
+                            idInput.value = '';
+                        }
+                        if (select) {
+                            select.value = 'approve';
+                        }
+                        if (submitButton) {
+                            submitButton.textContent = '@UiText["inventory.documents.action.submit"]';
+                        }
+                        updateTransferActionReasonVisibility();
+                    });
+
+                    var selectElement = document.querySelector(actionSelectSelector);
+                    if (selectElement) {
+                        selectElement.addEventListener('change', updateTransferActionDependentSections);
+                    }
+
+                    var submitButton = document.querySelector(actionSubmitSelector);
+                    if (submitButton) {
+                        submitButton.addEventListener('click', function () {
+                            submitTransferAction().catch(function (error) {
+                                console.error(error);
+                            });
+                        });
+                    }
+
+                    updateTransferActionReasonVisibility();
                 }
 
                 bindTransferDocumentListForm();

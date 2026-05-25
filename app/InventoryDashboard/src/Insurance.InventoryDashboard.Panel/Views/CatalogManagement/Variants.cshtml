@@ -977,6 +977,7 @@
             var bucketCountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.bucketCount"]));
             var serialCountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.serialCount"]));
             var qualityStatusText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.qualityStatus"]));
+            var noSerialsText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noSerials"]));
             var sellerText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.seller"]));
             var priceTypeText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceType"]));
             var priceChannelText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceChannel"]));
@@ -1046,9 +1047,9 @@
                         var serials = Array.isArray(location.serials) ? location.serials : [];
                         var serialBadges = serials.length
                             ? '<div class="mt-1">' + serials.map(function (serial) {
-                                return '<span class="badge badge-light border mr-1 mb-1">' + escapeHtml(serial.serialNo || serial.serialItemBusinessKey || '-') + '</span>';
+                            return '<span class="badge badge-light border mr-1 mb-1">' + escapeHtml(serial.serialNo || serial.serialItemBusinessKey || '-') + '</span>';
                             }).join('') + '</div>'
-                            : '<div class="text-muted small mt-1">' + noDisplayDataText + '</div>';
+                            : '<div class="text-muted small mt-1">' + noSerialsText + '</div>';
 
                         return '<tr>' +
                             '<td class="pl-4">' + escapeHtml(location.locationLabel || location.locationCode || location.locationRef || '-') + '</td>' +

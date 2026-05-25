@@ -480,7 +480,9 @@ public sealed class VariantManagementController : CatalogManagementController
                         locationLabel = x.locationLabel,
                         qualityStatusLabel = x.qualityStatusLabel,
                         lotBatchNo = x.lotBatchNo,
-                        quantityOnHand = x.quantityOnHand
+                        quantityOnHand = x.quantityOnHand,
+                        serialCount = x.serialCount,
+                        serials = x.serials
                     })
                     .OrderBy(x => x.locationLabel)
                     .ThenBy(x => x.qualityStatusLabel)

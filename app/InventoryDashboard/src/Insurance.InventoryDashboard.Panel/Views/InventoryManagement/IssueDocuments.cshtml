@@ -348,6 +348,8 @@
                             </div>
                         </form>
 
+                        @await Html.PartialAsync("_DocumentListVariantWarehouseLocationFilters", Model)
+
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">
                                 <thead>
@@ -378,20 +380,12 @@
                                                             class="btn btn-outline-primary btn-xs js-issue-document-details mr-1"
                                                             data-document-id="@document.DocumentBusinessKey"
                                                             data-document-no="@document.DocumentNo">@UiText["common.details"]</button>
-                                                    <a class="btn btn-outline-info btn-xs mr-1"
-                                                       asp-action="@documentAction"
-                                                       asp-controller="InventoryManagement"
-                                                       asp-route-documentId="@document.DocumentBusinessKey"
-                                                       asp-route-documentNo="@Model.DocumentNoFilter"
-                                                       asp-route-documentType="@Model.DocumentTypeFilter"
-                                                       asp-route-status="@Model.DocumentStatusFilter"
-                                                       asp-route-warehouseId="@Model.WarehouseFilter"
-                                                       asp-route-sellerId="@Model.SellerFilter"
-                                                       asp-route-occurredFrom="@Model.OccurredFromFilter"
-                                                       asp-route-occurredTo="@Model.OccurredToFilter"
-                                                       asp-route-page="@Model.DocumentPage"
-                                                       asp-route-pageSize="@Model.DocumentPageSize"
-                                                       data-ajax-target="#documents-page-root">@UiText["inventory.documents.action.changeStatus"]</a>
+                                                    <button type="button"
+                                                            class="btn btn-outline-info btn-xs mr-1 js-issue-document-action"
+                                                            data-document-id="@document.DocumentBusinessKey"
+                                                            data-document-no="@document.DocumentNo"
+                                                            data-document-status="@document.Status"
+                                                            @(string.Equals(document.Status, "Posted", StringComparison.OrdinalIgnoreCase) ? "disabled" : null)>@UiText["inventory.documents.action.action"]</button>
                                                     @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         <a class="btn btn-outline-secondary btn-xs mr-1"
@@ -400,6 +394,9 @@
                                                            asp-route-documentId="@document.DocumentBusinessKey"
                                                            asp-route-documentType="@document.DocumentType"
                                                            asp-route-tab="create"
+                                                           asp-route-variantId="@Model.VariantFilter"
+                                                           asp-route-warehouseId="@Model.WarehouseFilter"
+                                                           asp-route-locationId="@Model.LocationFilter"
                                                            asp-route-page="@Model.DocumentPage"
                                                            asp-route-pageSize="@Model.DocumentPageSize"
                                                            asp-route-documentNo="@Model.DocumentNoFilter"
@@ -434,6 +431,9 @@
                                                asp-route-documentNo="@Model.DocumentNoFilter"
                                                asp-route-documentType="@Model.DocumentTypeFilter"
                                                asp-route-status="@Model.DocumentStatusFilter"
+                                               asp-route-variantId="@Model.VariantFilter"
+                                               asp-route-warehouseId="@Model.WarehouseFilter"
+                                               asp-route-locationId="@Model.LocationFilter"
                                                asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                asp-route-occurredTo="@Model.OccurredToFilter"
                                                asp-route-page="@i"
@@ -791,7 +791,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <h5 class="modal-title" id="issue-document-details-modal-title">Ø¬Ø²Ø¦ÛŒØ§Øª Ø³Ù†Ø¯ Ø­ÙˆØ§Ù„Ù‡</h5>
+                    <h5 class="modal-title" id="issue-document-details-modal-title">@UiText["inventory.documents.details.title"] @UiText["inventory.documents.type.issue"]</h5>
                     <div class="small text-muted" id="issue-document-details-modal-subtitle"></div>
                 </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Ø¨Ø³ØªÙ†">
@@ -800,6 +800,45 @@
             </div>
             <div class="modal-body" id="issue-document-details-modal-body">
                 <div class="text-muted">Ø¯Ø± Ø­Ø§Ù„ Ø¨Ø§Ø±Ú¯Ø°Ø§Ø±ÛŒ...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="issue-document-action-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">اقدام روی سند حواله</h5>
+                    <div class="small text-muted" id="issue-document-action-modal-subtitle"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="بستن">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="issue-document-action-id" />
+                <div class="form-group">
+                    <label>اقدام</label>
+                    <select class="form-control" id="issue-document-action-select">
+                        <option value="approve">تایید</option>
+                        <option value="post">پست</option>
+                        <option value="reject">رد سند</option>
+                        <option value="cancel">لغو سند</option>
+                    </select>
+                </div>
+                <div class="form-group" id="issue-document-action-reason-group">
+                    <label>علت</label>
+                    <input type="text" class="form-control" id="issue-document-action-reason" />
+                </div>
+                <div class="alert alert-light border mb-0 small">
+                    برای تایید و پست، علت اختیاری نیست. برای رد و لغو، علت ثبت می‌شود.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">بستن</button>
+                <button type="button" class="btn btn-primary" id="issue-document-action-submit">ثبت</button>
             </div>
         </div>
     </div>
@@ -827,6 +866,21 @@
             var documentListCountSelector = '#issue-document-list-count';
             var deleteDocumentUrl = '@Url.Action("DeleteDocument", "InventoryManagement")';
             var deleteIssueDocumentLineUrl = '@Url.Action("DeleteIssueDocumentLine", "InventoryManagement")';
+            var actionModalSelector = '#issue-document-action-modal';
+            var actionIdSelector = '#issue-document-action-id';
+            var actionSelectSelector = '#issue-document-action-select';
+            var actionReasonSelector = '#issue-document-action-reason';
+            var actionReasonGroupSelector = '#issue-document-action-reason-group';
+            var actionSubtitleSelector = '#issue-document-action-modal-subtitle';
+            var actionSubmitSelector = '#issue-document-action-submit';
+            var actionUrls = {
+                approve: '@Url.Action("ApproveDocument", "InventoryManagement")',
+                post: '@Url.Action("PostDocument", "InventoryManagement")',
+                reject: '@Url.Action("RejectDocument", "InventoryManagement")',
+                cancel: '@Url.Action("CancelDocument", "InventoryManagement")'
+            };
+            var issueDetailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.details.title"]));
+            var issueDocumentTypeText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.type.issue"]));
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
 
@@ -1285,10 +1339,10 @@
                 var titleElement = document.querySelector(modalTitleSelector);
                 var subtitleElement = document.querySelector(modalSubtitleSelector);
                 if (titleElement) {
-                    titleElement.textContent = documentNo ? ('Ø¬Ø²Ø¦ÛŒØ§Øª Ø³Ù†Ø¯ ' + documentNo) : 'Ø¬Ø²Ø¦ÛŒØ§Øª Ø³Ù†Ø¯ Ø­ÙˆØ§Ù„Ù‡';
+                    titleElement.textContent = documentNo ? (issueDetailsTitleText + ' ' + documentNo) : (issueDetailsTitleText + ' ' + issueDocumentTypeText);
                 }
                 if (subtitleElement) {
-                    subtitleElement.textContent = documentId || '';
+                    subtitleElement.textContent = documentNo || '';
                 }
             }
 
@@ -1356,6 +1410,7 @@
                 html += '<td><span class="badge badge-pill ' + getStatusClass(document.status) + '">' + escapeHtml(getStatusLabel(document.status)) + '</span></td>';
                 html += '<td class="text-right">';
                 html += '<button type="button" class="btn btn-outline-primary btn-xs js-issue-document-details mr-1" data-document-id="' + documentId + '" data-document-no="' + documentNo + '">Ø¬Ø²Ø¦ÛŒØ§Øª</button>';
+                html += '<button type="button" class="btn btn-outline-info btn-xs mr-1 js-issue-document-action" data-document-id="' + documentId + '" data-document-no="' + documentNo + '" data-document-status="' + status + '"' + (String(document.status || '').toLowerCase() === 'posted' ? ' disabled' : '') + '>@UiText["inventory.documents.action.action"]</button>';
                 if (canEditDocument) {
                     html += '<a class="btn btn-outline-secondary btn-xs mr-1" href="' + editUrl + '" data-ajax-target="#documents-page-root">ÙˆÛŒØ±Ø§ÛŒØ´</a>';
                 }
@@ -1872,13 +1927,13 @@
                     return;
                 }
 
-                controls.variantSelect.addEventListener('change', function () {
+                var onVariantChange = function () {
                     loadIssueVariantInventory(root, controls.variantSelect.value || '', controls.sourceSelect.value || '', []).catch(function (error) {
                         console.error(error);
                     });
-                });
+                };
 
-                controls.sourceSelect.addEventListener('change', function () {
+                var onSourceChange = function () {
                     if (!controls.variantSelect.value) {
                         renderIssueSerialOptions(root, [], [], false);
                         return;
@@ -1891,7 +1946,14 @@
                         collectIssueSelectedSerialIds(root)).catch(function (error) {
                             console.error(error);
                         });
-                });
+                };
+
+                controls.variantSelect.addEventListener('change', onVariantChange);
+                controls.sourceSelect.addEventListener('change', onSourceChange);
+                if (window.jQuery) {
+                    window.jQuery(controls.variantSelect).on('select2:select', onVariantChange);
+                    window.jQuery(controls.sourceSelect).on('select2:select', onSourceChange);
+                }
 
                 controls.variantSelect.dataset.issueInventoryBound = 'true';
                 hydrateIssueInventoryOptions(root);
@@ -1924,6 +1986,141 @@
                 initModalWidgets(document.querySelector(modalBodySelector));
 
                 showModal();
+            }
+
+            function showActionModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(actionModalSelector).modal('show');
+                }
+            }
+
+            function updateIssueActionReasonVisibility() {
+                var select = document.querySelector(actionSelectSelector);
+                var reasonGroup = document.querySelector(actionReasonGroupSelector);
+                var reasonInput = document.querySelector(actionReasonSelector);
+                if (!select || !reasonGroup) {
+                    return;
+                }
+
+                var requiresReason = select.value === 'reject' || select.value === 'cancel';
+                reasonGroup.style.display = requiresReason ? '' : 'none';
+                if (reasonInput && !requiresReason) {
+                    reasonInput.value = '';
+                }
+            }
+
+            function updateIssueActionDependentSections() {
+                var select = document.querySelector(actionSelectSelector);
+                var submitButton = document.querySelector(actionSubmitSelector);
+                updateIssueActionReasonVisibility();
+
+                if (!select) {
+                    return;
+                }
+
+                if (submitButton) {
+                    var labelMap = {
+                        approve: 'تایید',
+                        post: 'پست',
+                        reject: 'رد سند',
+                        cancel: 'لغو سند'
+                    };
+                    submitButton.textContent = labelMap[select.value || 'approve'] || 'ثبت';
+                }
+            }
+
+            function openIssueActionModal(trigger) {
+                var modal = document.querySelector(actionModalSelector);
+                if (!modal || !trigger) {
+                    return;
+                }
+
+                var idInput = modal.querySelector(actionIdSelector);
+                var select = modal.querySelector(actionSelectSelector);
+                var reasonInput = modal.querySelector(actionReasonSelector);
+                var subtitle = modal.querySelector(actionSubtitleSelector);
+
+                if (idInput) {
+                    idInput.value = trigger.getAttribute('data-document-id') || '';
+                }
+
+                if (select) {
+                    select.value = 'approve';
+                }
+
+                if (reasonInput) {
+                    reasonInput.value = '';
+                }
+
+                if (subtitle) {
+                    var documentNo = trigger.getAttribute('data-document-no') || '';
+                    var status = trigger.getAttribute('data-document-status') || '';
+                    subtitle.textContent = [documentNo, status].filter(Boolean).join(' - ');
+                }
+
+                updateIssueActionDependentSections();
+                showActionModal();
+            }
+
+            async function submitIssueAction() {
+                var modal = document.querySelector(actionModalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var idInput = modal.querySelector(actionIdSelector);
+                var select = modal.querySelector(actionSelectSelector);
+                var reasonInput = modal.querySelector(actionReasonSelector);
+                if (!idInput || !select) {
+                    return;
+                }
+
+                var documentId = idInput.value || '';
+                var action = select.value || 'approve';
+                var url = actionUrls[action];
+                if (!url) {
+                    return;
+                }
+
+                var actionLabelMap = {
+                    approve: 'تایید',
+                    post: 'پست',
+                    reject: 'رد سند',
+                    cancel: 'لغو سند'
+                };
+                var actionLabel = actionLabelMap[action] || 'اقدام';
+                if (!window.confirm('آیا از ' + actionLabel + ' این سند اطمینان دارید؟')) {
+                    return;
+                }
+
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                if (action === 'approve' || action === 'post') {
+                    payload.append('documentId', documentId);
+                } else {
+                    payload.append('DocumentId', documentId);
+                    payload.append('ReasonCode', reasonInput ? reasonInput.value || '' : '');
+                }
+
+                var response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Action request failed.');
+                }
+
+                if (window.jQuery) {
+                    window.jQuery(actionModalSelector).modal('hide');
+                }
+
+                await refreshIssueDocumentList();
             }
 
             function fillIssueLineForm(trigger) {
@@ -2056,6 +2253,13 @@
                     return;
                 }
 
+                var actionTrigger = event.target && event.target.closest ? event.target.closest('.js-issue-document-action') : null;
+                if (actionTrigger) {
+                    event.preventDefault();
+                    openIssueActionModal(actionTrigger);
+                    return;
+                }
+
                 var deleteTrigger = event.target && event.target.closest ? event.target.closest('.js-issue-document-delete') : null;
                 if (deleteTrigger) {
                     event.preventDefault();
@@ -2108,6 +2312,49 @@
                 modalElement.addEventListener('hidden.bs.modal', function () {
                     resetIssueLineForm();
                 });
+            }
+
+            var actionModalElement = document.querySelector(actionModalSelector);
+            if (actionModalElement) {
+                actionModalElement.addEventListener('hidden.bs.modal', function () {
+                    var subtitle = document.querySelector(actionSubtitleSelector);
+                    var reasonInput = document.querySelector(actionReasonSelector);
+                    var idInput = document.querySelector(actionIdSelector);
+                    var select = document.querySelector(actionSelectSelector);
+                    var submitButton = document.querySelector(actionSubmitSelector);
+                    if (subtitle) {
+                        subtitle.textContent = '';
+                    }
+                    if (reasonInput) {
+                        reasonInput.value = '';
+                    }
+                    if (idInput) {
+                        idInput.value = '';
+                    }
+                    if (select) {
+                        select.value = 'approve';
+                    }
+                    if (submitButton) {
+                        submitButton.textContent = 'ثبت';
+                    }
+                    updateIssueActionReasonVisibility();
+                });
+
+                var selectElement = document.querySelector(actionSelectSelector);
+                if (selectElement) {
+                    selectElement.addEventListener('change', updateIssueActionDependentSections);
+                }
+
+                var submitButton = document.querySelector(actionSubmitSelector);
+                if (submitButton) {
+                    submitButton.addEventListener('click', function () {
+                        submitIssueAction().catch(function (error) {
+                            console.error(error);
+                        });
+                    });
+                }
+
+                updateIssueActionReasonVisibility();
             }
 
             var listForm = document.querySelector(documentListFormSelector);

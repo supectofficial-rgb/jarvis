@@ -14,7 +14,9 @@ public sealed partial class InventoryManagementController
         string? documentNo,
         string? documentType,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -29,7 +31,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             documentType,
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -42,7 +46,9 @@ public sealed partial class InventoryManagementController
         string? documentNo,
         string? documentType,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -67,7 +73,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             resolvedDocumentType,
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             ParseDate(occurredFrom),
             ParseDateEndOfDay(occurredTo),
@@ -99,7 +107,9 @@ public sealed partial class InventoryManagementController
         string? tab,
         string? documentNo,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -114,7 +124,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             "Receipt",
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -1170,7 +1182,9 @@ public sealed partial class InventoryManagementController
         string? editingLineId,
         string? documentNo,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -1185,7 +1199,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             "Issue",
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -1461,7 +1477,9 @@ public sealed partial class InventoryManagementController
         string? editingLineId,
         string? documentNo,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -1476,7 +1494,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             "Transfer",
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -1490,7 +1510,9 @@ public sealed partial class InventoryManagementController
         string? editingLineId,
         string? documentNo,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -1505,7 +1527,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             "Adjustment",
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -1519,7 +1543,9 @@ public sealed partial class InventoryManagementController
         string? editingLineId,
         string? documentNo,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -1534,7 +1560,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             "Return",
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -1542,13 +1570,106 @@ public sealed partial class InventoryManagementController
             pageSize,
             cancellationToken);
 
+    [HttpGet("/InventoryManagement/Documents/Return/Details")]
+    public async Task<IActionResult> ReturnDocumentDetails(
+        string documentId,
+        string? editingLineId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ø§Ø³Ù†Ø§Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ø§Ø³Ù†Ø§Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+        }
+
+        if (!Guid.TryParse(documentId, out _))
+        {
+            return Content("Ø³Ù†Ø¯ Ù…Ø¹ØªØ¨Ø± Ù†ÛŒØ³Øª.");
+        }
+
+        var model = await BuildReturnDocumentDetailsModalModelAsync(documentId, token, editingLineId, cancellationToken);
+        return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveReturnDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ ÙˆÛŒØ±Ø§ÛŒØ´ Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+        }
+
+        if (!TryValidateModel(form))
+        {
+            var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
+            invalidModel.ErrorMessage = ExtractModelError(ModelState);
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
+        {
+            var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
+            invalidModel.ErrorMessage = "Ø¨Ø±Ø§ÛŒ Ø³Ù†Ø¯ Ø¨Ø§Ø±Ú¯Ø´ØªØŒ Ù„ÙˆÚÚÛŒØ´Ù† Ù…Ù‚ØµØ¯ Ø§Ù„Ø²Ø§Ù…ÛŒ Ø§Ø³Øª.";
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var lineResult = string.IsNullOrWhiteSpace(form.LineId)
+            ? await _apiService.AddInventoryDocumentLineAsync(form.DocumentId, form, token)
+            : await _apiService.UpdateInventoryDocumentLineAsync(form.DocumentId, form.LineId!, form, token);
+
+        var refreshedModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
+        refreshedModel.ErrorMessage = lineResult.IsSuccess ? null : lineResult.ErrorMessage ?? "Ø°Ø®ÛŒØ±Ù‡ Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.";
+        return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", refreshedModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteReturnDocumentLine(string documentId, string lineId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ø­Ø°Ù Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+        }
+
+        if (string.IsNullOrWhiteSpace(documentId) || string.IsNullOrWhiteSpace(lineId))
+        {
+            var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(documentId, token, null, cancellationToken);
+            invalidModel.ErrorMessage = "Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø¨Ø±Ø§ÛŒ Ø­Ø°Ù Ù…Ø´Ø®Øµ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.";
+            return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var deleteResult = await _apiService.DeleteInventoryDocumentLineAsync(documentId, lineId, token);
+        var refreshedModel = await BuildReturnDocumentDetailsModalModelAsync(documentId, token, null, cancellationToken);
+        refreshedModel.ErrorMessage = deleteResult.IsSuccess ? null : deleteResult.ErrorMessage ?? "Ø­Ø°Ù Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.";
+        return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", refreshedModel);
+    }
+
     [HttpGet("/InventoryManagement/Documents/QualityChange")]
     public Task<IActionResult> QualityChangeDocuments(
         string? documentId,
         string? editingLineId,
         string? documentNo,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -1563,7 +1684,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             "QualityChange",
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -1577,7 +1700,9 @@ public sealed partial class InventoryManagementController
         string? editingLineId,
         string? documentNo,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -1592,7 +1717,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             "Conversion",
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             occurredFrom,
             occurredTo,
@@ -1625,15 +1752,17 @@ public sealed partial class InventoryManagementController
 
         var searchResult = await _apiService.SearchInventoryDocumentsAsync(
             token,
-            string.IsNullOrWhiteSpace(term) ? null : term.Trim(),
-            "Issue",
-            null,
-            null,
-            null,
-            null,
-            null,
-            1,
-            15);
+            documentNo: string.IsNullOrWhiteSpace(term) ? null : term.Trim(),
+            documentType: "Issue",
+            status: null,
+            variantId: null,
+            warehouseId: null,
+            locationId: null,
+            sellerId: null,
+            occurredFrom: null,
+            occurredTo: null,
+            page: 1,
+            pageSize: 15);
 
         if (!searchResult.IsSuccess)
         {
@@ -1720,7 +1849,9 @@ public sealed partial class InventoryManagementController
         string? documentNo,
         string? documentType,
         string? status,
+        string? variantId,
         string? warehouseId,
+        string? locationId,
         string? sellerId,
         string? occurredFrom,
         string? occurredTo,
@@ -1758,7 +1889,9 @@ public sealed partial class InventoryManagementController
             documentNo,
             resolvedDocumentType,
             status,
+            variantId,
             warehouseId,
+            locationId,
             sellerId,
             ParseDate(occurredFrom),
             ParseDateEndOfDay(occurredTo),
@@ -1807,7 +1940,9 @@ public sealed partial class InventoryManagementController
             DocumentNoFilter = documentNo,
             DocumentTypeFilter = resolvedDocumentType,
             DocumentStatusFilter = status,
+            VariantFilter = variantId,
             WarehouseFilter = warehouseId,
+            LocationFilter = locationId,
             SellerFilter = sellerId,
             OccurredFromFilter = occurredFrom,
             OccurredToFilter = occurredTo,
@@ -3202,6 +3337,54 @@ public sealed partial class InventoryManagementController
                 .FirstOrDefault(x => string.Equals(x.LocationBusinessKey, lineForm.SourceLocationRef, StringComparison.OrdinalIgnoreCase))
                 ?.WarehouseRef;
         }
+        if (string.IsNullOrWhiteSpace(lineForm.WarehouseRef) && !string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
+        {
+            lineForm.WarehouseRef = locationsTask.Result.Data?
+                .FirstOrDefault(x => string.Equals(x.LocationBusinessKey, lineForm.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
+                ?.WarehouseRef;
+        }
+
+        return new InventoryDocumentManagementPageViewModel
+        {
+            SelectedDocumentId = documentId,
+            SelectedDocumentDetails = document,
+            ErrorMessage = documentResult.IsSuccess ? null : documentResult.ErrorMessage,
+            ProductLookup = productsTask.Result.Data ?? new List<ProductSummaryModel>(),
+            VariantLookup = variantsTask.Result.Data ?? new List<ProductVariantSummaryModel>(),
+            WarehouseLookup = warehousesTask.Result.Data ?? new List<WarehouseLookupItemModel>(),
+            SellerLookup = sellersTask.Result.Data ?? new List<SellerLookupItemModel>(),
+            LocationLookup = locationsTask.Result.Data ?? new List<LocationLookupItemModel>(),
+            QualityStatusLookup = qualityStatusLookupTask.Result.Data ?? new List<QualityStatusLookupItemModel>(),
+            UnitOfMeasureLookup = uomsTask.Result.Data ?? new List<UnitOfMeasureLookupModel>(),
+            LineForm = lineForm
+        };
+    }
+
+    private async Task<InventoryDocumentManagementPageViewModel> BuildReturnDocumentDetailsModalModelAsync(
+        string documentId,
+        string token,
+        string? editingLineId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        var document = documentResult.Data;
+
+        var variantsTask = _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var productsTask = _apiService.SearchProductsAsync(token, page: 1, pageSize: 2000);
+        var warehousesTask = _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var sellersTask = _apiService.GetSellerLookupAsync(token, includeInactive: true);
+        var locationsTask = _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var qualityStatusLookupTask = _apiService.GetQualityStatusLookupAsync(token, includeInactive: false);
+        var uomsTask = _apiService.GetUnitOfMeasureLookupAsync(token);
+
+        await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, qualityStatusLookupTask, uomsTask);
+
+        var lineForm = BuildLineForm(document, documentId, editingLineId, "Return");
+        if (string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
+        {
+            lineForm.DestinationLocationRef = locationsTask.Result.Data?.FirstOrDefault()?.LocationBusinessKey ?? string.Empty;
+        }
+
         if (string.IsNullOrWhiteSpace(lineForm.WarehouseRef) && !string.IsNullOrWhiteSpace(lineForm.DestinationLocationRef))
         {
             lineForm.WarehouseRef = locationsTask.Result.Data?

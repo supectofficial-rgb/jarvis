@@ -118,7 +118,7 @@ public interface IApiService
     Task<ApiResponse<bool>> DeleteLocationAsync(string locationId, string token);
     Task<ApiResponse<bool>> MoveLocationToWarehouseAsync(string locationId, string targetWarehouseId, string token);
     Task<ApiResponse<LocationSearchResultModel>> SearchLocationsAsync(string token, string? warehouseId = null, string? locationCode = null, IReadOnlyList<string>? locationTypes = null, string? aisle = null, string? rack = null, string? shelf = null, string? bin = null, bool? isActive = null, int page = 1, int pageSize = 20, string? structureSelectionsJson = null);
-    Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(string token, string? documentNo = null, string? documentType = null, string? status = null, string? warehouseId = null, string? sellerId = null, DateTime? occurredFrom = null, DateTime? occurredTo = null, int page = 1, int pageSize = 20);
+    Task<ApiResponse<InventoryDocumentSearchResultModel>> SearchInventoryDocumentsAsync(string token, string? documentNo = null, string? documentType = null, string? status = null, string? variantId = null, string? warehouseId = null, string? locationId = null, string? sellerId = null, DateTime? occurredFrom = null, DateTime? occurredTo = null, int page = 1, int pageSize = 20);
     Task<ApiResponse<InventoryDocumentDetailsModel>> GetInventoryDocumentByBusinessKeyAsync(string documentId, string token);
     Task<ApiResponse<CreateInventoryDocumentResultModel>> CreateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);
     Task<ApiResponse<bool>> UpdateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);

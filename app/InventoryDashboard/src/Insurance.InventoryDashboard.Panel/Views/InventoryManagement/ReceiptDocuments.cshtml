@@ -434,6 +434,8 @@
                             </div>
                         </form>
 
+                        @await Html.PartialAsync("_DocumentListVariantWarehouseLocationFilters", Model)
+
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">
                                 <thead>
@@ -472,6 +474,9 @@
                                                            asp-route-documentId="@document.DocumentBusinessKey"
                                                            asp-route-documentType="@document.DocumentType"
                                                            asp-route-tab="create"
+                                                           asp-route-variantId="@Model.VariantFilter"
+                                                           asp-route-warehouseId="@Model.WarehouseFilter"
+                                                           asp-route-locationId="@Model.LocationFilter"
                                                            asp-route-page="@Model.DocumentPage"
                                                            asp-route-pageSize="@Model.DocumentPageSize"
                                                            asp-route-documentNo="@Model.DocumentNoFilter"
@@ -516,6 +521,9 @@
                                                asp-route-documentNo="@Model.DocumentNoFilter"
                                                asp-route-documentType="@Model.DocumentTypeFilter"
                                                asp-route-status="@Model.DocumentStatusFilter"
+                                               asp-route-variantId="@Model.VariantFilter"
+                                               asp-route-warehouseId="@Model.WarehouseFilter"
+                                               asp-route-locationId="@Model.LocationFilter"
                                                asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                asp-route-occurredTo="@Model.OccurredToFilter"
                                                asp-route-page="@i"
