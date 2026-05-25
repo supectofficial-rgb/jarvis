@@ -2593,6 +2593,10 @@ public sealed partial class InventoryManagementController
 
         var postedBy = HttpContext.Session.GetString("UserName") ?? "dashboard";
         var serialSelections = ParsePostDocumentSerialSelections(serialSelectionsJson);
+        if (serialSelections is null)
+        {
+            serialSelections = await BuildDefaultPostDocumentSerialSelectionsAsync(documentId, token);
+        }
         var result = await _apiService.PostInventoryDocumentAsync(documentId, postedBy, serialSelections, token);
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "سند پست شد." : result.ErrorMessage ?? "پست سند انجام نشد.";
@@ -3552,6 +3556,40 @@ public sealed partial class InventoryManagementController
         {
             return null;
         }
+    }
+
+    private async Task<List<PostDocumentLineSerialSelectionModel>?> BuildDefaultPostDocumentSerialSelectionsAsync(
+        string documentId,
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        if (!documentResult.IsSuccess || documentResult.Data is null || documentResult.Data.Lines.Count == 0)
+        {
+            return null;
+        }
+
+        var selections = new List<PostDocumentLineSerialSelectionModel>();
+        foreach (var line in documentResult.Data.Lines)
+        {
+            var serials = line.Serials
+                .Where(serial => !string.IsNullOrWhiteSpace(serial.SerialItemBusinessKey) || !string.IsNullOrWhiteSpace(serial.SerialNo))
+                .Select(serial => new PostDocumentSerialItemModel
+                {
+                    SerialItemBusinessKey = serial.SerialItemBusinessKey?.Trim() ?? string.Empty,
+                    SerialNo = serial.SerialNo?.Trim() ?? string.Empty
+                })
+                .ToList();
+
+            selections.Add(new PostDocumentLineSerialSelectionModel
+            {
+                DocumentLineBusinessKey = line.LineBusinessKey?.Trim() ?? string.Empty,
+                UseUniqueSerialItems = documentResult.Data.DocumentType.Equals("Receipt", StringComparison.OrdinalIgnoreCase) && serials.Count == 0,
+                Serials = serials
+            });
+        }
+
+        return selections.Where(selection => !string.IsNullOrWhiteSpace(selection.DocumentLineBusinessKey)).ToList();
     }
 
     private static string BuildVariantLookupLabel(ProductVariantSummaryModel variant)

@@ -402,7 +402,7 @@
                                                     }
                                                 </select>
                                             </div>
-                                            <div class="form-group col-md-2">
+                                            <div class="form-group col-md-2 line-qty">
                                                 <label>@UiText["common.quantity"]</label>
                                                 <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
                                             </div>
@@ -1218,6 +1218,7 @@ for (var i = 0; i < lines.length; i++) {
                     warehouseSelect: root.querySelector('select[name="LineForm.WarehouseRef"]'),
                     destinationSelect: root.querySelector('select[name="LineForm.DestinationLocationRef"]'),
                     qtyInput: root.querySelector('input[name="LineForm.Qty"]'),
+                    qtyGroup: root.querySelector('.line-qty'),
                     submitButton: root.querySelector('.js-transfer-line-submit'),
                     cancelButton: root.querySelector('.js-transfer-line-cancel')
                 };
@@ -1299,6 +1300,7 @@ for (var i = 0; i < lines.length; i++) {
             function syncTransferLineQtyFromSerialSelection(root, serialMode) {
                 root = root || document;
                 var qtyInput = root.querySelector('input[name="LineForm.Qty"]');
+                var qtyGroup = root.querySelector('.line-qty');
                 if (!qtyInput) {
                     return;
                 }
@@ -1306,6 +1308,9 @@ for (var i = 0; i < lines.length; i++) {
                 if (!serialMode) {
                     qtyInput.removeAttribute('readonly');
                     qtyInput.disabled = false;
+                    if (qtyGroup) {
+                        qtyGroup.classList.remove('d-none');
+                    }
                     return;
                 }
 
@@ -1313,6 +1318,9 @@ for (var i = 0; i < lines.length; i++) {
                 if (!serialControls.container || !serialControls.container.querySelector('.js-transfer-line-serial-select')) {
                     qtyInput.removeAttribute('readonly');
                     qtyInput.disabled = false;
+                    if (qtyGroup) {
+                        qtyGroup.classList.remove('d-none');
+                    }
                     return;
                 }
 
@@ -1320,6 +1328,9 @@ for (var i = 0; i < lines.length; i++) {
                 qtyInput.value = String(selectedCount > 0 ? selectedCount : 0);
                 qtyInput.setAttribute('readonly', 'readonly');
                 qtyInput.disabled = false;
+                if (qtyGroup) {
+                    qtyGroup.classList.add('d-none');
+                }
             }
 
             function collectTransferSelectedSerialIds(root) {
@@ -1730,6 +1741,16 @@ for (var i = 0; i < lines.length; i++) {
                             controls.warehouseSelect.value || '',
                             controls.destinationSelect.value || '');
                     });
+                    if (window.jQuery) {
+                        window.jQuery(controls.warehouseSelect).off('select2:select.transferChain select2:clear.transferChain').on('select2:select.transferChain select2:clear.transferChain', function () {
+                            window.setTimeout(function () {
+                                renderTransferDestinationLocationOptions(
+                                    root,
+                                    controls.warehouseSelect.value || '',
+                                    controls.destinationSelect.value || '');
+                            }, 0);
+                        });
+                    }
                 }
 
                 controls.variantSelect.dataset.transferInventoryBound = 'true';
