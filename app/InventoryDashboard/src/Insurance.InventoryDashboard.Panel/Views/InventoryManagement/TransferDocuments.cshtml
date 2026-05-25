@@ -1877,8 +1877,10 @@ for (var i = 0; i < lines.length; i++) {
 
                 var titleElement = document.querySelector(modalTitleSelector);
                 var subtitleElement = document.querySelector(modalSubtitleSelector);
+                var detailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.details.title"])));
+                var documentTypeText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.type.transfer"])));
                 if (titleElement) {
-                    titleElement.textContent = documentNo ? (safeDetailsTitleText + ' ' + documentNo) : (safeDetailsTitleText + ' ' + safeTransferTypeText);
+                    titleElement.textContent = documentNo ? (detailsTitleText + ' ' + documentNo) : (detailsTitleText + ' ' + documentTypeText);
                 }
                 if (subtitleElement) {
                     subtitleElement.textContent = '';

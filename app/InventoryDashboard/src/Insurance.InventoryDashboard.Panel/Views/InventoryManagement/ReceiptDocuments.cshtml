@@ -1377,6 +1377,12 @@
                     .replace(/'/g, '&#39;');
             }
 
+            function decodeHtmlEntities(value) {
+                var textarea = document.createElement('textarea');
+                textarea.innerHTML = String(value == null ? '' : value);
+                return textarea.value;
+            }
+
             function formatDocumentDateTime(value) {
                 var date = value ? new Date(value) : null;
                 if (!date || isNaN(date.getTime())) {
@@ -1936,6 +1942,16 @@
                         console.error(error);
                     });
                 });
+
+                if (window.jQuery) {
+                    window.jQuery(controls.warehouseSelect).off('select2:select.receiptChain select2:clear.receiptChain').on('select2:select.receiptChain select2:clear.receiptChain', function () {
+                        window.setTimeout(function () {
+                            loadReceiptLocationOptions(root, controls.warehouseSelect.value || '', '').catch(function (error) {
+                                console.error(error);
+                            });
+                        }, 0);
+                    });
+                }
 
                 controls.variantSelect.dataset.receiptInventoryBound = 'true';
 

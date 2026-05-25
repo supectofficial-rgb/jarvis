@@ -290,7 +290,6 @@
                             <div class="alert alert-info mt-3 mb-3" role="status">
                                 <strong>@UiText["inventory.documents.lines"]:</strong>
                                 <span class="small">@UiText["inventory.documents.linesHelp"]</span>
-                                <div class="small mt-1">@UiText["inventory.documents.action.postingHint"]</div>
                             </div>
 
                         <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@UiText["common.create"] @UiText["common.document"]</button>
@@ -1307,8 +1306,10 @@
 
                 var titleElement = document.querySelector(modalTitleSelector);
                 var subtitleElement = document.querySelector(modalSubtitleSelector);
+                var detailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.details.title"]));
+                var documentTypeText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.type.issue"]));
                 if (titleElement) {
-                    titleElement.textContent = documentNo ? (safeIssueDetailsTitleText + ' ' + documentNo) : (safeIssueDetailsTitleText + ' ' + safeIssueDocumentTypeText);
+                    titleElement.textContent = documentNo ? (detailsTitleText + ' ' + documentNo) : (detailsTitleText + ' ' + documentTypeText);
                 }
                 if (subtitleElement) {
                     subtitleElement.textContent = documentNo || '';
