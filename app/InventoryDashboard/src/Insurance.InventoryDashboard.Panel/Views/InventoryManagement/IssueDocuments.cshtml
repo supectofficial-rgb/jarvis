@@ -206,10 +206,10 @@
 
                 <ul class="nav nav-tabs mt-4" id="document-management-tabs" role="tablist">
                     <li class="nav-item">
-                        <a class="nav-link @(showListTab ? null : "active")" id="document-create-tab" data-toggle="tab" href="#document-create-pane" role="tab" aria-controls="document-create-pane" aria-selected="@((showListTab ? "false" : "true"))">ØªÙˆÙ„ÛŒØ¯</a>
+                        <a class="nav-link @(showListTab ? null : "active")" id="document-create-tab" data-toggle="tab" href="#document-create-pane" role="tab" aria-controls="document-create-pane" aria-selected="@((showListTab ? "false" : "true"))">@UiText["inventory.documents.tab.create"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(showListTab ? "active" : null)" id="document-list-tab" data-toggle="tab" href="#document-list-pane" role="tab" aria-controls="document-list-pane" aria-selected="@((showListTab ? "true" : "false"))">Ù„ÛŒØ³Øª Ø§Ø³Ù†Ø§Ø¯</a>
+                        <a class="nav-link @(showListTab ? "active" : null)" id="document-list-tab" data-toggle="tab" href="#document-list-pane" role="tab" aria-controls="document-list-pane" aria-selected="@((showListTab ? "true" : "false"))">@UiText["inventory.documents.tab.list"]</a>
                     </li>
                 </ul>
             </div>
@@ -254,17 +254,17 @@
 
                             <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
                                 <div>
-                                    <h6 class="mb-0">Ø§ÙØ±Ø§Ø¯ Ø³Ù†Ø¯</h6>
-                                    <div class="text-muted small">ØªØ­ÙˆÛŒÙ„â€ŒØ¯Ù‡Ù†Ø¯Ù‡ Ùˆ ØªØ­ÙˆÛŒÙ„â€ŒÚ¯ÛŒØ±Ù†Ø¯Ù‡ Ø±Ø§ Ø§Ø² Ù„ÛŒØ³Øª Ø§ÙØ±Ø§Ø¯ Ø³Ø§Ø²Ù…Ø§Ù† Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.</div>
+                                    <h6 class="mb-0">@UiText["inventory.documents.people.title"]</h6>
+                                    <div class="text-muted small">@UiText["inventory.documents.people.description"]</div>
                                 </div>
                                 <button type="button" class="btn btn-outline-primary btn-xs js-open-document-user-modal">+</button>
                             </div>
 
                             <div class="form-row">
                                 <div class="form-group col-md-5">
-                                    <label>ØªØ­ÙˆÛŒÙ„â€ŒØ¯Ù‡Ù†Ø¯Ù‡</label>
-                                    <select asp-for="CreateForm.DeliveredBy" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ØªØ­ÙˆÛŒÙ„â€ŒØ¯Ù‡Ù†Ø¯Ù‡" required>
-                                        <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ØªØ­ÙˆÛŒÙ„â€ŒØ¯Ù‡Ù†Ø¯Ù‡</option>
+                                    <label>@UiText["inventory.documents.people.deliveredBy"]</label>
+                                    <select asp-for="CreateForm.DeliveredBy" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.people.selectDeliveredBy"]" required>
+                                        <option value="">@UiText["inventory.documents.people.selectDeliveredBy"]</option>
                                         @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
                                         {
                                             <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.DeliveredBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
@@ -272,9 +272,9 @@
                                     </select>
                                 </div>
                                 <div class="form-group col-md-5">
-                                    <label>ØªØ­ÙˆÛŒÙ„â€ŒÚ¯ÛŒØ±Ù†Ø¯Ù‡</label>
-                                    <select asp-for="CreateForm.ReceivedBy" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ ØªØ­ÙˆÛŒÙ„â€ŒÚ¯ÛŒØ±Ù†Ø¯Ù‡" required>
-                                        <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ØªØ­ÙˆÛŒÙ„â€ŒÚ¯ÛŒØ±Ù†Ø¯Ù‡</option>
+                                    <label>@UiText["inventory.documents.people.receivedBy"]</label>
+                                    <select asp-for="CreateForm.ReceivedBy" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.people.selectReceivedBy"]" required>
+                                        <option value="">@UiText["inventory.documents.people.selectReceivedBy"]</option>
                                         @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
                                         {
                                             <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.ReceivedBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
@@ -282,16 +282,16 @@
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2 d-flex align-items-end">
-                                    <div class="text-muted small">Ø§ÛŒÙ† Ø¯Ùˆ ÙÛŒÙ„Ø¯ Ø¨Ø±Ø§ÛŒ Ø«Ø¨Øª Ù‡Ø¯Ø± Ø³Ù†Ø¯ Ø§Ù„Ø²Ø§Ù…ÛŒ Ù‡Ø³ØªÙ†Ø¯.</div>
+                                    <div class="text-muted small">@UiText["inventory.documents.people.requiredNotice"]</div>
                                 </div>
                             </div>
                             <div class="alert alert-info mt-3 mb-3" role="status">
                                 <strong>@UiText["inventory.documents.lines"]:</strong>
                                 <span class="small">@UiText["inventory.documents.linesHelp"]</span>
-                                <div class="small mt-1">برای حواله، جزئیات سند را بعد از ایجاد از تب لیست و بخش جزئیات ثبت می‌کنید.</div>
+                                <div class="small mt-1">@UiText["inventory.documents.action.postingHint"]</div>
                             </div>
 
-                        <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>Ø§ÛŒØ¬Ø§Ø¯ Ø³Ù†Ø¯</button>
+                        <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@UiText["common.create"] @UiText["common.document"]</button>
                         </form>
                     </div>
                 </div>
@@ -305,37 +305,37 @@
                 <div class="card mb-4">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0">Ù„ÛŒØ³Øª Ø§Ø³Ù†Ø§Ø¯</h5>
-                            <span class="text-muted small" id="issue-document-list-count">@Model.DocumentTotalCount Ø±Ú©ÙˆØ±Ø¯</span>
+                            <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
+                            <span class="text-muted small" id="issue-document-list-count">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
                         <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="issue-document-list-form">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
-                                <label>Ø´Ù…Ø§Ø±Ù‡</label>
+                                <label>@UiText["inventory.documents.list.number"]</label>
                                 <input name="documentNo" value="@Model.DocumentNoFilter" class="form-control text-monospace" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>ÙˆØ¶Ø¹ÛŒØª</label>
+                                <label>@UiText["inventory.documents.list.status"]</label>
                                 <select name="status" class="form-control">
-                                    <option value="">Ù‡Ù…Ù‡</option>
-                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">Ù¾ÛŒØ´ Ù†ÙˆÛŒØ³</option>
-                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">ØªØ§ÛŒÛŒØ¯ Ø´Ø¯Ù‡</option>
-                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">Ø±Ø¯ Ø´Ø¯Ù‡</option>
-                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">Ù„ØºÙˆ Ø´Ø¯Ù‡</option>
-                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">Ù¾Ø³Øª Ø´Ø¯Ù‡</option>
+                                    <option value="">@UiText["common.all"]</option>
+                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">@UiText["inventory.documents.status.draft"]</option>
+                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">@UiText["inventory.documents.status.approved"]</option>
+                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">@UiText["inventory.documents.status.rejected"]</option>
+                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">@UiText["inventory.documents.status.cancelled"]</option>
+                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">@UiText["inventory.documents.status.posted"]</option>
                                 </select>
                             </div>
                             <div class="form-group col-md-2">
-                                <label>Ø§Ø² ØªØ§Ø±ÛŒØ®</label>
+                                <label>@UiText["inventory.documents.list.filterFromDate"]</label>
                                 <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>ØªØ§ ØªØ§Ø±ÛŒØ®</label>
+                                <label>@UiText["inventory.documents.list.filterToDate"]</label>
                                 <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>ØªØ¹Ø¯Ø§Ø¯</label>
+                                <label>@UiText["inventory.documents.list.pageSize"]</label>
                                 <select name="pageSize" class="form-control">
                                     @foreach (var size in Model.PageSizeOptions)
                                     {
@@ -344,7 +344,7 @@
                                 </select>
                             </div>
                             <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-primary btn-block" type="submit">Ø§Ø¹Ù…Ø§Ù„</button>
+                                <button class="btn btn-outline-primary btn-block" type="submit">@UiText["inventory.documents.list.apply"]</button>
                             </div>
                         </form>
 
@@ -352,17 +352,17 @@
                             <table class="table table-sm table-striped mb-0">
                                 <thead>
                                     <tr>
-                                        <th>Ø´Ù…Ø§Ø±Ù‡</th>
-                                        <th>Ù†ÙˆØ¹</th>
-                                        <th>ØªØ§Ø±ÛŒØ®</th>
-                                        <th>ÙˆØ¶Ø¹ÛŒØª</th>
-                                        <th class="text-right">Ø¹Ù…Ù„ÛŒØ§Øª</th>
+                                        <th>@UiText["inventory.documents.list.number"]</th>
+                                        <th>@UiText["inventory.documents.list.type"]</th>
+                                        <th>@UiText["inventory.documents.list.date"]</th>
+                                        <th>@UiText["inventory.documents.list.status"]</th>
+                                        <th class="text-right">@UiText["inventory.documents.list.actions"]</th>
                                     </tr>
                                 </thead>
                                 <tbody id="issue-document-list-body">
                                     @if (Model.Documents.Count == 0)
                                     {
-                                        <tr><td colspan="5" class="text-center text-muted">Ø³Ù†Ø¯ÛŒ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.</td></tr>
+                                        <tr><td colspan="5" class="text-center text-muted">@UiText["inventory.documents.list.noRecords"]</td></tr>
                                     }
                                     else
                                     {
@@ -377,7 +377,21 @@
                                                     <button type="button"
                                                             class="btn btn-outline-primary btn-xs js-issue-document-details mr-1"
                                                             data-document-id="@document.DocumentBusinessKey"
-                                                            data-document-no="@document.DocumentNo">Ø¬Ø²Ø¦ÛŒØ§Øª</button>
+                                                            data-document-no="@document.DocumentNo">@UiText["common.details"]</button>
+                                                    <a class="btn btn-outline-info btn-xs mr-1"
+                                                       asp-action="@documentAction"
+                                                       asp-controller="InventoryManagement"
+                                                       asp-route-documentId="@document.DocumentBusinessKey"
+                                                       asp-route-documentNo="@Model.DocumentNoFilter"
+                                                       asp-route-documentType="@Model.DocumentTypeFilter"
+                                                       asp-route-status="@Model.DocumentStatusFilter"
+                                                       asp-route-warehouseId="@Model.WarehouseFilter"
+                                                       asp-route-sellerId="@Model.SellerFilter"
+                                                       asp-route-occurredFrom="@Model.OccurredFromFilter"
+                                                       asp-route-occurredTo="@Model.OccurredToFilter"
+                                                       asp-route-page="@Model.DocumentPage"
+                                                       asp-route-pageSize="@Model.DocumentPageSize"
+                                                       data-ajax-target="#documents-page-root">@UiText["inventory.documents.action.changeStatus"]</a>
                                                     @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         <a class="btn btn-outline-secondary btn-xs mr-1"
@@ -392,11 +406,11 @@
                                                            asp-route-status="@Model.DocumentStatusFilter"
                                                            asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                            asp-route-occurredTo="@Model.OccurredToFilter"
-                                                           data-ajax-target="#documents-page-root">ÙˆÛŒØ±Ø§ÛŒØ´</a>
+                                                           data-ajax-target="#documents-page-root">@UiText["common.edit"]</a>
                                                         <button type="button"
                                                                 class="btn btn-outline-danger btn-xs mr-1 js-issue-document-delete"
                                                                 data-document-id="@document.DocumentBusinessKey"
-                                                                data-document-no="@document.DocumentNo">Ø­Ø°Ù</button>
+                                                                data-document-no="@document.DocumentNo">@UiText["common.delete"]</button>
                                                     }
                                                 </td>
                                             </tr>
@@ -1609,6 +1623,31 @@
                 });
             }
 
+            function syncIssueLineQtyFromSerialSelection(root, serialMode) {
+                root = root || document;
+                var qtyInput = root.querySelector('input[name="LineForm.Qty"]');
+                if (!qtyInput) {
+                    return;
+                }
+
+                if (!serialMode) {
+                    qtyInput.removeAttribute('readonly');
+                    qtyInput.disabled = false;
+                    return;
+                }
+
+                var serialControls = getIssueLineSerialControls(root);
+                if (!serialControls.container || !serialControls.container.querySelector('.js-issue-line-serial-select')) {
+                    qtyInput.removeAttribute('readonly');
+                    qtyInput.disabled = false;
+                    return;
+                }
+
+                var selectedCount = collectIssueSelectedSerialIds(root).length;
+                qtyInput.value = String(selectedCount > 0 ? selectedCount : 0);
+                qtyInput.setAttribute('readonly', 'readonly');
+            }
+
             function renderIssueSerialOptions(root, serials, selectedSerialIds, sourceSelected) {
                 root = root || document;
                 var controls = getIssueLineSerialControls(root);
@@ -1635,6 +1674,7 @@
                 }
 
                 controls.section.classList.remove('d-none');
+                syncIssueLineQtyFromSerialSelection(root, true);
 
                 if (!items.length) {
                     controls.summary.textContent = 'Ø³Ø±ÛŒØ§Ù„ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø¯Ø± Ù„ÙˆÚ©ÛŒØ´Ù† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.';
@@ -1663,6 +1703,7 @@
 
                     checkbox.addEventListener('change', function () {
                         syncIssueLineSerialHiddenInputs(root);
+                        syncIssueLineQtyFromSerialSelection(root, true);
                     });
 
                     var content = document.createElement('span');
@@ -1685,6 +1726,7 @@
                 });
 
                 syncIssueLineSerialHiddenInputs(root);
+                syncIssueLineQtyFromSerialSelection(root, true);
             }
 
             function setSelectOptions(select, items, placeholderText, valueSelector, textSelector, selectedValue) {
@@ -1993,6 +2035,8 @@
                 }
                 if (qtyInput) {
                     qtyInput.value = '1';
+                    qtyInput.removeAttribute('readonly');
+                    qtyInput.disabled = false;
                 }
                 if (submitButton) {
                     submitButton.textContent = 'Ø§ÙØ²ÙˆØ¯Ù† Ø¢ÛŒØªÙ…';

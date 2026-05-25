@@ -362,15 +362,17 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         var result = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: variantRef);
+        var serialsResult = await _inventoryApiService.GetAvailableSerialItemsAsync(token, variantId: variantRef.ToString("D"));
         var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
         var qualityStatusLookupResult = await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true);
 
-        if (!result.IsSuccess || !warehouseLookupResult.IsSuccess || !locationLookupResult.IsSuccess || !qualityStatusLookupResult.IsSuccess)
+        if (!result.IsSuccess || !serialsResult.IsSuccess || !warehouseLookupResult.IsSuccess || !locationLookupResult.IsSuccess || !qualityStatusLookupResult.IsSuccess)
         {
             var errorMessage = string.Join(" | ", new[]
             {
                 result.ErrorMessage,
+                serialsResult.ErrorMessage,
                 warehouseLookupResult.ErrorMessage,
                 locationLookupResult.ErrorMessage,
                 qualityStatusLookupResult.ErrorMessage
@@ -388,6 +390,25 @@ public sealed class VariantManagementController : CatalogManagementController
             .ToDictionary(x => x.LocationBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
         var qualityStatusLookup = (qualityStatusLookupResult.Data ?? new List<QualityStatusLookupItemModel>())
             .ToDictionary(x => x.QualityStatusBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
+        var serialLookup = (serialsResult.Data ?? new List<SerialItemLookupModel>())
+            .Where(x => !string.IsNullOrWhiteSpace(x.WarehouseRef) && !string.IsNullOrWhiteSpace(x.LocationRef))
+            .GroupBy(x => $"{x.WarehouseRef}|{x.LocationRef}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(x => x.SerialNo)
+                    .Select(x => new VariantStockSerialItemViewModel
+                    {
+                        SerialItemBusinessKey = x.SerialItemBusinessKey,
+                        SerialNo = x.SerialNo,
+                        QualityStatusRef = x.QualityStatusRef,
+                        LotBatchNo = x.LotBatchNo,
+                        Status = x.Status,
+                        DateScannedIn = x.DateScannedIn,
+                        LastUpdatedAt = x.LastUpdatedAt
+                    })
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
 
         var items = (result.Data?.Items ?? new List<StockDetailBucketModel>())
             .OrderBy(x => x.WarehouseRef)
@@ -414,6 +435,8 @@ public sealed class VariantManagementController : CatalogManagementController
                     ? x.QualityStatusRef.ToString("D")
                     : $"{qualityStatus.Code} - {qualityStatus.Name}";
 
+                serialLookup.TryGetValue($"{x.WarehouseRef:D}|{x.LocationRef:D}", out var serialsForLocation);
+
                 return new
                 {
                     stockDetailBusinessKey = x.StockDetailBusinessKey.ToString("D"),
@@ -431,7 +454,9 @@ public sealed class VariantManagementController : CatalogManagementController
                     qualityStatusName = qualityStatus?.Name,
                     qualityStatusLabel,
                     lotBatchNo = x.LotBatchNo,
-                    quantityOnHand = x.QuantityOnHand
+                    quantityOnHand = x.QuantityOnHand,
+                    serialCount = serialsForLocation?.Count ?? 0,
+                    serials = serialsForLocation ?? new List<VariantStockSerialItemViewModel>()
                 };
                 })
             .ToList();
@@ -469,6 +494,17 @@ public sealed class VariantManagementController : CatalogManagementController
             isSuccess = true,
             items = summary
         });
+    }
+
+    private sealed class VariantStockSerialItemViewModel
+    {
+        public string SerialItemBusinessKey { get; set; } = string.Empty;
+        public string SerialNo { get; set; } = string.Empty;
+        public string QualityStatusRef { get; set; } = string.Empty;
+        public string? LotBatchNo { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime DateScannedIn { get; set; }
+        public DateTime LastUpdatedAt { get; set; }
     }
 
     [HttpGet]

@@ -187,10 +187,10 @@
 
                 <ul class="nav nav-tabs mt-4" id="document-management-tabs" role="tablist">
                     <li class="nav-item">
-                        <a class="nav-link @(showListTab ? null : "active")" id="document-create-tab" data-toggle="tab" href="#document-create-pane" role="tab" aria-controls="document-create-pane" aria-selected="@((showListTab ? "false" : "true"))">تولید</a>
+                        <a class="nav-link @(showListTab ? null : "active")" id="document-create-tab" data-toggle="tab" href="#document-create-pane" role="tab" aria-controls="document-create-pane" aria-selected="@((showListTab ? "false" : "true"))">@UiText["inventory.documents.tab.create"]</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link @(showListTab ? "active" : null)" id="document-list-tab" data-toggle="tab" href="#document-list-pane" role="tab" aria-controls="document-list-pane" aria-selected="@((showListTab ? "true" : "false"))">لیست اسناد</a>
+                        <a class="nav-link @(showListTab ? "active" : null)" id="document-list-tab" data-toggle="tab" href="#document-list-pane" role="tab" aria-controls="document-list-pane" aria-selected="@((showListTab ? "true" : "false"))">@UiText["inventory.documents.tab.list"]</a>
                     </li>
                 </ul>
             </div>
@@ -236,17 +236,17 @@
 
                             <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
                                 <div>
-                                    <h6 class="mb-0">افراد سند</h6>
-                                    <div class="text-muted small">تحویل‌دهنده و تحویل‌گیرنده را از لیست افراد سازمان انتخاب کنید.</div>
+                                    <h6 class="mb-0">@UiText["inventory.documents.people.title"]</h6>
+                                    <div class="text-muted small">@UiText["inventory.documents.people.description"]</div>
                                 </div>
                                 <button type="button" class="btn btn-outline-primary btn-xs js-open-document-user-modal">+</button>
                             </div>
 
                             <div class="form-row">
                                 <div class="form-group col-md-5">
-                                    <label>تحویل‌دهنده</label>
-                                    <select asp-for="CreateForm.DeliveredBy" class="form-control js-search-select" data-placeholder="انتخاب تحویل‌دهنده" required>
-                                        <option value="">انتخاب تحویل‌دهنده</option>
+                                    <label>@UiText["inventory.documents.people.deliveredBy"]</label>
+                                    <select asp-for="CreateForm.DeliveredBy" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.people.selectDeliveredBy"]" required>
+                                        <option value="">@UiText["inventory.documents.people.selectDeliveredBy"]</option>
                                         @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
                                         {
                                             <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.DeliveredBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
@@ -254,9 +254,9 @@
                                     </select>
                                 </div>
                                 <div class="form-group col-md-5">
-                                    <label>تحویل‌گیرنده</label>
-                                    <select asp-for="CreateForm.ReceivedBy" class="form-control js-search-select" data-placeholder="انتخاب تحویل‌گیرنده" required>
-                                        <option value="">انتخاب تحویل‌گیرنده</option>
+                                    <label>@UiText["inventory.documents.people.receivedBy"]</label>
+                                    <select asp-for="CreateForm.ReceivedBy" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.people.selectReceivedBy"]" required>
+                                        <option value="">@UiText["inventory.documents.people.selectReceivedBy"]</option>
                                         @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
                                         {
                                             <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.ReceivedBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
@@ -264,7 +264,7 @@
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2 d-flex align-items-end">
-                                    <div class="text-muted small">این دو فیلد برای ثبت هدر سند الزامی هستند.</div>
+                                    <div class="text-muted small">@UiText["inventory.documents.people.requiredNotice"]</div>
                                 </div>
                             </div>
 
@@ -273,14 +273,14 @@
                                     <div class="card mb-3 document-line" data-line-index="@i">
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <strong>ردیف @(i + 1)</strong>
-                                                <button class="btn btn-outline-danger btn-xs remove-document-line" type="button">حذف</button>
+                                                <strong>@UiText["common.line"] @(i + 1)</strong>
+                                                <button class="btn btn-outline-danger btn-xs remove-document-line" type="button">@UiText["inventory.documents.line.deleteButton"]</button>
                                             </div>
                                             <div class="form-row">
                                                 <div class="form-group col-md-4">
-                                                    <label>واریانت</label>
-                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="جستجو با کد یا نام واریانت" required>
-                                                        <option value="">انتخاب واریانت</option>
+                                                    <label>@UiText["inventory.documents.line.variant"]</label>
+                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" required>
+                                                        <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
                                                         @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                                         {
                                                             <option value="@variant.Id" data-base-uom-ref="@variant.BaseUomRef" data-product-id="@variant.ProductId" selected="@(variant.Id == Model.CreateForm.Lines[i].VariantId ? "selected" : null)">@VariantLabel(variant)</option>
@@ -288,16 +288,16 @@
                                                     </select>
                                                     <input type="hidden" name="CreateForm.Lines[@i].UomRef" value="@Model.CreateForm.Lines[i].UomRef" class="document-uom-ref" />
                                                     <input type="hidden" name="CreateForm.Lines[@i].BaseUomRef" value="@Model.CreateForm.Lines[i].BaseUomRef" class="document-base-uom-ref" />
-                                                    <div class="text-muted small mt-1 document-uom-hint">UOM از Base UOM واریانت پر می شود.</div>
+                                                    <div class="text-muted small mt-1 document-uom-hint">@UiText["inventory.documents.line.baseUomHint"]</div>
                                                 </div>
                                                 <div class="form-group col-md-2">
-                                                    <label>تعداد</label>
+                                                    <label>@UiText["inventory.documents.line.quantity"]</label>
                                                     <input name="CreateForm.Lines[@i].Qty" type="number" step="0.0001" min="0.0001" value="@Model.CreateForm.Lines[i].Qty.ToString("0.####")" class="form-control" required />
                                                 </div>
                                                 <div class="form-group col-md-3 line-source">
-                                                    <label>لوکیشن مبدا</label>
-                                                    <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                        <option value="">انتخاب لوکیشن</option>
+                                                    <label>@UiText["inventory.documents.line.sourceLocation"]</label>
+                                                    <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                                                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                         {
                                                             <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -305,9 +305,9 @@
                                                     </select>
                                                 </div>
                                                 <div class="form-group col-md-3 line-destination">
-                                                    <label>لوکیشن مقصد</label>
-                                                    <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                        <option value="">انتخاب لوکیشن</option>
+                                                    <label>@UiText["inventory.documents.line.destinationLocation"]</label>
+                                                    <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                                                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                         {
                                                             <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -315,15 +315,15 @@
                                                     </select>
                                                 </div>
                                                 <div class="form-group col-md-2">
-                                                    <label>لات/بچ</label>
+                                                    <label>@UiText["inventory.documents.line.lotBatch"]</label>
                                                     <input name="CreateForm.Lines[@i].LotBatchNo" value="@Model.CreateForm.Lines[i].LotBatchNo" class="form-control" />
                                                 </div>
                                                 @if (showQualityChangeFields)
                                                 {
                                                     <div class="form-group col-md-2 line-from-quality">
-                                                        <label>کیفیت مبدأ</label>
-                                                        <select name="CreateForm.Lines[@i].FromQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.fromQuality"]</label>
+                                                        <select name="CreateForm.Lines[@i].FromQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -331,9 +331,9 @@
                                                         </select>
                                                     </div>
                                                     <div class="form-group col-md-2 line-to-quality">
-                                                        <label>کیفیت مقصد</label>
-                                                        <select name="CreateForm.Lines[@i].ToQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                                        <select name="CreateForm.Lines[@i].ToQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -344,9 +344,9 @@
                                                 else if (showConversionQuality)
                                                 {
                                                     <div class="form-group col-md-2 line-quality">
-                                                        <label>کیفیت</label>
-                                                        <select name="CreateForm.Lines[@i].QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.quality"]</label>
+                                                        <select name="CreateForm.Lines[@i].QualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -377,7 +377,7 @@
                                 </div>
                             *@
 
-                        <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@(string.IsNullOrWhiteSpace(Model.CreateForm.DocumentId) ? "ایجاد سند" : "ثبت تغییرات")</button>
+                        <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@(string.IsNullOrWhiteSpace(Model.CreateForm.DocumentId) ? UiText["inventory.documents.action.createDocument"] : UiText["inventory.documents.action.saveChanges"])</button>
                         </form>
                     </div>
                 </div>
@@ -391,37 +391,37 @@
                 <div class="card mb-4">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0">لیست اسناد</h5>
-                        <span class="text-muted small" id="receipt-document-list-count">@Model.DocumentTotalCount رکورد</span>
+                            <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
+                        <span class="text-muted small" id="receipt-document-list-count">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
                         <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" id="receipt-document-list-form">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
-                                <label>شماره</label>
+                                <label>@UiText["inventory.documents.list.number"]</label>
                                 <input name="documentNo" value="@Model.DocumentNoFilter" class="form-control text-monospace" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>وضعیت</label>
+                                <label>@UiText["inventory.documents.list.status"]</label>
                                 <select name="status" class="form-control">
-                                    <option value="">همه</option>
-                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">پیش نویس</option>
-                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">تایید شده</option>
-                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">رد شده</option>
-                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">لغو شده</option>
-                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">پست شده</option>
+                                    <option value="">@UiText["inventory.documents.list.status.all"]</option>
+                                    <option value="Draft" selected="@(Model.DocumentStatusFilter == "Draft" ? "selected" : null)">@UiText["inventory.documents.status.draft"]</option>
+                                    <option value="Approved" selected="@(Model.DocumentStatusFilter == "Approved" ? "selected" : null)">@UiText["inventory.documents.status.approved"]</option>
+                                    <option value="Rejected" selected="@(Model.DocumentStatusFilter == "Rejected" ? "selected" : null)">@UiText["inventory.documents.status.rejected"]</option>
+                                    <option value="Cancelled" selected="@(Model.DocumentStatusFilter == "Cancelled" ? "selected" : null)">@UiText["inventory.documents.status.cancelled"]</option>
+                                    <option value="Posted" selected="@(Model.DocumentStatusFilter == "Posted" ? "selected" : null)">@UiText["inventory.documents.status.posted"]</option>
                                 </select>
                             </div>
                             <div class="form-group col-md-2">
-                                <label>از تاریخ</label>
+                                <label>@UiText["inventory.documents.list.filterFromDate"]</label>
                                 <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>تا تاریخ</label>
+                                <label>@UiText["inventory.documents.list.filterToDate"]</label>
                                 <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>تعداد</label>
+                                <label>@UiText["inventory.documents.list.pageSize"]</label>
                                 <select name="pageSize" class="form-control">
                                     @foreach (var size in Model.PageSizeOptions)
                                     {
@@ -430,7 +430,7 @@
                                 </select>
                             </div>
                             <div class="form-group col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-primary btn-block" type="submit">اعمال</button>
+                                <button class="btn btn-outline-primary btn-block" type="submit">@UiText["inventory.documents.list.apply"]</button>
                             </div>
                         </form>
 
@@ -438,17 +438,17 @@
                             <table class="table table-sm table-striped mb-0">
                                 <thead>
                                     <tr>
-                                        <th>شماره</th>
-                                        <th>نوع</th>
-                                        <th>تاریخ</th>
-                                        <th>وضعیت</th>
-                                        <th class="text-right">عملیات</th>
+                                        <th>@UiText["inventory.documents.list.number"]</th>
+                                        <th>@UiText["inventory.documents.list.type"]</th>
+                                        <th>@UiText["inventory.documents.list.date"]</th>
+                                        <th>@UiText["inventory.documents.list.status"]</th>
+                                        <th class="text-right">@UiText["inventory.documents.list.actions"]</th>
                                     </tr>
                                 </thead>
                                 <tbody id="receipt-document-list-body">
                                     @if (Model.Documents.Count == 0)
                                     {
-                                        <tr><td colspan="5" class="text-center text-muted">سندی پیدا نشد.</td></tr>
+                                        <tr><td colspan="5" class="text-center text-muted">@UiText["inventory.documents.action.noDocumentSelected"]</td></tr>
                                     }
                                     else
                                     {
@@ -463,7 +463,7 @@
                                                 <td>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</td>
                                                 <td><span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></td>
                                                 <td class="text-right">
-                                                    <button type="button" class="btn btn-outline-primary btn-xs js-receipt-document-details mr-1" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">جزئیات</button>
+                                                    <button type="button" class="btn btn-outline-primary btn-xs js-receipt-document-details mr-1" data-document-id="@document.DocumentBusinessKey" data-document-no="@document.DocumentNo">@UiText["inventory.documents.action.details"]</button>
                                                     @if (canEditDocument)
                                                     {
                                                         <a class="btn btn-outline-secondary btn-xs mr-1"
@@ -478,21 +478,21 @@
                                                            asp-route-status="@Model.DocumentStatusFilter"
                                                            asp-route-occurredFrom="@Model.OccurredFromFilter"
                                                            asp-route-occurredTo="@Model.OccurredToFilter"
-                                                           data-ajax-target="#documents-page-root">ویرایش</a>
+                                                           data-ajax-target="#documents-page-root">@UiText["inventory.documents.action.editDocument"]</a>
                                                     }
                                                     @if (canDeleteDocument)
                                                     {
                                                         <button type="button"
                                                                 class="btn btn-outline-danger btn-xs mr-1 js-receipt-document-delete"
                                                                 data-document-id="@document.DocumentBusinessKey"
-                                                                data-document-no="@document.DocumentNo">حذف</button>
+                                                                data-document-no="@document.DocumentNo">@UiText["inventory.documents.action.deleteDocument"]</button>
                                                     }
                                                     <button type="button"
                                                             class="btn btn-outline-info btn-xs js-receipt-document-action"
                                                             data-document-id="@document.DocumentBusinessKey"
                                                             data-document-no="@document.DocumentNo"
                                                             data-document-status="@document.Status"
-                                                            @(canActDocument ? null : "disabled")>اقدام</button>
+                                                            @(canActDocument ? null : "disabled")>@UiText["inventory.documents.action.changeStatus"]</button>
                                                 </td>
                                             </tr>
                                         }
@@ -643,17 +643,17 @@
                                                 }
                                             }
                                             <div class="form-group col-md-2 line-adjustment">
-                                                <label>جهت تعدیل</label>
-                                                <select asp-for="LineForm.AdjustmentDirection" class="form-control">
-                                                    <option value="">انتخاب</option>
-                                                    <option value="Increase" selected="@(Model.LineForm.AdjustmentDirection == "Increase" ? "selected" : null)">افزایش</option>
-                                                    <option value="Decrease" selected="@(Model.LineForm.AdjustmentDirection == "Decrease" ? "selected" : null)">کاهش</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group col-md-4 line-reason">
-                                                <label>علت ردیف</label>
-                                                <input asp-for="LineForm.ReasonCode" class="form-control" />
-                                            </div>
+                                                    <label>@UiText["inventory.documents.line.adjustmentDirection"]</label>
+                                                    <select asp-for="LineForm.AdjustmentDirection" class="form-control">
+                                                    <option value="">@UiText["inventory.documents.line.selectOption"]</option>
+                                                    <option value="Increase" selected="@(Model.LineForm.AdjustmentDirection == "Increase" ? "selected" : null)">@UiText["inventory.documents.line.increase"]</option>
+                                                    <option value="Decrease" selected="@(Model.LineForm.AdjustmentDirection == "Decrease" ? "selected" : null)">@UiText["inventory.documents.line.decrease"]</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-4 line-reason">
+                                                    <label>@UiText["inventory.documents.line.reason"]</label>
+                                                    <input asp-for="LineForm.ReasonCode" class="form-control" />
+                                                </div>
                                         </div>
                                         <div class="d-flex justify-content-end">
                                             <a class="btn btn-outline-secondary mr-2" asp-action="@documentAction" asp-controller="InventoryManagement" asp-route-documentId="@Model.SelectedDocumentDetails.DocumentBusinessKey" asp-route-documentType="@Model.SelectedDocumentDetails.DocumentType" data-ajax-target="#documents-page-root">لغو</a>

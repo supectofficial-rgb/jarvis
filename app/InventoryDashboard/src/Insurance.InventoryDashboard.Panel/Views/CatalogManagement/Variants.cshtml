@@ -972,8 +972,11 @@
             var pricesTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricesTitle"]));
             var variantMediaTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.variantMediaTitle"]));
             var warehouseText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.warehouse"]));
+            var locationText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.location"]));
             var quantityText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.quantity"]));
             var bucketCountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.bucketCount"]));
+            var serialCountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.serialCount"]));
+            var qualityStatusText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.qualityStatus"]));
             var sellerText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.seller"]));
             var priceTypeText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceType"]));
             var priceChannelText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceChannel"]));
@@ -1039,11 +1042,37 @@
                 var head = '<th>' + warehouseText + '</th><th>' + quantityText + '</th><th>' + bucketCountText + '</th>';
                 var rows = items.map(function (item) {
                     var locations = Array.isArray(item.locations) ? item.locations : [];
+                    var locationRows = locations.map(function (location) {
+                        var serials = Array.isArray(location.serials) ? location.serials : [];
+                        var serialBadges = serials.length
+                            ? '<div class="mt-1">' + serials.map(function (serial) {
+                                return '<span class="badge badge-light border mr-1 mb-1">' + escapeHtml(serial.serialNo || serial.serialItemBusinessKey || '-') + '</span>';
+                            }).join('') + '</div>'
+                            : '<div class="text-muted small mt-1">' + noDisplayDataText + '</div>';
+
+                        return '<tr>' +
+                            '<td class="pl-4">' + escapeHtml(location.locationLabel || location.locationCode || location.locationRef || '-') + '</td>' +
+                            '<td>' + escapeHtml(location.quantityOnHand === null || location.quantityOnHand === undefined ? '-' : location.quantityOnHand) + '</td>' +
+                            '<td>' + escapeHtml(location.serialCount === null || location.serialCount === undefined ? 0 : location.serialCount) + '</td>' +
+                        '</tr>' +
+                        '<tr class="table-light">' +
+                            '<td colspan="3" class="pl-4 pt-0">' +
+                                '<div class="small text-muted mb-1">' + qualityStatusText + ': ' + escapeHtml(location.qualityStatusLabel || '-') + '</div>' +
+                                serialBadges +
+                            '</td>' +
+                        '</tr>';
+                    }).join('');
+
                     return '<tr>' +
                         '<td>' + escapeHtml(item.warehouseLabel || item.warehouseCode || item.warehouseRef || '-') + '</td>' +
                         '<td>' + escapeHtml(item.quantityOnHand === null || item.quantityOnHand === undefined ? '-' : item.quantityOnHand) + '</td>' +
                         '<td>' + escapeHtml(item.bucketCount === null || item.bucketCount === undefined ? locations.length : item.bucketCount) + '</td>' +
-                    '</tr>';
+                    '</tr>' +
+                    '<tr><td colspan="3" class="p-0">' +
+                        '<table class="table table-sm mb-0"><thead><tr><th>' + locationText + '</th><th>' + quantityText + '</th><th>' + serialCountText + '</th></tr></thead><tbody>' +
+                        (locationRows || '<tr><td colspan="3" class="text-muted">' + noDisplayDataText + '</td></tr>') +
+                        '</tbody></table>' +
+                    '</td></tr>';
                 }).join('');
 
                 return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
@@ -1698,19 +1727,20 @@
                 });
             }
 
-            document.querySelectorAll('.js-variant-stock-details').forEach(function (button) {
-                button.addEventListener('click', function () {
+            document.addEventListener('click', function (event) {
+                var stockButton = event.target.closest ? event.target.closest('.js-variant-stock-details') : null;
+                if (stockButton) {
+                    event.preventDefault();
                     openVariantDataModal(
                         $('#variant-stock-modal'),
                         document.getElementById('variant-stock-modal-title'),
                         document.getElementById('variant-stock-modal-body'),
-                        button.getAttribute('data-stock-url') || '',
+                        stockButton.getAttribute('data-stock-url') || '',
                         renderWarehouseDetails,
-                        button.getAttribute('data-detail-title') || inventoryAndWarehousesTitleText);
-                });
-            });
+                        stockButton.getAttribute('data-detail-title') || inventoryAndWarehousesTitleText);
+                    return;
+                }
 
-            document.addEventListener('click', function (event) {
                 var mediaButton = event.target.closest ? event.target.closest('.js-variant-media-details') : null;
                 if (mediaButton) {
                     event.preventDefault();
