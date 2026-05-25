@@ -2036,6 +2036,9 @@ for (var i = 0; i < lines.length; i++) {
                 params.set('pageSize', getTransferListValue('pageSize') || '@Model.DocumentPageSize');
                 params.set('documentNo', getTransferListValue('documentNo'));
                 params.set('status', getTransferListValue('status'));
+                params.set('variantId', getTransferListValue('variantId'));
+                params.set('warehouseId', getTransferListValue('warehouseId'));
+                params.set('locationId', getTransferListValue('locationId'));
                 params.set('occurredFrom', getTransferListValue('occurredFrom'));
                 params.set('occurredTo', getTransferListValue('occurredTo'));
                 return params;
@@ -2057,6 +2060,9 @@ for (var i = 0; i < lines.length; i++) {
                     + '&pageSize=' + encodeURIComponent(getTransferListValue('pageSize') || '@Model.DocumentPageSize')
                     + '&documentNo=' + encodeURIComponent(getTransferListValue('documentNo') || '')
                     + '&status=' + encodeURIComponent(getTransferListValue('status') || '')
+                    + '&variantId=' + encodeURIComponent(getTransferListValue('variantId') || '')
+                    + '&warehouseId=' + encodeURIComponent(getTransferListValue('warehouseId') || '')
+                    + '&locationId=' + encodeURIComponent(getTransferListValue('locationId') || '')
                     + '&occurredFrom=' + encodeURIComponent(getTransferListValue('occurredFrom') || '')
                     + '&occurredTo=' + encodeURIComponent(getTransferListValue('occurredTo') || '');
 
@@ -2167,6 +2173,9 @@ for (var i = 0; i < lines.length; i++) {
                 payload.append('pageSize', getTransferListValue('pageSize') || '@Model.DocumentPageSize');
                 payload.append('documentNo', getTransferListValue('documentNo'));
                 payload.append('status', getTransferListValue('status'));
+                payload.append('variantId', getTransferListValue('variantId'));
+                payload.append('warehouseId', getTransferListValue('warehouseId'));
+                payload.append('locationId', getTransferListValue('locationId'));
                 payload.append('occurredFrom', getTransferListValue('occurredFrom'));
                 payload.append('occurredTo', getTransferListValue('occurredTo'));
 
@@ -2317,14 +2326,21 @@ for (var i = 0; i < lines.length; i++) {
                     });
                 }
 
-                var actionModalElement = document.querySelector(actionModalSelector);
+                var safeActionModalSelector = (typeof actionModalSelector === 'string' && actionModalSelector) ? actionModalSelector : '#transfer-document-action-modal';
+                var safeActionSubtitleSelector = (typeof actionSubtitleSelector === 'string' && actionSubtitleSelector) ? actionSubtitleSelector : '#transfer-document-action-modal-subtitle';
+                var safeActionReasonSelector = (typeof actionReasonSelector === 'string' && actionReasonSelector) ? actionReasonSelector : '#transfer-document-action-reason';
+                var safeActionIdSelector = (typeof actionIdSelector === 'string' && actionIdSelector) ? actionIdSelector : '#transfer-document-action-id';
+                var safeActionSelectSelector = (typeof actionSelectSelector === 'string' && actionSelectSelector) ? actionSelectSelector : '#transfer-document-action-select';
+                var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#transfer-document-action-submit';
+
+                var actionModalElement = document.querySelector(safeActionModalSelector);
                 if (actionModalElement) {
                     actionModalElement.addEventListener('hidden.bs.modal', function () {
-                        var subtitle = document.querySelector(actionSubtitleSelector);
-                        var reasonInput = document.querySelector(actionReasonSelector);
-                        var idInput = document.querySelector(actionIdSelector);
-                        var select = document.querySelector(actionSelectSelector);
-                        var submitButton = document.querySelector(actionSubmitSelector);
+                        var subtitle = document.querySelector(safeActionSubtitleSelector);
+                        var reasonInput = document.querySelector(safeActionReasonSelector);
+                        var idInput = document.querySelector(safeActionIdSelector);
+                        var select = document.querySelector(safeActionSelectSelector);
+                        var submitButton = document.querySelector(safeActionSubmitSelector);
                         if (subtitle) {
                             subtitle.textContent = '';
                         }
@@ -2343,12 +2359,12 @@ for (var i = 0; i < lines.length; i++) {
                         updateTransferActionReasonVisibility();
                     });
 
-                    var selectElement = document.querySelector(actionSelectSelector);
+                    var selectElement = document.querySelector(safeActionSelectSelector);
                     if (selectElement) {
                         selectElement.addEventListener('change', updateTransferActionDependentSections);
                     }
 
-                    var submitButton = document.querySelector(actionSubmitSelector);
+                    var submitButton = document.querySelector(safeActionSubmitSelector);
                     if (submitButton) {
                         submitButton.addEventListener('click', function () {
                             submitTransferAction().catch(function (error) {
