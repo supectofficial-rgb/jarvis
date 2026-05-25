@@ -7,6 +7,7 @@ using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.Crea
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateReceiptDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateReturnDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateTransferDocument;
+using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.ChangeInventoryDocumentStatus;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.AddInventoryDocumentLine;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.DeleteInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.DeleteInventoryDocumentLine;
@@ -101,6 +102,14 @@ public class InventoryDocumentController : OysterFxController
         var request = command ?? new PostInventoryDocumentCommand();
         request.DocumentBusinessKey = documentBusinessKey;
         return SendCommand<PostInventoryDocumentCommand, PostInventoryDocumentCommandResult>(request);
+    }
+
+    [HttpPost("{documentBusinessKey:guid}/status")]
+    public Task<IActionResult> ChangeStatus([FromRoute] Guid documentBusinessKey, [FromBody] ChangeInventoryDocumentStatusCommand? command)
+    {
+        var request = command ?? new ChangeInventoryDocumentStatusCommand();
+        request.DocumentBusinessKey = documentBusinessKey;
+        return SendCommand<ChangeInventoryDocumentStatusCommand, bool>(request);
     }
 
     [HttpPost("{documentBusinessKey:guid}/approve")]

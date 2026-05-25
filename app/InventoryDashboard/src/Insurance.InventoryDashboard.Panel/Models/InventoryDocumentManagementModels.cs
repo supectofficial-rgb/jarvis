@@ -181,6 +181,18 @@ public sealed class InventoryDocumentDecisionForm
     public string? ReasonCode { get; set; }
 }
 
+public sealed class InventoryDocumentStatusChangeForm
+{
+    [Required]
+    public string DocumentId { get; set; } = string.Empty;
+
+    [Required]
+    public string Action { get; set; } = string.Empty;
+
+    [StringLength(120)]
+    public string? ReasonCode { get; set; }
+}
+
 public sealed class CreateInventoryDocumentForm
 {
     public string? DocumentId { get; set; }
@@ -293,6 +305,7 @@ public sealed class InventoryDocumentLineForm
     public string? ReasonCode { get; set; }
 
     public string? AdjustmentDirection { get; set; }
+    public bool UseUniqueSerialItems { get; set; }
     public List<InventoryDocumentLineSerialModel> Serials { get; set; } = new();
 }
 

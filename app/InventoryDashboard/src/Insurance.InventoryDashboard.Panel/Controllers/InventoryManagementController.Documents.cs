@@ -823,6 +823,14 @@ public sealed partial class InventoryManagementController
 
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
+        var receiptSerialError = PrepareReceiptLineSerials(document, form);
+        if (receiptSerialError is not null)
+        {
+            var invalidSerialModel = await BuildReceiptDocumentDetailsModalModelAsync(form.DocumentId, token, cancellationToken);
+            invalidSerialModel.ErrorMessage = receiptSerialError;
+            invalidSerialModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReceiptDocumentDetailsModalBody.cshtml", invalidSerialModel);
+        }
 
         if (string.IsNullOrWhiteSpace(form.QualityStatusRef))
         {
@@ -2591,16 +2599,68 @@ public sealed partial class InventoryManagementController
             return await RedirectToDocumentPageAsync(documentId, token);
         }
 
-        var postedBy = HttpContext.Session.GetString("UserName") ?? "dashboard";
-        var serialSelections = ParsePostDocumentSerialSelections(serialSelectionsJson);
-        if (serialSelections is null)
-        {
-            serialSelections = await BuildDefaultPostDocumentSerialSelectionsAsync(documentId, token);
-        }
-        var result = await _apiService.PostInventoryDocumentAsync(documentId, postedBy, serialSelections, token);
+        var result = await ExecuteChangeDocumentStatusAsync(documentId, "post", null, serialSelectionsJson, token);
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "سند پست شد." : result.ErrorMessage ?? "پست سند انجام نشد.";
         return await RedirectToDocumentPageAsync(documentId, token);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeDocumentStatus(InventoryDocumentStatusChangeForm form)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفاً دوباره وارد شوید."
+            });
+        }
+
+        if (!TryValidateModel(form))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = ExtractModelError(ModelState)
+            });
+        }
+
+        var normalizedAction = (form.Action ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalizedAction is not ("approve" or "reject" or "cancel" or "post"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نوع عملیات نامعتبر است."
+            });
+        }
+
+        var isAuthorized = normalizedAction switch
+        {
+            "approve" => IsAuthorizedFor(token, "Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve"),
+            "reject" => IsAuthorizedFor(token, "Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject"),
+            "cancel" => IsAuthorizedFor(token, "Inventory.Document.Cancel", "InventoryDocument.Cancel", "Document.Cancel"),
+            "post" => IsAuthorizedFor(token, "Inventory.Document.Post", "InventoryDocument.Post", "Document.Post"),
+            _ => false
+        };
+
+        if (!isAuthorized)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی انجام این عملیات را ندارید."
+            });
+        }
+
+        var result = await ExecuteChangeDocumentStatusAsync(form.DocumentId, form.Action ?? string.Empty, form.ReasonCode, null, token);
+        return Json(new
+        {
+            isSuccess = result.IsSuccess,
+            errorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "تغییر وضعیت سند انجام نشد."
+        });
     }
 
     private static string? ValidateDocumentFormAgainstBackendRules(CreateInventoryDocumentForm form)
@@ -3214,6 +3274,7 @@ public sealed partial class InventoryManagementController
             {
                 DocumentId = selectedDocumentId ?? string.Empty,
                 DocumentType = documentType,
+                UseUniqueSerialItems = false,
                 Qty = 1m
             };
         }
@@ -3236,6 +3297,7 @@ public sealed partial class InventoryManagementController
             LotBatchNo = line.LotBatchNo,
             ReasonCode = line.ReasonCode,
             AdjustmentDirection = line.AdjustmentDirection,
+            UseUniqueSerialItems = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase) && line.Serials.Count > 0,
             Serials = line.Serials.Select(serial => new InventoryDocumentLineSerialModel
             {
                 SerialItemBusinessKey = serial.SerialItemBusinessKey,
@@ -3243,6 +3305,78 @@ public sealed partial class InventoryManagementController
                 SerialNo = serial.SerialNo
             }).ToList()
         };
+    }
+
+    private static string? PrepareReceiptLineSerials(InventoryDocumentDetailsModel document, InventoryDocumentLineForm form)
+    {
+        if (!string.Equals(form.DocumentType, "Receipt", StringComparison.OrdinalIgnoreCase))
+        {
+            form.Serials.Clear();
+            return null;
+        }
+
+        if (!form.UseUniqueSerialItems)
+        {
+            form.Serials.Clear();
+            return null;
+        }
+
+        if (form.Qty <= 0 || form.Qty != decimal.Truncate(form.Qty))
+        {
+            return "برای صدور شناسه یکتا، تعداد ردیف باید عدد صحیح و بزرگ‌تر از صفر باشد.";
+        }
+
+        var lineNo = ResolveReceiptLineNumber(document, form.LineId);
+        form.Serials = BuildReceiptLineSerials(document.DocumentNo, lineNo, (int)form.Qty);
+        return null;
+    }
+
+    private static int ResolveReceiptLineNumber(InventoryDocumentDetailsModel document, string? lineId)
+    {
+        if (!string.IsNullOrWhiteSpace(lineId))
+        {
+            var existingIndex = document.Lines.FindIndex(x => string.Equals(x.LineBusinessKey, lineId, StringComparison.OrdinalIgnoreCase));
+            if (existingIndex >= 0)
+            {
+                return existingIndex + 1;
+            }
+        }
+
+        return document.Lines.Count + 1;
+    }
+
+    private static List<InventoryDocumentLineSerialModel> BuildReceiptLineSerials(string documentNo, int lineNo, int qty)
+    {
+        var serials = new List<InventoryDocumentLineSerialModel>(Math.Max(qty, 0));
+        var documentPart = NormalizeSerialSegment(documentNo);
+
+        for (var i = 0; i < qty; i++)
+        {
+            serials.Add(new InventoryDocumentLineSerialModel
+            {
+                SerialItemBusinessKey = string.Empty,
+                SerialRef = null,
+                SerialNo = $"SN-{documentPart}-L{lineNo:D2}-{(i + 1):D3}"
+            });
+        }
+
+        return serials;
+    }
+
+    private static string NormalizeSerialSegment(string value)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return "DOC";
+        }
+
+        normalized = normalized.Replace(' ', '-');
+        normalized = normalized.Replace('/', '-');
+        normalized = normalized.Replace('\\', '-');
+        normalized = normalized.Replace(':', '-');
+        normalized = normalized.Replace('.', '-');
+        return normalized;
     }
 
     private async Task<InventoryDocumentManagementPageViewModel> BuildReceiptDocumentDetailsModalModelAsync(
@@ -3590,6 +3724,24 @@ public sealed partial class InventoryManagementController
         }
 
         return selections.Where(selection => !string.IsNullOrWhiteSpace(selection.DocumentLineBusinessKey)).ToList();
+    }
+
+    private async Task<(bool IsSuccess, string? ErrorMessage)> ExecuteChangeDocumentStatusAsync(
+        string documentId,
+        string action,
+        string? reasonCode,
+        string? serialSelectionsJson,
+        string token)
+    {
+        var actor = HttpContext.Session.GetString("UserName") ?? "dashboard";
+        var serialSelections = ParsePostDocumentSerialSelections(serialSelectionsJson);
+        if (string.Equals(action, "post", StringComparison.OrdinalIgnoreCase) && serialSelections is null)
+        {
+            serialSelections = await BuildDefaultPostDocumentSerialSelectionsAsync(documentId, token);
+        }
+
+        var result = await _apiService.ChangeInventoryDocumentStatusAsync(documentId, action, reasonCode, actor, serialSelections, token);
+        return (result.IsSuccess, result.ErrorMessage);
     }
 
     private static string BuildVariantLookupLabel(ProductVariantSummaryModel variant)

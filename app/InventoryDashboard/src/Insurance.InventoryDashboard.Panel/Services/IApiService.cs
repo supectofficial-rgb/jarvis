@@ -123,6 +123,13 @@ public interface IApiService
     Task<ApiResponse<CreateInventoryDocumentResultModel>> CreateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);
     Task<ApiResponse<bool>> UpdateInventoryDocumentAsync(CreateInventoryDocumentForm form, string token);
     Task<ApiResponse<bool>> DeleteInventoryDocumentAsync(string documentId, string token);
+    Task<ApiResponse<bool>> ChangeInventoryDocumentStatusAsync(
+        string documentId,
+        string action,
+        string? reasonCode,
+        string? postedBy,
+        IReadOnlyList<PostDocumentLineSerialSelectionModel>? lineSerialSelections,
+        string token);
     Task<ApiResponse<bool>> ApproveInventoryDocumentAsync(string documentId, string approvedBy, string token);
     Task<ApiResponse<bool>> RejectInventoryDocumentAsync(string documentId, string? reasonCode, string token);
     Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token);

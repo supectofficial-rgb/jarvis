@@ -1737,23 +1737,27 @@ public sealed class ApiService : IApiService
         DeleteCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/lines/{lineId}", token, "Deleting document line failed.");
 
     public Task<ApiResponse<bool>> ApproveInventoryDocumentAsync(string documentId, string approvedBy, string token) =>
-        PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/approve", new { ApprovedBy = approvedBy.Trim() }, token, "Approving inventory document failed.");
+        ChangeInventoryDocumentStatusAsync(documentId, "approve", null, approvedBy, null, token);
 
     public Task<ApiResponse<bool>> RejectInventoryDocumentAsync(string documentId, string? reasonCode, string token) =>
-        PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/reject", new { ReasonCode = NormalizeOptional(reasonCode) }, token, "Rejecting inventory document failed.");
+        ChangeInventoryDocumentStatusAsync(documentId, "reject", reasonCode, null, null, token);
 
     public Task<ApiResponse<bool>> CancelInventoryDocumentAsync(string documentId, string? reasonCode, string token) =>
-        PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/cancel", new { ReasonCode = NormalizeOptional(reasonCode) }, token, "Cancelling inventory document failed.");
+        ChangeInventoryDocumentStatusAsync(documentId, "cancel", reasonCode, null, null, token);
 
-    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(
+    public Task<ApiResponse<bool>> ChangeInventoryDocumentStatusAsync(
         string documentId,
+        string action,
+        string? reasonCode,
         string? postedBy,
         IReadOnlyList<PostDocumentLineSerialSelectionModel>? lineSerialSelections,
         string token)
     {
         var payload = new
         {
-            PostedBy = NormalizeOptional(postedBy),
+            Action = action?.Trim(),
+            Actor = NormalizeOptional(postedBy),
+            ReasonCode = NormalizeOptional(reasonCode),
             LineSerials = (lineSerialSelections ?? Array.Empty<PostDocumentLineSerialSelectionModel>())
                 .Where(x => !string.IsNullOrWhiteSpace(x.DocumentLineBusinessKey))
                 .Select(x => new
@@ -1772,8 +1776,15 @@ public sealed class ApiService : IApiService
                 .ToList()
         };
 
-        return PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/post", payload, token, "Posting inventory document failed.");
+        return PostCommandAsync($"{InventoryApiPrefix}/InventoryDocument/{documentId}/status", payload, token, "Changing inventory document status failed.");
     }
+
+    public Task<ApiResponse<bool>> PostInventoryDocumentAsync(
+        string documentId,
+        string? postedBy,
+        IReadOnlyList<PostDocumentLineSerialSelectionModel>? lineSerialSelections,
+        string token)
+        => ChangeInventoryDocumentStatusAsync(documentId, "post", null, postedBy, lineSerialSelections, token);
 
     public async Task<ApiResponse<List<SerialItemLookupModel>>> GetAvailableSerialItemsAsync(string token, string? variantId = null, string? warehouseId = null)
     {

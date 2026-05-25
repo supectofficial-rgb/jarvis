@@ -605,29 +605,33 @@
                             <div class="border-top pt-3">
                                 <div class="mb-2 text-muted small">@UiText["inventory.documents.action.changeStatus"]</div>
                                 <div class="d-flex flex-wrap">
-                                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="Action" value="approve" />
                                         <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>@UiText["inventory.documents.action.approve"]</button>
                                     </form>
-                                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="Action" value="post" />
                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>@UiText["inventory.documents.action.post"]</button>
                                     </form>
                                 </div>
-                                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <input type="hidden" name="Action" value="reject" />
                                     <div class="form-group mb-2">
                                         <label class="small">@UiText["inventory.documents.action.reject"]</label>
                                         <input name="ReasonCode" class="form-control form-control-sm" />
                                     </div>
                                     <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>@UiText["inventory.documents.action.reject"]</button>
                                 </form>
-                                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <input type="hidden" name="Action" value="cancel" />
                                     <div class="form-group mb-2">
                                         <label class="small">@UiText["inventory.documents.action.cancel"]</label>
                                         <input name="ReasonCode" class="form-control form-control-sm" />
@@ -723,12 +727,7 @@
             var actionReasonGroupSelector = '#transfer-document-action-reason-group';
             var actionSubtitleSelector = '#transfer-document-action-modal-subtitle';
             var actionSubmitSelector = '#transfer-document-action-submit';
-            var actionUrls = {
-                approve: '@Url.Action("ApproveDocument", "InventoryManagement")',
-                post: '@Url.Action("PostDocument", "InventoryManagement")',
-                reject: '@Url.Action("RejectDocument", "InventoryManagement")',
-                cancel: '@Url.Action("CancelDocument", "InventoryManagement")'
-            };
+            var changeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
 
             if (!lineContainer) {
                 return;
@@ -2076,10 +2075,6 @@ for (var i = 0; i < lines.length; i++) {
 
                 var documentId = idInput.value || '';
                 var action = select.value || 'approve';
-                var url = actionUrls[action];
-                if (!url) {
-                    return;
-                }
 
                 var actionLabelMap = {
                     approve: '@UiText["inventory.documents.action.approve"]',
@@ -2094,25 +2089,29 @@ for (var i = 0; i < lines.length; i++) {
 
                 var payload = new URLSearchParams();
                 payload.append('__RequestVerificationToken', getAntiForgeryToken());
-                if (action === 'approve' || action === 'post') {
-                    payload.append('documentId', documentId);
-                } else {
-                    payload.append('DocumentId', documentId);
+                payload.append('DocumentId', documentId);
+                payload.append('Action', action);
+                if (action === 'reject' || action === 'cancel') {
                     payload.append('ReasonCode', reasonInput ? reasonInput.value || '' : '');
                 }
 
-                var response = await fetch(url, {
+                var response = await fetch(changeStatusUrl, {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'Accept': 'text/html'
+                        'Accept': 'application/json'
                     },
                     body: payload.toString()
                 });
 
                 if (!response.ok) {
                     throw new Error('Action request failed.');
+                }
+
+                var payloadJson = await response.json();
+                if (!payloadJson || payloadJson.isSuccess === false) {
+                    throw new Error((payloadJson && payloadJson.errorMessage) || 'Action request failed.');
                 }
 
                 if (window.jQuery) {

@@ -751,29 +751,33 @@
                             <div class="border-top pt-3">
                                 <div class="mb-2 text-muted small">تغییر وضعیت</div>
                                 <div class="d-flex flex-wrap">
-                                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="Action" value="approve" />
                                         <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>تایید</button>
                                     </form>
-                                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="Action" value="post" />
                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>پست</button>
                                     </form>
                                 </div>
-                                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <input type="hidden" name="Action" value="reject" />
                                     <div class="form-group mb-2">
                                         <label class="small">علت رد</label>
                                         <input name="ReasonCode" class="form-control form-control-sm" />
                                     </div>
                                     <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>رد سند</button>
                                 </form>
-                                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <input type="hidden" name="Action" value="cancel" />
                                     <div class="form-group mb-2">
                                         <label class="small">علت لغو</label>
                                         <input name="ReasonCode" class="form-control form-control-sm" />
@@ -837,13 +841,13 @@
                     <div class="d-none mt-3" id="receipt-document-action-post-section">
                         <div class="border rounded p-3 bg-light">
                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                <strong>تیک شناسه‌های یکتا برای هر ردیف</strong>
+                                <strong>شناسه‌های ردیف</strong>
                             </div>
                             <div class="small text-muted mb-2">
-                                برای پست کردن رسید، شناسه‌های یکتا را برای هر ردیف انتخاب کنید.
+                                شناسه‌ها هنگام ذخیره ردیف ساخته می‌شوند و در زمان پست فقط ثبت نهایی انجام می‌شود.
                             </div>
                             <div id="receipt-document-action-post-lines">
-                                <div class="text-muted small">در حال بارگذاری...</div>
+                                <div class="text-muted small">نیازی به انتخاب شناسه در این بخش نیست.</div>
                             </div>
                         </div>
                     </div>
@@ -1352,12 +1356,7 @@
                 Model.WarehouseLookup.ToDictionary(x => x.WarehouseBusinessKey, x => $"{x.Code} - {x.Name}")));
             var sellerDisplayLookup = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
                 Model.SellerLookup.ToDictionary(x => x.SellerBusinessKey, x => $"{x.Code} - {x.Name}")));
-            var actionUrls = {
-                approve: '@Url.Action("ApproveDocument", "InventoryManagement")',
-                post: '@Url.Action("PostDocument", "InventoryManagement")',
-                reject: '@Url.Action("RejectDocument", "InventoryManagement")',
-                cancel: '@Url.Action("CancelDocument", "InventoryManagement")'
-            };
+            var changeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
             var receiptPostPreviewUrl = '@Url.Action("ReceiptDocumentPostPreview", "InventoryManagement")';
             var receiptPostSelectionCache = {};
 
@@ -2024,6 +2023,7 @@
                 var warehouseSelect = modal.querySelector('select[name="LineForm.WarehouseRef"]');
                 var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var useUniqueSerialItemsCheckbox = modal.querySelector('input[name="LineForm.UseUniqueSerialItems"]');
                 var destinationInput = modal.querySelector('select[name="LineForm.DestinationLocationRef"]');
                 var submitButton = modal.querySelector('.js-receipt-line-submit');
                 var cancelButton = modal.querySelector('.js-receipt-line-cancel');
@@ -2061,6 +2061,10 @@
                     }
                 }
 
+                if (useUniqueSerialItemsCheckbox) {
+                    useUniqueSerialItemsCheckbox.checked = (trigger.getAttribute('data-use-unique-serial-items') || '').toLowerCase() === 'true';
+                }
+
                 if (variantSelect && variantSelect.value) {
                     loadReceiptWarehouses(modal, warehouseId, locationId).catch(function (error) {
                         console.error(error);
@@ -2087,6 +2091,7 @@
                 var warehouseSelect = modal.querySelector('select[name="LineForm.WarehouseRef"]');
                 var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
+                var useUniqueSerialItemsCheckbox = modal.querySelector('input[name="LineForm.UseUniqueSerialItems"]');
                 var destinationInput = modal.querySelector('select[name="LineForm.DestinationLocationRef"]');
                 var submitButton = modal.querySelector('.js-receipt-line-submit');
                 var cancelButton = modal.querySelector('.js-receipt-line-cancel');
@@ -2116,6 +2121,9 @@
                 if (qtyInput) {
                     qtyInput.value = '1';
                 }
+                if (useUniqueSerialItemsCheckbox) {
+                    useUniqueSerialItemsCheckbox.checked = false;
+                }
                 if (destinationInput) {
                     setSelectOptions(destinationInput, [], 'ابتدا انبار را انتخاب کنید', 'locationId', 'text', '');
                     destinationInput.disabled = true;
@@ -2144,6 +2152,12 @@
                 reasonGroup.style.display = requiresReason ? '' : 'none';
                 if (postSection) {
                     postSection.classList.toggle('d-none', select.value !== 'post');
+                    if (select.value === 'post') {
+                        var postLines = document.querySelector(actionPostLinesSelector);
+                        if (postLines) {
+                            postLines.innerHTML = '<div class="text-muted small">شناسه‌های این ردیف هنگام ذخیره ساخته می‌شوند و در زمان پست فقط ثبت نهایی انجام می‌شود.</div>';
+                        }
+                    }
                 }
                 if (reasonInput && !requiresReason) {
                     reasonInput.value = '';
@@ -2168,16 +2182,6 @@
                         cancel: 'لغو سند'
                     };
                     submitButton.textContent = labelMap[select.value || 'approve'] || 'تایید';
-                }
-
-                if (select.value === 'post') {
-                    loadReceiptPostPreview(idInput.value || '').catch(function (error) {
-                        console.error(error);
-                        var postLines = document.querySelector(actionPostLinesSelector);
-                        if (postLines) {
-                            postLines.innerHTML = '<div class="text-danger small">بارگذاری شناسه‌های یکتا انجام نشد.</div>';
-                        }
-                    });
                 }
             }
 
@@ -2411,8 +2415,7 @@
 
                 var documentId = idInput.value || '';
                 var action = select.value || 'approve';
-                var url = actionUrls[action];
-                if (!url) {
+                if (!changeStatusUrl) {
                     return;
                 }
 
@@ -2429,28 +2432,25 @@
 
                 var payload = new URLSearchParams();
                 payload.append('__RequestVerificationToken', getAntiForgeryToken());
-                if (action === 'approve' || action === 'post') {
-                    payload.append('documentId', documentId);
-                    if (action === 'post') {
-                        payload.append('serialSelectionsJson', JSON.stringify(collectReceiptPostSelections(documentId)));
-                    }
-                } else {
-                    payload.append('DocumentId', documentId);
+                payload.append('DocumentId', documentId);
+                payload.append('Action', action);
+                if (action === 'reject' || action === 'cancel') {
                     payload.append('ReasonCode', reasonInput ? reasonInput.value || '' : '');
                 }
 
-                var response = await fetch(url, {
+                var response = await fetch(changeStatusUrl, {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'Accept': 'text/html'
+                        'Accept': 'application/json'
                     },
                     body: payload.toString()
                 });
 
-                if (!response.ok) {
-                    throw new Error('Action request failed.');
+                var result = await response.json();
+                if (!response.ok || !result || result.isSuccess !== true) {
+                    throw new Error((result && result.errorMessage) || 'تغییر وضعیت سند انجام نشد.');
                 }
 
                 if (window.jQuery) {

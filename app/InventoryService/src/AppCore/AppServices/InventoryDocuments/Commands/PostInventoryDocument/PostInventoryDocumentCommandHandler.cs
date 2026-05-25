@@ -38,13 +38,19 @@ public class PostInventoryDocumentCommandHandler
     }
 
     public override async Task<CommandResult<PostInventoryDocumentCommandResult>> Handle(PostInventoryDocumentCommand command)
+        => await ExecuteAsync(command);
+
+    public async Task<CommandResult<PostInventoryDocumentCommandResult>> ExecuteAsync(PostInventoryDocumentCommand command)
     {
-        var document = await _documentRepository.GetGraphAsync(BusinessKey.FromGuid(command.DocumentBusinessKey));
+        var document = await _documentRepository.GetByBusinessKeyAsync(command.DocumentBusinessKey);
         if (document is null || document.Id == 0)
             return Fail("Inventory document was not found.");
 
         if (document.Status == InventoryDocumentStatus.Posted)
             return Fail("Inventory document is already posted.");
+
+        if (document.Lines.Count == 0)
+            return Fail("Inventory document must contain at least one line.");
 
         var transaction = InventoryTransaction.Create(
             transactionNo: $"TX-{document.DocumentNo}",
@@ -276,8 +282,11 @@ public class PostInventoryDocumentCommandHandler
         {
             selectedSerialsByLine.TryGetValue(line.BusinessKey.Value, out var selectedSerials);
             var serials = selectedSerials?.Serials ?? Array.Empty<PostInventoryDocumentLineSerialItem>();
-            var serialRef = serials.FirstOrDefault(x => x.SerialRef.HasValue)?.SerialRef;
-            var serialTuples = serials.Select(x => (x.SerialRef, x.SerialNo)).ToList();
+            var serialTuples = serials
+                .Where(x => x.SerialRef.HasValue)
+                .Select(x => (x.SerialRef, x.SerialNo))
+                .ToList();
+            var serialRef = serialTuples.FirstOrDefault().SerialRef;
 
             switch (document.DocumentType)
             {
@@ -508,41 +517,61 @@ public class PostInventoryDocumentCommandHandler
             return (true, null);
 
         var documentLine = effect.DocumentLine;
-        if (documentLine.BaseQty <= 0)
-            return (false, "Receipt line quantity is invalid for serial item generation.");
+        if (effect.UseUniqueSerialItems)
+        {
+            if (documentLine.BaseQty <= 0)
+                return (false, "Receipt line quantity is invalid for serial item generation.");
 
-        if (documentLine.BaseQty != decimal.Truncate(documentLine.BaseQty))
-            return (false, "Receipt line quantity must be a whole number when unique serial items are enabled.");
+            if (documentLine.BaseQty != decimal.Truncate(documentLine.BaseQty))
+                return (false, "Receipt line quantity must be a whole number when unique serial items are enabled.");
+        }
 
-        var desiredSerialCount = (int)documentLine.BaseQty;
-        var selectedSerialRefs = new HashSet<Guid>();
-
+        var createdOrLinkedSerialCount = 0;
         foreach (var selectedSerial in effect.Serials)
         {
-            if (!selectedSerial.SerialRef.HasValue)
-                continue;
+            if (selectedSerial.SerialRef.HasValue)
+            {
+                var serialItem = await _serialRepository.GetByBusinessKeyAsync(selectedSerial.SerialRef.Value);
+                if (serialItem is null)
+                    return (false, "One of the selected serial items was not found.");
 
-            var serialItem = await _serialRepository.GetByBusinessKeyAsync(selectedSerial.SerialRef.Value);
-            if (serialItem is null)
+                serialItem.LinkStockDetail(stockDetail.BusinessKey);
+                createdOrLinkedSerialCount++;
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(selectedSerial.SerialNo))
                 return (false, "One of the selected serial items was not found.");
 
-            serialItem.LinkStockDetail(stockDetail.BusinessKey);
-            selectedSerialRefs.Add(serialItem.BusinessKey.Value);
+            var generatedSerialItem = SerialItem.Create(
+                selectedSerial.SerialNo,
+                documentLine.VariantRef,
+                document.SellerRef,
+                document.WarehouseRef,
+                stockDetail.LocationRef,
+                stockDetail.QualityStatusRef,
+                documentLine.LotBatchNo);
+
+            await _serialRepository.InsertAsync(generatedSerialItem);
+            generatedSerialItem.LinkStockDetail(stockDetail.BusinessKey);
+            effect.TransactionLine.AddSerial(generatedSerialItem.BusinessKey.Value, generatedSerialItem.SerialNo);
+            createdOrLinkedSerialCount++;
         }
 
         if (!effect.UseUniqueSerialItems)
             return (true, null);
 
-        if (selectedSerialRefs.Count > desiredSerialCount)
+        var desiredSerialCount = (int)documentLine.BaseQty;
+        if (createdOrLinkedSerialCount > desiredSerialCount)
             return (false, "Too many serial items were selected for this receipt line.");
 
-        var remainingToGenerate = desiredSerialCount - selectedSerialRefs.Count;
+        var remainingToGenerate = desiredSerialCount - createdOrLinkedSerialCount;
         if (remainingToGenerate <= 0)
             return (true, null);
 
         for (var i = 0; i < remainingToGenerate; i++)
         {
-            var serialNo = await GenerateUniqueReceiptSerialNoAsync(document, effect.LineNo, i + 1, documentLine.VariantRef);
+            var serialNo = await GenerateUniqueReceiptSerialNoAsync(document, effect.LineNo, createdOrLinkedSerialCount + i + 1, documentLine.VariantRef);
             var serialItem = SerialItem.Create(
                 serialNo,
                 documentLine.VariantRef,

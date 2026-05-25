@@ -203,6 +203,15 @@
                                 <button class="btn btn-primary btn-block js-receipt-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
                             </div>
                         </div>
+                        <div class="form-row">
+                            <div class="form-group col-12 mb-0">
+                                <div class="custom-control custom-checkbox">
+                                    <input asp-for="LineForm.UseUniqueSerialItems" class="custom-control-input js-receipt-line-unique-toggle" type="checkbox" id="receipt-line-use-unique-serial-items" />
+                                    <label class="custom-control-label" for="receipt-line-use-unique-serial-items">صدور شناسه یکتا برای این ردیف</label>
+                                </div>
+                                <div class="text-muted small mt-1">اگر فعال باشد، هنگام ذخیره این ردیف به تعداد مقدار واردشده شناسه ساخته می‌شود.</div>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -238,6 +247,7 @@
                         <tbody>
                             @foreach (var line in document.Lines)
                             {
+                                var useUniqueSerialItems = line.Serials.Count > 0;
                                 <tr>
                                     <td>@VariantName(line.VariantRef)</td>
                                     <td>@line.Qty.ToString("0.####")</td>
@@ -246,7 +256,7 @@
                                     <td class="text-right">
                                         @if (canEditLines)
                                         {
-                                            <button type="button"
+                                                    <button type="button"
                                                     class="btn btn-outline-primary btn-xs js-receipt-line-edit"
                                                     data-line-id="@line.LineBusinessKey"
                                                     data-variant-id="@line.VariantRef"
@@ -254,7 +264,8 @@
                                                     data-location-id="@line.DestinationLocationRef"
                                                     data-quality-id="@line.QualityStatusRef"
                                                     data-qty="@line.Qty.ToString("0.####")"
-                                                    data-destination-location-id="@line.DestinationLocationRef">ویرایش</button>
+                                                    data-destination-location-id="@line.DestinationLocationRef"
+                                                    data-use-unique-serial-items="@useUniqueSerialItems">ویرایش</button>
                                             <form asp-action="DeleteReceiptDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#receipt-document-details-modal-body" onsubmit="return confirm('این آیتم حذف شود؟');">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />

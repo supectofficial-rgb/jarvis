@@ -670,29 +670,33 @@
                             <div class="border-top pt-3">
                                 <div class="mb-2 text-muted small">ØªØºÛŒÛŒØ± ÙˆØ¶Ø¹ÛŒØª</div>
                                 <div class="d-flex flex-wrap">
-                                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="Action" value="approve" />
                                         <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>ØªØ§ÛŒÛŒØ¯</button>
                                     </form>
-                                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <input type="hidden" name="Action" value="post" />
                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>Ù¾Ø³Øª</button>
                                     </form>
                                 </div>
-                                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <input type="hidden" name="Action" value="reject" />
                                     <div class="form-group mb-2">
                                         <label class="small">Ø¹Ù„Øª Ø±Ø¯</label>
                                         <input name="ReasonCode" class="form-control form-control-sm" />
                                     </div>
                                     <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>Ø±Ø¯ Ø³Ù†Ø¯</button>
                                 </form>
-                                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="ChangeDocumentStatus" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                    <input type="hidden" name="Action" value="cancel" />
                                     <div class="form-group mb-2">
                                         <label class="small">Ø¹Ù„Øª Ù„ØºÙˆ</label>
                                         <input name="ReasonCode" class="form-control form-control-sm" />
@@ -784,6 +788,7 @@
                 </button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-danger d-none js-issue-document-action-error"></div>
                 <input type="hidden" id="issue-document-action-id" />
                 <div class="form-group">
                     <label>اقدام</label>
@@ -828,7 +833,8 @@
             var documentListFormSelector = '#issue-document-list-form';
             var documentListBodySelector = '#issue-document-list-body';
             var documentListPaginationWrapperSelector = '#issue-document-list-pagination-wrapper';
-            var issueDocumentListPaginationSelector = '#issue-document-list-pagination';
+            var issueDocumentListPaginationSelector = window.issueDocumentListPaginationSelector || '#issue-document-list-pagination';
+            window.issueDocumentListPaginationSelector = issueDocumentListPaginationSelector;
             var documentListCountSelector = '#issue-document-list-count';
             var deleteDocumentUrl = '@Url.Action("DeleteDocument", "InventoryManagement")';
             var deleteIssueDocumentLineUrl = '@Url.Action("DeleteIssueDocumentLine", "InventoryManagement")';
@@ -838,13 +844,9 @@
             var actionReasonSelector = '#issue-document-action-reason';
             var actionReasonGroupSelector = '#issue-document-action-reason-group';
             var actionSubtitleSelector = '#issue-document-action-modal-subtitle';
+            var actionErrorSelector = '.js-issue-document-action-error';
             var actionSubmitSelector = '#issue-document-action-submit';
-            var actionUrls = {
-                approve: '@Url.Action("ApproveDocument", "InventoryManagement")',
-                post: '@Url.Action("PostDocument", "InventoryManagement")',
-                reject: '@Url.Action("RejectDocument", "InventoryManagement")',
-                cancel: '@Url.Action("CancelDocument", "InventoryManagement")'
-            };
+            var changeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
             var issueDetailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.details.title"]));
             var issueDocumentTypeText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.type.issue"]));
             var safeIssueDetailsTitleText = (typeof issueDetailsTitleText === 'string' && issueDetailsTitleText) ? issueDetailsTitleText : @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.details.title"]));
@@ -1331,7 +1333,7 @@
             }
 
             function getCurrentIssueListPage() {
-                var activeLink = document.querySelector(issueDocumentListPaginationSelector + ' .page-item.active .page-link');
+                var activeLink = document.querySelector((window.issueDocumentListPaginationSelector || issueDocumentListPaginationSelector) + ' .page-item.active .page-link');
                 if (activeLink) {
                     var value = parseInt(activeLink.textContent || '1', 10);
                     if (!isNaN(value) && value > 0) {
@@ -2043,6 +2045,23 @@
                 }
             }
 
+            function setActionError(message) {
+                var modal = document.querySelector(safeActionModalSelector);
+                var errorBox = modal ? modal.querySelector(actionErrorSelector) : null;
+                if (!errorBox) {
+                    return;
+                }
+
+                if (!message) {
+                    errorBox.textContent = '';
+                    errorBox.classList.add('d-none');
+                    return;
+                }
+
+                errorBox.textContent = message;
+                errorBox.classList.remove('d-none');
+            }
+
             function updateIssueActionReasonVisibility() {
                 var select = document.querySelector(safeActionSelectSelector);
                 var reasonGroup = document.querySelector(safeActionReasonGroupSelector);
@@ -2107,6 +2126,7 @@
                     subtitle.textContent = [documentNo, status].filter(Boolean).join(' - ');
                 }
 
+                setActionError('');
                 updateIssueActionDependentSections();
                 showActionModal();
             }
@@ -2126,14 +2146,7 @@
 
                 var documentId = idInput.value || '';
                 var action = select.value || 'approve';
-                var actionUrlMap = {
-                    approve: '@Url.Action("ApproveDocument", "InventoryManagement")',
-                    post: '@Url.Action("PostDocument", "InventoryManagement")',
-                    reject: '@Url.Action("RejectDocument", "InventoryManagement")',
-                    cancel: '@Url.Action("CancelDocument", "InventoryManagement")'
-                };
-                var url = actionUrlMap[action];
-                if (!url) {
+                if (!changeStatusUrl) {
                     return;
                 }
 
@@ -2148,27 +2161,29 @@
                     return;
                 }
 
+                setActionError('');
                 var payload = new URLSearchParams();
                 payload.append('__RequestVerificationToken', getAntiForgeryToken());
-                if (action === 'approve' || action === 'post') {
-                    payload.append('documentId', documentId);
-                } else {
-                    payload.append('DocumentId', documentId);
+                payload.append('DocumentId', documentId);
+                payload.append('Action', action);
+                if (action === 'reject' || action === 'cancel') {
                     payload.append('ReasonCode', reasonInput ? reasonInput.value || '' : '');
                 }
 
-                var response = await fetch(url, {
+                var response = await fetch(changeStatusUrl, {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'Accept': 'text/html'
+                        'Accept': 'application/json'
                     },
                     body: payload.toString()
                 });
 
-                if (!response.ok) {
-                    throw new Error('Action request failed.');
+                var result = await response.json();
+                if (!response.ok || !result || result.isSuccess !== true) {
+                    setActionError((result && result.errorMessage) || 'تغییر وضعیت سند انجام نشد.');
+                    return;
                 }
 
                 if (window.jQuery) {
@@ -2354,7 +2369,7 @@
                     resetIssueLineForm();
                 }
 
-                var paginationLink = event.target && event.target.closest ? event.target.closest(issueDocumentListPaginationSelector + ' .page-link') : null;
+                var paginationLink = event.target && event.target.closest ? event.target.closest((window.issueDocumentListPaginationSelector || issueDocumentListPaginationSelector) + ' .page-link') : null;
                 if (paginationLink) {
                     event.preventDefault();
                     var page = parseInt(paginationLink.getAttribute('data-page') || '1', 10);
