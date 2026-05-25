@@ -680,6 +680,7 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="transfer-document-action-id" />
+                <input type="hidden" id="transfer-document-action-document-no" />
                 <div class="form-group">
                     <label>اقدام</label>
                     <select class="form-control" id="transfer-document-action-select">
@@ -726,6 +727,7 @@
             var actionReasonSelector = '#transfer-document-action-reason';
             var actionReasonGroupSelector = '#transfer-document-action-reason-group';
             var actionSubtitleSelector = '#transfer-document-action-modal-subtitle';
+            var actionDocumentNoSelector = '#transfer-document-action-document-no';
             var actionSubmitSelector = '#transfer-document-action-submit';
             var changeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
 
@@ -2049,9 +2051,14 @@ for (var i = 0; i < lines.length; i++) {
                 var select = modal.querySelector(safeActionSelectSelector);
                 var reasonInput = modal.querySelector(safeActionReasonSelector);
                 var subtitle = modal.querySelector(safeActionSubtitleSelector);
+                var documentNoInput = modal.querySelector(safeActionDocumentNoSelector);
 
                 if (idInput) {
                     idInput.value = trigger.getAttribute('data-document-id') || '';
+                }
+
+                if (documentNoInput) {
+                    documentNoInput.value = trigger.getAttribute('data-document-no') || '';
                 }
 
                 if (select) {
@@ -2081,12 +2088,14 @@ for (var i = 0; i < lines.length; i++) {
                 var idInput = modal.querySelector(safeActionIdSelector);
                 var select = modal.querySelector(safeActionSelectSelector);
                 var reasonInput = modal.querySelector(safeActionReasonSelector);
+                var documentNoInput = modal.querySelector(safeActionDocumentNoSelector);
                 if (!idInput || !select) {
                     return;
                 }
 
                 var documentId = idInput.value || '';
                 var action = select.value || 'approve';
+                var documentNo = documentNoInput ? (documentNoInput.value || '') : '';
 
                 var actionLabelMap = {
                     approve: '@UiText["inventory.documents.action.approve"]',
@@ -2131,6 +2140,11 @@ for (var i = 0; i < lines.length; i++) {
                 }
 
                 await refreshTransferDocumentList();
+
+                var detailsModal = document.querySelector('#transfer-document-details-modal');
+                if (detailsModal && detailsModal.classList.contains('show')) {
+                    await loadTransferDetails(documentId, documentNo);
+                }
             }
 
             function getTransferListForm() {
@@ -2467,6 +2481,7 @@ for (var i = 0; i < lines.length; i++) {
                 var safeActionReasonSelector = (typeof actionReasonSelector === 'string' && actionReasonSelector) ? actionReasonSelector : '#transfer-document-action-reason';
                 var safeActionReasonGroupSelector = (typeof actionReasonGroupSelector === 'string' && actionReasonGroupSelector) ? actionReasonGroupSelector : '#transfer-document-action-reason-group';
                 var safeActionIdSelector = (typeof actionIdSelector === 'string' && actionIdSelector) ? actionIdSelector : '#transfer-document-action-id';
+                var safeActionDocumentNoSelector = (typeof actionDocumentNoSelector === 'string' && actionDocumentNoSelector) ? actionDocumentNoSelector : '#transfer-document-action-document-no';
                 var safeActionSelectSelector = (typeof actionSelectSelector === 'string' && actionSelectSelector) ? actionSelectSelector : '#transfer-document-action-select';
                 var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#transfer-document-action-submit';
                 var safeChangeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
@@ -2488,6 +2503,10 @@ for (var i = 0; i < lines.length; i++) {
                         }
                         if (idInput) {
                             idInput.value = '';
+                        }
+                        var documentNoInput = document.querySelector(safeActionDocumentNoSelector);
+                        if (documentNoInput) {
+                            documentNoInput.value = '';
                         }
                         if (select) {
                             select.value = 'approve';

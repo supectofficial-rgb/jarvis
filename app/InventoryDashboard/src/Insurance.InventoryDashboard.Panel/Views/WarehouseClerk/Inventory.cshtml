@@ -20,6 +20,18 @@
     .inventory-structure-card .select2-container {
         width: 100% !important;
     }
+
+    .inventory-structure-card {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .inventory-structure-card > [data-inventory-structure-card] {
+        flex: 1 1 260px;
+        min-width: 240px;
+        margin-bottom: 0 !important;
+    }
 </style>
 
 <main id="warehouse-clerk-inventory-root" class="catalog-page">
@@ -68,7 +80,7 @@
                             <div class="tab-pane fade show active" id="inventory-search-tab" role="tabpanel">
                                 <form method="get"
                                       data-loading-form
-                                      data-ajax-target="#warehouse-clerk-inventory-root"
+                                      data-ajax-target="#warehouse-clerk-inventory-results"
                                       data-inventory-search-form
                                       data-structure-tree-url="@warehouseStructureTreeUrl"
                                       data-serials-url="@inventorySerialsUrl"
@@ -124,7 +136,8 @@
                                     </div>
                                 </form>
 
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div id="warehouse-clerk-inventory-results">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h5 class="card-title mb-0">لیست موجودی</h5>
                                     <span class="text-muted small"><span data-total-count>@Model.TotalCount</span> ردیف</span>
                                 </div>
@@ -199,6 +212,7 @@
                                         }
                                     </nav>
                                 }
+                                </div>
                             </div>
                         </div>
                     </div>

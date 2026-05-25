@@ -56,9 +56,7 @@ public class PostInventoryDocumentCommandHandler
         if (document.Lines.Count == 0)
             return Fail($"Inventory document '{document.DocumentNo}' ({document.BusinessKey.Value:D}) must contain at least one line before posting.");
 
-        var resolvedTransactionWarehouseRef = document.WarehouseRef != Guid.Empty
-            ? document.WarehouseRef
-            : await ResolveDocumentWarehouseRefAsync(document);
+        var resolvedTransactionWarehouseRef = await ResolveDocumentWarehouseRefAsync(document);
 
         if (resolvedTransactionWarehouseRef == Guid.Empty)
             return Fail($"Inventory document '{document.DocumentNo}' ({document.BusinessKey.Value:D}) does not resolve to a valid warehouse.");
@@ -82,7 +80,7 @@ public class PostInventoryDocumentCommandHandler
             var line = effect.TransactionLine;
             transaction.AddLine(line);
             var effectLabel = DescribeEffect(document, effect);
-            var effectWarehouseRef = await ResolveEffectWarehouseRefAsync(document, effect, resolvedTransactionWarehouseRef);
+            var effectWarehouseRef = await ResolveEffectWarehouseRefAsync(effect);
             if (effectWarehouseRef == Guid.Empty)
                 return Fail($"{effectLabel}: unable to resolve warehouse from document header or line locations.");
 
@@ -131,7 +129,7 @@ public class PostInventoryDocumentCommandHandler
                 return Fail($"{effectLabel}: {serialResult.Error ?? "Serial item processing failed."}");
         }
 
-        var sourceTracingResult = await ApplySourceTracingAsync(document, transaction, effects, resolvedTransactionWarehouseRef);
+        var sourceTracingResult = await ApplySourceTracingAsync(document, transaction, effects);
         if (!sourceTracingResult.Success)
             return Fail($"Source tracing failed for inventory document '{document.DocumentNo}': {sourceTracingResult.Error ?? "Unknown source tracing error."}");
 
@@ -166,13 +164,12 @@ public class PostInventoryDocumentCommandHandler
     private async Task<(bool Success, string? Error)> ApplySourceTracingAsync(
         InventoryDocument document,
         InventoryTransaction transaction,
-        IReadOnlyList<InventoryDocumentPostingEffect> effects,
-        Guid defaultWarehouseRef)
+        IReadOnlyList<InventoryDocumentPostingEffect> effects)
     {
         foreach (var effect in effects)
         {
             var line = effect.TransactionLine;
-            var effectWarehouseRef = await ResolveEffectWarehouseRefAsync(document, effect, defaultWarehouseRef);
+            var effectWarehouseRef = await ResolveEffectWarehouseRefAsync(effect);
             if (effectWarehouseRef == Guid.Empty)
                 return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) does not resolve to a valid warehouse.");
 
@@ -648,7 +645,7 @@ public class PostInventoryDocumentCommandHandler
     {
         foreach (var line in document.Lines)
         {
-            var lineWarehouseRef = await ResolveLineWarehouseRefAsync(document, line);
+            var lineWarehouseRef = await ResolveLineWarehouseRefAsync(line);
             if (lineWarehouseRef != Guid.Empty)
                 return lineWarehouseRef;
         }
@@ -656,34 +653,14 @@ public class PostInventoryDocumentCommandHandler
         return Guid.Empty;
     }
 
-    private async Task<Guid> ResolveEffectWarehouseRefAsync(
-        InventoryDocument document,
-        InventoryDocumentPostingEffect effect,
-        Guid defaultWarehouseRef)
+    private async Task<Guid> ResolveEffectWarehouseRefAsync(InventoryDocumentPostingEffect effect)
     {
         var line = effect.DocumentLine;
-        var locationRef = effect.TransactionLine.BaseQtyDelta >= 0
-            ? line.DestinationLocationRef
-            : line.SourceLocationRef;
-
-        if (locationRef.HasValue)
-        {
-            var resolvedWarehouseRef = await ResolveLocationWarehouseRefAsync(locationRef.Value);
-            if (resolvedWarehouseRef != Guid.Empty)
-                return resolvedWarehouseRef;
-        }
-
-        if (defaultWarehouseRef != Guid.Empty)
-            return defaultWarehouseRef;
-
-        return await ResolveLineWarehouseRefAsync(document, line);
+        return await ResolveLineWarehouseRefAsync(line);
     }
 
-    private async Task<Guid> ResolveLineWarehouseRefAsync(InventoryDocument document, InventoryDocumentLine line)
+    private async Task<Guid> ResolveLineWarehouseRefAsync(InventoryDocumentLine line)
     {
-        if (document.WarehouseRef != Guid.Empty)
-            return document.WarehouseRef;
-
         var locationRef = line.DestinationLocationRef ?? line.SourceLocationRef;
         if (!locationRef.HasValue)
             return Guid.Empty;

@@ -78,10 +78,12 @@ public sealed class StockDetail : AggregateRoot
         QuantityOnHand += quantity;
         LastUpdatedAt = occurredAt;
 
-        if (FirstReceivedAt == default)
+        if (FirstReceivedAt == default || occurredAt < FirstReceivedAt)
             FirstReceivedAt = occurredAt;
 
-        LastReceivedAt = occurredAt;
+        if (LastReceivedAt == default || occurredAt > LastReceivedAt)
+            LastReceivedAt = occurredAt;
+
         EnsureDateInvariant();
         RaiseQuantityChanged(previous, QuantityOnHand, occurredAt);
     }
@@ -113,10 +115,11 @@ public sealed class StockDetail : AggregateRoot
 
         if (delta > 0)
         {
-            if (FirstReceivedAt == default)
+            if (FirstReceivedAt == default || occurredAt < FirstReceivedAt)
                 FirstReceivedAt = occurredAt;
 
-            LastReceivedAt = occurredAt;
+            if (LastReceivedAt == default || occurredAt > LastReceivedAt)
+                LastReceivedAt = occurredAt;
         }
 
         EnsureDateInvariant();
