@@ -3,18 +3,18 @@ namespace Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Comm
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.ChangeInventoryDocumentStatus;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.PostInventoryDocument;
-using Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Commands.PostInventoryDocument;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
+using OysterFx.AppCore.Shared.Commands;
 
 public class ChangeInventoryDocumentStatusCommandHandler : CommandHandler<ChangeInventoryDocumentStatusCommand, bool>
 {
     private readonly IInventoryDocumentCommandRepository _repository;
-    private readonly PostInventoryDocumentCommandHandler _postHandler;
+    private readonly ICommandHandler<PostInventoryDocumentCommand, PostInventoryDocumentCommandResult> _postHandler;
 
     public ChangeInventoryDocumentStatusCommandHandler(
         IInventoryDocumentCommandRepository repository,
-        PostInventoryDocumentCommandHandler postHandler)
+        ICommandHandler<PostInventoryDocumentCommand, PostInventoryDocumentCommandResult> postHandler)
     {
         _repository = repository;
         _postHandler = postHandler;
@@ -31,7 +31,7 @@ public class ChangeInventoryDocumentStatusCommandHandler : CommandHandler<Change
 
         if (action == "post")
         {
-            var postResult = await _postHandler.ExecuteAsync(new PostInventoryDocumentCommand
+            var postResult = await _postHandler.Handle(new PostInventoryDocumentCommand
             {
                 DocumentBusinessKey = command.DocumentBusinessKey,
                 PostedBy = command.Actor,
