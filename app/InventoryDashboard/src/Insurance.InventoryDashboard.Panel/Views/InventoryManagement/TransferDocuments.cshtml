@@ -220,12 +220,120 @@
                         <div class="card-body">
                         <form asp-action="SaveDocument" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#documents-page-root" id="document-create-form">
                             @Html.AntiForgeryToken()
-                            <div class="alert alert-info border mb-3" role="status">
-                                <strong>&#x062B;&#x0628;&#x062A; &#x0647;&#x062F;&#x0631; &#x0633;&#x0646;&#x062F;</strong>
-                                <div class="small mt-1">&#x062F;&#x0631; &#x0627;&#x06CC;&#x0646; &#x0641;&#x0631;&#x0645; &#x0641;&#x0642;&#x0637; &#x0627;&#x0637;&#x0644;&#x0627;&#x0639;&#x0627;&#x062A; &#x0647;&#x062F;&#x0631; &#x062B;&#x0628;&#x062A; &#x0645;&#x06CC;&#x200C;&#x0634;&#x0648;&#x062F;. &#x0631;&#x062F;&#x06CC;&#x0641;&#x200C;&#x0647;&#x0627; &#x0648; &#x062C;&#x0632;&#x06CC;&#x06CC;&#x0627;&#x062A; &#x0633;&#x0646;&#x062F; &#x0627;&#x0632; &#x062A;&#x0628; &#x0644;&#x06CC;&#x0633;&#x062A; &#x0648; &#x062C;&#x0632;&#x06CC;&#x06CC;&#x0627;&#x062A; &#x0645;&#x062F;&#x06CC;&#x0631;&#x06CC;&#x062A; &#x0645;&#x06CC;&#x200C;&#x0634;&#x0648;&#x0646;&#x062F;.</div>
+                            <div class="form-row">
+                                <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
+                                <div class="form-group col-md-2">
+                                    <label>@UiText["inventory.documents.list.number"]</label>
+                                    <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>@UiText["inventory.documents.referenceType"]</label>
+                                    <input asp-for="CreateForm.ReferenceType" class="form-control" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>@UiText["inventory.documents.referenceId"]</label>
+                                    <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>@UiText["inventory.documents.warehouse"]</label>
+                                    <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
+                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
+                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>@UiText["inventory.documents.seller"]</label>
+                                    <select asp-for="CreateForm.SellerRef" class="form-control" required>
+                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
+                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@seller.SellerBusinessKey">@seller.Code - @seller.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["inventory.documents.occurredAt"]</label>
+                                    <input asp-for="CreateForm.OccurredAt" type="datetime-local" class="form-control" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["inventory.documents.reason"]</label>
+                                    <input asp-for="CreateForm.ReasonCode" class="form-control" />
+                                </div>
                             </div>
 
-                        <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>&#x0627;&#x06CC;&#x062C;&#x0627;&#x062F; &#x0633;&#x0646;&#x062F;</button>
+                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
+                                <div>
+                                    <h6 class="mb-0">@UiText["inventory.documents.lines"]</h6>
+                                    <div class="text-muted small">@UiText["inventory.documents.linesHelp"]</div>
+                                </div>
+                                <button class="btn btn-outline-primary btn-xs" type="button" id="add-document-line">@UiText["inventory.documents.addLine"]</button>
+                            </div>
+
+                            <div id="document-lines-panel">
+                                <div id="document-type-guidance" class="alert alert-light border mb-3" role="status"></div>
+                                <div id="document-validation-summary" class="alert alert-danger mb-3" style="display:none" role="alert"></div>
+                                <div id="document-lines">
+                                    @for (var i = 0; i < Model.CreateForm.Lines.Count; i++)
+                                    {
+                                        <div class="card mb-3 document-line" data-line-index="@i">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <strong>@UiText["common.line"] @(i + 1)</strong>
+                                                    <button class="btn btn-outline-danger btn-xs remove-document-line" type="button">@UiText["common.delete"]</button>
+                                                </div>
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-4">
+                                                        <label>@UiText["inventory.documents.line.variant"]</label>
+                                                        <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" required>
+                                                            <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
+                                                            @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+                                                            {
+                                                                <option value="@variant.Id" data-base-uom-ref="@variant.BaseUomRef" data-product-id="@variant.ProductId" selected="@(variant.Id == Model.CreateForm.Lines[i].VariantId ? "selected" : null)">@VariantLabel(variant)</option>
+                                                            }
+                                                        </select>
+                                                        <input type="hidden" name="CreateForm.Lines[@i].UomRef" value="@Model.CreateForm.Lines[i].UomRef" class="document-uom-ref" />
+                                                        <input type="hidden" name="CreateForm.Lines[@i].BaseUomRef" value="@Model.CreateForm.Lines[i].BaseUomRef" class="document-base-uom-ref" />
+                                                        <div class="text-muted small mt-1 document-uom-hint">@UiText["inventory.documents.line.baseUomHint"]</div>
+                                                    </div>
+                                                    <div class="form-group col-md-2">
+                                                        <label>@UiText["common.quantity"]</label>
+                                                        <input name="CreateForm.Lines[@i].Qty" type="number" step="0.0001" min="0.0001" value="@Model.CreateForm.Lines[i].Qty.ToString("0.####")" class="form-control" required />
+                                                    </div>
+                                                    <div class="form-group col-md-3 line-source">
+                                                        <label>@UiText["inventory.documents.line.sourceLocation"]</label>
+                                                        <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
+                                                            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                                            {
+                                                                <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group col-md-3 line-destination">
+                                                        <label>@UiText["inventory.documents.line.destinationLocation"]</label>
+                                                        <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
+                                                            @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
+                                                            {
+                                                                <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group col-md-2">
+                                                        <label>@UiText["inventory.documents.line.lotBatch"]</label>
+                                                        <input name="CreateForm.Lines[@i].LotBatchNo" value="@Model.CreateForm.Lines[i].LotBatchNo" class="form-control" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@UiText["common.create"] @UiText["common.document"]</button>
                         </form>
                     </div>
                 </div>
@@ -1828,14 +1936,14 @@ for (var i = 0; i < lines.length; i++) {
 
             function showTransferActionModal() {
                 if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
-                    window.jQuery(actionModalSelector).modal('show');
+                    window.jQuery(safeActionModalSelector).modal('show');
                 }
             }
 
             function updateTransferActionReasonVisibility() {
-                var select = document.querySelector(actionSelectSelector);
-                var reasonGroup = document.querySelector(actionReasonGroupSelector);
-                var reasonInput = document.querySelector(actionReasonSelector);
+                var select = document.querySelector(safeActionSelectSelector);
+                var reasonGroup = document.querySelector(safeActionReasonGroupSelector);
+                var reasonInput = document.querySelector(safeActionReasonSelector);
                 if (!select || !reasonGroup) {
                     return;
                 }
@@ -1848,8 +1956,8 @@ for (var i = 0; i < lines.length; i++) {
             }
 
             function updateTransferActionDependentSections() {
-                var select = document.querySelector(actionSelectSelector);
-                var submitButton = document.querySelector(actionSubmitSelector);
+                var select = document.querySelector(safeActionSelectSelector);
+                var submitButton = document.querySelector(safeActionSubmitSelector);
                 updateTransferActionReasonVisibility();
 
                 if (!select) {
@@ -1868,15 +1976,15 @@ for (var i = 0; i < lines.length; i++) {
             }
 
             function openTransferActionModal(trigger) {
-                var modal = document.querySelector(actionModalSelector);
+                var modal = document.querySelector(safeActionModalSelector);
                 if (!modal || !trigger) {
                     return;
                 }
 
-                var idInput = modal.querySelector(actionIdSelector);
-                var select = modal.querySelector(actionSelectSelector);
-                var reasonInput = modal.querySelector(actionReasonSelector);
-                var subtitle = modal.querySelector(actionSubtitleSelector);
+                var idInput = modal.querySelector(safeActionIdSelector);
+                var select = modal.querySelector(safeActionSelectSelector);
+                var reasonInput = modal.querySelector(safeActionReasonSelector);
+                var subtitle = modal.querySelector(safeActionSubtitleSelector);
 
                 if (idInput) {
                     idInput.value = trigger.getAttribute('data-document-id') || '';
@@ -1901,14 +2009,14 @@ for (var i = 0; i < lines.length; i++) {
             }
 
             async function submitTransferAction() {
-                var modal = document.querySelector(actionModalSelector);
+                var modal = document.querySelector(safeActionModalSelector);
                 if (!modal) {
                     return;
                 }
 
-                var idInput = modal.querySelector(actionIdSelector);
-                var select = modal.querySelector(actionSelectSelector);
-                var reasonInput = modal.querySelector(actionReasonSelector);
+                var idInput = modal.querySelector(safeActionIdSelector);
+                var select = modal.querySelector(safeActionSelectSelector);
+                var reasonInput = modal.querySelector(safeActionReasonSelector);
                 if (!idInput || !select) {
                     return;
                 }
@@ -2293,6 +2401,7 @@ for (var i = 0; i < lines.length; i++) {
                 var safeActionModalSelector = (typeof actionModalSelector === 'string' && actionModalSelector) ? actionModalSelector : '#transfer-document-action-modal';
                 var safeActionSubtitleSelector = (typeof actionSubtitleSelector === 'string' && actionSubtitleSelector) ? actionSubtitleSelector : '#transfer-document-action-modal-subtitle';
                 var safeActionReasonSelector = (typeof actionReasonSelector === 'string' && actionReasonSelector) ? actionReasonSelector : '#transfer-document-action-reason';
+                var safeActionReasonGroupSelector = (typeof actionReasonGroupSelector === 'string' && actionReasonGroupSelector) ? actionReasonGroupSelector : '#transfer-document-action-reason-group';
                 var safeActionIdSelector = (typeof actionIdSelector === 'string' && actionIdSelector) ? actionIdSelector : '#transfer-document-action-id';
                 var safeActionSelectSelector = (typeof actionSelectSelector === 'string' && actionSelectSelector) ? actionSelectSelector : '#transfer-document-action-select';
                 var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#transfer-document-action-submit';

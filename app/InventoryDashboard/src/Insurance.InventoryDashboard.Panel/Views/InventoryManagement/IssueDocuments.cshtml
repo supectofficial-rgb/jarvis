@@ -2285,6 +2285,7 @@
             var safeActionIdSelector = (typeof actionIdSelector === 'string' && actionIdSelector) ? actionIdSelector : '#issue-document-action-id';
             var safeActionSelectSelector = (typeof actionSelectSelector === 'string' && actionSelectSelector) ? actionSelectSelector : '#issue-document-action-select';
             var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#issue-document-action-submit';
+            var safeDocumentListFormSelector = (typeof documentListFormSelector === 'string' && documentListFormSelector) ? documentListFormSelector : '#issue-document-list-form';
 
             var actionModalElement = document.querySelector(safeActionModalSelector);
             if (actionModalElement) {
@@ -2329,7 +2330,7 @@
                 updateIssueActionReasonVisibility();
             }
 
-            var listForm = document.querySelector(documentListFormSelector);
+            var listForm = document.querySelector(safeDocumentListFormSelector);
             if (listForm && listForm.dataset.issueListBound !== 'true') {
                 listForm.addEventListener('submit', function (event) {
                     event.preventDefault();
