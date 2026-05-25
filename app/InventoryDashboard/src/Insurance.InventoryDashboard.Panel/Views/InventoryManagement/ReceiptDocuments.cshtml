@@ -394,7 +394,7 @@
                             <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
                         <span class="text-muted small" id="receipt-document-list-count">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" id="receipt-document-list-form">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" id="receipt-document-list-form" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
@@ -434,7 +434,7 @@
                             </div>
                         </form>
 
-                        @await Html.PartialAsync("_DocumentListVariantWarehouseLocationFilters", Model)
+                        @await Html.PartialAsync("_DocumentListSearchFilters", Model)
 
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">

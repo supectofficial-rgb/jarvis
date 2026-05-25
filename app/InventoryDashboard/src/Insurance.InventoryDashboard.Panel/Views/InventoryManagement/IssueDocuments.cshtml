@@ -308,7 +308,7 @@
                             <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
                             <span class="text-muted small" id="issue-document-list-count">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="issue-document-list-form">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="issue-document-list-form" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
@@ -348,7 +348,7 @@
                             </div>
                         </form>
 
-                        @await Html.PartialAsync("_DocumentListVariantWarehouseLocationFilters", Model)
+                        @await Html.PartialAsync("_DocumentListSearchFilters", Model)
 
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">
@@ -2314,14 +2314,21 @@
                 });
             }
 
-            var actionModalElement = document.querySelector(actionModalSelector);
+            var safeActionModalSelector = (typeof actionModalSelector === 'string' && actionModalSelector) ? actionModalSelector : '#issue-document-action-modal';
+            var safeActionSubtitleSelector = (typeof actionSubtitleSelector === 'string' && actionSubtitleSelector) ? actionSubtitleSelector : '#issue-document-action-modal-subtitle';
+            var safeActionReasonSelector = (typeof actionReasonSelector === 'string' && actionReasonSelector) ? actionReasonSelector : '#issue-document-action-reason';
+            var safeActionIdSelector = (typeof actionIdSelector === 'string' && actionIdSelector) ? actionIdSelector : '#issue-document-action-id';
+            var safeActionSelectSelector = (typeof actionSelectSelector === 'string' && actionSelectSelector) ? actionSelectSelector : '#issue-document-action-select';
+            var safeActionSubmitSelector = (typeof actionSubmitSelector === 'string' && actionSubmitSelector) ? actionSubmitSelector : '#issue-document-action-submit';
+
+            var actionModalElement = document.querySelector(safeActionModalSelector);
             if (actionModalElement) {
                 actionModalElement.addEventListener('hidden.bs.modal', function () {
-                    var subtitle = document.querySelector(actionSubtitleSelector);
-                    var reasonInput = document.querySelector(actionReasonSelector);
-                    var idInput = document.querySelector(actionIdSelector);
-                    var select = document.querySelector(actionSelectSelector);
-                    var submitButton = document.querySelector(actionSubmitSelector);
+                    var subtitle = document.querySelector(safeActionSubtitleSelector);
+                    var reasonInput = document.querySelector(safeActionReasonSelector);
+                    var idInput = document.querySelector(safeActionIdSelector);
+                    var select = document.querySelector(safeActionSelectSelector);
+                    var submitButton = document.querySelector(safeActionSubmitSelector);
                     if (subtitle) {
                         subtitle.textContent = '';
                     }
@@ -2340,12 +2347,12 @@
                     updateIssueActionReasonVisibility();
                 });
 
-                var selectElement = document.querySelector(actionSelectSelector);
+                var selectElement = document.querySelector(safeActionSelectSelector);
                 if (selectElement) {
                     selectElement.addEventListener('change', updateIssueActionDependentSections);
                 }
 
-                var submitButton = document.querySelector(actionSubmitSelector);
+                var submitButton = document.querySelector(safeActionSubmitSelector);
                 if (submitButton) {
                     submitButton.addEventListener('click', function () {
                         submitIssueAction().catch(function (error) {

@@ -244,11 +244,6 @@
                                 </div>
                             </div>
 
-                            <div class="alert alert-info border mb-3" role="status">
-                                <strong>@UiText["inventory.documents.createHeaderTitle"]</strong>
-                                <div class="small mt-1">@UiText["inventory.documents.createHeaderDescription"]</div>
-                            </div>
-
                         <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>@UiText["inventory.documents.action.createDocument"]</button>
                         </form>
                     </div>
@@ -266,7 +261,7 @@
                             <h5 class="card-title mb-0">@UiText["inventory.documents.list.title"]</h5>
                             <span class="text-muted small">@Model.DocumentTotalCount @UiText["inventory.documents.list.countSuffix"]</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
@@ -326,7 +321,7 @@
                             </div>
                         </form>
 
-                        @await Html.PartialAsync("_DocumentListVariantLocationFilters", Model)
+                        @await Html.PartialAsync("_DocumentListSearchFilters", Model)
 
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">

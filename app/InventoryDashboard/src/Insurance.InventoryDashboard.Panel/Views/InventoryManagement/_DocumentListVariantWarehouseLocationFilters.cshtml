@@ -27,7 +27,7 @@
             <option value="">@UiText["common.all"]</option>
             @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
             {
-                <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LocationFilter ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.LocationFilter ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
             }
         </select>
     </div>

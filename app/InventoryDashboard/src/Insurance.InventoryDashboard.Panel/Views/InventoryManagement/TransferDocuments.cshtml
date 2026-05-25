@@ -242,7 +242,7 @@
                             <h5 class="card-title mb-0">&#x0644;&#x06CC;&#x0633;&#x062A; &#x0627;&#x0633;&#x0646;&#x0627;&#x062F;</h5>
                             <span class="text-muted small" id="transfer-document-list-count">@Model.DocumentTotalCount &#x0631;&#x06A9;&#x0648;&#x0631;&#x062F;</span>
                         </div>
-                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="transfer-document-list-form">
+                        <form asp-action="@documentAction" asp-controller="InventoryManagement" method="get" class="form-row mb-3" data-loading-form data-ajax-target="#documents-page-root" id="transfer-document-list-form" data-document-search-filters data-location-lookup-url="@Url.Action("SearchDocumentWarehouseLocationsLookup", "InventoryManagement")">
                             <input type="hidden" name="documentId" value="@Model.SelectedDocumentId" />
                             <input type="hidden" name="documentType" value="@currentDocumentType" />
                             <div class="form-group col-md-2">
@@ -280,9 +280,8 @@
                             <div class="form-group col-md-2 d-flex align-items-end">
                                 <button class="btn btn-outline-primary btn-block" type="submit">@UiText["common.apply"]</button>
                             </div>
+                            @await Html.PartialAsync("_DocumentListSearchFilters", Model)
                         </form>
-
-                        @await Html.PartialAsync("_DocumentListVariantWarehouseLocationFilters", Model)
 
                         <div class="table-responsive">
                             <table class="table table-sm table-striped mb-0">

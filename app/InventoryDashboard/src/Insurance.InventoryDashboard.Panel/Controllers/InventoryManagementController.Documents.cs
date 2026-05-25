@@ -523,6 +523,73 @@ public sealed partial class InventoryManagementController
         });
     }
 
+    [HttpGet("/InventoryManagement/Documents/Transfer/LocationsLookup")]
+    public async Task<IActionResult> SearchTransferWarehouseLocationsLookup(string warehouseId, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نوبت کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return Json(new
+            {
+                isSuccess = true,
+                locations = new List<object>()
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده لوکیشن‌ها را ندارید."
+            });
+        }
+
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: warehouseId, includeInactive: true);
+        if (!locationLookupResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = locationLookupResult.ErrorMessage
+            });
+        }
+
+        var locations = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
+            .OrderBy(x => x.LocationCode)
+            .ThenBy(x => x.LocationType)
+            .Select(x => new
+            {
+                id = x.LocationBusinessKey,
+                locationId = x.LocationBusinessKey,
+                warehouseId = x.WarehouseRef,
+                text = string.IsNullOrWhiteSpace(x.LocationType)
+                    ? x.LocationCode
+                    : $"{x.LocationCode} ({x.LocationType})",
+                code = x.LocationCode,
+                type = x.LocationType
+            })
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            locations
+        });
+    }
+
+    [HttpGet("/InventoryManagement/Documents/WarehouseLocationsLookup")]
+    public async Task<IActionResult> SearchDocumentWarehouseLocationsLookup(string warehouseId, CancellationToken cancellationToken = default)
+        => await SearchTransferWarehouseLocationsLookup(warehouseId, cancellationToken);
+
     [HttpGet("/InventoryManagement/Documents/Transfer/Details")]
     public async Task<IActionResult> TransferDocumentDetails(
         string documentId,
