@@ -222,43 +222,25 @@
                             @Html.AntiForgeryToken()
                             <div class="form-row">
                                 <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
+                                <input type="hidden" asp-for="CreateForm.WarehouseRef" id="create-warehouse-select" />
+                                <input type="hidden" asp-for="CreateForm.SellerRef" />
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.list.number"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
-                                <div class="form-group col-md-2">
+                                <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.referenceType"]</label>
                                     <input asp-for="CreateForm.ReferenceType" class="form-control" />
                                 </div>
-                                <div class="form-group col-md-2">
+                                <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.referenceId"]</label>
                                     <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
                                 </div>
                                 <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.warehouse"]</label>
-                                    <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
-                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
-                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@warehouse.WarehouseBusinessKey">@warehouse.Code - @warehouse.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.seller"]</label>
-                                    <select asp-for="CreateForm.SellerRef" class="form-control" required>
-                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
-                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@seller.SellerBusinessKey">@seller.Code - @seller.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
                                     <input asp-for="CreateForm.OccurredAt" type="datetime-local" class="form-control" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
                                 </div>
-                                <div class="form-group col-md-3">
+                                <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.reason"]</label>
                                     <input asp-for="CreateForm.ReasonCode" class="form-control" />
                                 </div>
@@ -801,6 +783,8 @@
             var validationSummary = document.getElementById('document-validation-summary');
             var detailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.details.title"])));
             var transferTypeText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.type.transfer"])));
+            var safeDetailsTitleText = (typeof detailsTitleText === 'string' && detailsTitleText) ? detailsTitleText : @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.details.title"])));
+            var safeTransferTypeText = (typeof transferTypeText === 'string' && transferTypeText) ? transferTypeText : @Html.Raw(System.Text.Json.JsonSerializer.Serialize(System.Net.WebUtility.HtmlDecode(UiText["inventory.documents.type.transfer"])));
             var actionModalSelector = '#transfer-document-action-modal';
             var actionIdSelector = '#transfer-document-action-id';
             var actionSelectSelector = '#transfer-document-action-select';
@@ -995,6 +979,28 @@
                 });
             }
 
+            function syncCreateWarehouseFromSelectedLocations() {
+                if (!warehouseSelect || !lineContainer) {
+                    return;
+                }
+
+                var selectedWarehouseId = '';
+                lineContainer.querySelectorAll('.document-location-select').forEach(function (select) {
+                    if (selectedWarehouseId) {
+                        return;
+                    }
+
+                    var selectedOption = select.options[select.selectedIndex];
+                    if (selectedOption) {
+                        selectedWarehouseId = selectedOption.getAttribute('data-warehouse-ref') || '';
+                    }
+                });
+
+                if (selectedWarehouseId && warehouseSelect.value !== selectedWarehouseId) {
+                    warehouseSelect.value = selectedWarehouseId;
+                }
+            }
+
             function syncVariantUom(line) {
                 var select = line.querySelector('.document-variant-select');
                 var uomRef = line.querySelector('.document-uom-ref');
@@ -1031,6 +1037,7 @@
                         line.remove();
                         renumberLines();
                         toggleTypeFields();
+                        syncCreateWarehouseFromSelectedLocations();
                         syncLocationsToWarehouse();
                     });
                 }
@@ -1041,6 +1048,27 @@
                         syncVariantUom(line);
                     });
                     syncVariantUom(line);
+                }
+
+                var sourceLocationSelect = line.querySelector('.source-location-select');
+                var destinationLocationSelect = line.querySelector('.destination-location-select');
+                var onLocationChange = function () {
+                    syncCreateWarehouseFromSelectedLocations();
+                    syncLocationsToWarehouse();
+                };
+
+                if (sourceLocationSelect) {
+                    sourceLocationSelect.addEventListener('change', onLocationChange);
+                    if (window.jQuery) {
+                        window.jQuery(sourceLocationSelect).on('select2:select.transferCreate select2:clear.transferCreate', onLocationChange);
+                    }
+                }
+
+                if (destinationLocationSelect) {
+                    destinationLocationSelect.addEventListener('change', onLocationChange);
+                    if (window.jQuery) {
+                        window.jQuery(destinationLocationSelect).on('select2:select.transferCreate select2:clear.transferCreate', onLocationChange);
+                    }
                 }
             }
 
@@ -1055,17 +1083,7 @@
                     return true;
                 }
 
-                var warehouseField = document.getElementById('create-warehouse-select');
-                if (warehouseField && !warehouseField.value) {
-                    showValidation('@UiText["inventory.documents.action.noWarehouseSelected"]', warehouseField);
-                    return false;
-                }
-
-                var sellerField = createForm.querySelector('[name="CreateForm.SellerRef"]');
-                if (sellerField && !sellerField.value) {
-                    showValidation('@UiText["inventory.documents.action.noSellerSelected"]', sellerField);
-                    return false;
-                }
+                syncCreateWarehouseFromSelectedLocations();
 
                 var config = selectedConfig();
                 var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
@@ -1172,6 +1190,7 @@ for (var i = 0; i < lines.length; i++) {
                 renumberLines();
                 bindLine(clone);
                 toggleTypeFields();
+                syncCreateWarehouseFromSelectedLocations();
                 syncLocationsToWarehouse();
             }
 
@@ -1205,6 +1224,7 @@ for (var i = 0; i < lines.length; i++) {
             lineContainer.querySelectorAll('.document-line').forEach(bindLine);
             renumberLines();
             toggleTypeFields();
+            syncCreateWarehouseFromSelectedLocations();
             syncLocationsToWarehouse();
         })();
     </script>
@@ -1927,7 +1947,7 @@ for (var i = 0; i < lines.length; i++) {
                 var titleElement = document.querySelector(modalTitleSelector);
                 var subtitleElement = document.querySelector(modalSubtitleSelector);
                 if (titleElement) {
-                    titleElement.textContent = documentNo ? (detailsTitleText + ' ' + documentNo) : (detailsTitleText + ' ' + transferTypeText);
+                    titleElement.textContent = documentNo ? (safeDetailsTitleText + ' ' + documentNo) : (safeDetailsTitleText + ' ' + safeTransferTypeText);
                 }
                 if (subtitleElement) {
                     subtitleElement.textContent = '';

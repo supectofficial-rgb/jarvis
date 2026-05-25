@@ -166,11 +166,16 @@
         }
 
         if (warehouseSelect) {
-            warehouseSelect.addEventListener('change', function () {
-                loadLocations(this.value || '', '').catch(function (error) {
+            var onWarehouseChange = function () {
+                loadLocations(warehouseSelect.value || '', '').catch(function (error) {
                     console.error(error);
                 });
-            });
+            };
+
+            warehouseSelect.addEventListener('change', onWarehouseChange);
+            if (window.jQuery) {
+                window.jQuery(warehouseSelect).on('select2:select.documentSearch select2:clear.documentSearch', onWarehouseChange);
+            }
         }
 
         if (applyButton && applyButton.dataset.documentSearchApplyBound !== 'true') {

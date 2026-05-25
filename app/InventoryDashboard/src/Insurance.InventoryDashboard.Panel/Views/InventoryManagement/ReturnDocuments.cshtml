@@ -228,7 +228,7 @@
                                     <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")'>
                                         <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
                                     </select>
-                                    <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="Issue" />
+                                    <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="Transfer" />
                                     <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="return-reference-id-input" />
                                     <input type="hidden" asp-for="CreateForm.WarehouseRef" id="return-warehouse-ref-input" />
                                     <input type="hidden" asp-for="CreateForm.SellerRef" id="return-seller-ref-input" />
@@ -1183,7 +1183,7 @@
                     returnAllowedVariantIds = [];
                     returnVariantSerialLookup = {};
                     if (returnReferenceTypeInput) {
-                        returnReferenceTypeInput.value = 'Issue';
+                        returnReferenceTypeInput.value = 'Transfer';
                     }
                     if (returnReferenceIdInput) {
                         returnReferenceIdInput.value = '';
@@ -1242,7 +1242,7 @@
                 });
 
                 if (returnReferenceTypeInput) {
-                    returnReferenceTypeInput.value = 'Issue';
+                    returnReferenceTypeInput.value = 'Transfer';
                 }
                 if (returnReferenceIdInput) {
                     returnReferenceIdInput.value = document.documentBusinessKey || item.documentBusinessKey;

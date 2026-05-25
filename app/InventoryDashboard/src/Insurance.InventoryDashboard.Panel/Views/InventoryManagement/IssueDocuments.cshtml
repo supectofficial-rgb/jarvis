@@ -827,6 +827,7 @@
             var documentListBodySelector = '#issue-document-list-body';
             var documentListPaginationWrapperSelector = '#issue-document-list-pagination-wrapper';
             var documentListPaginationSelector = '#issue-document-list-pagination';
+            var safeDocumentListPaginationSelector = (typeof documentListPaginationSelector === 'string' && documentListPaginationSelector) ? documentListPaginationSelector : '#issue-document-list-pagination';
             var documentListCountSelector = '#issue-document-list-count';
             var deleteDocumentUrl = '@Url.Action("DeleteDocument", "InventoryManagement")';
             var deleteIssueDocumentLineUrl = '@Url.Action("DeleteIssueDocumentLine", "InventoryManagement")';
@@ -1325,7 +1326,7 @@
             }
 
             function getCurrentIssueListPage() {
-                var activeLink = document.querySelector(documentListPaginationSelector + ' .page-item.active .page-link');
+                var activeLink = document.querySelector(safeDocumentListPaginationSelector + ' .page-item.active .page-link');
                 if (activeLink) {
                     var value = parseInt(activeLink.textContent || '1', 10);
                     if (!isNaN(value) && value > 0) {
@@ -2260,7 +2261,7 @@
                     resetIssueLineForm();
                 }
 
-                var paginationLink = event.target && event.target.closest ? event.target.closest(documentListPaginationSelector + ' .page-link') : null;
+                var paginationLink = event.target && event.target.closest ? event.target.closest(safeDocumentListPaginationSelector + ' .page-link') : null;
                 if (paginationLink) {
                     event.preventDefault();
                     var page = parseInt(paginationLink.getAttribute('data-page') || '1', 10);

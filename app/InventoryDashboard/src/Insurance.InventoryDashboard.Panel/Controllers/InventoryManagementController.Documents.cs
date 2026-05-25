@@ -1820,7 +1820,7 @@ public sealed partial class InventoryManagementController
         var searchResult = await _apiService.SearchInventoryDocumentsAsync(
             token,
             documentNo: string.IsNullOrWhiteSpace(term) ? null : term.Trim(),
-            documentType: "Issue",
+            documentType: "Transfer",
             status: null,
             variantId: null,
             warehouseId: null,
@@ -1950,6 +1950,16 @@ public sealed partial class InventoryManagementController
 
         var menu = ResolveMenu(modules, "document_management", ResolveDocumentMenuItemId(resolvedDocumentType));
 
+        var createSellerId = sellerId;
+        if (string.IsNullOrWhiteSpace(createSellerId) && !string.Equals(resolvedDocumentType, "Receipt", StringComparison.OrdinalIgnoreCase))
+        {
+            var ownerSellerResult = await ResolveOwnerSellerAsync(token);
+            if (ownerSellerResult.IsSuccess && ownerSellerResult.Data is not null)
+            {
+                createSellerId = ownerSellerResult.Data.SellerBusinessKey.ToString("D");
+            }
+        }
+
         pageSize = NormalizePageSize(pageSize);
         var searchResult = await _apiService.SearchInventoryDocumentsAsync(
             token,
@@ -2033,7 +2043,7 @@ public sealed partial class InventoryManagementController
             CreateForm = BuildCreateForm(
                 selectedDocumentResult.Data,
                 warehouseId,
-                sellerId,
+                createSellerId,
                 resolvedDocumentType,
                 tab),
             LineForm = BuildLineForm(selectedDocumentResult.Data, selectedDocumentId, editingLineId, resolvedDocumentType)
