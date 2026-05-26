@@ -931,16 +931,7 @@
                             return;
                         }
 
-                        Array.prototype.forEach.call(variantSelect.options, function (option) {
-                            if (!option.value) {
-                                option.hidden = false;
-                                option.disabled = false;
-                            } else {
-                                option.hidden = true;
-                                option.disabled = true;
-                            }
-                        });
-
+                        variantSelect.disabled = true;
                         variantSelect.value = '';
                         var controls = getReturnLineSerialControls(line);
                         if (controls.section) {
@@ -969,6 +960,7 @@
                         return;
                     }
 
+                    variantSelect.disabled = false;
                     Array.prototype.forEach.call(variantSelect.options, function (option) {
                         if (!option.value) {
                             option.hidden = false;
@@ -987,7 +979,66 @@
                             variantSelect.value = '';
                         }
                     }
+
+                    if (window.jQuery) {
+                        window.jQuery(variantSelect).trigger('change.select2');
+                    }
                 });
+            }
+
+            function resetReturnLineDraftsForReferenceChange() {
+                if (!lineContainer) {
+                    return;
+                }
+
+                var lines = Array.prototype.slice.call(lineContainer.querySelectorAll('.document-line'));
+                if (!lines.length) {
+                    return;
+                }
+
+                lines.slice(1).forEach(function (line) {
+                    line.remove();
+                });
+
+                var firstLine = lines[0];
+                firstLine.querySelectorAll('input').forEach(function (input) {
+                    if (input.type === 'number') {
+                        input.value = '1';
+                        return;
+                    }
+
+                    input.value = '';
+                });
+
+                firstLine.querySelectorAll('textarea').forEach(function (textarea) {
+                    textarea.value = '';
+                });
+
+                firstLine.querySelectorAll('select').forEach(function (select) {
+                    select.value = '';
+                });
+
+                firstLine.querySelectorAll('.line-serials').forEach(function (section) {
+                    section.classList.add('d-none');
+                    var container = section.querySelector('.js-return-line-serial-container');
+                    var hidden = section.querySelector('.js-return-line-serial-hidden');
+                    if (container) {
+                        container.innerHTML = '';
+                    }
+                    if (hidden) {
+                        hidden.innerHTML = '';
+                    }
+                });
+
+                if (window.jQuery) {
+                    window.jQuery(firstLine).find('select').trigger('change.select2');
+                }
+
+                renumberLines();
+                toggleTypeFields();
+                syncLocationsToWarehouse();
+                refreshReturnVariantOptions();
+                updateReturnLineSerials(firstLine);
             }
 
             function updateReturnLineSerials(line) {
@@ -1022,7 +1073,7 @@
                     throw new Error((payload && payload.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]');
                 }
 
-                return payload.document;
+                return payload;
             }
 
             function showReturnDetailsModal() {
@@ -1095,7 +1146,8 @@
                     return;
                 }
 
-                var document = await loadReturnReferenceDocument(documentId);
+                var payload = await loadReturnReferenceDocument(documentId);
+                var document = payload && payload.document ? payload.document : null;
                 if (!document) {
                     return;
                 }
@@ -1117,7 +1169,7 @@
                 await selectReturnReferenceDocument({
                     documentBusinessKey: document.documentBusinessKey || documentId,
                     documentNo: document.documentNo || documentId,
-                    document: document
+                    document: payload
                 });
             }
 
@@ -1203,10 +1255,8 @@
                     if (returnReferenceSelectedLabel) {
                         returnReferenceSelectedLabel.textContent = '-';
                     }
+                    resetReturnLineDraftsForReferenceChange();
                     refreshReturnVariantOptions();
-                    lineContainer.querySelectorAll('.document-line').forEach(function (line) {
-                        updateReturnLineSerials(line);
-                    });
                 });
             }
 
@@ -1215,34 +1265,85 @@
                     return;
                 }
 
-                var document = item.document ? item.document : await loadReturnReferenceDocument(item.documentBusinessKey);
+                var payload = item.document ? item : await loadReturnReferenceDocument(item.documentBusinessKey);
+                var document = payload.document || payload;
+                var previousReferenceKey = returnSourceDocument
+                    ? String(returnSourceDocument.documentBusinessKey || returnSourceDocument.businessKey || '')
+                    : '';
+                var nextReferenceKey = String(document.documentBusinessKey || item.documentBusinessKey || '');
+                var shouldResetDraftLines = !!previousReferenceKey && previousReferenceKey !== nextReferenceKey;
+
                 returnSourceDocument = document;
                 returnAllowedVariantIds = [];
                 returnVariantSerialLookup = {};
 
-                (document.lines || []).forEach(function (line) {
-                    var variantId = String(line.variantRef || '');
-                    if (!variantId) {
-                        return;
-                    }
+                var allowedVariantIds = Array.isArray(payload.allowedVariantIds) ? payload.allowedVariantIds : [];
+                var serialGroups = Array.isArray(payload.serialsByVariant) ? payload.serialsByVariant : [];
 
-                    returnAllowedVariantIds.push(variantId);
-                    var key = variantId.toLowerCase();
-                    if (!returnVariantSerialLookup[key]) {
-                        returnVariantSerialLookup[key] = [];
-                    }
+                if (allowedVariantIds.length > 0) {
+                    allowedVariantIds.forEach(function (variantId) {
+                        var normalized = String(variantId || '').trim();
+                        if (normalized) {
+                            returnAllowedVariantIds.push(normalized);
+                        }
+                    });
+                }
 
-                    (line.serials || []).forEach(function (serial) {
-                        returnVariantSerialLookup[key].push({
-                            serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
-                            serialNo: String(serial.serialNo || ''),
-                            warehouseRef: String(document.warehouseRef || ''),
-                            locationRef: String(line.destinationLocationRef || line.sourceLocationRef || ''),
-                            qualityStatusRef: String(line.qualityStatusRef || ''),
-                            status: String(serial.status || 'Available')
+                if (serialGroups.length > 0) {
+                    serialGroups.forEach(function (group) {
+                        var variantId = String(group.variantId || '').trim();
+                        if (!variantId) {
+                            return;
+                        }
+
+                        if (returnAllowedVariantIds.indexOf(variantId) === -1) {
+                            returnAllowedVariantIds.push(variantId);
+                        }
+
+                        var key = variantId.toLowerCase();
+                        if (!returnVariantSerialLookup[key]) {
+                            returnVariantSerialLookup[key] = [];
+                        }
+
+                        (group.serials || []).forEach(function (serial) {
+                            returnVariantSerialLookup[key].push({
+                                serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
+                                serialNo: String(serial.serialNo || ''),
+                                warehouseRef: String(document.warehouseRef || ''),
+                                locationRef: String(serial.locationRef || ''),
+                                qualityStatusRef: String(serial.qualityStatusRef || ''),
+                                status: String(serial.status || 'Available')
+                            });
                         });
                     });
-                });
+                } else {
+                    (document.lines || []).forEach(function (line) {
+                        var variantId = String(line.variantRef || '');
+                        if (!variantId) {
+                            return;
+                        }
+
+                        if (returnAllowedVariantIds.indexOf(variantId) === -1) {
+                            returnAllowedVariantIds.push(variantId);
+                        }
+
+                        var key = variantId.toLowerCase();
+                        if (!returnVariantSerialLookup[key]) {
+                            returnVariantSerialLookup[key] = [];
+                        }
+
+                        (line.serials || []).forEach(function (serial) {
+                            returnVariantSerialLookup[key].push({
+                                serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
+                                serialNo: String(serial.serialNo || ''),
+                                warehouseRef: String(document.warehouseRef || ''),
+                                locationRef: String(line.destinationLocationRef || line.sourceLocationRef || ''),
+                                qualityStatusRef: String(line.qualityStatusRef || ''),
+                                status: String(serial.status || 'Available')
+                            });
+                        });
+                    });
+                }
 
                 if (returnReferenceTypeInput) {
                     returnReferenceTypeInput.value = 'Transfer';
@@ -1275,6 +1376,10 @@
                 }
                 if (returnReferenceSelected) {
                     returnReferenceSelected.classList.remove('d-none');
+                }
+
+                if (shouldResetDraftLines) {
+                    resetReturnLineDraftsForReferenceChange();
                 }
 
                 refreshReturnVariantOptions();

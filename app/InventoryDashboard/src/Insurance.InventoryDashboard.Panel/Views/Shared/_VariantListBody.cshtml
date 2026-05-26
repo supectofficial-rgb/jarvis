@@ -85,6 +85,13 @@
                                         data-detail-title="@UiText["catalog.variants.inventoryAndWarehouses"]">
                                     @UiText["catalog.variants.warehousesButton"]
                                 </button>
+                                <button type="button"
+                                        class="btn btn-outline-success btn-xs js-variant-movement-details"
+                                        data-variant-id="@variant.Id"
+                                        data-variant-label="@variant.Sku - @(string.IsNullOrWhiteSpace(variant.Name) ? variant.Sku : variant.Name)"
+                                        data-detail-title="گردش واریانت">
+                                    گردش
+                                </button>
                                 <button type="button" class="btn btn-outline-info btn-xs js-variant-pricing-details"
                                         data-toggle="modal"
                                         data-target="#variant-prices-modal"

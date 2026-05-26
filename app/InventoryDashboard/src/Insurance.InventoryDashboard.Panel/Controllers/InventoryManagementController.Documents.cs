@@ -1251,6 +1251,85 @@ public sealed partial class InventoryManagementController
         });
     }
 
+    [HttpGet("/InventoryManagement/Documents/Adjustment/IncreaseSerialLookup")]
+    public async Task<IActionResult> SearchAdjustmentIncreaseSerialLookup(
+        string variantId,
+        string? locationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفا دوباره وارد شوید."
+            });
+        }
+
+        if (!Guid.TryParse(variantId, out var parsedVariantId))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "واریانت انتخاب‌شده معتبر نیست."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "برای افزایش، لوکیشن مقصد الزامی است."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی مشاهده شناسه‌ها را ندارید."
+            });
+        }
+
+        var locationResult = await _apiService.GetLocationByBusinessKeyAsync(locationId, token);
+        if (!locationResult.IsSuccess || locationResult.Data is null)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = locationResult.ErrorMessage ?? "اطلاعات لوکیشن یافت نشد."
+            });
+        }
+
+        var warehouseId = locationResult.Data.WarehouseId;
+        var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, parsedVariantId.ToString("D"), warehouseId);
+        if (!serialsResult.IsSuccess)
+        {
+            return Json(new { isSuccess = false, errorMessage = serialsResult.ErrorMessage });
+        }
+
+        var serials = (serialsResult.Data ?? new List<SerialItemLookupModel>())
+            .Where(x => !string.Equals(x.LocationRef, locationId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return Json(new
+        {
+            isSuccess = true,
+            serials = serials.Select(serial => new
+            {
+                serialItemBusinessKey = serial.SerialItemBusinessKey,
+                serialNo = serial.SerialNo,
+                warehouseRef = serial.WarehouseRef,
+                locationRef = serial.LocationRef,
+                qualityStatusRef = serial.QualityStatusRef,
+                lotBatchNo = serial.LotBatchNo,
+                status = serial.Status
+            }).ToList()
+        });
+    }
+
     [HttpGet("/InventoryManagement/Documents/Issue")]
     public Task<IActionResult> IssueDocuments(
         string? documentId,
@@ -1909,10 +1988,39 @@ public sealed partial class InventoryManagementController
             });
         }
 
+        var allowedVariantIds = new List<string>();
+        var serialsByVariant = new List<object>();
+        foreach (var line in documentResult.Data.Lines)
+        {
+            var variantId = line.VariantRef?.Trim();
+            if (string.IsNullOrWhiteSpace(variantId))
+            {
+                continue;
+            }
+
+            if (!allowedVariantIds.Any(x => string.Equals(x, variantId, StringComparison.OrdinalIgnoreCase)))
+            {
+                allowedVariantIds.Add(variantId);
+            }
+
+            serialsByVariant.Add(new
+            {
+                variantId,
+                serials = line.Serials.Select(serial => new
+                {
+                    serialItemBusinessKey = serial.SerialItemBusinessKey,
+                    serialRef = serial.SerialRef,
+                    serialNo = serial.SerialNo
+                }).ToList()
+            });
+        }
+
         return Json(new
         {
             isSuccess = true,
-            document = documentResult.Data
+            document = documentResult.Data,
+            allowedVariantIds,
+            serialsByVariant
         });
     }
 
@@ -2138,15 +2246,6 @@ public sealed partial class InventoryManagementController
             return RedirectToAction(
                 ResolveDocumentRouteActionName(form.DocumentType),
                 new { documentType = form.DocumentType, warehouseId = form.WarehouseRef, documentId = form.DocumentId, tab = "create" });
-        }
-
-        if (string.Equals(form.DocumentType, "Adjustment", StringComparison.OrdinalIgnoreCase)
-            && string.IsNullOrWhiteSpace(form.WarehouseRef))
-        {
-            TempData["CatalogError"] = "انتخاب انبار برای سند تعدیل الزامی است.";
-            return RedirectToAction(
-                ResolveDocumentRouteActionName(form.DocumentType),
-                new { documentType = form.DocumentType, documentId = form.DocumentId, tab = "create" });
         }
 
         if (!isUpdate)
@@ -3210,6 +3309,7 @@ public sealed partial class InventoryManagementController
         var isEditMode = string.Equals(selectedTab, "create", StringComparison.OrdinalIgnoreCase)
             && existingDocument is not null;
         var isReceiptDocument = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase);
+        var isAdjustmentDocument = string.Equals(documentType, "Adjustment", StringComparison.OrdinalIgnoreCase);
 
         return new CreateInventoryDocumentForm
         {
@@ -3218,7 +3318,7 @@ public sealed partial class InventoryManagementController
             DocumentNo = isEditMode ? existingDocument?.DocumentNo : null,
             ReferenceType = isEditMode ? existingDocument?.ReferenceType : null,
             ReferenceBusinessId = isEditMode ? existingDocument?.ReferenceBusinessId?.ToString() : null,
-            WarehouseRef = isReceiptDocument
+            WarehouseRef = isReceiptDocument || isAdjustmentDocument
                 ? string.Empty
                 : isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
             SellerRef = isReceiptDocument

@@ -32,6 +32,16 @@
         min-width: 240px;
         margin-bottom: 0 !important;
     }
+
+    .inventory-structure-panel {
+        max-width: 25%;
+    }
+
+    @@media (max-width: 1199.98px) {
+        .inventory-structure-panel {
+            max-width: 100%;
+        }
+    }
 </style>
 
 <main id="warehouse-clerk-inventory-root" class="catalog-page">
@@ -81,6 +91,7 @@
                                 <form method="get"
                                       data-loading-form
                                       data-ajax-target="#warehouse-clerk-inventory-results"
+                                      data-ajax-preserve-url="true"
                                       data-inventory-search-form
                                       data-structure-tree-url="@warehouseStructureTreeUrl"
                                       data-serials-url="@inventorySerialsUrl"
@@ -116,7 +127,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="border rounded p-3 bg-white">
+                                    <div class="border rounded p-3 bg-white inventory-structure-panel">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <div>
                                                 <h5 class="card-title mb-0">ساختارهای انبار</h5>
@@ -382,6 +393,12 @@
                 structureSelectionsInput.value = filters.length ? JSON.stringify(filters) : '';
             }
 
+            function resetInventoryPage() {
+                if (pageInput) {
+                    pageInput.value = '1';
+                }
+            }
+
             function applySelectionsToBuilder() {
                 if (!structureBuilder) {
                     return;
@@ -595,7 +612,26 @@
             if (form) {
                 form.addEventListener('submit', function () {
                     syncSelectionsJson();
-                });
+                }, true);
+            }
+
+            if (structureBuilder) {
+                structureBuilder.addEventListener('change', function (event) {
+                    var target = event.target;
+                    if (!target || !(target instanceof HTMLSelectElement) || !target.matches('[data-structure-level-select]')) {
+                        return;
+                    }
+
+                    syncSelectionsJson();
+                    resetInventoryPage();
+                }, true);
+
+                if (window.jQuery) {
+                    window.jQuery(structureBuilder).on('select2:select select2:unselect select2:clear', '[data-structure-level-select]', function () {
+                        syncSelectionsJson();
+                        resetInventoryPage();
+                    });
+                }
             }
 
             if (warehouseSelect) {
@@ -604,9 +640,7 @@
                         structureSelectionsInput.value = '';
                     }
 
-                    if (pageInput) {
-                        pageInput.value = '1';
-                    }
+                    resetInventoryPage();
 
                     loadStructureTree().catch(function (error) {
                         if (structureBuilder) {

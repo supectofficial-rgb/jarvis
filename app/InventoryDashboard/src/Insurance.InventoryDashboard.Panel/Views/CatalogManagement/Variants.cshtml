@@ -618,6 +618,29 @@
     </div>
 </div>
 
+<div class="modal fade" id="variant-movement-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="variant-movement-modal-title">گردش واریانت</h5>
+                    <div class="small text-muted" id="variant-movement-modal-subtitle"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light mb-3" id="variant-movement-modal-summary">در حال بارگذاری...</div>
+                <div class="alert alert-danger d-none" id="variant-movement-modal-error"></div>
+                <div class="table-responsive" id="variant-movement-modal-body">
+                    <div class="text-muted">@UiText["catalog.variants.loading"]</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="variant-prices-modal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
         <div class="modal-content">
@@ -910,6 +933,12 @@
             var detailModal = $('#variant-detail-modal');
             var detailModalTitle = document.getElementById('variant-detail-modal-title');
             var detailModalBody = document.getElementById('variant-detail-modal-body');
+            var movementModal = $('#variant-movement-modal');
+            var movementModalTitle = document.getElementById('variant-movement-modal-title');
+            var movementModalSubtitle = document.getElementById('variant-movement-modal-subtitle');
+            var movementModalSummary = document.getElementById('variant-movement-modal-summary');
+            var movementModalError = document.getElementById('variant-movement-modal-error');
+            var movementModalBody = document.getElementById('variant-movement-modal-body');
             var pricingModal = $('#variant-prices-modal');
             var pricingModalTitle = document.getElementById('variant-prices-modal-title');
             var pricingModalSubtitle = document.getElementById('variant-prices-modal-subtitle');
@@ -962,6 +991,7 @@
             var tagLookupItems = [];
             var addonVariantSearchUrl = bulkAddonSelect ? (bulkAddonSelect.getAttribute('data-ajax-url') || @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "VariantManagement") ?? string.Empty))) : '';
             var variantListUrl = variantListContainer ? (variantListContainer.getAttribute('data-source-url') || @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantList", "VariantManagement") ?? string.Empty))) : '';
+            var variantDocumentsUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantDocuments", "VariantManagement") ?? string.Empty));
             var tagLookupPromise = null;
             var tagLookupTake = 200;
             var noDisplayDataText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noDisplayData"]));
@@ -979,6 +1009,16 @@
             var qualityStatusText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.qualityStatus"]));
             var noSerialsText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noSerials"]));
             var sellerText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.seller"]));
+            var movementNoDataText = @Html.Raw(JsonSerializer.Serialize("برای این واریانت هنوز تراکنشی ثبت نشده است."));
+            var movementLoadingText = @Html.Raw(JsonSerializer.Serialize("در حال بارگذاری گردش..."));
+            var movementSummaryText = @Html.Raw(JsonSerializer.Serialize("خلاصه گردش واریانت"));
+            var movementTotalText = @Html.Raw(JsonSerializer.Serialize("تعداد تراکنش‌ها"));
+            var movementStatusText = @Html.Raw(JsonSerializer.Serialize("وضعیت"));
+            var movementWarehouseText = @Html.Raw(JsonSerializer.Serialize("انبار"));
+            var movementOccurredText = @Html.Raw(JsonSerializer.Serialize("زمان وقوع"));
+            var movementPostedText = @Html.Raw(JsonSerializer.Serialize("زمان پست"));
+            var movementReasonText = @Html.Raw(JsonSerializer.Serialize("علت"));
+            var movementReferenceText = @Html.Raw(JsonSerializer.Serialize("مرجع"));
             var priceTypeText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceType"]));
             var priceChannelText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceChannel"]));
             var amountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.amount"]));
@@ -1114,6 +1154,62 @@
                 }).join('');
 
                 return '<table class="table table-sm table-striped mb-0"><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table>';
+            }
+
+            function renderVariantMovementDetails(items) {
+                var normalizedItems = Array.isArray(items)
+                    ? items.slice().sort(function (a, b) {
+                        var aDate = a && a.occurredAt ? new Date(a.occurredAt).getTime() : 0;
+                        var bDate = b && b.occurredAt ? new Date(b.occurredAt).getTime() : 0;
+                        return bDate - aDate;
+                    })
+                    : [];
+
+                if (!normalizedItems.length) {
+                    return '<div class="alert alert-light mb-0">' + escapeHtml(movementNoDataText) + '</div>';
+                }
+
+                var head = [
+                    'شماره',
+                    'نوع',
+                    movementStatusText,
+                    movementWarehouseText,
+                    movementOccurredText,
+                    movementPostedText,
+                    movementReasonText,
+                    movementReferenceText
+                ].map(function (title) { return '<th>' + title + '</th>'; }).join('');
+
+                var rows = normalizedItems.map(function (item) {
+                    var status = String(item.status || '').toLowerCase();
+                    var statusClass = 'badge-secondary';
+                    if (status === 'posted') {
+                        statusClass = 'badge-success';
+                    } else if (status === 'draft' || status === 'approved') {
+                        statusClass = 'badge-info';
+                    } else if (status === 'cancelled' || status === 'rejected') {
+                        statusClass = 'badge-danger';
+                    }
+
+                    return '<tr>' +
+                        '<td class="text-monospace">' + escapeHtml(item.transactionNo || item.transactionBusinessKey || '-') + '</td>' +
+                        '<td>' + escapeHtml(item.transactionType || '-') + '</td>' +
+                        '<td><span class="badge badge-pill ' + statusClass + '">' + escapeHtml(item.status || '-') + '</span></td>' +
+                        '<td class="text-monospace small">' + escapeHtml(item.warehouseRef || '-') + '</td>' +
+                        '<td>' + escapeHtml(formatDateTime(item.occurredAt)) + '</td>' +
+                        '<td>' + escapeHtml(formatDateTime(item.postedAt)) + '</td>' +
+                        '<td>' + escapeHtml(item.reasonCode || '-') + '</td>' +
+                        '<td class="small">' +
+                            '<div class="text-monospace">' + escapeHtml(item.referenceBusinessId || '-') + '</div>' +
+                            '<div class="text-muted">' + escapeHtml(item.referenceType || '-') + '</div>' +
+                        '</td>' +
+                    '</tr>';
+                }).join('');
+
+                return '<table class="table table-sm table-striped mb-0">' +
+                    '<thead><tr>' + head + '</tr></thead>' +
+                    '<tbody>' + rows + '</tbody>' +
+                    '</table>';
             }
 
             function getOwnerSellerId() {
@@ -1470,6 +1566,72 @@
                     });
             }
 
+            function loadVariantMovementForModal(variantId, label) {
+                if (!variantId || !variantDocumentsUrl) {
+                    return Promise.resolve([]);
+                }
+
+                if (movementModalTitle) {
+                    movementModalTitle.textContent = label || 'گردش واریانت';
+                }
+                if (movementModalSubtitle) {
+                    movementModalSubtitle.textContent = variantId;
+                }
+                if (movementModalSummary) {
+                    movementModalSummary.textContent = movementLoadingText;
+                }
+                if (movementModalError) {
+                    movementModalError.classList.add('d-none');
+                    movementModalError.textContent = '';
+                }
+                if (movementModalBody) {
+                    movementModalBody.innerHTML = '<div class="text-muted">' + escapeHtml(movementLoadingText) + '</div>';
+                }
+                if (movementModal && movementModal.modal) {
+                    movementModal.modal('show');
+                }
+
+                var url = variantDocumentsUrl + '?variantId=' + encodeURIComponent(variantId);
+                return fetch(url, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(function (response) { return response.json().then(function (payload) { return { response: response, payload: payload }; }); })
+                    .then(function (result) {
+                        var response = result.response;
+                        var payload = result.payload;
+                        if (!response.ok || !Array.isArray(payload)) {
+                            throw new Error((payload && payload.error) || loadInfoFailedText);
+                        }
+
+                        if (movementModalSummary) {
+                            movementModalSummary.textContent = movementSummaryText + ': ' + payload.length + ' ' + movementTotalText;
+                        }
+                        if (movementModalError) {
+                            movementModalError.classList.add('d-none');
+                            movementModalError.textContent = '';
+                        }
+                        if (movementModalBody) {
+                            movementModalBody.innerHTML = renderVariantMovementDetails(payload);
+                        }
+
+                        return payload;
+                    })
+                    .catch(function (error) {
+                        if (movementModalSummary) {
+                            movementModalSummary.textContent = movementSummaryText;
+                        }
+                        if (movementModalError) {
+                            movementModalError.classList.remove('d-none');
+                            movementModalError.textContent = (error && error.message) ? error.message : loadInfoFailedText;
+                        }
+                        if (movementModalBody) {
+                            movementModalBody.innerHTML = '<div class="alert alert-light mb-0">' + escapeHtml(movementNoDataText) + '</div>';
+                        }
+
+                        return [];
+                    });
+            }
+
             function syncBulkSelectionInputs() {
                 var selectedIds = getSelectedVariantIds();
                 var selectedValue = selectedIds.join(',');
@@ -1739,6 +1901,17 @@
                         stockButton.getAttribute('data-stock-url') || '',
                         renderWarehouseDetails,
                         stockButton.getAttribute('data-detail-title') || inventoryAndWarehousesTitleText);
+                    return;
+                }
+
+                var movementButton = event.target.closest ? event.target.closest('.js-variant-movement-details') : null;
+                if (movementButton) {
+                    event.preventDefault();
+                    var movementVariantId = movementButton.getAttribute('data-variant-id') || '';
+                    var movementLabel = movementButton.getAttribute('data-variant-label') || movementButton.getAttribute('data-detail-title') || 'گردش واریانت';
+                    loadVariantMovementForModal(movementVariantId, movementLabel).catch(function () {
+                        // handled inside loader
+                    });
                     return;
                 }
 
@@ -2022,6 +2195,7 @@
                 var supportedSelectors = [
                     '#variant-detail-modal',
                     '#variant-stock-modal',
+                    '#variant-movement-modal',
                     '#variant-prices-modal',
                     '#variant-components-modal',
                     '#variant-tags-modal'

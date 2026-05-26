@@ -64,7 +64,7 @@
     var selectedDocument = Model.SelectedDocumentDetails;
     var selectedDocumentType = selectedDocument?.DocumentType ?? "Adjustment";
     var canEditLines = selectedDocument is not null && string.Equals(selectedDocument.Status, "Draft", StringComparison.OrdinalIgnoreCase);
-    var selectedDirection = string.IsNullOrWhiteSpace(Model.LineForm.AdjustmentDirection) ? "Increase" : Model.LineForm.AdjustmentDirection;
+    var selectedDirection = Model.LineForm.AdjustmentDirection ?? string.Empty;
 }
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
@@ -95,6 +95,14 @@ else
                     <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
                     <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                     <div class="form-row">
+                        <div class="form-group col-md-3">
+                            <label>جهت تعدیل</label>
+                            <select asp-for="LineForm.AdjustmentDirection" class="form-control js-adjustment-direction-select" required>
+                                <option value="">انتخاب</option>
+                                <option value="Increase" selected="@(string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">افزایش</option>
+                                <option value="Decrease" selected="@(string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">کاهش</option>
+                            </select>
+                        </div>
                         <div class="form-group col-md-6">
                             <label>واریانت</label>
                             <select asp-for="LineForm.VariantId" class="form-control js-search-select js-adjustment-variant-select" data-placeholder="جستجو با کد یا نام واریانت" required>
@@ -109,19 +117,9 @@ else
                             <label>تعداد</label>
                             <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" required />
                         </div>
-                        <div class="form-group col-md-3">
-                            <label>جهت تعدیل</label>
-                            <select asp-for="LineForm.AdjustmentDirection" class="form-control js-adjustment-direction-select" required>
-                                <option value="">انتخاب</option>
-                                <option value="Increase" selected="@(string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">افزایش</option>
-                                <option value="Decrease" selected="@(string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">کاهش</option>
-                            </select>
-                        </div>
-                        <div class="form-group col-md-12">
-                            <label>علت</label>
-                            <input asp-for="LineForm.ReasonCode" class="form-control" required />
-                        </div>
-                        <div class="form-group col-md-3 js-adjustment-source-section">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4 js-adjustment-source-section">
                             <label class="js-adjustment-source-label">لوکیشن مبدأ</label>
                             <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
                                 <option value="">انتخاب لوکیشن</option>
@@ -131,7 +129,7 @@ else
                                 }
                             </select>
                         </div>
-                        <div class="form-group col-md-3 js-adjustment-destination-section">
+                        <div class="form-group col-md-4 js-adjustment-destination-section">
                             <label class="js-adjustment-destination-label">لوکیشن مقصد</label>
                             <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
                                 <option value="">انتخاب لوکیشن</option>
@@ -141,11 +139,13 @@ else
                                 }
                             </select>
                         </div>
-                        <div class="form-group col-md-3">
+                        <div class="form-group col-md-4">
                             <label>لات/بچ</label>
                             <input asp-for="LineForm.LotBatchNo" class="form-control" />
                         </div>
-                        <div class="form-group col-md-3">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
                             <label>کیفیت</label>
                             <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
                                 <option value="">انتخاب کیفیت</option>
@@ -154,6 +154,10 @@ else
                                     <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
                                 }
                             </select>
+                        </div>
+                        <div class="form-group col-md-8">
+                            <label>علت</label>
+                            <input asp-for="LineForm.ReasonCode" class="form-control" required />
                         </div>
                     </div>
 
@@ -172,6 +176,9 @@ else
                             </div>
                         </div>
                         <div class="js-adjustment-serial-lookup-status small text-muted mb-2"></div>
+                        <div class="js-adjustment-increase-serial-list">
+                            <div class="text-muted small">برای مشاهده سریال‌های قابل افزایش، واریانت و لوکیشن مقصد را انتخاب کنید.</div>
+                        </div>
                     </div>
 
                     <div class="border rounded p-3 bg-white mb-3 js-adjustment-decrease-section">
@@ -264,7 +271,11 @@ else
                                     {
                                         <tr>
                                             <td>@VariantName(line.VariantRef)</td>
-                                            <td>@line.Qty.ToString("0.####")</td>
+                                            <td>
+                                                <span class="text-monospace">
+                                                    @(string.Equals(line.AdjustmentDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "-" : "+")@line.Qty.ToString("0.####")
+                                                </span>
+                                            </td>
                                             <td>@UomName(line.UomRef)</td>
                                             <td>
                                                 @if (string.Equals(line.AdjustmentDirection, "Increase", StringComparison.OrdinalIgnoreCase))
