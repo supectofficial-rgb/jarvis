@@ -953,6 +953,19 @@
                 }
             }
 
+            function submitFormulaCategoryFilter() {
+                if (!listFilterForm) {
+                    return;
+                }
+
+                closeInlineEditor();
+                if (typeof listFilterForm.requestSubmit === 'function') {
+                    listFilterForm.requestSubmit();
+                } else {
+                    listFilterForm.submit();
+                }
+            }
+
             initSearchableSelects(document);
             syncCreateParts();
             renderCreateParts();
@@ -976,10 +989,12 @@
             if (createCategoryField) {
                 createCategoryField.addEventListener('change', function () {
                     syncCategorySelections(createCategoryField.value || '');
+                    submitFormulaCategoryFilter();
                 });
                 if (window.jQuery) {
                     window.jQuery(createCategoryField).on('select2:select select2:clear', function () {
                         syncCategorySelections(window.jQuery(createCategoryField).val() || '');
+                        submitFormulaCategoryFilter();
                     });
                 }
             }
@@ -989,6 +1004,15 @@
                     if (!inlineFormulaIdField.value) {
                         inlineCategoryField.value = listCategoryField.value || '@Model.SelectedCategoryId';
                     }
+                    submitFormulaCategoryFilter();
+                });
+                if (window.jQuery) {
+                    window.jQuery(listCategoryField).on('select2:select select2:clear', function () {
+                        if (!inlineFormulaIdField.value) {
+                            inlineCategoryField.value = window.jQuery(listCategoryField).val() || '@Model.SelectedCategoryId';
+                        }
+                        submitFormulaCategoryFilter();
+                    });
                 });
             }
 
