@@ -396,6 +396,27 @@
                 return true;
             }
 
+            function hideContainingModal(form) {
+                if (!(form instanceof HTMLElement)) {
+                    return;
+                }
+
+                var modalElement = form.closest('.modal');
+                if (!modalElement) {
+                    return;
+                }
+
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var existing = bootstrap.Modal.getInstance(modalElement) || bootstrap.Modal.getOrCreateInstance(modalElement);
+                    existing.hide();
+                    return;
+                }
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalElement).modal('hide');
+                }
+            }
+
             async function submitAjaxForm(form) {
                 var targetSelector = getTargetSelector(form);
                 if (!targetSelector) {
@@ -430,6 +451,9 @@
 
                 var response = await fetch(url.toString(), requestInit);
                 var html = await response.text();
+                if (form.hasAttribute('data-ajax-close-modal-on-success')) {
+                    hideContainingModal(form);
+                }
                 var refreshed = replaceTargetFromHtml(targetSelector, html);
                 if (refreshed && response.url && form.getAttribute('data-ajax-preserve-url') !== 'true') {
                     try {

@@ -168,7 +168,7 @@
             locationSelect.disabled = locations.length === 0;
         }
 
-        if (warehouseSelect) {
+        if (warehouseSelect && !(window.appUi && window.appUi.__documentSearchFiltersBound === true)) {
             var onWarehouseChange = function () {
                 loadLocations(warehouseSelect.value || '', '').catch(function (error) {
                     console.error(error);

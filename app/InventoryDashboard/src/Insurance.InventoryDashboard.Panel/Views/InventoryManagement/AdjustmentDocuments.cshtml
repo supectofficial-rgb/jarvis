@@ -669,18 +669,18 @@
                             <div class="border-top pt-3">
                                 <div class="mb-2 text-muted small">@UiText["inventory.documents.action.changeStatus"]</div>
                                 <div class="d-flex flex-wrap">
-                                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
                                         <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>@UiText["inventory.documents.action.approve"]</button>
                                     </form>
-                                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root">
+                                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
                                         <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>@UiText["inventory.documents.action.post"]</button>
                                     </form>
                                 </div>
-                                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
                                     <div class="form-group mb-2">
@@ -689,7 +689,7 @@
                                     </div>
                                     <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>@UiText["inventory.documents.action.reject"]</button>
                                 </form>
-                                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root">
+                                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="DocumentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
                                     <div class="form-group mb-2">
@@ -1464,28 +1464,6 @@ for (var i = 0; i < lines.length; i++) {
                 }
             }
 
-            function addIncreaseSerial(form, serial, label) {
-                var container = form.querySelector('.js-adjustment-selected-serials');
-                if (!container || !serial) {
-                    return;
-                }
-
-                var serialId = String(serial.serialItemBusinessKey || '');
-                if (!serialId || container.querySelector('.js-adjustment-selected-serial[data-serial-id="' + serialId.replace(/"/g, '\\"') + '"]')) {
-                    return;
-                }
-
-                container.insertAdjacentHTML('beforeend', serialChipHtml(serialId, serial.serialNo || serial.SerialNo || '', label || '', serialId));
-                container.querySelectorAll('.js-adjustment-remove-serial').forEach(function (button) {
-                    button.addEventListener('click', function () {
-                        var chip = button.closest('.js-adjustment-selected-serial');
-                        if (chip) {
-                            chip.remove();
-                        }
-                    });
-                });
-            }
-
             function bindAdjustmentModal() {
                 var modal = getModal();
                 if (!modal) {
@@ -1528,45 +1506,6 @@ for (var i = 0; i < lines.length; i++) {
                 if (destinationField) {
                     destinationField.addEventListener('change', function () {
                         fetchAdjustmentSerials(form);
-                    });
-                }
-
-                var searchButton = form.querySelector('.js-adjustment-increase-search');
-                if (searchButton) {
-                    searchButton.addEventListener('click', function () {
-                        var serialNoField = form.querySelector('.js-adjustment-serial-no-input');
-                        var variantSelect = form.querySelector('[name="LineForm.VariantId"]');
-                        if (!serialNoField || !serialNoField.value || !variantSelect || !variantSelect.value) {
-                            return;
-                        }
-
-                        var url = '/InventoryManagement/Documents/Adjustment/SerialLookup?variantId=' + encodeURIComponent(variantSelect.value) + '&serialNo=' + encodeURIComponent(serialNoField.value);
-                        var statusArea = form.querySelector('.js-adjustment-serial-lookup-status');
-                        if (statusArea) {
-                            statusArea.textContent = '@UiText["common.loading"]';
-                        }
-
-                        fetch(url, { credentials: 'same-origin' })
-                            .then(function (response) { return response.json(); })
-                            .then(function (data) {
-                                if (!data || !data.isSuccess || !data.serial) {
-                                    if (statusArea) {
-                                        statusArea.textContent = data && data.errorMessage ? data.errorMessage : '@UiText["inventory.documents.action.serialNotFound"]';
-                                    }
-                                    return;
-                                }
-
-                                addIncreaseSerial(form, data.serial, '@UiText["inventory.documents.line.increase"]');
-                                if (statusArea) {
-                                    statusArea.textContent = '@UiText["common.add"]';
-                                }
-                                serialNoField.value = '';
-                            })
-                            .catch(function () {
-                                if (statusArea) {
-                                    statusArea.textContent = '@UiText["inventory.documents.action.lookupFailed"]';
-                                }
-                            });
                     });
                 }
 

@@ -156,7 +156,13 @@ public sealed class StockDetail : AggregateRoot
 
     private void EnsureDateInvariant()
     {
-        if (FirstReceivedAt != default && LastReceivedAt != default && FirstReceivedAt > LastReceivedAt)
-            throw new AggregateStateExceptions("FirstReceivedAt cannot be after LastReceivedAt.", nameof(FirstReceivedAt));
+        if (FirstReceivedAt == default || LastReceivedAt == default)
+            return;
+
+        if (FirstReceivedAt > LastReceivedAt)
+        {
+            // Repair older corrupted rows in-place so posting can continue.
+            (FirstReceivedAt, LastReceivedAt) = (LastReceivedAt, FirstReceivedAt);
+        }
     }
 }

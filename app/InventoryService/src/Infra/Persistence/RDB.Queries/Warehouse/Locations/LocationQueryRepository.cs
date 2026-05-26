@@ -14,6 +14,11 @@ using OysterFx.Infra.Persistence.RDB.Queries;
 
 public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbContext>, ILocationQueryRepository
 {
+    private static readonly JsonSerializerOptions StructureSelectionJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public LocationQueryRepository(InventoryServiceQueryDbContext dbContext)
         : base(dbContext)
     {
@@ -310,7 +315,8 @@ public class LocationQueryRepository : QueryRepository<InventoryServiceQueryDbCo
 
         try
         {
-            return JsonSerializer.Deserialize<List<LocationStructureSelectionFilterItem>>(json) ?? new List<LocationStructureSelectionFilterItem>();
+            return JsonSerializer.Deserialize<List<LocationStructureSelectionFilterItem>>(json, StructureSelectionJsonOptions)
+                   ?? new List<LocationStructureSelectionFilterItem>();
         }
         catch
         {

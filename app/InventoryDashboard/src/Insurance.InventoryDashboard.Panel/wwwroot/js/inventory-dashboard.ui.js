@@ -471,6 +471,148 @@
         });
     }
 
+    function initDocumentSearchFilters(root) {
+        root = getScope(root);
+
+        if (window.appUi && window.appUi.__documentSearchFiltersBound === true) {
+            return;
+        }
+
+        if (!(root instanceof Document) && !(root instanceof Element)) {
+            return;
+        }
+
+        var formSelector = 'form[data-document-search-filters]';
+        var warehouseSelector = '[data-document-search-warehouse-select]';
+        var locationSelector = '[data-document-search-location-select]';
+
+        function getForm(element) {
+            return element instanceof Element ? element.closest(formSelector) : null;
+        }
+
+        function getLocationLookupUrl(form) {
+            return form ? (form.getAttribute('data-location-lookup-url') || '') : '';
+        }
+
+        function getLocationSelect(form) {
+            return form ? (form.querySelector(locationSelector) || form.querySelector('select[name="locationId"]')) : null;
+        }
+
+        function renderLocationOptions(locationSelect, items, placeholderText, selectedLocationId) {
+            if (!locationSelect) {
+                return;
+            }
+
+            while (locationSelect.firstChild) {
+                locationSelect.removeChild(locationSelect.firstChild);
+            }
+
+            var placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = placeholderText || '';
+            locationSelect.appendChild(placeholder);
+
+            (items || []).forEach(function (item) {
+                var option = document.createElement('option');
+                option.value = item.locationId || item.id || '';
+                option.textContent = item.text || option.value;
+                if (item && item.warehouseId) {
+                    option.setAttribute('data-warehouse-ref', item.warehouseId);
+                }
+                locationSelect.appendChild(option);
+            });
+
+            locationSelect.value = selectedLocationId || '';
+            locationSelect.disabled = false;
+
+            if (window.jQuery) {
+                window.jQuery(locationSelect).trigger('change');
+                window.jQuery(locationSelect).trigger('change.select2');
+            }
+        }
+
+        async function loadLocationsForForm(form, warehouseId, selectedLocationId) {
+            var locationSelect = getLocationSelect(form);
+            var lookupUrl = getLocationLookupUrl(form);
+
+            if (!locationSelect) {
+                return;
+            }
+
+            if (!warehouseId) {
+                renderLocationOptions(locationSelect, [], 'Ø§Ø¨ØªØ¯Ø§ Ø§Ù†Ø¨Ø§Ø± Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯', '');
+                locationSelect.disabled = true;
+                return;
+            }
+
+            if (!lookupUrl) {
+                return;
+            }
+
+            var url = new URL(lookupUrl, window.location.origin);
+            url.searchParams.set('warehouseId', warehouseId);
+
+            var response = await fetch(url.toString(), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                cache: 'no-store'
+            });
+
+            if (!response.ok) {
+                throw new Error('Loading warehouse locations failed.');
+            }
+
+            var payload = await response.json();
+            if (!payload || payload.isSuccess === false) {
+                throw new Error((payload && payload.errorMessage) || 'Loading warehouse locations failed.');
+            }
+
+            var locations = Array.isArray(payload.locations) ? payload.locations.slice() : [];
+            renderLocationOptions(locationSelect, locations, locations.length ? 'Ø§Ù†ØªØ®Ø§Ø¨ Ù„ÙˆÚ©ÛŒØ´Ù†' : 'Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø§Ù†Ø¨Ø§Ø± Ù„ÙˆÚ©ÛŒØ´Ù†ÛŒ ÛŒØ§ÙØª Ù†Ø´Ø¯', selectedLocationId || '');
+            locationSelect.disabled = locations.length === 0;
+        }
+
+        function handleWarehouseChange(event) {
+            var select = event.target instanceof Element ? event.target.closest(warehouseSelector) : null;
+            if (!select) {
+                return;
+            }
+
+            var form = getForm(select);
+            if (!form) {
+                return;
+            }
+
+            var locationSelect = getLocationSelect(form);
+            var selectedWarehouseId = select.value || '';
+            var selectedLocationId = '';
+
+            if (locationSelect && locationSelect.value) {
+                var selectedLocationOption = locationSelect.options[locationSelect.selectedIndex];
+                if (selectedLocationOption && selectedLocationOption.getAttribute('data-warehouse-ref') === selectedWarehouseId) {
+                    selectedLocationId = locationSelect.value;
+                }
+            }
+
+            loadLocationsForForm(form, selectedWarehouseId, selectedLocationId).catch(function (error) {
+                console.error(error);
+            });
+        }
+
+        root.addEventListener('change', handleWarehouseChange, true);
+        if (window.jQuery) {
+            window.jQuery(document).off('select2:select.documentSearchFiltersGlobal select2:clear.documentSearchFiltersGlobal', warehouseSelector);
+            window.jQuery(document).on('select2:select.documentSearchFiltersGlobal select2:clear.documentSearchFiltersGlobal', warehouseSelector, function (event) {
+                handleWarehouseChange({ target: event.target || this });
+            });
+        }
+
+        window.appUi = window.appUi || {};
+        window.appUi.__documentSearchFiltersBound = true;
+    }
+
     function initInventoryManagementPage(root) {
         root = getScope(root);
 
@@ -534,6 +676,7 @@
         window.appUi.initDatePickers = initDatePickers;
         window.appUi.initAutoSubmit = initAutoSubmit;
         window.appUi.initBulkActions = initBulkActions;
+        window.appUi.initDocumentSearchFilters = initDocumentSearchFilters;
         window.appUi.initInventoryManagementPage = initInventoryManagementPage;
 
         initLocalizationBridge();
@@ -541,6 +684,7 @@
         initDatePickers();
         initAutoSubmit();
         initBulkActions();
+        initDocumentSearchFilters();
         initInventoryManagementPage();
     });
 })();
