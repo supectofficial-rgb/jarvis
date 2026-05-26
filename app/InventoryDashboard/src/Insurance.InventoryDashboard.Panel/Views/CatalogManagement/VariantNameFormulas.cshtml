@@ -953,17 +953,20 @@
                 }
             }
 
-            function submitFormulaCategoryFilter() {
-                if (!listFilterForm) {
+            function submitFormulaCategoryFilter(categoryId) {
+                var normalizedCategoryId = (categoryId || '').toString().trim();
+                if (!normalizedCategoryId) {
                     return;
                 }
 
                 closeInlineEditor();
-                if (typeof listFilterForm.requestSubmit === 'function') {
-                    listFilterForm.requestSubmit();
-                } else {
-                    listFilterForm.submit();
-                }
+
+                var actionUrl = listFilterForm
+                    ? (listFilterForm.getAttribute('action') || window.location.href)
+                    : window.location.href;
+                var nextUrl = new URL(actionUrl, window.location.origin);
+                nextUrl.searchParams.set('categoryId', normalizedCategoryId);
+                window.location.href = nextUrl.toString();
             }
 
             initSearchableSelects(document);
@@ -988,32 +991,36 @@
 
             if (createCategoryField) {
                 createCategoryField.addEventListener('change', function () {
-                    syncCategorySelections(createCategoryField.value || '');
-                    submitFormulaCategoryFilter();
+                    var categoryId = createCategoryField.value || '';
+                    syncCategorySelections(categoryId);
+                    submitFormulaCategoryFilter(categoryId);
                 });
                 if (window.jQuery) {
                     window.jQuery(createCategoryField).on('select2:select select2:clear', function () {
-                        syncCategorySelections(window.jQuery(createCategoryField).val() || '');
-                        submitFormulaCategoryFilter();
+                        var categoryId = window.jQuery(createCategoryField).val() || '';
+                        syncCategorySelections(categoryId);
+                        submitFormulaCategoryFilter(categoryId);
                     });
                 }
             }
 
             if (listCategoryField) {
                 listCategoryField.addEventListener('change', function () {
+                    var categoryId = listCategoryField.value || '';
                     if (!inlineFormulaIdField.value) {
-                        inlineCategoryField.value = listCategoryField.value || '@Model.SelectedCategoryId';
+                        inlineCategoryField.value = categoryId || '@Model.SelectedCategoryId';
                     }
-                    submitFormulaCategoryFilter();
+                    submitFormulaCategoryFilter(categoryId);
                 });
                 if (window.jQuery) {
                     window.jQuery(listCategoryField).on('select2:select select2:clear', function () {
+                        var categoryId = window.jQuery(listCategoryField).val() || '';
                         if (!inlineFormulaIdField.value) {
-                            inlineCategoryField.value = window.jQuery(listCategoryField).val() || '@Model.SelectedCategoryId';
+                            inlineCategoryField.value = categoryId || '@Model.SelectedCategoryId';
                         }
-                        submitFormulaCategoryFilter();
+                        submitFormulaCategoryFilter(categoryId);
                     });
-                });
+                }
             }
 
             if (addPartBtn) {
