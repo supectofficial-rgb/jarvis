@@ -1804,24 +1804,22 @@
                         optionIds: optionIds
                     });
 
-                    var isVariantCodeCovered = (row.getAttribute('data-variant-code-covered') || '').toLowerCase() === 'true';
-                    if (isVariantCodeCovered) {
-                        dimensions.push({
-                            attributeId: attributeId,
-                            attributeName: attributeName,
-                            attributeDisplayOrder: displayOrder,
-                            options: selectedOptions
-                                .map(function (option) {
-                                    return {
-                                        optionId: (option.value || '').trim(),
-                                        optionName: (option.getAttribute('data-option-name') || option.textContent || '').trim(),
-                                        optionValue: (option.getAttribute('data-option-value') || option.value || '').trim(),
-                                        optionDisplayOrder: parseInt(option.getAttribute('data-option-display-order') || '0', 10) || 0
-                                    };
-                                })
-                                .filter(function (option) { return !!option.optionId; })
-                        });
-                    }
+                    dimensions.push({
+                        attributeId: attributeId,
+                        attributeName: attributeName,
+                        attributeDisplayOrder: displayOrder,
+                        isVariantCodeCovered: (row.getAttribute('data-variant-code-covered') || '').toLowerCase() === 'true',
+                        options: selectedOptions
+                            .map(function (option) {
+                                return {
+                                    optionId: (option.value || '').trim(),
+                                    optionName: (option.getAttribute('data-option-name') || option.textContent || '').trim(),
+                                    optionValue: (option.getAttribute('data-option-value') || option.value || '').trim(),
+                                    optionDisplayOrder: parseInt(option.getAttribute('data-option-display-order') || '0', 10) || 0
+                                };
+                            })
+                            .filter(function (option) { return !!option.optionId; })
+                    });
                 });
 
                 return {
