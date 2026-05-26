@@ -162,6 +162,7 @@
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
+    var isReturnDocument = string.Equals(currentDocumentType, "Return", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
     var documentPageUrl = Url.Action(documentAction, "InventoryManagement") ?? string.Empty;
     var documentListUrl = Url.Action("DocumentList", "InventoryManagement") ?? string.Empty;
@@ -239,14 +240,37 @@
                                     <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.referenceType"]</label>
-                                    <input asp-for="CreateForm.ReferenceType" class="form-control" />
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.referenceId"]</label>
-                                    <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
-                                </div>
+                                @if (isReturnDocument)
+                                {
+                                    <div class="form-group col-md-4">
+                                        <label>@UiText["inventory.documents.return.referenceLabel"]</label>
+                                        <select id="document-return-reference-select"
+                                                class="form-control js-search-select"
+                                                data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]"
+                                                data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")'>
+                                            <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
+                                        </select>
+                                        <input type="hidden" asp-for="CreateForm.ReferenceType" id="document-return-reference-type-input" value="Transfer" />
+                                        <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="document-return-reference-id-input" />
+                                        <div class="mt-2 d-none" id="document-return-reference-selected">
+                                            <div class="alert alert-light border mb-0 py-2">
+                                                <strong>@UiText["inventory.documents.return.referenceSelected"]</strong>
+                                                <span id="document-return-reference-selected-label">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="form-group col-md-2">
+                                        <label>@UiText["inventory.documents.referenceType"]</label>
+                                        <input asp-for="CreateForm.ReferenceType" class="form-control" />
+                                    </div>
+                                    <div class="form-group col-md-2">
+                                        <label>@UiText["inventory.documents.referenceId"]</label>
+                                        <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
+                                    </div>
+                                }
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.warehouse"]</label>
                                     <select asp-for="CreateForm.WarehouseRef" class="form-control" id="create-warehouse-select" required>
@@ -1075,6 +1099,13 @@
             var toggleLinesButton = document.getElementById('toggle-document-lines');
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
+            var returnReferenceSelect = document.getElementById('document-return-reference-select');
+            var returnReferenceSelected = document.getElementById('document-return-reference-selected');
+            var returnReferenceSelectedLabel = document.getElementById('document-return-reference-selected-label');
+            var returnReferenceTypeInput = document.getElementById('document-return-reference-type-input');
+            var returnReferenceIdInput = document.getElementById('document-return-reference-id-input');
+            var returnReferenceSearchUrl = '@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")';
+            var returnReferenceDocumentUrl = '@Url.Action("GetReturnReferenceDocument", "InventoryManagement")';
 
             var documentTypeConfig = {
                 Receipt: {
@@ -1261,6 +1292,134 @@
                         }
                     }
                 });
+            }
+
+            function setReturnReferenceSelection(document) {
+                if (returnReferenceTypeInput) {
+                    returnReferenceTypeInput.value = 'Transfer';
+                }
+
+                if (returnReferenceIdInput) {
+                    returnReferenceIdInput.value = document && (document.documentBusinessKey || document.DocumentBusinessKey || '') ? String(document.documentBusinessKey || document.DocumentBusinessKey || '') : '';
+                }
+
+                if (returnReferenceSelectedLabel) {
+                    returnReferenceSelectedLabel.textContent = document
+                        ? String(document.documentNo || document.DocumentNo || document.documentBusinessKey || document.DocumentBusinessKey || '-')
+                        : '-';
+                }
+
+                if (returnReferenceSelected) {
+                    returnReferenceSelected.classList.toggle('d-none', !document);
+                }
+            }
+
+            async function initReturnReferenceSelectValue(documentId) {
+                if (!returnReferenceSelect || !documentId) {
+                    return;
+                }
+
+                var url = new URL(returnReferenceDocumentUrl, window.location.origin);
+                url.searchParams.set('documentId', documentId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                var payload = await response.json();
+                if (!response.ok || !payload || payload.isSuccess === false || !payload.document) {
+                    return;
+                }
+
+                var document = payload.document;
+                var option = new Option(
+                    String(document.documentNo || document.DocumentNo || document.documentBusinessKey || document.DocumentBusinessKey || ''),
+                    String(document.documentBusinessKey || document.DocumentBusinessKey || ''),
+                    true,
+                    true
+                );
+
+                if (window.jQuery) {
+                    window.jQuery(returnReferenceSelect).append(option).trigger('change');
+                } else {
+                    returnReferenceSelect.appendChild(option);
+                    returnReferenceSelect.value = option.value;
+                }
+
+                setReturnReferenceSelection(document);
+            }
+
+            function initReturnReferenceSearchSelect() {
+                if (!returnReferenceSelect || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+
+                var $select = window.jQuery(returnReferenceSelect);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                }
+
+                $select.select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: '100%',
+                    placeholder: returnReferenceSelect.getAttribute('data-placeholder') || '',
+                    allowClear: true,
+                    minimumInputLength: 1,
+                    ajax: {
+                        url: returnReferenceSearchUrl,
+                        dataType: 'json',
+                        delay: 300,
+                        data: function (params) {
+                            return {
+                                term: params.term || ''
+                            };
+                        },
+                        processResults: function (payload) {
+                            if (!payload || payload.isSuccess === false) {
+                                return { results: [] };
+                            }
+
+                            var documents = Array.isArray(payload.documents) ? payload.documents : [];
+                            return {
+                                results: documents.map(function (item) {
+                                    return {
+                                        id: item.documentBusinessKey,
+                                        text: item.documentNo || item.documentBusinessKey,
+                                        document: item
+                                    };
+                                })
+                            };
+                        },
+                        cache: true
+                    },
+                    escapeMarkup: function (markup) {
+                        return markup;
+                    }
+                });
+
+                $select.off('select2:select.returnReference').on('select2:select.returnReference', function (event) {
+                    var data = event.params && event.params.data ? event.params.data : null;
+                    if (!data || !data.document) {
+                        return;
+                    }
+
+                    setReturnReferenceSelection(data.document);
+                });
+
+                $select.off('select2:clear.returnReference').on('select2:clear.returnReference', function () {
+                    setReturnReferenceSelection(null);
+                });
+
+                if (returnReferenceIdInput && returnReferenceIdInput.value) {
+                    initReturnReferenceSelectValue(returnReferenceIdInput.value).catch(function (error) {
+                        console.error(error);
+                    });
+                }
             }
 
             function syncVariantUom(line) {
@@ -1480,6 +1639,7 @@
             renumberLines();
             toggleTypeFields();
             syncLocationsToWarehouse();
+            initReturnReferenceSearchSelect();
             setLinesPanelVisible(false);
         })();
     </script>

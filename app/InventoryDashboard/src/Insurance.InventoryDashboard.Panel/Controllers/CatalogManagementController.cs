@@ -770,17 +770,18 @@ public abstract partial class CatalogManagementController : Controller
         var productAttributes = FilterEffectiveAttributesForProduct(effectiveAttributes)
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
-            .Select(x => new
-            {
-                attributeId = x.AttributeId,
-                name = x.Name,
-                dataType = x.DataType,
-                isRequired = x.IsRequired,
-                isVariantLevel = x.IsVariantLevel,
-                displayOrder = x.DisplayOrder,
-                isInherited = x.IsInherited,
-                sourceCategoryName = x.SourceCategoryName,
-                options = x.Options
+                .Select(x => new
+                {
+                    attributeId = x.AttributeId,
+                    name = x.Name,
+                    dataType = x.DataType,
+                    isRequired = x.IsRequired,
+                    isVariantLevel = x.IsVariantLevel,
+                    isVariantCodeCovered = x.IsVariantCodeCovered,
+                    displayOrder = x.DisplayOrder,
+                    isInherited = x.IsInherited,
+                    sourceCategoryName = x.SourceCategoryName,
+                    options = x.Options
                     .OrderBy(o => o.DisplayOrder)
                     .ThenBy(o => o.OptionName)
                     .Select(o => new
@@ -797,17 +798,18 @@ public abstract partial class CatalogManagementController : Controller
         var variantAttributes = FilterEffectiveAttributesForVariant(effectiveAttributes)
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
-            .Select(x => new
-            {
-                attributeId = x.AttributeId,
-                name = x.Name,
-                dataType = x.DataType,
-                isRequired = x.IsRequired,
-                isVariantLevel = x.IsVariantLevel,
-                displayOrder = x.DisplayOrder,
-                isInherited = x.IsInherited,
-                sourceCategoryName = x.SourceCategoryName,
-                options = x.Options
+                .Select(x => new
+                {
+                    attributeId = x.AttributeId,
+                    name = x.Name,
+                    dataType = x.DataType,
+                    isRequired = x.IsRequired,
+                    isVariantLevel = x.IsVariantLevel,
+                    isVariantCodeCovered = x.IsVariantCodeCovered,
+                    displayOrder = x.DisplayOrder,
+                    isInherited = x.IsInherited,
+                    sourceCategoryName = x.SourceCategoryName,
+                    options = x.Options
                     .OrderBy(o => o.DisplayOrder)
                     .ThenBy(o => o.OptionName)
                     .Select(o => new

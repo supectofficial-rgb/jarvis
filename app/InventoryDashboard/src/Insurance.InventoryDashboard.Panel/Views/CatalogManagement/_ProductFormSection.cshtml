@@ -73,7 +73,7 @@
     }
 
     var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
-        .Where(x => !x.IsVariantCodeCovered)
+        .Where(x => !x.IsVariantLevel)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
@@ -87,7 +87,7 @@
         .ThenBy(x => x.Id)
         .ToList();
     var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
-        .Where(x => x.IsVariantCodeCovered)
+        .Where(x => x.IsVariantLevel)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();

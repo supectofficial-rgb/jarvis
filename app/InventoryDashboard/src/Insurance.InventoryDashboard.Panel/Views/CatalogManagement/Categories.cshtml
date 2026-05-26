@@ -616,6 +616,139 @@
 @section Scripts {
     <script>
         (function () {
+            var root = document.querySelector('[data-media-uploader][data-policy="category-image"]');
+            if (!root) {
+                return;
+            }
+
+            var baseUrl = (root.getAttribute('data-base-url') || '').replace(/\/$/, '');
+            var form = document.getElementById('category-upsert-form');
+            var fileInput = root.querySelector('[data-media-file]');
+            var progressWrap = root.querySelector('[data-media-progress-wrap]');
+            var progressBar = root.querySelector('[data-media-progress]');
+            var status = root.querySelector('[data-media-status]');
+            var previewWrap = root.querySelector('[data-media-preview-wrap]');
+            var preview = root.querySelector('[data-media-preview]');
+            var removeButton = root.querySelector('[data-media-remove]');
+            if (!form || !fileInput || !baseUrl) {
+                return;
+            }
+
+            var fileKeyField = form.querySelector('[name="CategoryForm.ImageFileKey"]');
+            var imageUrlField = form.querySelector('[name="CategoryForm.ImageUrl"]');
+            var thumbField = form.querySelector('[name="CategoryForm.ImageThumbnailUrl"]');
+
+            function getUploadErrorMessage(xhr, fallbackMessage) {
+                try {
+                    var errorPayload = JSON.parse(xhr.responseText || '{}');
+                    if (errorPayload && errorPayload.message) {
+                        return errorPayload.message;
+                    }
+                } catch (error) {
+                }
+
+                return fallbackMessage;
+            }
+
+            function toMediaUrl(value) {
+                var normalizedValue = String(value || '').trim();
+                if (!normalizedValue) {
+                    return '';
+                }
+
+                if (normalizedValue.indexOf('http://') === 0 || normalizedValue.indexOf('https://') === 0) {
+                    return normalizedValue;
+                }
+
+                return baseUrl + (normalizedValue.charAt(0) === '/' ? normalizedValue : '/' + normalizedValue);
+            }
+
+            function syncPreview() {
+                var previewUrl = (thumbField.value || imageUrlField.value || '').trim();
+                if (!previewUrl) {
+                    previewWrap.classList.add('d-none');
+                    removeButton.classList.add('d-none');
+                    return;
+                }
+
+                preview.src = toMediaUrl(previewUrl);
+                previewWrap.classList.remove('d-none');
+                removeButton.classList.remove('d-none');
+            }
+
+            fileInput.addEventListener('change', function () {
+                if (!fileInput.files || !fileInput.files.length) {
+                    return;
+                }
+
+                var xhr = new XMLHttpRequest();
+                var formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                xhr.open('POST', baseUrl + '/api/FileService/files/upload?policy=category-image');
+                progressWrap.classList.remove('d-none');
+                progressBar.style.width = '0%';
+                if (status) {
+                    status.textContent = '@UiText["media.uploadingImage"]';
+                }
+
+                xhr.upload.addEventListener('progress', function (event) {
+                    if (!event.lengthComputable) {
+                        return;
+                    }
+
+                    progressBar.style.width = Math.round((event.loaded / event.total) * 100) + '%';
+                });
+
+                xhr.onload = function () {
+                    progressWrap.classList.add('d-none');
+                    progressBar.style.width = '0%';
+
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        if (status) {
+                            status.textContent = getUploadErrorMessage(xhr, '@UiText["media.uploadImageFailed"]');
+                        }
+                        return;
+                    }
+
+                    var result = JSON.parse(xhr.responseText || '{}');
+                    fileKeyField.value = result.fileKey || '';
+                    imageUrlField.value = result.url || '';
+                    thumbField.value = result.thumbnailUrl || '';
+                    if (status) {
+                        status.textContent = result.originalFileName || '@UiText["media.imageSaved"]';
+                    }
+                    syncPreview();
+                };
+
+                xhr.onerror = function () {
+                    progressWrap.classList.add('d-none');
+                    progressBar.style.width = '0%';
+                    if (status) {
+                        status.textContent = '@UiText["media.fileServiceUnavailable"]';
+                    }
+                };
+
+                xhr.send(formData);
+            });
+
+            if (removeButton) {
+                removeButton.addEventListener('click', function () {
+                    fileInput.value = '';
+                    fileKeyField.value = '';
+                    imageUrlField.value = '';
+                    thumbField.value = '';
+                    if (status) {
+                        status.textContent = '@UiText["media.imageRemoved"]';
+                    }
+                    syncPreview();
+                });
+            }
+
+            syncPreview();
+        })();
+
+        (function () {
             var collapsedSet = new Set();
 
             function getRowById(categoryId) {

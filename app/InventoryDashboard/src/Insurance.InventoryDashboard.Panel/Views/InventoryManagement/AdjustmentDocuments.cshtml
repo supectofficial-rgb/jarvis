@@ -1284,7 +1284,25 @@ for (var i = 0; i < lines.length; i++) {
 
             function selectedDirection(form) {
                 var directionField = form ? form.querySelector('[name="LineForm.AdjustmentDirection"]') : null;
-                return directionField ? directionField.value : '';
+                var direction = directionField ? directionField.value : '';
+                if (direction) {
+                    return direction;
+                }
+
+                var sourceField = form ? form.querySelector('[name="LineForm.SourceLocationRef"]') : null;
+                var destinationField = form ? form.querySelector('[name="LineForm.DestinationLocationRef"]') : null;
+                var hasSource = !!(sourceField && sourceField.value);
+                var hasDestination = !!(destinationField && destinationField.value);
+
+                if (hasSource && !hasDestination) {
+                    return 'Decrease';
+                }
+
+                if (hasDestination && !hasSource) {
+                    return 'Increase';
+                }
+
+                return '';
             }
 
             function syncAdjustmentLineMode(form) {
@@ -1316,8 +1334,8 @@ for (var i = 0; i < lines.length; i++) {
 
                 setSectionEnabled(increaseSection, isIncrease);
                 setSectionEnabled(decreaseSection, isDecrease);
-                setSectionEnabled(sourceSection, isDecrease);
-                setSectionEnabled(destinationSection, isIncrease);
+                setSectionEnabled(sourceSection, true);
+                setSectionEnabled(destinationSection, true);
 
                 if (sourceField && isIncrease) {
                     sourceField.value = '';
@@ -1491,6 +1509,7 @@ for (var i = 0; i < lines.length; i++) {
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
                 if (variantField) {
                     variantField.addEventListener('change', function () {
+                        syncAdjustmentLineMode(form);
                         fetchAdjustmentSerials(form);
                     });
                 }
@@ -1498,6 +1517,7 @@ for (var i = 0; i < lines.length; i++) {
                 var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
                 if (sourceField) {
                     sourceField.addEventListener('change', function () {
+                        syncAdjustmentLineMode(form);
                         fetchAdjustmentSerials(form);
                     });
                 }
@@ -1505,6 +1525,7 @@ for (var i = 0; i < lines.length; i++) {
                 var destinationField = form.querySelector('[name="LineForm.DestinationLocationRef"]');
                 if (destinationField) {
                     destinationField.addEventListener('change', function () {
+                        syncAdjustmentLineMode(form);
                         fetchAdjustmentSerials(form);
                     });
                 }

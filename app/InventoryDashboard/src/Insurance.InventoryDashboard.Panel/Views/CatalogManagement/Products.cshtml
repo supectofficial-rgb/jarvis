@@ -166,13 +166,13 @@
     }
 
     var autoCreateProductAttributes = Model.EffectiveCategoryAttributes
-        .Where(x => !x.IsVariantCodeCovered)
+        .Where(x => !x.IsVariantLevel)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
 
     var autoCreateVariantBuilderAttributes = Model.EffectiveCategoryAttributes
-        .Where(x => x.IsVariantCodeCovered)
+        .Where(x => x.IsVariantLevel)
         .OrderBy(x => x.DisplayOrder)
         .ThenBy(x => x.Name)
         .ToList();
@@ -1313,7 +1313,7 @@
                         var options = Array.isArray(attribute.options) ? attribute.options : [];
                         return '<div class="form-group js-auto-variant-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
                             + '<label>' + escapeHtml(attribute.name || '') + (attribute.isRequired ? ' *' : '') + '</label>'
-                            + '<select ' + (attribute.isVariantLevel ? 'multiple ' : '') + 'class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-no-search="true" data-placeholder="' + (attribute.isVariantLevel ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectOption"]))) + '">'
+                            + '<select ' + (attribute.isVariantLevel ? 'multiple ' : '') + 'class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-variant-code-covered="' + (attribute.isVariantCodeCovered ? 'true' : 'false') + '" data-no-search="true" data-placeholder="' + (attribute.isVariantLevel ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectOption"]))) + '">'
                             + options.map(function (option) {
                                 return '<option value="' + escapeHtml(option.id || '') + '" data-option-name="' + escapeHtml(option.optionName || '') + '" data-option-value="' + escapeHtml(option.optionValue || '') + '" data-option-display-order="' + escapeHtml(option.displayOrder || 0) + '">'
                                     + escapeHtml(option.optionName || '') + ' (' + escapeHtml(option.optionValue || '') + ')</option>';
@@ -1804,21 +1804,24 @@
                         optionIds: optionIds
                     });
 
-                    dimensions.push({
-                        attributeId: attributeId,
-                        attributeName: attributeName,
-                        attributeDisplayOrder: displayOrder,
-                        options: selectedOptions
-                            .map(function (option) {
-                                return {
-                                    optionId: (option.value || '').trim(),
-                                    optionName: (option.getAttribute('data-option-name') || option.textContent || '').trim(),
-                                    optionValue: (option.getAttribute('data-option-value') || option.value || '').trim(),
-                                    optionDisplayOrder: parseInt(option.getAttribute('data-option-display-order') || '0', 10) || 0
-                                };
-                            })
-                            .filter(function (option) { return !!option.optionId; })
-                    });
+                    var isVariantCodeCovered = (row.getAttribute('data-variant-code-covered') || '').toLowerCase() === 'true';
+                    if (isVariantCodeCovered) {
+                        dimensions.push({
+                            attributeId: attributeId,
+                            attributeName: attributeName,
+                            attributeDisplayOrder: displayOrder,
+                            options: selectedOptions
+                                .map(function (option) {
+                                    return {
+                                        optionId: (option.value || '').trim(),
+                                        optionName: (option.getAttribute('data-option-name') || option.textContent || '').trim(),
+                                        optionValue: (option.getAttribute('data-option-value') || option.value || '').trim(),
+                                        optionDisplayOrder: parseInt(option.getAttribute('data-option-display-order') || '0', 10) || 0
+                                    };
+                                })
+                                .filter(function (option) { return !!option.optionId; })
+                        });
+                    }
                 });
 
                 return {

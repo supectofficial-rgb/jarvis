@@ -1632,8 +1632,8 @@
                     });
             }
 
-            function syncBulkSelectionInputs() {
-                var selectedIds = getSelectedVariantIds();
+            function syncBulkSelectionInputs(overrideSelectedIds) {
+                var selectedIds = Array.isArray(overrideSelectedIds) ? overrideSelectedIds : getSelectedVariantIds();
                 var selectedValue = selectedIds.join(',');
 
                 document.querySelectorAll('input[data-bulk-target]').forEach(function (input) {
@@ -1696,7 +1696,12 @@
                     return;
                 }
 
-                var hasVariantSelection = getSelectedVariantCount() > 0;
+                var addonMode = addonModal && addonModal.attr ? (addonModal.attr('data-addon-mode') || 'bulk') : 'bulk';
+                var currentAddonVariantId = addonModal && addonModal.attr ? (addonModal.attr('data-variant-id') || '') : '';
+                var selectedVariantIds = addonMode === 'single' && currentAddonVariantId
+                    ? [currentAddonVariantId]
+                    : getSelectedVariantIds();
+                var hasVariantSelection = selectedVariantIds.length > 0;
                 var selectedAddOnId = '';
 
                 if (bulkAddonSelect) {
@@ -1707,6 +1712,7 @@
                     }
                 }
 
+                syncBulkSelectionInputs(selectedVariantIds);
                 addonSubmitButton.disabled = !hasVariantSelection || !selectedAddOnId;
             }
 
@@ -1851,6 +1857,7 @@
                     if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkAddonSelect).val(null).trigger('change');
                     }
+                    syncBulkSelectionInputs();
                     updateAddonSubmitState();
                     if (bulkAddonModal && bulkAddonModal.modal) {
                         bulkAddonModal.modal('show');
@@ -1869,6 +1876,7 @@
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 }
                 ensureVariantSelectedForBulk(variantId);
+                syncBulkSelectionInputs([variantId]);
                 updateAddonSubmitState();
                 if (addonModalTitle) {
                     addonModalTitle.textContent = label || 'Add-on';
@@ -3425,8 +3433,9 @@
             });
 
             $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
-                var hasSelection = getSelectedVariantCount() > 0;
                 var currentMode = addonModal && addonModal.attr ? (addonModal.attr('data-addon-mode') || 'bulk') : 'bulk';
+                var currentVariantId = addonModal && addonModal.attr ? (addonModal.attr('data-variant-id') || '') : '';
+                var hasSelection = currentMode === 'single' ? !!currentVariantId : getSelectedVariantCount() > 0;
                 if (addonModal && addonModal.attr) {
                     addonModal.attr('data-addon-mode', currentMode);
                 }
