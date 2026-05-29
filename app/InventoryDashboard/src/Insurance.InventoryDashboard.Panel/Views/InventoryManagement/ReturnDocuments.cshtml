@@ -237,7 +237,7 @@
                                 </div>
                                 <div class="form-group col-md-4">
                                     <label>@UiText["inventory.documents.return.referenceLabel"]</label>
-                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")' data-ajax-local-init="true" data-return-reference-document-type="@returnReferenceDocumentType">
+                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url="/InventoryManagement/Documents/Return/ReferenceSearch" data-ajax-local-init="true" data-return-reference-document-type="@returnReferenceDocumentType">
                                         <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
                                     </select>
                                     <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="@returnReferenceDocumentType" />
@@ -551,7 +551,7 @@
             var returnReferenceTypeInput = document.getElementById('return-reference-type-input');
             var returnReferenceIdInput = document.getElementById('return-reference-id-input');
             var returnReferenceTypeLabel = document.querySelector('label[for="return-reference-select"]');
-            var returnReferenceSearchUrl = '@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")';
+            var returnReferenceSearchUrl = '/InventoryManagement/Documents/Return/ReferenceSearch';
             var returnReferenceDocumentUrl = '@Url.Action("GetReturnReferenceDocument", "InventoryManagement")';
             var returnSourceDocument = null;
             var returnAllowedVariantIds = [];
