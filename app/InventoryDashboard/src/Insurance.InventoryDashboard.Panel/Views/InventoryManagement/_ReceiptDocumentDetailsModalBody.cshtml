@@ -40,10 +40,18 @@
 
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
-        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
-        return string.IsNullOrWhiteSpace(productName)
-            ? variant.Sku
-            : $"{variant.Sku} - {productName}";
+        var variantName = (variant.Name ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(variantName))
+        {
+            return variantName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        {
+            return variant.Sku;
+        }
+
+        return variant.Id;
     }
 
     string VariantName(string? variantId)
@@ -163,7 +171,7 @@
                         <div class="form-row">
                             <div class="form-group col-md-4">
                                 <label>واریانت</label>
-                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchReceiptVariantLookup", "InventoryManagement")' required>
+                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchVariantLookup", "InventoryManagement")' required>
                                     <option value="">انتخاب واریانت</option>
                                     @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                     {

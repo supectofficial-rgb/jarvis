@@ -9,4 +9,5 @@ public sealed class DashboardMenuItem
     public string? Description { get; set; }
     public string? Route { get; set; }
     public List<string> Roles { get; set; } = new();
+    public List<DashboardMenuItem> Children { get; set; } = new();
 }

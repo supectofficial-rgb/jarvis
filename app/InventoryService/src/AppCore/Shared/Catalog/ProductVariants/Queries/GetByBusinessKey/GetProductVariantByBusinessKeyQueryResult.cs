@@ -7,6 +7,7 @@ public class GetProductVariantByBusinessKeyQueryResult
     public Guid ProductVariantBusinessKey { get; set; }
     public Guid ProductRef { get; set; }
     public string VariantSku { get; set; } = string.Empty;
+    public string VariantName { get; set; } = string.Empty;
     public string? Barcode { get; set; }
     public string TrackingPolicy { get; set; } = string.Empty;
     public Guid BaseUomRef { get; set; }

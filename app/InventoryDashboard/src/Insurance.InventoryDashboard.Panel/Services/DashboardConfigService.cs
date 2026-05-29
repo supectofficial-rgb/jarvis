@@ -48,7 +48,9 @@ public sealed class DashboardConfigService : IDashboardConfigService
             }
 
             var allowedItems = module.Items
-                .Where(item => IsAllowed(item.Roles, roleSet))
+                .Select(item => FilterMenuItem(item, roleSet))
+                .Where(item => item is not null)
+                .Select(item => item!)
                 .ToList();
 
             if (module.IsEnabled && allowedItems.Count == 0)
@@ -89,6 +91,32 @@ public sealed class DashboardConfigService : IDashboardConfigService
         }
 
         return roles.Any(userRoles.Contains);
+    }
+
+    private static DashboardMenuItem? FilterMenuItem(DashboardMenuItem item, HashSet<string> roleSet)
+    {
+        if (!item.IsEnabled || !IsAllowed(item.Roles, roleSet))
+        {
+            return null;
+        }
+
+        var filteredChildren = item.Children
+            .Select(child => FilterMenuItem(child, roleSet))
+            .Where(child => child is not null)
+            .Select(child => child!)
+            .ToList();
+
+        return new DashboardMenuItem
+        {
+            ItemId = item.ItemId,
+            Title = item.Title,
+            Icon = item.Icon,
+            IsEnabled = item.IsEnabled,
+            Description = item.Description,
+            Route = item.Route,
+            Roles = item.Roles,
+            Children = filteredChildren
+        };
     }
 
     private async Task<DashboardMenuConfigRoot> LoadConfigAsync(CancellationToken cancellationToken)

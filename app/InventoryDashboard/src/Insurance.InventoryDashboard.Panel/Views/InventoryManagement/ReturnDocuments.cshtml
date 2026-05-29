@@ -50,7 +50,10 @@
         "Issue" => UiText["inventory.documents.type.issue"],
         "Transfer" => UiText["inventory.documents.type.transfer"],
         "Adjustment" => UiText["inventory.documents.type.adjustment"],
-        "Return" => UiText["inventory.documents.type.return"],
+        "ReturnFromSell" => "برگشت از فروش",
+        "ReturnFromBuy" => "برگشت از خرید",
+        "ReturnFromTransfer" => "برگشت از انتقال",
+        "Return" => "برگشت",
         "QualityChange" => UiText["inventory.documents.type.qualityChange"],
         "Conversion" => UiText["inventory.documents.type.conversion"],
         _ => type ?? "-"
@@ -78,10 +81,18 @@
 
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
-        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
-        return string.IsNullOrWhiteSpace(productName)
-            ? variant.Sku
-            : $"{variant.Sku} - {productName}";
+        var variantName = (variant.Name ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(variantName))
+        {
+            return variantName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        {
+            return variant.Sku;
+        }
+
+        return variant.Id;
     }
 
     string VariantName(string? variantId)
@@ -154,8 +165,9 @@
         || !string.IsNullOrWhiteSpace(Model.OccurredToFilter)
         || Model.DocumentPage > 1;
 
-    var showListTab = hasListContext;
+    var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
+    var returnReferenceDocumentType = ViewBag.ReturnReferenceDocumentType as string ?? "Issue";
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
@@ -225,10 +237,10 @@
                                 </div>
                                 <div class="form-group col-md-4">
                                     <label>@UiText["inventory.documents.return.referenceLabel"]</label>
-                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")'>
+                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")' data-ajax-local-init="true" data-return-reference-document-type="@returnReferenceDocumentType">
                                         <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
                                     </select>
-                                    <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="Transfer" />
+                                    <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="@returnReferenceDocumentType" />
                                     <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="return-reference-id-input" />
                                     <input type="hidden" asp-for="CreateForm.WarehouseRef" id="return-warehouse-ref-input" />
                                     <input type="hidden" asp-for="CreateForm.SellerRef" id="return-seller-ref-input" />
@@ -270,7 +282,7 @@
                                             <div class="form-row">
                                                 <div class="form-group col-md-4">
                                                     <label>@UiText["inventory.documents.line.variant"]</label>
-                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" required>
+                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" data-ajax-url='@Url.Action("SearchVariantLookup", "InventoryManagement")' data-ajax-local-init="true" data-lookup-document-id-selector="#return-reference-id-input" data-minimum-input-length="1" required>
                                                         <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
                                                         @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                                         {
@@ -586,10 +598,30 @@
                     adjustment: true,
                     lineReason: true
                 },
-                Return: {
-                    title: '@UiText["inventory.documents.info.return.title"]',
-                    text: '@UiText["inventory.documents.info.return.description"]',
+                ReturnFromSell: {
+                    title: 'برگشت از فروش',
+                    text: 'کالا از مشتری/فروشنده به انبار بازمی‌گردد و مقصد باید مشخص باشد.',
                     source: false,
+                    destination: true,
+                    quality: false,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                ReturnFromBuy: {
+                    title: 'برگشت از خرید',
+                    text: 'کالا از انبار به تامین‌کننده بازمی‌گردد و مبدا باید مشخص باشد.',
+                    source: true,
+                    destination: false,
+                    quality: false,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                ReturnFromTransfer: {
+                    title: 'برگشت از انتقال',
+                    text: 'کالا از مقصد انتقال به مبدا برمی‌گردد و هر دو لوکیشن باید مشخص باشند.',
+                    source: true,
                     destination: true,
                     quality: false,
                     qualityChange: false,
@@ -986,6 +1018,92 @@
                 });
             }
 
+            function initializeReturnVariantLookupSelects(root) {
+                root = root || document;
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+
+                root.querySelectorAll('select.document-variant-select[data-ajax-url]').forEach(function (select) {
+                    if (select.dataset.select2Initialized === 'true') {
+                        return;
+                    }
+
+                    var ajaxUrl = select.getAttribute('data-ajax-url') || '';
+                    if (!ajaxUrl) {
+                        return;
+                    }
+
+                    var $select = window.jQuery(select);
+                    if ($select.data('select2')) {
+                        $select.select2('destroy');
+                    }
+
+                    $select.select2({
+                        theme: 'bootstrap',
+                        dir: document.documentElement.getAttribute('dir') || 'rtl',
+                        width: select.getAttribute('data-width') || '100%',
+                        placeholder: select.getAttribute('data-placeholder') || '',
+                        allowClear: true,
+                        minimumInputLength: Number(select.getAttribute('data-minimum-input-length') || '1'),
+                        ajax: {
+                            url: ajaxUrl,
+                            dataType: 'json',
+                            delay: 250,
+                            data: function (params) {
+                                var documentIdSelector = select.getAttribute('data-lookup-document-id-selector') || '';
+                                var documentIdInput = documentIdSelector ? (document.querySelector(documentIdSelector) || root.querySelector(documentIdSelector)) : null;
+                                return {
+                                    term: params.term || '',
+                                    documentId: documentIdInput && 'value' in documentIdInput ? String(documentIdInput.value || '') : ''
+                                };
+                            },
+                            processResults: function (data) {
+                                var items = data && data.items ? data.items : [];
+                                return {
+                                    results: items.map(function (item) {
+                                        return {
+                                            id: item.id,
+                                            text: item.text || item.name || item.sku || '',
+                                            sku: item.sku || '',
+                                            name: item.name || '',
+                                            barcode: item.barcode || '',
+                                            productId: item.productId || '',
+                                            baseUomRef: item.baseUomRef || ''
+                                        };
+                                    })
+                                };
+                            }
+                        }
+                    });
+
+                    $select.off('select2:select.returnVariantLookup').on('select2:select.returnVariantLookup', function (event) {
+                        var data = event.params && event.params.data ? event.params.data : null;
+                        if (!data) {
+                            return;
+                        }
+
+                        var option = select.querySelector('option[value="' + String(data.id || '').replace(/"/g, '\\"') + '"]');
+                        if (!option) {
+                            option = document.createElement('option');
+                            option.value = String(data.id || '');
+                            option.textContent = data.text || data.name || data.sku || data.id || '';
+                            option.selected = true;
+                            select.appendChild(option);
+                        }
+
+                        if (data.baseUomRef) {
+                            option.setAttribute('data-base-uom-ref', data.baseUomRef);
+                        }
+                        if (data.productId) {
+                            option.setAttribute('data-product-id', data.productId);
+                        }
+                    });
+
+                    select.dataset.select2Initialized = 'true';
+                });
+            }
+
             function resetReturnLineDraftsForReferenceChange() {
                 if (!lineContainer) {
                     return;
@@ -1196,7 +1314,8 @@
                         delay: 300,
                         data: function (params) {
                             return {
-                                term: params.term || ''
+                                term: params.term || '',
+                                referenceDocumentType: returnReferenceDocumentType
                             };
                         },
                         processResults: function (payload) {
@@ -1238,7 +1357,7 @@
                     returnAllowedVariantIds = [];
                     returnVariantSerialLookup = {};
                     if (returnReferenceTypeInput) {
-                        returnReferenceTypeInput.value = 'Transfer';
+                        returnReferenceTypeInput.value = returnReferenceDocumentType;
                     }
                     if (returnReferenceIdInput) {
                         returnReferenceIdInput.value = '';
@@ -1346,7 +1465,7 @@
                 }
 
                 if (returnReferenceTypeInput) {
-                    returnReferenceTypeInput.value = 'Transfer';
+                    returnReferenceTypeInput.value = returnReferenceDocumentType;
                 }
                 if (returnReferenceIdInput) {
                     returnReferenceIdInput.value = document.documentBusinessKey || item.documentBusinessKey;
@@ -1407,6 +1526,11 @@
             }
 
             function bindLine(line) {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(line);
+                }
+                initializeReturnVariantLookupSelects(line);
+
                 var removeButton = line.querySelector('.remove-document-line');
                 if (removeButton) {
                     removeButton.addEventListener('click', function () {
@@ -1469,12 +1593,13 @@
                 }
 
                 var config = selectedConfig();
-                if ((documentTypeSelect ? documentTypeSelect.value : 'Receipt') === 'Return' && (!returnReferenceIdInput || !returnReferenceIdInput.value)) {
+                var isReturnDocument = ['Return', 'ReturnFromSell', 'ReturnFromBuy', 'ReturnFromTransfer'].indexOf(documentTypeSelect ? documentTypeSelect.value : 'Receipt') > -1;
+                if (isReturnDocument && (!returnReferenceIdInput || !returnReferenceIdInput.value)) {
                     showValidation('@UiText["inventory.documents.return.referenceLabel"]', returnReferenceSelect || createForm);
                     return false;
                 }
 
-                if ((documentTypeSelect ? documentTypeSelect.value : 'Receipt') === 'Return') {
+                if (isReturnDocument) {
                     if (createWarehouseInput && !createWarehouseInput.value && returnSourceDocument && returnSourceDocument.warehouseRef) {
                         createWarehouseInput.value = String(returnSourceDocument.warehouseRef || '');
                     }

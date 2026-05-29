@@ -44,6 +44,10 @@ public class CreateProductVariantCommandHandler : CommandHandler<CreateProductVa
         if (string.IsNullOrWhiteSpace(command.VariantSku))
             return Fail("VariantSku is required.");
 
+        var normalizedName = string.IsNullOrWhiteSpace(command.VariantName)
+            ? NormalizeVariantName(command.VariantSku)
+            : command.VariantName.Trim();
+
         if (!Enum.TryParse<TrackingPolicy>(command.TrackingPolicy, true, out var trackingPolicy))
             return Fail($"Unsupported tracking policy '{command.TrackingPolicy}'.");
 
@@ -91,8 +95,15 @@ public class CreateProductVariantCommandHandler : CommandHandler<CreateProductVa
         if (conversionValidationError is not null)
             return Fail(conversionValidationError);
 
-        var aggregate = ProductVariant.Create(command.ProductRef, normalizedSku, normalizedBarcode, trackingPolicy, command.BaseUomRef);
+        var aggregate = ProductVariant.Create(
+            command.ProductRef,
+            normalizedSku,
+            normalizedBarcode,
+            trackingPolicy,
+            command.BaseUomRef,
+            normalizedName);
 
+        aggregate.ChangeVariantName(normalizedName);
         foreach (var attribute in attributes)
             aggregate.SetAttributeValue(attribute.AttributeRef, attribute.Value, attribute.OptionRef);
 
@@ -140,10 +151,17 @@ public class CreateProductVariantCommandHandler : CommandHandler<CreateProductVa
         {
             ProductVariantBusinessKey = aggregate.BusinessKey.Value,
             VariantSku = aggregate.VariantSku,
+            VariantName = aggregate.VariantName ?? string.Empty,
             Barcode = aggregate.Barcode,
             TrackingPolicy = aggregate.TrackingPolicy.ToString(),
             IsActive = aggregate.IsActive
         });
+    }
+
+    private static string NormalizeVariantName(string variantSku)
+    {
+        var normalized = (variantSku ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? string.Empty : normalized;
     }
 
     private async Task<string?> ValidateVariantAttributesAsync(Category category, Guid categorySchemaVersionRef, IReadOnlyCollection<VariantAttributeInput> attributes)

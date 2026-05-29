@@ -119,9 +119,11 @@
                         @for (var j = 0; j < module.Items.Count; j++)
                         {
                             var menuItem = module.Items[j];
+                            var hasActiveChild = menuItem.Children.Any(child => string.Equals(child.ItemId, activeItemId, StringComparison.OrdinalIgnoreCase));
                             var isActiveItem = module.IsEnabled &&
                                                menuItem.IsEnabled &&
                                                (string.Equals(menuItem.ItemId, activeItemId, StringComparison.OrdinalIgnoreCase)
+                                                || hasActiveChild
                                                 || (string.IsNullOrWhiteSpace(activeItemId) && isActiveModule && j == 0));
 
                             <li class="@(!menuItem.IsEnabled || !module.IsEnabled ? "disabled-menu" : isActiveItem ? "active" : null)">
@@ -151,6 +153,45 @@
                                         <i class="@menuItem.Icon"></i>
                                         <span class="d-inline-block">@menuItem.Title</span>
                                     </a>
+                                }
+                                @if (menuItem.Children.Count > 0)
+                                {
+                                    <ul class="list-unstyled pl-4 mt-2">
+                                        @for (var k = 0; k < menuItem.Children.Count; k++)
+                                        {
+                                            var childItem = menuItem.Children[k];
+                                            var isChildActive = childItem.IsEnabled &&
+                                                                (string.Equals(childItem.ItemId, activeItemId, StringComparison.OrdinalIgnoreCase)
+                                                                 || (string.IsNullOrWhiteSpace(activeItemId) && hasActiveChild && k == 0));
+
+                                            <li class="@(!childItem.IsEnabled ? "disabled-menu" : isChildActive ? "active" : null)">
+                                                @if (childItem.IsEnabled)
+                                                {
+                                                    if (!string.IsNullOrWhiteSpace(childItem.Route))
+                                                    {
+                                                        <a href="@childItem.Route">
+                                                            <i class="@childItem.Icon"></i>
+                                                            <span class="d-inline-block">@childItem.Title</span>
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <a href="javascript:void(0)">
+                                                            <i class="@childItem.Icon"></i>
+                                                            <span class="d-inline-block">@childItem.Title</span>
+                                                        </a>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <a href="javascript:void(0)">
+                                                        <i class="@childItem.Icon"></i>
+                                                        <span class="d-inline-block">@childItem.Title</span>
+                                                    </a>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
                                 }
                             </li>
                         }

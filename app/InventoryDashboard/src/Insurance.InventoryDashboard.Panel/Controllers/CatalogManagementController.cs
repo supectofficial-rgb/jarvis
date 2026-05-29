@@ -1247,6 +1247,7 @@ public abstract partial class CatalogManagementController : Controller
                     {
                         ProductId = redirectProductId,
                         Sku = plan.GeneratedSku,
+                        VariantName = plan.GeneratedName,
                         Barcode = null,
                         BaseUomRef = form.DefaultUomRef,
                         TrackingPolicy = "None",
@@ -1758,9 +1759,12 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
         }
 
+        var existingVariantName = string.Empty;
+
         if (!string.IsNullOrWhiteSpace(form.VariantId))
         {
             var detailsResult = await _apiService.GetProductVariantFullDetailsAsync(form.VariantId, token);
+            existingVariantName = detailsResult.Data?.Name ?? string.Empty;
             var existingValues = detailsResult.Data?.Attributes?.ToDictionary(
                 x => x.AttributeId,
                 x => x.Value,
@@ -1788,6 +1792,9 @@ public abstract partial class CatalogManagementController : Controller
         {
             ProductId = form.ProductId,
             Sku = form.Sku.Trim(),
+            VariantName = string.IsNullOrWhiteSpace(existingVariantName)
+                ? form.Sku.Trim()
+                : existingVariantName,
             Barcode = string.IsNullOrWhiteSpace(form.Barcode) ? null : form.Barcode.Trim(),
             BaseUomRef = form.BaseUomRef,
             TrackingPolicy = form.TrackingPolicy.Trim(),
@@ -2114,6 +2121,7 @@ public abstract partial class CatalogManagementController : Controller
                     {
                         ProductId = productId,
                         Sku = plan.GeneratedSku,
+                        VariantName = plan.GeneratedName,
                         Barcode = existing.Barcode,
                         BaseUomRef = string.IsNullOrWhiteSpace(existing.BaseUomRef) ? baseUomRef : existing.BaseUomRef,
                         TrackingPolicy = string.IsNullOrWhiteSpace(existing.TrackingPolicy) ? "None" : existing.TrackingPolicy,
@@ -2138,12 +2146,13 @@ public abstract partial class CatalogManagementController : Controller
                 productId,
                 new UpsertVariantRequest
                 {
-                    ProductId = productId,
-                    Sku = plan.GeneratedSku,
-                    Barcode = null,
-                    BaseUomRef = baseUomRef,
-                    TrackingPolicy = "None",
-                    IsActive = true,
+                ProductId = productId,
+                Sku = plan.GeneratedSku,
+                VariantName = plan.GeneratedName,
+                Barcode = null,
+                BaseUomRef = baseUomRef,
+                TrackingPolicy = "None",
+                IsActive = true,
                     AttributeValues = plan.AttributeValues
                 },
                 token);
@@ -2666,16 +2675,25 @@ public abstract partial class CatalogManagementController : Controller
 
     private static string BuildVariantLookupLabel(ProductVariantSummaryModel variant)
     {
-        var sku = (variant.Sku ?? string.Empty).Trim();
         var name = (variant.Name ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            return name;
+        }
 
-        var label = string.IsNullOrWhiteSpace(name)
-            ? sku
-            : string.IsNullOrWhiteSpace(sku)
-                ? name
-                : $"{sku} - {name}";
+        var sku = (variant.Sku ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(sku))
+        {
+            return sku;
+        }
 
-        return string.IsNullOrWhiteSpace(label) ? sku : label;
+        var barcode = (variant.Barcode ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(barcode))
+        {
+            return barcode;
+        }
+
+        return variant.Id;
     }
 
     private static string GenerateProductNumber(CategoryNodeModel category, IReadOnlyList<ProductSummaryModel> existingProducts)

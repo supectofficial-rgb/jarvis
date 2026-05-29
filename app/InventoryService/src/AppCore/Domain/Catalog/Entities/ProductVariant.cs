@@ -15,6 +15,7 @@ public sealed class ProductVariant : AggregateRoot
 
     public Guid ProductRef { get; private set; }
     public string VariantSku { get; private set; } = string.Empty;
+    public string? VariantName { get; private set; }
     public string? Barcode { get; private set; }
     public TrackingPolicy TrackingPolicy { get; private set; }
     public Guid BaseUomRef { get; private set; }
@@ -31,7 +32,13 @@ public sealed class ProductVariant : AggregateRoot
     {
     }
 
-    public static ProductVariant Create(Guid productRef, string variantSku, string? barcode, TrackingPolicy trackingPolicy, Guid baseUomRef)
+    public static ProductVariant Create(
+        Guid productRef,
+        string variantSku,
+        string? barcode,
+        TrackingPolicy trackingPolicy,
+        Guid baseUomRef,
+        string? variantName = null)
     {
         var variant = new ProductVariant();
 
@@ -39,6 +46,7 @@ public sealed class ProductVariant : AggregateRoot
             variant.BusinessKey,
             productRef,
             NormalizeRequired(variantSku, nameof(variantSku)),
+            NormalizeOptional(variantName) ?? NormalizeRequired(variantSku, nameof(variantSku)),
             NormalizeOptional(barcode),
             trackingPolicy,
             baseUomRef,
@@ -58,6 +66,15 @@ public sealed class ProductVariant : AggregateRoot
             return;
 
         RaiseUpdatedEvent(variantSku: normalized);
+    }
+
+    public void ChangeVariantName(string? variantName)
+    {
+        var normalized = NormalizeOptional(variantName) ?? VariantSku;
+        if (string.Equals(VariantName, normalized, StringComparison.Ordinal))
+            return;
+
+        RaiseUpdatedEvent(variantName: normalized, updateVariantName: true);
     }
 
     public void ChangeBarcode(string? barcode)
@@ -323,8 +340,10 @@ public sealed class ProductVariant : AggregateRoot
 
     private void RaiseUpdatedEvent(
         string? variantSku = null,
+        string? variantName = null,
         string? barcode = null,
         bool updateBarcode = false,
+        bool updateVariantName = false,
         TrackingPolicy? trackingPolicy = null,
         Guid? baseUomRef = null,
         bool? isActive = null,
@@ -333,12 +352,14 @@ public sealed class ProductVariant : AggregateRoot
         bool updateImages = false)
     {
         var nextBarcode = updateBarcode ? barcode : Barcode;
+        var nextVariantName = updateVariantName ? (NormalizeOptional(variantName) ?? VariantSku) : VariantName;
         var nextImages = updateImages ? images ?? Array.Empty<ProductVariantImageSnapshot>() : SnapshotImages(_images);
 
         Apply(new ProductVariantUpdatedEvent(
             BusinessKey,
             ProductRef,
             variantSku ?? VariantSku,
+            nextVariantName ?? variantSku ?? VariantSku,
             nextBarcode,
             trackingPolicy ?? TrackingPolicy,
             baseUomRef ?? BaseUomRef,
@@ -353,6 +374,7 @@ public sealed class ProductVariant : AggregateRoot
     {
         ProductRef = @event.ProductRef;
         VariantSku = @event.VariantSku;
+        VariantName = @event.VariantName;
         Barcode = @event.Barcode;
         TrackingPolicy = @event.TrackingPolicy;
         BaseUomRef = @event.BaseUomRef;
@@ -367,6 +389,7 @@ public sealed class ProductVariant : AggregateRoot
     {
         ProductRef = @event.ProductRef;
         VariantSku = @event.VariantSku;
+        VariantName = @event.VariantName;
         Barcode = @event.Barcode;
         TrackingPolicy = @event.TrackingPolicy;
         BaseUomRef = @event.BaseUomRef;

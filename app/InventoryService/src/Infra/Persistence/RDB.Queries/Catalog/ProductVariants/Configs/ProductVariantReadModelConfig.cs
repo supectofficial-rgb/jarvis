@@ -12,6 +12,7 @@ public sealed class ProductVariantReadModelConfig : IEntityTypeConfiguration<Pro
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.BusinessKey).IsUnique();
         builder.HasIndex(x => x.VariantSku).IsUnique();
+        builder.HasIndex(x => x.VariantName);
         builder.HasIndex(x => x.Barcode).IsUnique();
     }
 }

@@ -242,7 +242,7 @@
         },
         {
           "itemId": "return_documents",
-          "title": "برگشت",
+          "title": "برگشت از فروش",
           "icon": "simple-icon-action-undo",
           "isEnabled": true,
           "roles": [
@@ -250,8 +250,34 @@
             "Admin",
             "InventoryManager"
           ],
-          "description": "ثبت و جستجوی اسناد برگشتی",
+          "description": "ثبت و جستجوی اسناد برگشت از فروش",
           "route": "/InventoryManagement/Documents/Return"
+        },
+        {
+          "itemId": "return_purchase_documents",
+          "title": "برگشت از خرید",
+          "icon": "simple-icon-action-undo",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی اسناد برگشت از خرید",
+          "route": "/InventoryManagement/Documents/Return/Purchase"
+        },
+        {
+          "itemId": "return_transfer_documents",
+          "title": "برگشت از انتقال",
+          "icon": "simple-icon-action-undo",
+          "isEnabled": true,
+          "roles": [
+            "SysAdmin",
+            "Admin",
+            "InventoryManager"
+          ],
+          "description": "ثبت و جستجوی اسناد برگشت از انتقال",
+          "route": "/InventoryManagement/Documents/Return/Transfer"
         },
         {
           "itemId": "conversion_documents",

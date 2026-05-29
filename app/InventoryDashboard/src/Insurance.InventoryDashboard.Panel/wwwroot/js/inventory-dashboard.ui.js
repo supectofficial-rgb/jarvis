@@ -200,7 +200,90 @@
                 return;
             }
 
-            if (select.hasAttribute("data-ajax-url")) {
+            if (select.hasAttribute("data-ajax-local-init")) {
+                return;
+            }
+
+            var ajaxUrl = select.getAttribute("data-ajax-url") || "";
+            if (ajaxUrl) {
+                $(select).select2({
+                    theme: "bootstrap",
+                    dir: document.documentElement.getAttribute("dir") || "rtl",
+                    width: select.getAttribute("data-width") || "100%",
+                    placeholder: select.getAttribute("data-placeholder") || "",
+                    allowClear: true,
+                    minimumInputLength: Number(select.getAttribute("data-minimum-input-length") || "0"),
+                    dropdownParent: select.closest(".modal") ? $(select.closest(".modal")) : undefined,
+                    ajax: {
+                        url: ajaxUrl,
+                        dataType: "json",
+                        delay: 250,
+                        data: function (params) {
+                            var payload = {
+                                term: params.term || ""
+                            };
+
+                            var documentIdSelector = select.getAttribute("data-lookup-document-id-selector") || "";
+                            if (documentIdSelector) {
+                                var documentIdInput = root.querySelector(documentIdSelector) || document.querySelector(documentIdSelector);
+                                if (documentIdInput && "value" in documentIdInput) {
+                                    payload.documentId = String(documentIdInput.value || "");
+                                }
+                            }
+
+                            var documentIdInputSelector = select.getAttribute("data-lookup-document-id-input") || "";
+                            if (documentIdInputSelector) {
+                                var documentIdInput = root.querySelector(documentIdInputSelector) || document.querySelector(documentIdInputSelector);
+                                if (documentIdInput && "value" in documentIdInput) {
+                                    payload.documentId = String(documentIdInput.value || "");
+                                }
+                            }
+
+                            return payload;
+                        },
+                        processResults: function (data) {
+                            var items = data && data.items ? data.items : [];
+                            return {
+                                results: items.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.text || item.name || item.sku || "",
+                                        sku: item.sku || "",
+                                        name: item.name || "",
+                                        barcode: item.barcode || "",
+                                        productId: item.productId || "",
+                                        baseUomRef: item.baseUomRef || ""
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+
+                $(select).off("select2:select.appUiAjax").on("select2:select.appUiAjax", function (event) {
+                    var data = event.params && event.params.data ? event.params.data : null;
+                    if (!data || !data.id) {
+                        return;
+                    }
+
+                    var option = select.querySelector('option[value="' + String(data.id).replace(/"/g, '\\"') + '"]');
+                    if (!option) {
+                        option = document.createElement("option");
+                        option.value = String(data.id);
+                        option.textContent = data.text || data.name || data.sku || data.id;
+                        option.selected = true;
+                        select.appendChild(option);
+                    }
+
+                    if (data.baseUomRef) {
+                        option.setAttribute("data-base-uom-ref", data.baseUomRef);
+                    }
+                    if (data.productId) {
+                        option.setAttribute("data-product-id", data.productId);
+                    }
+                });
+
+                select.dataset.select2Initialized = "true";
                 return;
             }
 

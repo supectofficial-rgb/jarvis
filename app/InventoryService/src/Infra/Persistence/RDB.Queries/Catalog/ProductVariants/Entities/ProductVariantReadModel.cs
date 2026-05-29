@@ -8,6 +8,7 @@ public class ProductVariantReadModel
     public Guid BusinessKey { get; set; }
     public Guid ProductRef { get; set; }
     public string VariantSku { get; set; } = string.Empty;
+    public string? VariantName { get; set; }
     public string? Barcode { get; set; }
     public TrackingPolicy TrackingPolicy { get; set; }
     public Guid BaseUomRef { get; set; }

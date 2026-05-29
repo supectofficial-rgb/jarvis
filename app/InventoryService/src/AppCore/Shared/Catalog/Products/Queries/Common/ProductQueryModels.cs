@@ -19,6 +19,7 @@ public class ProductVariantListItem
 {
     public Guid VariantBusinessKey { get; set; }
     public string VariantSku { get; set; } = string.Empty;
+    public string? Name { get; set; }
     public string? Barcode { get; set; }
     public string TrackingPolicy { get; set; } = string.Empty;
     public Guid BaseUomRef { get; set; }

@@ -154,7 +154,9 @@ public class PostInventoryDocumentCommandHandler
             InventoryDocumentType.Issue => InventoryTransactionType.Issue,
             InventoryDocumentType.Transfer => InventoryTransactionType.Transfer,
             InventoryDocumentType.Adjustment => InventoryTransactionType.Adjustment,
-            InventoryDocumentType.Return => InventoryTransactionType.Return,
+            InventoryDocumentType.ReturnFromSell => InventoryTransactionType.ReturnFromSell,
+            InventoryDocumentType.ReturnFromBuy => InventoryTransactionType.ReturnFromBuy,
+            InventoryDocumentType.ReturnFromTransfer => InventoryTransactionType.ReturnFromTransfer,
             InventoryDocumentType.QualityChange => InventoryTransactionType.QualityChange,
             InventoryDocumentType.Conversion => InventoryTransactionType.Conversion,
             _ => InventoryTransactionType.Adjustment
@@ -260,7 +262,7 @@ public class PostInventoryDocumentCommandHandler
         return documentType switch
         {
             InventoryDocumentType.Receipt => InventorySourceType.Receipt,
-            InventoryDocumentType.Return => InventorySourceType.ReturnRestock,
+            InventoryDocumentType.ReturnFromSell => InventorySourceType.ReturnRestock,
             InventoryDocumentType.Adjustment => InventorySourceType.AdjustmentIncrease,
             InventoryDocumentType.Conversion => InventorySourceType.ConversionProduction,
             _ => null
@@ -268,7 +270,10 @@ public class PostInventoryDocumentCommandHandler
     }
 
     private static bool ShouldConsumeSource(InventoryDocumentType documentType)
-        => documentType is InventoryDocumentType.Issue or InventoryDocumentType.Adjustment or InventoryDocumentType.Conversion;
+        => documentType is InventoryDocumentType.Issue
+            or InventoryDocumentType.Adjustment
+            or InventoryDocumentType.Conversion
+            or InventoryDocumentType.ReturnFromBuy;
 
     private static IReadOnlyDictionary<Guid, PostLineSerialSelectionContext> BuildSelectedSerialsByLine(
         InventoryDocument document)
@@ -305,7 +310,7 @@ public class PostInventoryDocumentCommandHandler
             switch (document.DocumentType)
             {
                 case InventoryDocumentType.Receipt:
-                case InventoryDocumentType.Return:
+                case InventoryDocumentType.ReturnFromSell:
                     yield return CreateEffect(
                         line,
                         InventoryTransactionLine.Create(
@@ -325,6 +330,7 @@ public class PostInventoryDocumentCommandHandler
                         index + 1);
                     break;
 
+                case InventoryDocumentType.ReturnFromBuy:
                 case InventoryDocumentType.Issue:
                     yield return CreateEffect(
                         line,
@@ -345,32 +351,7 @@ public class PostInventoryDocumentCommandHandler
                         index + 1);
                     break;
 
-                case InventoryDocumentType.Adjustment:
-                    var adjustmentDelta = line.AdjustmentDirection == InventoryAdjustmentDirection.Decrease
-                        ? -line.BaseQty
-                        : line.BaseQty;
-
-                    yield return CreateEffect(
-                        line,
-                        InventoryTransactionLine.Create(
-                            line.VariantRef,
-                            line.Qty,
-                            line.UomRef,
-                            adjustmentDelta,
-                            line.BaseUomRef,
-                            sourceLocationRef: adjustmentDelta < 0 ? line.SourceLocationRef ?? line.DestinationLocationRef : null,
-                              destinationLocationRef: adjustmentDelta > 0 ? line.DestinationLocationRef ?? line.SourceLocationRef : null,
-                              oldQualityStatusRef: adjustmentDelta < 0 ? line.QualityStatusRef : null,
-                              newQualityStatusRef: adjustmentDelta > 0 ? line.QualityStatusRef : null,
-                              serialRef: serialRef,
-                              serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
-                              reasonCode: line.ReasonCode),
-                        serials,
-                        selectedSerials?.UseUniqueSerialItems ?? false,
-                        index + 1);
-                    break;
-
+                case InventoryDocumentType.ReturnFromTransfer:
                 case InventoryDocumentType.Transfer:
                     yield return CreateEffect(
                         line,
@@ -400,6 +381,32 @@ public class PostInventoryDocumentCommandHandler
                               line.BaseUomRef,
                               destinationLocationRef: line.DestinationLocationRef,
                               newQualityStatusRef: line.QualityStatusRef,
+                              serialRef: serialRef,
+                              serials: serialTuples,
+                              lotBatchNo: line.LotBatchNo,
+                              reasonCode: line.ReasonCode),
+                        serials,
+                        selectedSerials?.UseUniqueSerialItems ?? false,
+                        index + 1);
+                    break;
+
+                case InventoryDocumentType.Adjustment:
+                    var adjustmentDelta = line.AdjustmentDirection == InventoryAdjustmentDirection.Decrease
+                        ? -line.BaseQty
+                        : line.BaseQty;
+
+                    yield return CreateEffect(
+                        line,
+                        InventoryTransactionLine.Create(
+                            line.VariantRef,
+                            line.Qty,
+                            line.UomRef,
+                            adjustmentDelta,
+                            line.BaseUomRef,
+                            sourceLocationRef: adjustmentDelta < 0 ? line.SourceLocationRef ?? line.DestinationLocationRef : null,
+                              destinationLocationRef: adjustmentDelta > 0 ? line.DestinationLocationRef ?? line.SourceLocationRef : null,
+                              oldQualityStatusRef: adjustmentDelta < 0 ? line.QualityStatusRef : null,
+                              newQualityStatusRef: adjustmentDelta > 0 ? line.QualityStatusRef : null,
                               serialRef: serialRef,
                               serials: serialTuples,
                               lotBatchNo: line.LotBatchNo,

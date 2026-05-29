@@ -9,6 +9,7 @@ public sealed record ProductVariantUpdatedEvent : IDomainEvent
     public BusinessKey ProductVariantBusinessKey { get; }
     public Guid ProductRef { get; }
     public string VariantSku { get; }
+    public string VariantName { get; }
     public string? Barcode { get; }
     public TrackingPolicy TrackingPolicy { get; }
     public Guid BaseUomRef { get; }
@@ -23,6 +24,7 @@ public sealed record ProductVariantUpdatedEvent : IDomainEvent
         BusinessKey productVariantBusinessKey,
         Guid productRef,
         string variantSku,
+        string variantName,
         string? barcode,
         TrackingPolicy trackingPolicy,
         Guid baseUomRef,
@@ -35,6 +37,7 @@ public sealed record ProductVariantUpdatedEvent : IDomainEvent
         ProductVariantBusinessKey = productVariantBusinessKey;
         ProductRef = productRef;
         VariantSku = variantSku;
+        VariantName = variantName;
         Barcode = barcode;
         TrackingPolicy = trackingPolicy;
         BaseUomRef = baseUomRef;

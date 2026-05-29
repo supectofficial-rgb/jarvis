@@ -254,9 +254,21 @@ public sealed class InventoryDocument : AggregateRoot
         switch (DocumentType)
         {
             case InventoryDocumentType.Receipt:
-            case InventoryDocumentType.Return:
+            case InventoryDocumentType.ReturnFromSell:
                 if (!line.DestinationLocationRef.HasValue)
-                    throw new AggregateStateExceptions("Destination location is required for receipt/return.", nameof(line.DestinationLocationRef));
+                    throw new AggregateStateExceptions("Destination location is required for receipt/return from sell.", nameof(line.DestinationLocationRef));
+                break;
+
+            case InventoryDocumentType.ReturnFromBuy:
+                if (!line.SourceLocationRef.HasValue)
+                    throw new AggregateStateExceptions("Source location is required for return from buy.", nameof(line.SourceLocationRef));
+                break;
+
+            case InventoryDocumentType.ReturnFromTransfer:
+                if (!line.SourceLocationRef.HasValue || !line.DestinationLocationRef.HasValue)
+                    throw new AggregateStateExceptions("Return from transfer requires source and destination locations.", nameof(line.SourceLocationRef));
+                if (line.SourceLocationRef == line.DestinationLocationRef)
+                    throw new AggregateStateExceptions("Return from transfer source and destination locations must differ.", nameof(line.DestinationLocationRef));
                 break;
 
             case InventoryDocumentType.Issue:

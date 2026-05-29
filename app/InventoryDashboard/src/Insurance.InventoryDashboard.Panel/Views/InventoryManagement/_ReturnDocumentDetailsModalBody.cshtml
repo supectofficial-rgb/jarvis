@@ -23,7 +23,10 @@
         "Issue" => UiText["inventory.documents.type.issue"],
         "Transfer" => UiText["inventory.documents.type.transfer"],
         "Adjustment" => UiText["inventory.documents.type.adjustment"],
-        "Return" => UiText["inventory.documents.type.return"],
+        "ReturnFromSell" => "برگشت از فروش",
+        "ReturnFromBuy" => "برگشت از خرید",
+        "ReturnFromTransfer" => "برگشت از انتقال",
+        "Return" => "برگشت",
         "QualityChange" => UiText["inventory.documents.type.qualityChange"],
         "Conversion" => UiText["inventory.documents.type.conversion"],
         _ => type ?? "-"
@@ -51,10 +54,18 @@
 
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
-        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
-        return string.IsNullOrWhiteSpace(productName)
-            ? variant.Sku
-            : $"{variant.Sku} - {productName}";
+        var variantName = (variant.Name ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(variantName))
+        {
+            return variantName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        {
+            return variant.Sku;
+        }
+
+        return variant.Id;
     }
 
     string VariantName(string? variantId)
@@ -130,7 +141,7 @@
         _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
     };
 
-    var selectedDocumentType = document?.DocumentType ?? "Return";
+    var selectedDocumentType = document?.DocumentType ?? "ReturnFromSell";
     var showQualityColumn = string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase)
         || string.Equals(selectedDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var canEditLines = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);

@@ -34,6 +34,7 @@ public sealed class VariantCatalogSummaryGraphProjectionEventHandler :
             variantKey,
             @event.ProductRef,
             @event.VariantSku,
+            @event.VariantName,
             @event.Barcode,
             @event.TrackingPolicy.ToString(),
             @event.BaseUomRef,
@@ -57,6 +58,7 @@ public sealed class VariantCatalogSummaryGraphProjectionEventHandler :
             variantKey,
             @event.ProductRef,
             @event.VariantSku,
+            @event.VariantName,
             @event.Barcode,
             @event.TrackingPolicy.ToString(),
             @event.BaseUomRef,
@@ -240,6 +242,7 @@ public sealed class VariantCatalogSummaryGraphProjectionEventHandler :
         string variantKey,
         Guid productRef,
         string variantSku,
+        string variantName,
         string? barcode,
         string trackingPolicy,
         Guid baseUomRef,
@@ -258,6 +261,7 @@ public sealed class VariantCatalogSummaryGraphProjectionEventHandler :
                 ["variantRef"] = variantKey,
                 ["productRef"] = CatalogGraphProjectionSchema.ToNodeKey(productRef),
                 ["variantSku"] = variantSku,
+                ["variantName"] = variantName,
                 ["barcode"] = barcode,
                 ["trackingPolicy"] = trackingPolicy,
                 ["baseUomRef"] = CatalogGraphProjectionSchema.ToNodeKey(baseUomRef),
@@ -285,4 +289,3 @@ public sealed class VariantCatalogSummaryGraphProjectionEventHandler :
             }));
     }
 }
-

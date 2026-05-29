@@ -751,8 +751,27 @@ public sealed partial class InventoryManagementController : Controller
         string itemId)
     {
         var module = modules.FirstOrDefault(m => string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase));
-        var item = module?.Items.FirstOrDefault(i => string.Equals(i.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
+        var item = FindMenuItem(module?.Items ?? new List<DashboardMenuItem>(), itemId);
         return (module, item);
+    }
+
+    private static DashboardMenuItem? FindMenuItem(IEnumerable<DashboardMenuItem> items, string itemId)
+    {
+        foreach (var item in items)
+        {
+            if (string.Equals(item.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
+            {
+                return item;
+            }
+
+            var childMatch = FindMenuItem(item.Children, itemId);
+            if (childMatch is not null)
+            {
+                return childMatch;
+            }
+        }
+
+        return null;
     }
 
     private static string? JoinErrors(params string?[] errors)

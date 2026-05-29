@@ -724,6 +724,7 @@ public sealed class ApiService : IApiService
         {
             ProductRef = ParseGuidOrEmpty(productId),
             VariantSku = request.Sku.Trim(),
+            VariantName = string.IsNullOrWhiteSpace(request.VariantName) ? null : request.VariantName.Trim(),
             Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim(),
             TrackingPolicy = request.TrackingPolicy.Trim(),
             BaseUomRef = ParseGuidOrEmpty(request.BaseUomRef),
@@ -739,6 +740,7 @@ public sealed class ApiService : IApiService
         var payload = new
         {
             VariantSku = request.Sku.Trim(),
+            VariantName = string.IsNullOrWhiteSpace(request.VariantName) ? null : request.VariantName.Trim(),
             Barcode = string.IsNullOrWhiteSpace(request.Barcode) ? null : request.Barcode.Trim(),
             TrackingPolicy = request.TrackingPolicy.Trim(),
             BaseUomRef = ParseGuidOrEmpty(request.BaseUomRef),
@@ -1164,6 +1166,7 @@ public sealed class ApiService : IApiService
             Id = item.Variant.VariantBusinessKey.ToString("D"),
             ProductId = item.ProductBusinessKey.ToString("D"),
             Sku = item.Variant.VariantSku,
+            Name = item.Variant.Name,
             Barcode = item.Variant.Barcode,
             BaseUomRef = item.Variant.BaseUomRef.ToString("D"),
             BaseUom = item.Variant.BaseUomRef.ToString("D"),

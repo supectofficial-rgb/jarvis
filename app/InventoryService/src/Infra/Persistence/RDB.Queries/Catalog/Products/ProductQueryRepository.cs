@@ -607,6 +607,7 @@ public class ProductQueryRepository : QueryRepository<InventoryServiceQueryDbCon
         {
             VariantBusinessKey = x.BusinessKey,
             VariantSku = x.VariantSku,
+            Name = x.VariantName ?? x.VariantSku,
             Barcode = x.Barcode,
             TrackingPolicy = x.TrackingPolicy.ToString(),
             BaseUomRef = x.BaseUomRef,

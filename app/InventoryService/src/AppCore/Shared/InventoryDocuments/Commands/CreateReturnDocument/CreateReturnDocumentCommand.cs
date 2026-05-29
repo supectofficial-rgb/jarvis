@@ -5,6 +5,7 @@ using OysterFx.AppCore.Shared.Commands;
 
 public class CreateReturnDocumentCommand : ICommand<Guid>
 {
+    public string? DocumentType { get; set; } = "ReturnFromSell";
     public string? DocumentNo { get; set; }
     public string? ReferenceType { get; set; }
     public Guid? ReferenceBusinessId { get; set; }

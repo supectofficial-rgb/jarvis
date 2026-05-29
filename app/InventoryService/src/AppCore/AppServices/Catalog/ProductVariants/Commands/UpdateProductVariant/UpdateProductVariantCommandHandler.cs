@@ -60,6 +60,10 @@ public class UpdateProductVariantCommandHandler : CommandHandler<UpdateProductVa
         if (category is null)
             return Fail("Category was not found for this variant.");
 
+        var normalizedName = string.IsNullOrWhiteSpace(command.VariantName)
+            ? aggregate.VariantName ?? NormalizeVariantName(command.VariantSku)
+            : command.VariantName.Trim();
+
         var baseUom = await _uomRepository.GetByBusinessKeyAsync(command.BaseUomRef);
         if (baseUom is null)
             return Fail("Base unit of measure was not found.");
@@ -107,6 +111,7 @@ public class UpdateProductVariantCommandHandler : CommandHandler<UpdateProductVa
             return Fail(conversionValidationError);
 
         aggregate.ChangeVariantSku(normalizedSku);
+        aggregate.ChangeVariantName(normalizedName);
         aggregate.ChangeBarcode(normalizedBarcode);
 
         try
@@ -199,10 +204,17 @@ public class UpdateProductVariantCommandHandler : CommandHandler<UpdateProductVa
         {
             ProductVariantBusinessKey = aggregate.BusinessKey.Value,
             VariantSku = aggregate.VariantSku,
+            VariantName = aggregate.VariantName ?? string.Empty,
             Barcode = aggregate.Barcode,
             TrackingPolicy = aggregate.TrackingPolicy.ToString(),
             IsActive = aggregate.IsActive
         });
+    }
+
+    private static string NormalizeVariantName(string variantSku)
+    {
+        var normalized = (variantSku ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? string.Empty : normalized;
     }
 
     private async Task<string?> ValidateVariantAttributesAsync(Category category, Guid categorySchemaVersionRef, IReadOnlyCollection<VariantAttributeInput> attributes)

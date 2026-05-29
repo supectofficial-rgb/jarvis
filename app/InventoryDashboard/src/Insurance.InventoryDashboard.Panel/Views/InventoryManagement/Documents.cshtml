@@ -54,7 +54,10 @@
         "Issue" => DecodeHtmlEntities(UiText["inventory.documents.type.issue"]),
         "Transfer" => DecodeHtmlEntities(UiText["inventory.documents.type.transfer"]),
         "Adjustment" => DecodeHtmlEntities(UiText["inventory.documents.type.adjustment"]),
-        "Return" => DecodeHtmlEntities(UiText["inventory.documents.type.return"]),
+        "ReturnFromSell" => "برگشت از فروش",
+        "ReturnFromBuy" => "برگشت از خرید",
+        "ReturnFromTransfer" => "برگشت از انتقال",
+        "Return" => "برگشت",
         "QualityChange" => DecodeHtmlEntities(UiText["inventory.documents.type.qualityChange"]),
         "Conversion" => DecodeHtmlEntities(UiText["inventory.documents.type.conversion"]),
         _ => DecodeHtmlEntities(type ?? "-")
@@ -82,10 +85,18 @@
 
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
-        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
-        return string.IsNullOrWhiteSpace(productName)
-            ? variant.Sku
-            : $"{variant.Sku} - {productName}";
+        var variantName = (variant.Name ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(variantName))
+        {
+            return variantName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        {
+            return variant.Sku;
+        }
+
+        return variant.Id;
     }
 
     string VariantName(string? variantId)
@@ -158,11 +169,14 @@
         || !string.IsNullOrWhiteSpace(Model.OccurredToFilter)
         || Model.DocumentPage > 1;
 
-    var showListTab = hasListContext;
+    var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
-    var isReturnDocument = string.Equals(currentDocumentType, "Return", StringComparison.OrdinalIgnoreCase);
+    var isReturnDocument = string.Equals(currentDocumentType, "ReturnFromSell", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(currentDocumentType, "ReturnFromBuy", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(currentDocumentType, "ReturnFromTransfer", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(currentDocumentType, "Return", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
     var documentPageUrl = Url.Action(documentAction, "InventoryManagement") ?? string.Empty;
     var documentListUrl = Url.Action("DocumentList", "InventoryManagement") ?? string.Empty;
@@ -247,10 +261,11 @@
                                         <select id="document-return-reference-select"
                                                 class="form-control js-search-select"
                                                 data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]"
-                                                data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")'>
+                                                data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")'
+                                                data-ajax-local-init="true">
                                             <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
                                         </select>
-                                        <input type="hidden" asp-for="CreateForm.ReferenceType" id="document-return-reference-type-input" value="Transfer" />
+                                        <input type="hidden" asp-for="CreateForm.ReferenceType" id="document-return-reference-type-input" value="Issue" />
                                         <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="document-return-reference-id-input" />
                                         <div class="mt-2 d-none" id="document-return-reference-selected">
                                             <div class="alert alert-light border mb-0 py-2">
@@ -957,6 +972,9 @@
                     case 'Issue': return 'حواله';
                     case 'Transfer': return 'انتقال';
                     case 'Adjustment': return 'تعدیل';
+                    case 'ReturnFromSell': return 'برگشت از فروش';
+                    case 'ReturnFromBuy': return 'برگشت از خرید';
+                    case 'ReturnFromTransfer': return 'برگشت از انتقال';
                     case 'Return': return 'برگشت';
                     case 'QualityChange': return 'تغییر کیفیت';
                     case 'Conversion': return 'تبدیل';
@@ -1148,10 +1166,30 @@
                     adjustment: true,
                     lineReason: true
                 },
-                Return: {
-                    title: 'برگشت کالا',
-                    text: 'برای برگشت کالا به انبار استفاده می‌شود. لوکیشن مقصد هر ردیف الزامی است.',
+                ReturnFromSell: {
+                    title: 'برگشت از فروش',
+                    text: 'کالا از مشتری یا فروشنده به انبار برمی‌گردد. لوکیشن مقصد هر ردیف الزامی است.',
                     source: false,
+                    destination: true,
+                    quality: false,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                ReturnFromBuy: {
+                    title: 'برگشت از خرید',
+                    text: 'کالا از انبار به تامین‌کننده برمی‌گردد. لوکیشن مبدا هر ردیف الزامی است.',
+                    source: true,
+                    destination: false,
+                    quality: false,
+                    qualityChange: false,
+                    adjustment: false,
+                    lineReason: false
+                },
+                ReturnFromTransfer: {
+                    title: 'برگشت از انتقال',
+                    text: 'کالا از مقصد انتقال به مبدا بازمی‌گردد.',
+                    source: true,
                     destination: true,
                     quality: false,
                     qualityChange: false,
@@ -1296,7 +1334,7 @@
 
             function setReturnReferenceSelection(document) {
                 if (returnReferenceTypeInput) {
-                    returnReferenceTypeInput.value = 'Transfer';
+                    returnReferenceTypeInput.value = 'Issue';
                 }
 
                 if (returnReferenceIdInput) {

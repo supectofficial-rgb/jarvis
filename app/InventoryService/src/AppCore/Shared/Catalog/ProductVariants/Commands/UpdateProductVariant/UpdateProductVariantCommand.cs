@@ -7,6 +7,7 @@ public class UpdateProductVariantCommand : ICommand<UpdateProductVariantCommandR
 {
     public Guid ProductVariantBusinessKey { get; set; }
     public string VariantSku { get; set; } = string.Empty;
+    public string? VariantName { get; set; }
     public string? Barcode { get; set; }
     public string TrackingPolicy { get; set; } = string.Empty;
     public Guid BaseUomRef { get; set; }

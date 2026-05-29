@@ -78,10 +78,18 @@
 
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
-        var productName = Model.ProductLookup.FirstOrDefault(x => x.Id == variant.ProductId)?.Name;
-        return string.IsNullOrWhiteSpace(productName)
-            ? variant.Sku
-            : $"{variant.Sku} - {productName}";
+        var variantName = (variant.Name ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(variantName))
+        {
+            return variantName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        {
+            return variant.Sku;
+        }
+
+        return variant.Id;
     }
 
     string VariantName(string? variantId)
@@ -168,7 +176,7 @@
         || !string.IsNullOrWhiteSpace(Model.OccurredToFilter)
         || Model.DocumentPage > 1;
 
-    var showListTab = hasListContext;
+    var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);

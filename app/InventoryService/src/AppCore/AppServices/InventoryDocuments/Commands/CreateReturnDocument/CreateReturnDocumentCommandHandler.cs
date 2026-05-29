@@ -18,8 +18,9 @@ public class CreateReturnDocumentCommandHandler : CommandHandler<CreateReturnDoc
 
     public override async Task<CommandResult<Guid>> Handle(CreateReturnDocumentCommand command)
     {
+        var documentType = NormalizeDocumentType(command.DocumentType);
         var result = await _creationService.CreateAsync(
-            InventoryDocumentType.Return,
+            documentType,
             command.DocumentNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
@@ -32,5 +33,16 @@ public class CreateReturnDocumentCommandHandler : CommandHandler<CreateReturnDoc
             command.Lines);
 
         return result.Success ? Ok(result.DocumentBusinessKey) : Fail(result.Error!);
+    }
+
+    private static InventoryDocumentType NormalizeDocumentType(string? documentType)
+    {
+        return documentType switch
+        {
+            "ReturnFromBuy" => InventoryDocumentType.ReturnFromBuy,
+            "ReturnFromTransfer" => InventoryDocumentType.ReturnFromTransfer,
+            "Return" => InventoryDocumentType.ReturnFromSell,
+            _ => InventoryDocumentType.ReturnFromSell
+        };
     }
 }

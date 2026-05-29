@@ -6,7 +6,11 @@ public enum InventoryDocumentType
     Issue = 2,
     Transfer = 3,
     Adjustment = 4,
-    Return = 5,
+    ReturnFromSell = 5,
     QualityChange = 6,
-    Conversion = 7
+    Conversion = 7,
+    ReturnFromBuy = 8,
+    ReturnFromTransfer = 9,
+    [Obsolete("Use ReturnFromSell instead.")]
+    Return = ReturnFromSell
 }
