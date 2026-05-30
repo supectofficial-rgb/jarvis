@@ -472,14 +472,21 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
                 add_on."BusinessKey" AS "VariantAddOnBusinessKey",
                 add_on."VariantRef" AS "VariantRef",
                 add_on."AddOnVariantRef" AS "AddOnVariantRef",
+                add_on."TagId" AS "TagId",
+                add_on."IsRequired" AS "IsRequired",
+                COALESCE(variant."VariantName", variant."VariantSku", tag."TagName")::text AS "AddOnLabel",
                 variant."VariantSku"::text AS "AddOnSku",
                 variant."Barcode"::text AS "AddOnBarcode",
-                variant."IsActive" AS "AddOnIsActive"
+                COALESCE(variant."IsActive", TRUE) AS "AddOnIsActive",
+                tag."TagName" AS "TagName",
+                tag."TagColor" AS "TagColor"
             FROM "VariantAddOns" AS add_on
-            INNER JOIN "ProductVariants" AS variant
+            LEFT JOIN "ProductVariants" AS variant
                 ON add_on."AddOnVariantRef" = variant."BusinessKey"
+            LEFT JOIN "Tags" AS tag
+                ON add_on."TagId" = tag."BusinessKey"
             WHERE add_on."VariantRef" = {0}
-            ORDER BY variant."VariantSku"
+            ORDER BY COALESCE(variant."VariantName", variant."VariantSku", tag."TagName")
             """;
 
         var addOns = new List<VariantAddOnViewItem>();
@@ -517,10 +524,15 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
                 {
                     VariantAddOnBusinessKey = ReadGuid(reader, "VariantAddOnBusinessKey"),
                     VariantRef = ReadGuid(reader, "VariantRef"),
-                    AddOnVariantRef = ReadGuid(reader, "AddOnVariantRef"),
+                    AddOnVariantRef = ReadNullableGuid(reader, "AddOnVariantRef"),
+                    TagId = ReadNullableGuid(reader, "TagId"),
+                    IsRequired = ReadBoolean(reader, "IsRequired"),
+                    AddOnLabel = ReadString(reader, "AddOnLabel", variantId),
                     AddOnSku = ReadString(reader, "AddOnSku", variantId),
                     AddOnBarcode = ReadNullableString(reader, "AddOnBarcode", variantId),
-                    AddOnIsActive = ReadBoolean(reader, "AddOnIsActive")
+                    AddOnIsActive = ReadBoolean(reader, "AddOnIsActive"),
+                    TagName = ReadNullableString(reader, "TagName", variantId),
+                    TagColor = ReadNullableString(reader, "TagColor", variantId)
                 });
             }
         }
@@ -586,6 +598,12 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
     {
         var ordinal = reader.GetOrdinal(columnName);
         return reader.IsDBNull(ordinal) ? Guid.Empty : reader.GetFieldValue<Guid>(ordinal);
+    }
+
+    private static Guid? ReadNullableGuid(DbDataReader reader, string columnName)
+    {
+        var ordinal = reader.GetOrdinal(columnName);
+        return reader.IsDBNull(ordinal) ? null : reader.GetFieldValue<Guid>(ordinal);
     }
 
     private static bool ReadBoolean(DbDataReader reader, string columnName)

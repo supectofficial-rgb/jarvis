@@ -918,7 +918,9 @@ public sealed class ApiService : IApiService
     {
         var payload = new
         {
-            AddOnVariantRef = ParseGuidOrEmpty(request.AddOnVariantRef)
+            AddOnVariantRef = ParseNullableGuid(request.AddOnVariantRef),
+            TagId = ParseNullableGuid(request.TagId),
+            IsRequired = request.IsRequired
         };
 
         return PutCommandAsync(
@@ -970,10 +972,15 @@ public sealed class ApiService : IApiService
         {
             AddOnId = item.VariantAddOnBusinessKey.ToString("D"),
             VariantId = item.VariantRef.ToString("D"),
-            AddOnVariantId = item.AddOnVariantRef.ToString("D"),
+            AddOnVariantId = item.AddOnVariantRef?.ToString("D"),
+            TagId = item.TagId?.ToString("D"),
+            IsRequired = item.IsRequired,
+            AddOnLabel = item.AddOnLabel,
             AddOnSku = item.AddOnSku,
             AddOnBarcode = item.AddOnBarcode,
-            AddOnIsActive = item.AddOnIsActive
+            AddOnIsActive = item.AddOnIsActive,
+            TagName = item.TagName,
+            TagColor = item.TagColor
         }).ToList() ?? new List<VariantAddOnModel>();
 
         return new ApiResponse<List<VariantAddOnModel>> { IsSuccess = true, Data = mapped };
@@ -1206,10 +1213,15 @@ public sealed class ApiService : IApiService
             {
                 AddOnId = addOn.VariantAddOnBusinessKey.ToString("D"),
                 VariantId = addOn.VariantRef.ToString("D"),
-                AddOnVariantId = addOn.AddOnVariantRef.ToString("D"),
+                AddOnVariantId = addOn.AddOnVariantRef?.ToString("D"),
+                TagId = addOn.TagId?.ToString("D"),
+                IsRequired = addOn.IsRequired,
+                AddOnLabel = addOn.AddOnLabel,
                 AddOnSku = addOn.AddOnSku,
                 AddOnBarcode = addOn.AddOnBarcode,
-                AddOnIsActive = addOn.AddOnIsActive
+                AddOnIsActive = addOn.AddOnIsActive,
+                TagName = addOn.TagName,
+                TagColor = addOn.TagColor
             }).ToList(),
             Images = item.Images.Select(image => new VariantImageModel
             {
@@ -3132,10 +3144,15 @@ public sealed class ApiService : IApiService
     {
         public Guid VariantAddOnBusinessKey { get; set; }
         public Guid VariantRef { get; set; }
-        public Guid AddOnVariantRef { get; set; }
+        public Guid? AddOnVariantRef { get; set; }
+        public Guid? TagId { get; set; }
+        public bool IsRequired { get; set; }
+        public string AddOnLabel { get; set; } = string.Empty;
         public string AddOnSku { get; set; } = string.Empty;
         public string? AddOnBarcode { get; set; }
         public bool AddOnIsActive { get; set; }
+        public string? TagName { get; set; }
+        public string? TagColor { get; set; }
     }
 
     private sealed class VariantTagItemDto

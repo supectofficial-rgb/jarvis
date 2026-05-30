@@ -11,6 +11,11 @@ public sealed class VariantAddOnReadModelConfig : IEntityTypeConfiguration<Varia
         builder.ToTable("VariantAddOns");
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.BusinessKey).IsUnique();
-        builder.HasIndex(x => new { x.VariantRef, x.AddOnVariantRef }).IsUnique();
+        builder.HasIndex(x => new { x.VariantRef, x.AddOnVariantRef })
+            .IsUnique()
+            .HasFilter("\"AddOnVariantRef\" IS NOT NULL");
+        builder.HasIndex(x => new { x.VariantRef, x.TagId })
+            .IsUnique()
+            .HasFilter("\"TagId\" IS NOT NULL");
     }
 }

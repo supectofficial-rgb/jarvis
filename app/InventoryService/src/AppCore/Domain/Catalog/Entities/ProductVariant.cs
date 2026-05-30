@@ -223,16 +223,38 @@ public sealed class ProductVariant : AggregateRoot
         return true;
     }
 
-    public VariantAddOn AddOrUpdateAddOn(Guid addOnVariantRef)
+    public VariantAddOn AddOrUpdateAddOn(Guid? addOnVariantRef, Guid? tagId, bool isRequired)
     {
-        if (addOnVariantRef == Guid.Empty)
-            throw new ArgumentException("AddOnVariantRef is required.", nameof(addOnVariantRef));
+        var hasVariantRef = addOnVariantRef.HasValue && addOnVariantRef.Value != Guid.Empty;
+        var hasTagId = tagId.HasValue && tagId.Value != Guid.Empty;
 
-        if (addOnVariantRef == BusinessKey.Value)
+        if (hasVariantRef == hasTagId)
+            throw new ArgumentException("Exactly one of AddOnVariantRef or TagId is required.");
+
+        if (hasVariantRef && addOnVariantRef == BusinessKey.Value)
             throw new ArgumentException("Variant cannot reference itself as an add-on.", nameof(addOnVariantRef));
 
-        Apply(new ProductVariantAddOnUpsertedEvent(BusinessKey, addOnVariantRef));
-        return _addOns.First(x => x.AddOnVariantRef == addOnVariantRef);
+        var existing = hasVariantRef
+            ? _addOns.FirstOrDefault(x => x.AddOnVariantRef == addOnVariantRef)
+            : _addOns.FirstOrDefault(x => x.TagId == tagId);
+
+        if (existing is null)
+        {
+            existing = VariantAddOn.Create(BusinessKey.Value, addOnVariantRef, tagId, isRequired, Guid.NewGuid());
+            _addOns.Add(existing);
+        }
+        else
+        {
+            existing.Update(addOnVariantRef, tagId, isRequired);
+        }
+
+        Apply(new ProductVariantAddOnUpsertedEvent(
+            BusinessKey,
+            existing.BusinessKey.Value,
+            addOnVariantRef,
+            tagId,
+            isRequired));
+        return existing;
     }
 
     public bool RemoveAddOn(Guid variantAddOnBusinessKey)
@@ -241,7 +263,7 @@ public sealed class ProductVariant : AggregateRoot
         if (existing is null)
             return false;
 
-        Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, existing.AddOnVariantRef));
+        Apply(new ProductVariantAddOnRemovedEvent(BusinessKey, existing.BusinessKey.Value));
         return true;
     }
 
@@ -500,16 +522,24 @@ public sealed class ProductVariant : AggregateRoot
 
     private void On(ProductVariantAddOnUpsertedEvent @event)
     {
-        var existing = _addOns.FirstOrDefault(x => x.AddOnVariantRef == @event.AddOnVariantRef);
-        if (existing is not null)
+        var existing = _addOns.FirstOrDefault(x => x.BusinessKey.Value == @event.VariantAddOnBusinessKey);
+        if (existing is null)
+        {
+            _addOns.Add(VariantAddOn.Create(
+                BusinessKey.Value,
+                @event.AddOnVariantRef,
+                @event.TagId,
+                @event.IsRequired,
+                @event.VariantAddOnBusinessKey));
             return;
+        }
 
-        _addOns.Add(VariantAddOn.Create(BusinessKey.Value, @event.AddOnVariantRef));
+        existing.Update(@event.AddOnVariantRef, @event.TagId, @event.IsRequired);
     }
 
     private void On(ProductVariantAddOnRemovedEvent @event)
     {
-        var existing = _addOns.FirstOrDefault(x => x.AddOnVariantRef == @event.AddOnVariantRef);
+        var existing = _addOns.FirstOrDefault(x => x.BusinessKey.Value == @event.VariantAddOnBusinessKey);
         if (existing is null)
             return;
 

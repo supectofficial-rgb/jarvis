@@ -5,7 +5,10 @@ using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed record ProductVariantAddOnUpsertedEvent(
     BusinessKey ProductVariantBusinessKey,
-    Guid AddOnVariantRef) : IDomainEvent
+    Guid VariantAddOnBusinessKey,
+    Guid? AddOnVariantRef,
+    Guid? TagId,
+    bool IsRequired) : IDomainEvent
 {
     public DateTime OccurredOn { get; } = DateTime.UtcNow;
 }

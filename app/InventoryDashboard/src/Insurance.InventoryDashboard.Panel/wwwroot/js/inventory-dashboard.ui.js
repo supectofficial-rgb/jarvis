@@ -239,13 +239,31 @@
                                 }
                             }
 
+                            var extraParamsJson = select.getAttribute("data-ajax-extra-params") || "";
+                            if (extraParamsJson) {
+                                try {
+                                    var extraParams = JSON.parse(extraParamsJson);
+                                    if (extraParams && typeof extraParams === "object") {
+                                        Object.keys(extraParams).forEach(function (key) {
+                                            var value = extraParams[key];
+                                            if (value !== null && value !== undefined && String(value).trim() !== "") {
+                                                payload[key] = String(value);
+                                            }
+                                        });
+                                    }
+                                } catch (error) {
+                                    console.warn("Failed to parse data-ajax-extra-params for select2.", error);
+                                }
+                            }
+
                             return payload;
                         },
                         processResults: function (data) {
                             var items = data && data.items ? data.items : [];
+                            var resultMode = (select.getAttribute("data-ajax-result-mode") || "").toLowerCase();
                             return {
                                 results: items.map(function (item) {
-                                    return {
+                                    var result = {
                                         id: item.id,
                                         text: item.text || item.name || item.sku || "",
                                         sku: item.sku || "",
@@ -254,6 +272,10 @@
                                         productId: item.productId || "",
                                         baseUomRef: item.baseUomRef || ""
                                     };
+                                    if (resultMode === "document") {
+                                        result.document = item;
+                                    }
+                                    return result;
                                 })
                             };
                         }

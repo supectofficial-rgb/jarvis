@@ -241,10 +241,15 @@ public sealed class VariantAddOnModel
 {
     public string AddOnId { get; set; } = string.Empty;
     public string VariantId { get; set; } = string.Empty;
-    public string AddOnVariantId { get; set; } = string.Empty;
+    public string? AddOnVariantId { get; set; }
+    public string? TagId { get; set; }
+    public bool IsRequired { get; set; }
+    public string AddOnLabel { get; set; } = string.Empty;
     public string AddOnSku { get; set; } = string.Empty;
     public string? AddOnBarcode { get; set; }
     public bool AddOnIsActive { get; set; }
+    public string? TagName { get; set; }
+    public string? TagColor { get; set; }
 }
 
 public sealed class VariantImageModel
@@ -515,7 +520,9 @@ public sealed class UpsertVariantComponentRequest
 
 public sealed class UpsertVariantAddOnRequest
 {
-    public string AddOnVariantRef { get; set; } = string.Empty;
+    public string? AddOnVariantRef { get; set; }
+    public string? TagId { get; set; }
+    public bool IsRequired { get; set; }
 }
 
 public sealed class UpsertVariantImageRequest

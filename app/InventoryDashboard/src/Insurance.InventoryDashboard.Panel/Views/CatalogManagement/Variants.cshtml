@@ -476,7 +476,24 @@
                                                             data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'>
                                                         <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
                                                     </select>
-                                                    <div class="small text-muted mt-2">یک واریانت را از نتایج جستجو انتخاب کن.</div>
+                                                    <div class="small text-muted mt-2">یا یک واریانت انتخاب کن یا یک هشتگ.</div>
+                                                </div>
+                                                <div class="form-row">
+                                                    <div class="form-group col-md-6 mb-2">
+                                                        <label>هشتگ ادزآن</label>
+                                                        <select asp-for="BulkVariantAddOnForm.TagId"
+                                                                class="form-control"
+                                                                id="BulkVariantAddOnForm_TagId"
+                                                                data-placeholder='هشتگ را جستجو و انتخاب کنید'>
+                                                            <option value="">انتخاب هشتگ</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group col-md-6 mb-2 d-flex align-items-end">
+                                                        <div class="custom-control custom-checkbox mb-2">
+                                                            <input asp-for="BulkVariantAddOnForm.IsRequired" class="custom-control-input" type="checkbox" id="BulkVariantAddOnForm_IsRequired" />
+                                                            <label class="custom-control-label" for="BulkVariantAddOnForm_IsRequired">اجباری</label>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div class="text-right">
                                                     <button type="submit"
@@ -990,6 +1007,8 @@
             var tagLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantTagLookup", "VariantManagement") ?? string.Empty));
             var tagLookupItems = [];
             var addonVariantSearchUrl = bulkAddonSelect ? (bulkAddonSelect.getAttribute('data-ajax-url') || @Html.Raw(JsonSerializer.Serialize(Url.Action("SearchVariantComponentLookup", "VariantManagement") ?? string.Empty))) : '';
+            var bulkAddonTagSelect = document.getElementById('BulkVariantAddOnForm_TagId');
+            var bulkAddonRequiredInput = document.getElementById('BulkVariantAddOnForm_IsRequired');
             var variantListUrl = variantListContainer ? (variantListContainer.getAttribute('data-source-url') || @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantList", "VariantManagement") ?? string.Empty))) : '';
             var variantDocumentsUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("VariantDocuments", "VariantManagement") ?? string.Empty));
             var tagLookupPromise = null;
@@ -1545,6 +1564,8 @@
                 variantListContainer.setAttribute('data-source-url', url);
                 variantListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
                 return refreshFragmentBody(variantListContainer).then(function () {
+                    restoreBulkSelectionState();
+                    updateBulkModalTriggers();
                     if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
                         window.jQuery('[data-toggle="tooltip"]').tooltip();
                     }
@@ -1679,6 +1700,14 @@
                 } else if (bulkAddonSelect) {
                     bulkAddonSelect.value = '';
                 }
+                if (bulkAddonTagSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(bulkAddonTagSelect).val(null).trigger('change');
+                } else if (bulkAddonTagSelect) {
+                    bulkAddonTagSelect.value = '';
+                }
+                if (bulkAddonRequiredInput) {
+                    bulkAddonRequiredInput.checked = false;
+                }
                 updateAddonSubmitState();
             }
 
@@ -1687,6 +1716,14 @@
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
                 } else if (bulkAddonSelect) {
                     bulkAddonSelect.value = '';
+                }
+                if (bulkAddonTagSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(bulkAddonTagSelect).val(null).trigger('change');
+                } else if (bulkAddonTagSelect) {
+                    bulkAddonTagSelect.value = '';
+                }
+                if (bulkAddonRequiredInput) {
+                    bulkAddonRequiredInput.checked = false;
                 }
                 updateAddonSubmitState();
             }
@@ -1703,6 +1740,7 @@
                     : getSelectedVariantIds();
                 var hasVariantSelection = selectedVariantIds.length > 0;
                 var selectedAddOnId = '';
+                var selectedTagId = '';
 
                 if (bulkAddonSelect) {
                     if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
@@ -1712,8 +1750,16 @@
                     }
                 }
 
+                if (bulkAddonTagSelect) {
+                    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        selectedTagId = (window.jQuery(bulkAddonTagSelect).val() || '').toString().trim();
+                    } else {
+                        selectedTagId = (bulkAddonTagSelect.value || '').trim();
+                    }
+                }
+
                 syncBulkSelectionInputs(selectedVariantIds);
-                addonSubmitButton.disabled = !hasVariantSelection || !selectedAddOnId;
+                addonSubmitButton.disabled = !hasVariantSelection || (!selectedAddOnId && !selectedTagId) || (!!selectedAddOnId && !!selectedTagId);
             }
 
             function refreshComponentList() {
@@ -1857,6 +1903,12 @@
                     if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkAddonSelect).val(null).trigger('change');
                     }
+                    if (bulkAddonTagSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                        window.jQuery(bulkAddonTagSelect).val(null).trigger('change');
+                    }
+                    if (bulkAddonRequiredInput) {
+                        bulkAddonRequiredInput.checked = false;
+                    }
                     syncBulkSelectionInputs();
                     updateAddonSubmitState();
                     if (bulkAddonModal && bulkAddonModal.modal) {
@@ -1874,6 +1926,12 @@
 
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                     window.jQuery(bulkAddonSelect).val(null).trigger('change');
+                }
+                if (bulkAddonTagSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    window.jQuery(bulkAddonTagSelect).val(null).trigger('change');
+                }
+                if (bulkAddonRequiredInput) {
+                    bulkAddonRequiredInput.checked = false;
                 }
                 ensureVariantSelectedForBulk(variantId);
                 syncBulkSelectionInputs([variantId]);
@@ -2018,6 +2076,19 @@
 
             function writeState(nextState) {
                 localStorage.setItem(stateKey, JSON.stringify(nextState));
+            }
+
+            function readBulkSelectionState() {
+                var state = readState();
+                return Array.isArray(state && state.bulkSelectionIds) ? state.bulkSelectionIds : [];
+            }
+
+            function writeBulkSelectionState(selectedIds) {
+                var state = readState();
+                state.bulkSelectionIds = Array.isArray(selectedIds)
+                    ? selectedIds.map(function (value) { return (value || '').trim(); }).filter(Boolean)
+                    : [];
+                writeState(state);
             }
 
             function readDrafts() {
@@ -2192,6 +2263,34 @@
                     setFieldIfMissing(searchForm, 'sort', state.filters.sort);
                     setFieldIfMissing(searchForm, 'pageSize', state.filters.pageSize);
                 }
+            }
+
+            function restoreBulkSelectionState() {
+                if (!variantListContainer) {
+                    return;
+                }
+
+                var selectedIds = readBulkSelectionState();
+                if (!selectedIds.length) {
+                    return;
+                }
+
+                var scope = document.getElementById('variant-list-scope');
+                if (!scope) {
+                    return;
+                }
+
+                var lookup = selectedIds.reduce(function (map, id) {
+                    map[String(id || '').toLowerCase()] = true;
+                    return map;
+                }, {});
+
+                scope.querySelectorAll("input[type='checkbox'][data-bulk-row]").forEach(function (checkbox) {
+                    var value = String(checkbox.value || '').trim().toLowerCase();
+                    checkbox.checked = !!lookup[value];
+                });
+
+                syncBulkSelectionInputs(selectedIds);
             }
 
             function openModalFromHash(hash) {
@@ -2438,7 +2537,7 @@
                 selectElement.dataset.select2Initialized = 'false';
             }
 
-            function initTagLookupSelect(selectElement) {
+            function initTagLookupSelect(selectElement, dropdownParent) {
                 if (!selectElement || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
                     return;
                 }
@@ -2448,7 +2547,7 @@
                     theme: 'bootstrap',
                     dir: document.documentElement.getAttribute('dir') || 'rtl',
                     width: '100%',
-                    dropdownParent: tagsModal,
+                    dropdownParent: dropdownParent || tagsModal,
                     placeholder: selectElement.getAttribute('data-placeholder') || '',
                     allowClear: true,
                     minimumInputLength: 0,
@@ -2462,7 +2561,7 @@
                 selectElement.dataset.select2Initialized = 'true';
             }
 
-            function populateTagLookupSelect(selectElement) {
+            function populateTagLookupSelect(selectElement, dropdownParent) {
                 if (!selectElement) {
                     return;
                 }
@@ -2491,7 +2590,7 @@
                     selectElement.appendChild(option);
                 });
 
-                initTagLookupSelect(selectElement);
+                initTagLookupSelect(selectElement, dropdownParent);
 
                 if (currentValues.length > 0) {
                     window.jQuery(selectElement).val(isMultiple ? currentValues : currentValues[0]).trigger('change');
@@ -2501,6 +2600,7 @@
             function refreshTagLookupSelects() {
                 populateTagLookupSelect(bulkTagLookupSelect);
                 populateTagLookupSelect(singleTagLookupSelect);
+                populateTagLookupSelect(bulkAddonTagSelect, addonModal);
             }
 
             function ensureTagLookupOptions() {
@@ -3126,7 +3226,33 @@
             ensureTagLookupOptions();
 
             if (bulkAddonSelect) {
-                bulkAddonSelect.addEventListener('change', updateAddonSubmitState);
+                bulkAddonSelect.addEventListener('change', function () {
+                    if ((bulkAddonSelect.value || '').trim()) {
+                        if (bulkAddonTagSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                            window.jQuery(bulkAddonTagSelect).val(null).trigger('change');
+                        } else if (bulkAddonTagSelect) {
+                            bulkAddonTagSelect.value = '';
+                        }
+                    }
+                    updateAddonSubmitState();
+                });
+            }
+
+            if (bulkAddonTagSelect) {
+                bulkAddonTagSelect.addEventListener('change', function () {
+                    if ((bulkAddonTagSelect.value || '').trim()) {
+                        if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                            window.jQuery(bulkAddonSelect).val(null).trigger('change');
+                        } else if (bulkAddonSelect) {
+                            bulkAddonSelect.value = '';
+                        }
+                    }
+                    updateAddonSubmitState();
+                });
+            }
+
+            if (bulkAddonRequiredInput) {
+                bulkAddonRequiredInput.addEventListener('change', updateAddonSubmitState);
             }
 
             if (searchForm) {
@@ -3346,7 +3472,8 @@
 
             function updateBulkModalTriggers() {
                 var selectedCount = getSelectedVariantCount();
-                syncBulkSelectionInputs();
+                var selectedIds = syncBulkSelectionInputs();
+                writeBulkSelectionState(selectedIds);
 
                 document.querySelectorAll('[data-bulk-count]').forEach(function (countElement) {
                     countElement.textContent = selectedCount.toString();
@@ -3456,9 +3583,20 @@
 
             updateBulkModalTriggers();
 
-            document.querySelectorAll('#variant-list-scope input[type="checkbox"][data-bulk-row], #variant-list-scope input[type="checkbox"][data-bulk-toggle]').forEach(function (checkbox) {
-                checkbox.addEventListener('change', updateBulkModalTriggers);
-            });
+            if (variantListContainer) {
+                variantListContainer.addEventListener('change', function (event) {
+                    var target = event.target;
+                    if (!target || !(target instanceof HTMLInputElement)) {
+                        return;
+                    }
+
+                    if (!target.matches('input[type="checkbox"][data-bulk-row], input[type="checkbox"][data-bulk-toggle]')) {
+                        return;
+                    }
+
+                    updateBulkModalTriggers();
+                });
+            }
 
             [searchForm, productSelectorForm].forEach(function (formElement) {
                 if (!formElement) {

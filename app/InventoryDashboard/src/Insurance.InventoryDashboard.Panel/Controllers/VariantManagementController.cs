@@ -959,11 +959,30 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
         }
 
+        var addOnVariantId = (form.AddOnVariantId ?? string.Empty).Trim();
+        var tagId = (form.TagId ?? string.Empty).Trim();
+        var hasVariant = !string.IsNullOrWhiteSpace(addOnVariantId);
+        var hasTag = !string.IsNullOrWhiteSpace(tagId);
+
+        if (!hasVariant && !hasTag)
+        {
+            TempData["CatalogError"] = "حداقل یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+        }
+
+        if (hasVariant && hasTag)
+        {
+            TempData["CatalogError"] = "فقط یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
+        }
+
         var result = await _apiService.UpsertVariantAddOnAsync(
             form.VariantId,
             new UpsertVariantAddOnRequest
             {
-                AddOnVariantRef = form.AddOnVariantId
+                AddOnVariantRef = hasVariant ? addOnVariantId : null,
+                TagId = hasTag ? tagId : null,
+                IsRequired = form.IsRequired
             },
             token);
 
@@ -1650,13 +1669,10 @@ public sealed class VariantManagementController : CatalogManagementController
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var selectedAddOnIds = (form.SelectedAddOnVariantIds ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (selectedAddOnIds.Count == 0 && !string.IsNullOrWhiteSpace(form.AddOnVariantId))
-            selectedAddOnIds.Add(form.AddOnVariantId);
+        var addOnVariantId = (form.AddOnVariantId ?? string.Empty).Trim();
+        var tagId = (form.TagId ?? string.Empty).Trim();
+        var hasVariant = !string.IsNullOrWhiteSpace(addOnVariantId);
+        var hasTag = !string.IsNullOrWhiteSpace(tagId);
 
         if (selectedVariantIds.Count == 0)
         {
@@ -1670,9 +1686,21 @@ public sealed class VariantManagementController : CatalogManagementController
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
         }
 
-        if (selectedAddOnIds.Count == 0)
+        if (!hasVariant && !hasTag)
         {
-            var errorMessage = "حداقل یک Add-on را برای انتساب انتخاب کنید.";
+            var errorMessage = "حداقل یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
+            if (isAjaxRequest)
+            {
+                return Json(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
+            return RedirectToAction(nameof(Variants), new { productId = form.ProductId });
+        }
+
+        if (hasVariant && hasTag)
+        {
+            var errorMessage = "فقط یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
             if (isAjaxRequest)
             {
                 return Json(new { isSuccess = false, error = errorMessage });
@@ -1687,56 +1715,47 @@ public sealed class VariantManagementController : CatalogManagementController
 
         foreach (var variantId in selectedVariantIds)
         {
-            if (selectedAddOnIds.Count > 0)
+            if (hasVariant)
             {
-                var variantFailed = false;
-                foreach (var addOnVariantId in selectedAddOnIds)
+                if (string.Equals(variantId, addOnVariantId, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (string.Equals(variantId, addOnVariantId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        failures.Add($"Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã™â€ Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜ÂªÃ™Ë†Ã˜Â§Ã™â€ Ã˜Â¯ Add-on Ã˜Â®Ã™Ë†Ã˜Â¯Ã˜Â´ Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â¯.");
-                        variantFailed = true;
-                        break;
-                    }
-
-                    var addOnResult = await _apiService.UpsertVariantAddOnAsync(
-                        variantId,
-                        new UpsertVariantAddOnRequest
-                        {
-                            AddOnVariantRef = addOnVariantId
-                        },
-                        token);
-
-                    if (addOnResult.IsSuccess)
-                        continue;
-
-                    failures.Add(addOnResult.ErrorMessage ?? $"Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.");
-                    variantFailed = true;
-                    break;
+                    failures.Add($"Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã™â€ Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜ÂªÃ™Ë†Ã˜Â§Ã™â€ Ã˜Â¯ Add-on Ã˜Â®Ã™Ë†Ã˜Â¯Ã˜Â´ Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â¯.");
+                    continue;
                 }
 
-                if (!variantFailed)
-                    successCount++;
+                var addOnResultVariant = await _apiService.UpsertVariantAddOnAsync(
+                    variantId,
+                    new UpsertVariantAddOnRequest
+                    {
+                        AddOnVariantRef = addOnVariantId,
+                        TagId = null,
+                        IsRequired = form.IsRequired
+                    },
+                    token);
 
+                if (!addOnResultVariant.IsSuccess)
+                {
+                    failures.Add(addOnResultVariant.ErrorMessage ?? $"Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.");
+                    continue;
+                }
+
+                successCount++;
                 continue;
             }
-            if (string.Equals(variantId, form.AddOnVariantId, StringComparison.OrdinalIgnoreCase))
-            {
-                failures.Add($"Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã™â€ Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜ÂªÃ™Ë†Ã˜Â§Ã™â€ Ã˜Â¯ Add-on Ã˜Â®Ã™Ë†Ã˜Â¯Ã˜Â´ Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â¯.");
-                continue;
-            }
 
-            var result = await _apiService.UpsertVariantAddOnAsync(
+            var addOnResultTag = await _apiService.UpsertVariantAddOnAsync(
                 variantId,
                 new UpsertVariantAddOnRequest
                 {
-                    AddOnVariantRef = form.AddOnVariantId
+                    AddOnVariantRef = null,
+                    TagId = tagId,
+                    IsRequired = form.IsRequired
                 },
                 token);
 
-            if (!result.IsSuccess)
+            if (!addOnResultTag.IsSuccess)
             {
-                failures.Add(result.ErrorMessage ?? $"Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.");
+                failures.Add(addOnResultTag.ErrorMessage ?? $"Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.");
                 continue;
             }
 

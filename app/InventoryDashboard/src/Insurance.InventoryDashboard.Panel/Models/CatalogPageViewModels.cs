@@ -535,8 +535,9 @@ public sealed class VariantAddOnForm
     [Required]
     public string VariantId { get; set; } = string.Empty;
 
-    [Required]
-    public string AddOnVariantId { get; set; } = string.Empty;
+    public string? AddOnVariantId { get; set; }
+    public string? TagId { get; set; }
+    public bool IsRequired { get; set; }
 }
 
 public sealed class VariantAssemblyOperationForm
@@ -563,8 +564,9 @@ public sealed class BulkVariantAddOnForm
     public string? SelectedVariantIds { get; set; }
     public string? SelectedAddOnVariantIds { get; set; }
 
-    [Required(ErrorMessage = "انتخاب Add-on الزامی است.")]
-    public string AddOnVariantId { get; set; } = string.Empty;
+    public string? AddOnVariantId { get; set; }
+    public string? TagId { get; set; }
+    public bool IsRequired { get; set; }
 }
 
 public sealed class BulkVariantImageForm

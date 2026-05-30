@@ -237,7 +237,7 @@
                                 </div>
                                 <div class="form-group col-md-4">
                                     <label>@UiText["inventory.documents.return.referenceLabel"]</label>
-                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url="/InventoryManagement/Documents/Return/ReferenceSearch" data-ajax-local-init="true" data-return-reference-document-type="@returnReferenceDocumentType">
+                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url="/InventoryManagement/Documents/Return/ReferenceSearch" data-ajax-extra-params='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { referenceDocumentType = returnReferenceDocumentType }))' data-ajax-result-mode="document" data-ajax-local-init="true" data-return-reference-document-type="@returnReferenceDocumentType">
                                         <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
                                     </select>
                                     <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="@returnReferenceDocumentType" />
@@ -1018,6 +1018,100 @@
                 });
             }
 
+            function initializeReturnReferenceLookupSelect(root) {
+                root = root || document;
+                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !returnReferenceSelect) {
+                    return;
+                }
+
+                if (root !== document && root !== returnReferenceSelect && !root.contains(returnReferenceSelect)) {
+                    return;
+                }
+
+                if (returnReferenceSelect.dataset.select2Initialized === 'true') {
+                    return;
+                }
+
+                var ajaxUrl = returnReferenceSelect.getAttribute('data-ajax-url') || '';
+                if (!ajaxUrl) {
+                    return;
+                }
+
+                var $select = window.jQuery(returnReferenceSelect);
+                if ($select.data('select2')) {
+                    $select.select2('destroy');
+                }
+
+                $select.select2({
+                    theme: 'bootstrap',
+                    dir: document.documentElement.getAttribute('dir') || 'rtl',
+                    width: returnReferenceSelect.getAttribute('data-width') || '100%',
+                    placeholder: returnReferenceSelect.getAttribute('data-placeholder') || '',
+                    allowClear: true,
+                    minimumInputLength: Number(returnReferenceSelect.getAttribute('data-minimum-input-length') || '1'),
+                    ajax: {
+                        url: ajaxUrl,
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            var payload = {
+                                term: params.term || ''
+                            };
+
+                            var extraParamsJson = returnReferenceSelect.getAttribute('data-ajax-extra-params') || '';
+                            if (extraParamsJson) {
+                                try {
+                                    var extraParams = JSON.parse(extraParamsJson);
+                                    if (extraParams && typeof extraParams === 'object') {
+                                        Object.keys(extraParams).forEach(function (key) {
+                                            var value = extraParams[key];
+                                            if (value !== null && value !== undefined && String(value).trim() !== '') {
+                                                payload[key] = String(value);
+                                            }
+                                        });
+                                    }
+                                } catch (error) {
+                                    console.warn('Failed to parse data-ajax-extra-params for return reference select2.', error);
+                                }
+                            }
+
+                            return payload;
+                        },
+                        processResults: function (data) {
+                            var items = data && data.items ? data.items : [];
+                            return {
+                                results: items.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.text || item.documentNo || item.documentBusinessKey || '',
+                                        document: item
+                                    };
+                                })
+                            };
+                        }
+                    }
+                });
+
+                $select.off('select2:select.returnReferenceLookup').on('select2:select.returnReferenceLookup', function (event) {
+                    var data = event.params && event.params.data ? event.params.data : null;
+                    if (!data || !data.document) {
+                        return;
+                    }
+
+                    var referenceDocument = data.document;
+                    var option = returnReferenceSelect.querySelector('option[value="' + String(referenceDocument.documentBusinessKey || data.id || '').replace(/"/g, '\\"') + '"]');
+                    if (!option) {
+                        option = document.createElement('option');
+                        option.value = String(referenceDocument.documentBusinessKey || data.id || '');
+                        option.textContent = buildReturnReferenceDocumentText(referenceDocument);
+                        option.selected = true;
+                        returnReferenceSelect.appendChild(option);
+                    }
+                });
+
+                returnReferenceSelect.dataset.select2Initialized = 'true';
+            }
+
             function initializeReturnVariantLookupSelects(root) {
                 root = root || document;
                 if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
@@ -1291,94 +1385,6 @@
                 });
             }
 
-            function initReturnReferenceSearchSelect() {
-                if (!returnReferenceSelect || !window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
-                    return;
-                }
-
-                var $select = window.jQuery(returnReferenceSelect);
-                if ($select.hasClass('select2-hidden-accessible')) {
-                    $select.select2('destroy');
-                }
-
-                $select.select2({
-                    theme: 'bootstrap',
-                    dir: document.documentElement.getAttribute('dir') || 'rtl',
-                    width: '100%',
-                    placeholder: returnReferenceSelect.getAttribute('data-placeholder') || '',
-                    allowClear: true,
-                    minimumInputLength: 1,
-                    ajax: {
-                        url: returnReferenceSearchUrl,
-                        dataType: 'json',
-                        delay: 300,
-                        data: function (params) {
-                            return {
-                                term: params.term || '',
-                                referenceDocumentType: returnReferenceDocumentType
-                            };
-                        },
-                        processResults: function (payload) {
-                            if (!payload || payload.isSuccess === false) {
-                                return { results: [] };
-                            }
-
-                            var items = Array.isArray(payload.documents) ? payload.documents : [];
-                            return {
-                                results: items.map(function (item) {
-                                    return {
-                                        id: item.documentBusinessKey,
-                                        text: buildReturnReferenceDocumentText(item),
-                                        document: item
-                                    };
-                                })
-                            };
-                        },
-                        cache: true
-                    },
-                    escapeMarkup: function (markup) {
-                        return markup;
-                    }
-                });
-
-                $select.off('select2:select.returnReference').on('select2:select.returnReference', function (event) {
-                    var data = event.params && event.params.data ? event.params.data : null;
-                    if (!data || !data.document) {
-                        return;
-                    }
-
-                    selectReturnReferenceDocument(data.document).catch(function (error) {
-                        console.error(error);
-                    });
-                });
-
-                $select.off('select2:clear.returnReference').on('select2:clear.returnReference', function () {
-                    returnSourceDocument = null;
-                    returnAllowedVariantIds = [];
-                    returnVariantSerialLookup = {};
-                    if (returnReferenceTypeInput) {
-                        returnReferenceTypeInput.value = returnReferenceDocumentType;
-                    }
-                    if (returnReferenceIdInput) {
-                        returnReferenceIdInput.value = '';
-                    }
-                    if (createWarehouseInput) {
-                        createWarehouseInput.value = '';
-                    }
-                    if (createSellerInput) {
-                        createSellerInput.value = '';
-                    }
-                    if (returnReferenceSelected) {
-                        returnReferenceSelected.classList.add('d-none');
-                    }
-                    if (returnReferenceSelectedLabel) {
-                        returnReferenceSelectedLabel.textContent = '-';
-                    }
-                    resetReturnLineDraftsForReferenceChange();
-                    refreshReturnVariantOptions();
-                });
-            }
-
             async function selectReturnReferenceDocument(item) {
                 if (!item || !item.documentBusinessKey) {
                     return;
@@ -1567,6 +1573,48 @@
                 if (line.querySelector('.line-serials')) {
                     updateReturnLineSerials(line);
                 }
+            }
+
+            initializeReturnReferenceLookupSelect(document);
+
+            if (returnReferenceSelect && window.jQuery) {
+                var $returnReferenceSelect = window.jQuery(returnReferenceSelect);
+                $returnReferenceSelect.off('select2:select.returnReference').on('select2:select.returnReference', function (event) {
+                    var data = event.params && event.params.data ? event.params.data : null;
+                    if (!data || !data.document) {
+                        return;
+                    }
+
+                    selectReturnReferenceDocument(data.document).catch(function (error) {
+                        console.error(error);
+                    });
+                });
+
+                $returnReferenceSelect.off('select2:clear.returnReference').on('select2:clear.returnReference', function () {
+                    returnSourceDocument = null;
+                    returnAllowedVariantIds = [];
+                    returnVariantSerialLookup = {};
+                    if (returnReferenceTypeInput) {
+                        returnReferenceTypeInput.value = returnReferenceDocumentType;
+                    }
+                    if (returnReferenceIdInput) {
+                        returnReferenceIdInput.value = '';
+                    }
+                    if (createWarehouseInput) {
+                        createWarehouseInput.value = '';
+                    }
+                    if (createSellerInput) {
+                        createSellerInput.value = '';
+                    }
+                    if (returnReferenceSelected) {
+                        returnReferenceSelected.classList.add('d-none');
+                    }
+                    if (returnReferenceSelectedLabel) {
+                        returnReferenceSelectedLabel.textContent = '-';
+                    }
+                    resetReturnLineDraftsForReferenceChange();
+                    refreshReturnVariantOptions();
+                });
             }
 
             function firstField(line, selector) {
@@ -1798,7 +1846,6 @@ for (var i = 0; i < lines.length; i++) {
             toggleTypeFields();
             syncLocationsToWarehouse();
             refreshReturnVariantOptions();
-            initReturnReferenceSearchSelect();
             var returnDetailsModalElement = document.querySelector(detailsModalSelector);
             if (returnDetailsModalElement && window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
                 returnDetailsModalElement.addEventListener('hidden.bs.modal', function () {

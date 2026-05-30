@@ -66,10 +66,15 @@ public class VariantAddOnViewItem
 {
     public Guid VariantAddOnBusinessKey { get; set; }
     public Guid VariantRef { get; set; }
-    public Guid AddOnVariantRef { get; set; }
+    public Guid? AddOnVariantRef { get; set; }
+    public Guid? TagId { get; set; }
+    public bool IsRequired { get; set; }
+    public string AddOnLabel { get; set; } = string.Empty;
     public string AddOnSku { get; set; } = string.Empty;
     public string? AddOnBarcode { get; set; }
     public bool AddOnIsActive { get; set; }
+    public string? TagName { get; set; }
+    public string? TagColor { get; set; }
 }
 
 public class VariantImageViewItem

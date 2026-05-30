@@ -37,8 +37,9 @@ else
     <table class="table table-sm table-striped">
         <thead>
             <tr>
-                <th>SKU</th>
+                <th>Add-on</th>
                 <th>@UiText["catalog.variants.barcode"]</th>
+                <th>نوع</th>
                 <th></th>
             </tr>
         </thead>
@@ -46,14 +47,38 @@ else
             @foreach (var addOn in Model.Items)
             {
                 <tr>
-                    <td class="text-monospace">@addOn.AddOnSku</td>
+                    <td>
+                        <div class="font-weight-bold">@(!string.IsNullOrWhiteSpace(addOn.AddOnLabel) ? addOn.AddOnLabel : addOn.AddOnSku)</div>
+                        @if (!string.IsNullOrWhiteSpace(addOn.AddOnSku) && !string.Equals(addOn.AddOnSku, addOn.AddOnLabel, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="text-monospace small text-muted">@addOn.AddOnSku</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(addOn.TagName))
+                        {
+                            <span class="badge badge-pill badge-info mt-1">#@addOn.TagName</span>
+                        }
+                        @if (addOn.IsRequired)
+                        {
+                            <span class="badge badge-pill badge-danger mt-1">اجباری</span>
+                        }
+                    </td>
                     <td>@(string.IsNullOrWhiteSpace(addOn.AddOnBarcode) ? "-" : addOn.AddOnBarcode)</td>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(addOn.TagId))
+                        {
+                            <span class="badge badge-pill badge-secondary">Tag</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-pill badge-primary">Variant</span>
+                        }
+                    </td>
                     <td>
                         @{
                             var addOnProductId = RelatedVariantProductId(addOn.AddOnVariantId);
                         }
                         <div class="btn-group btn-group-sm">
-                            @if (!string.IsNullOrWhiteSpace(addOnProductId))
+                            @if (!string.IsNullOrWhiteSpace(addOnProductId) && !string.IsNullOrWhiteSpace(addOn.AddOnVariantId))
                             {
                                 <a class="btn btn-outline-info btn-xs" asp-action="Variants" asp-route-productId="@addOnProductId" asp-route-variantId="@addOn.AddOnVariantId">@UiText["catalog.variants.view"]</a>
                             }
