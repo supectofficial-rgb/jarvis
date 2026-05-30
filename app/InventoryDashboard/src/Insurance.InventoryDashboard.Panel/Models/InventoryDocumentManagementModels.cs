@@ -315,3 +315,47 @@ public sealed class CreateInventoryDocumentResultModel
     public string DocumentNo { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 }
+
+public sealed class ConversionDocumentPreviewViewModel
+{
+    public string DocumentId { get; set; } = string.Empty;
+    public string DocumentNo { get; set; } = string.Empty;
+    public string VariantId { get; set; } = string.Empty;
+    public string VariantLabel { get; set; } = string.Empty;
+    public string OperationType { get; set; } = "Assemble";
+    public decimal Quantity { get; set; } = 1m;
+    public string? ReasonCode { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? SelectedSellerQualityKey { get; set; }
+    public List<ConversionDocumentPreviewLineModel> Lines { get; set; } = new();
+}
+
+public sealed class ConversionDocumentPreviewLineModel
+{
+    public string LineKey { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public string VariantId { get; set; } = string.Empty;
+    public string VariantLabel { get; set; } = string.Empty;
+    public string BaseUomRef { get; set; } = string.Empty;
+    public string BaseUomLabel { get; set; } = string.Empty;
+    public decimal RequiredQty { get; set; }
+    public string? SelectedLocationRef { get; set; }
+    public List<ConversionDocumentPreviewLocationModel> LocationOptions { get; set; } = new();
+}
+
+public sealed class ConversionDocumentPreviewLocationModel
+{
+    public string LocationRef { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public decimal QuantityOnHand { get; set; }
+    public bool IsDefault { get; set; }
+}
+
+public sealed class ConversionDocumentPreviewSelectionModel
+{
+    public string LineKey { get; set; } = string.Empty;
+    public string VariantId { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public string LocationRef { get; set; } = string.Empty;
+    public decimal RequiredQty { get; set; }
+}

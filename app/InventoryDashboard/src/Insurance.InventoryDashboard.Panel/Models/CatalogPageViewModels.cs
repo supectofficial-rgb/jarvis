@@ -517,12 +517,6 @@ public sealed class VariantComponentForm
     [Required]
     public string ComponentVariantId { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "انتخاب انبار الزامی است.")]
-    public string WarehouseId { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "انتخاب لوکیشن الزامی است.")]
-    public string LocationId { get; set; } = string.Empty;
-
     [Range(0.000001, double.MaxValue, ErrorMessage = "تعداد باید بزرگ‌تر از صفر باشد.")]
     public decimal Quantity { get; set; } = 1m;
 }

@@ -1,5 +1,6 @@
 @using System
 @using System.Linq
+@using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
     ViewData["Title"] = UiText["inventory.documents.title"];
@@ -164,6 +165,7 @@
 
     var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
+    var isConversionDocument = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
 }
 
@@ -223,33 +225,28 @@
 
                         <form asp-action="SaveDocument" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#documents-page-root" id="document-create-form">
                             @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="CreateForm.DocumentId" />
                             <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
+                            <input type="hidden" asp-for="CreateForm.WarehouseRef" />
+                            <input type="hidden" asp-for="CreateForm.SellerRef" />
                             <div class="form-row">
-                                <div class="form-group col-lg-6">
-                                    <label>واریانت سازنده</label>
-                                    <select asp-for="CreateForm.ConversionVariantId" class="form-control js-search-select" data-placeholder="جستجو بر اساس نام یا SKU" required>
-                                        <option value="">انتخاب واریانت</option>
-                                        @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
-                                        {
-                                            <option value="@variant.Id" selected="@(string.Equals(variant.Id, Model.CreateForm.ConversionVariantId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@VariantLabel(variant)</option>
-                                        }
-                                    </select>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["inventory.documents.documentNo"]</label>
+                                    <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
-                                <div class="form-group col-lg-3">
-                                    <label>نوع عملیات</label>
-                                    <select asp-for="CreateForm.ConversionOperationType" class="form-control" required>
-                                        <option value="Assemble" selected="@(string.Equals(Model.CreateForm.ConversionOperationType, "Assemble", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">اسمبل</option>
-                                        <option value="Disassemble" selected="@(string.Equals(Model.CreateForm.ConversionOperationType, "Disassemble", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">دیس اسمبل</option>
-                                    </select>
+                                <div class="form-group col-md-4">
+                                    <label>@UiText["inventory.documents.occurredAt"]</label>
+                                    <input type="hidden" asp-for="CreateForm.OccurredAt" id="conversion-occurred-at-value" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
+                                    <input type="text" class="form-control datepicker" data-date-picker-target="#conversion-occurred-at-value" data-date-format="yyyy/mm/dd" value="@Model.CreateForm.OccurredAt.ToString("yyyy/MM/dd")" autocomplete="off" />
                                 </div>
-                                <div class="form-group col-lg-3">
-                                    <label>تعداد</label>
-                                    <input asp-for="CreateForm.ConversionQuantity" type="number" step="0.0001" min="0.0001" class="form-control" required />
+                                <div class="form-group col-md-5">
+                                    <label>@UiText["inventory.documents.reason"]</label>
+                                    <input asp-for="CreateForm.ReasonCode" class="form-control" />
                                 </div>
                             </div>
 
                             <div class="alert alert-light border mb-3">
-                                این سند بر اساس recipe و موجودی واقعی به صورت خودکار خطوط خروجی و ورودی را می‌سازد. نیازی به ورود دستی lineها نیست.
+                                @UiText["inventory.documents.conversion.createInfo"]
                             </div>
 
                             <div id="document-lines" class="d-none"></div>
@@ -335,9 +332,9 @@
                                             </div>
                                             <div class="form-row">
                                                 <div class="form-group col-md-4">
-                                                    <label>واریانت</label>
-                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="جستجو با کد یا نام واریانت" required>
-                                                        <option value="">انتخاب واریانت</option>
+                                                    <label>@UiText["inventory.documents.line.variant"]</label>
+                                                    <select name="CreateForm.Lines[@i].VariantId" class="form-control document-variant-select js-search-select" data-placeholder="@UiText["inventory.documents.conversion.variantPlaceholder"]" required>
+                                                        <option value="">@UiText["inventory.documents.conversion.variantPlaceholder"]</option>
                                                         @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                                         {
                                                             <option value="@variant.Id" data-base-uom-ref="@variant.BaseUomRef" data-product-id="@variant.ProductId" selected="@(variant.Id == Model.CreateForm.Lines[i].VariantId ? "selected" : null)">@VariantLabel(variant)</option>
@@ -345,16 +342,16 @@
                                                     </select>
                                                     <input type="hidden" name="CreateForm.Lines[@i].UomRef" value="@Model.CreateForm.Lines[i].UomRef" class="document-uom-ref" />
                                                     <input type="hidden" name="CreateForm.Lines[@i].BaseUomRef" value="@Model.CreateForm.Lines[i].BaseUomRef" class="document-base-uom-ref" />
-                                                    <div class="text-muted small mt-1 document-uom-hint">UOM از Base UOM واریانت پر می شود.</div>
+                                                    <div class="text-muted small mt-1 document-uom-hint">@UiText["inventory.documents.line.baseUomHint"]</div>
                                                 </div>
                                                 <div class="form-group col-md-2">
-                                                    <label>تعداد</label>
+                                                    <label>@UiText["common.quantity"]</label>
                                                     <input name="CreateForm.Lines[@i].Qty" type="number" step="0.0001" min="0.0001" value="@Model.CreateForm.Lines[i].Qty.ToString("0.####")" class="form-control" required />
                                                 </div>
                                                 <div class="form-group col-md-3 line-source">
-                                                    <label>لوکیشن مبدا</label>
-                                                    <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                        <option value="">انتخاب لوکیشن</option>
+                                                    <label>@UiText["inventory.documents.line.sourceLocation"]</label>
+                                                    <select name="CreateForm.Lines[@i].SourceLocationRef" class="form-control document-location-select source-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                                                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                         {
                                                             <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -362,9 +359,9 @@
                                                     </select>
                                                 </div>
                                                 <div class="form-group col-md-3 line-destination">
-                                                    <label>لوکیشن مقصد</label>
-                                                    <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                        <option value="">انتخاب لوکیشن</option>
+                                                    <label>@UiText["inventory.documents.line.destinationLocation"]</label>
+                                                    <select name="CreateForm.Lines[@i].DestinationLocationRef" class="form-control document-location-select destination-location-select js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                                                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                         {
                                                             <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.CreateForm.Lines[i].DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -378,9 +375,9 @@
                                                 @if (showQualityChangeFields)
                                                 {
                                                     <div class="form-group col-md-2 line-from-quality">
-                                                        <label>کیفیت مبدأ</label>
-                                                        <select name="CreateForm.Lines[@i].FromQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.fromQuality"]</label>
+                                                        <select name="CreateForm.Lines[@i].FromQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -388,9 +385,9 @@
                                                         </select>
                                                     </div>
                                                     <div class="form-group col-md-2 line-to-quality">
-                                                        <label>کیفیت مقصد</label>
-                                                        <select name="CreateForm.Lines[@i].ToQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                                        <select name="CreateForm.Lines[@i].ToQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -401,9 +398,9 @@
                                                 else if (showConversionQuality)
                                                 {
                                                     <div class="form-group col-md-2 line-quality">
-                                                        <label>کیفیت</label>
-                                                        <select name="CreateForm.Lines[@i].QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.quality"]</label>
+                                                        <select name="CreateForm.Lines[@i].QualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.CreateForm.Lines[i].QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -488,15 +485,15 @@
                                 </select>
                             </div>
                             <div class="form-group col-md-2">
-                                <label>از تاریخ</label>
+                                <label>@UiText["common.fromDate"]</label>
                                 <input name="occurredFrom" type="date" value="@Model.OccurredFromFilter" class="form-control" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>تا تاریخ</label>
+                                <label>@UiText["common.toDate"]</label>
                                 <input name="occurredTo" type="date" value="@Model.OccurredToFilter" class="form-control" />
                             </div>
                             <div class="form-group col-md-2">
-                                <label>تعداد</label>
+                                <label>@UiText["common.quantity"]</label>
                                 <select name="pageSize" class="form-control">
                                     @foreach (var size in Model.PageSizeOptions)
                                     {
@@ -607,7 +604,45 @@
                             <p class="mb-1"><strong>تاریخ تایید:</strong> @(Model.SelectedDocumentDetails.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
                             <p class="mb-3"><strong>تاریخ پست:</strong> @(Model.SelectedDocumentDetails.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
 
-                            @if (canEditLines)
+                            @if (canEditLines && isConversionDocument)
+                            {
+                                <div class="border-top pt-3 mt-3">
+                                    <h6 class="mb-3">@UiText["inventory.documents.conversion.previewTitle"]</h6>
+                                    <form id="conversion-preview-form" class="mb-3" data-conversion-preview-form data-preview-url="@Url.Action("PreviewConversionDocument", "InventoryManagement")" data-commit-url="@Url.Action("CommitConversionPreview", "InventoryManagement")">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="documentId" value="@Model.SelectedDocumentDetails.DocumentBusinessKey" />
+                                        <div class="form-row">
+                                            <div class="form-group col-md-4">
+                                                <label>@UiText["inventory.documents.conversion.variant"]</label>
+                                                <select name="CreateForm.ConversionVariantId" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.conversion.variantPlaceholder"]" required>
+                                                    <option value="">@UiText["inventory.documents.conversion.variantPlaceholder"]</option>
+                                                    @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+                                                    {
+                                                        <option value="@variant.Id" selected="@(string.Equals(variant.Id, Model.CreateForm.ConversionVariantId, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@VariantLabel(variant)</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label>@UiText["inventory.documents.conversion.operationType"]</label>
+                                                <select name="CreateForm.ConversionOperationType" class="form-control" required>
+                                                    <option value="Assemble" selected="@(string.Equals(Model.CreateForm.ConversionOperationType, "Assemble", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.conversion.operation.assemble"]</option>
+                                                    <option value="Disassemble" selected="@(string.Equals(Model.CreateForm.ConversionOperationType, "Disassemble", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.conversion.operation.disassemble"]</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group col-md-3">
+                                                <label>@UiText["common.quantity"]</label>
+                                                <input name="CreateForm.ConversionQuantity" type="number" step="0.0001" min="0.0001" value="@Model.CreateForm.ConversionQuantity.ToString("0.####")" class="form-control" required />
+                                            </div>
+                                            <div class="form-group col-md-2 d-flex align-items-end">
+                                                <button class="btn btn-primary btn-block" type="submit">@UiText["inventory.documents.conversion.createPreview"]</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                    <div id="conversion-preview-container"></div>
+                                </div>
+                            }
+
+                            @if (canEditLines && !isConversionDocument)
                             {
                                 <div class="border-top pt-3 mt-3">
                                     <h6 class="mb-3">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم سند" : "ویرایش آیتم سند")</h6>
@@ -618,9 +653,9 @@
                                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                                         <div class="form-row">
                                             <div class="form-group col-md-4">
-                                                <label>واریانت</label>
-                                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" required>
-                                                    <option value="">انتخاب واریانت</option>
+                                                <label>@UiText["inventory.documents.line.variant"]</label>
+                                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.conversion.variantPlaceholder"]" required>
+                                                    <option value="">@UiText["inventory.documents.conversion.variantPlaceholder"]</option>
                                                     @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                                     {
                                                         <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
@@ -628,13 +663,13 @@
                                                 </select>
                                             </div>
                                             <div class="form-group col-md-2">
-                                                <label>تعداد</label>
+                                                <label>@UiText["common.quantity"]</label>
                                                 <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
                                             </div>
                                             <div class="form-group col-md-3 line-source">
-                                                <label>لوکیشن مبدا</label>
-                                                <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                    <option value="">انتخاب لوکیشن</option>
+                                                <label>@UiText["inventory.documents.line.sourceLocation"]</label>
+                                                <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                    <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                                                     @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                     {
                                                         <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -642,9 +677,9 @@
                                                 </select>
                                             </div>
                                             <div class="form-group col-md-3 line-destination">
-                                                <label>لوکیشن مقصد</label>
-                                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
-                                                    <option value="">انتخاب لوکیشن</option>
+                                                <label>@UiText["inventory.documents.line.destinationLocation"]</label>
+                                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                                                    <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                                                     @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                                                     {
                                                         <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -660,9 +695,9 @@
                                                 @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <div class="form-group col-md-2 line-from-quality">
-                                                        <label>کیفیت مبدأ</label>
-                                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.fromQuality"]</label>
+                                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -670,9 +705,9 @@
                                                         </select>
                                                     </div>
                                                     <div class="form-group col-md-2 line-to-quality">
-                                                        <label>کیفیت مقصد</label>
-                                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -683,9 +718,9 @@
                                                 else
                                                 {
                                                     <div class="form-group col-md-2 line-quality">
-                                                        <label>کیفیت</label>
-                                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
-                                                            <option value="">انتخاب کیفیت</option>
+                                                        <label>@UiText["inventory.documents.line.quality"]</label>
+                                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                                                             @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                                                             {
                                                                 <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -730,14 +765,14 @@
                                         <table class="table table-sm table-striped mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th>واریانت</th>
-                                                    <th>تعداد</th>
-                                                    <th>واحد</th>
-                                                    <th>مبدا</th>
-                                                    <th>مقصد</th>
+                                                    <th>@UiText["inventory.documents.line.variant"]</th>
+                                                    <th>@UiText["common.quantity"]</th>
+                                                    <th>@UiText["inventory.documents.line.uom"]</th>
+                                                    <th>@UiText["inventory.documents.line.sourceLocation"]</th>
+                                                    <th>@UiText["inventory.documents.line.destinationLocation"]</th>
                                                     @if (showQualityColumn)
                                                     {
-                                                        <th>کیفیت</th>
+                                                        <th>@UiText["common.quality"]</th>
                                                     }
                                                     <th>علت</th>
                                                     @if (canEditLines)
@@ -881,11 +916,13 @@
             var toggleLinesButton = document.getElementById('toggle-document-lines');
             var typeGuidance = document.getElementById('document-type-guidance');
             var validationSummary = document.getElementById('document-validation-summary');
+            var conversionPreviewForm = document.getElementById('conversion-preview-form');
+            var conversionPreviewContainer = document.getElementById('conversion-preview-container');
 
             var documentTypeConfig = {
                 Receipt: {
-                    title: 'رسید انبار',
-                    text: 'برای ورود کالا به انبار استفاده می‌شود. در هر ردیف، لوکیشن مقصد الزامی است.',
+                    title: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.receipt.title"])),
+                    text: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.receipt.description"])),
                     source: false,
                     destination: true,
                     quality: false,
@@ -894,8 +931,8 @@
                     lineReason: false
                 },
                 Issue: {
-                    title: 'حواله انبار',
-                    text: 'برای خروج کالا از انبار استفاده می‌شود. در هر ردیف، لوکیشن مبدا الزامی است.',
+                    title: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.issue.title"])),
+                    text: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.issue.description"])),
                     source: true,
                     destination: false,
                     quality: false,
@@ -904,8 +941,8 @@
                     lineReason: false
                 },
                 Transfer: {
-                    title: 'انتقال بین لوکیشن‌ها',
-                    text: 'برای جابه‌جایی داخلی کالا استفاده می‌شود. مبدا و مقصد هر ردیف الزامی و باید متفاوت باشند.',
+                    title: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.transfer.title"])),
+                    text: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.transfer.description"])),
                     source: true,
                     destination: true,
                     quality: false,
@@ -914,8 +951,8 @@
                     lineReason: false
                 },
                 Adjustment: {
-                    title: 'تعدیل موجودی',
-                    text: 'برای اصلاح مقدار موجودی استفاده می‌شود. جهت تعدیل و علت ردیف الزامی است.',
+                    title: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.adjustment.title"])),
+                    text: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.adjustment.description"])),
                     source: false,
                     destination: false,
                     quality: false,
@@ -924,8 +961,8 @@
                     lineReason: true
                 },
                 Return: {
-                    title: 'برگشت کالا',
-                    text: 'برای برگشت کالا به انبار استفاده می‌شود. لوکیشن مقصد هر ردیف الزامی است.',
+                    title: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.return.title"])),
+                    text: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.return.description"])),
                     source: false,
                     destination: true,
                     quality: false,
@@ -934,8 +971,8 @@
                     lineReason: false
                 },
                 QualityChange: {
-                    title: 'تغییر کیفیت',
-                    text: 'برای تغییر وضعیت کیفی کالا استفاده می‌شود. کیفیت مبدا و مقصد الزامی و باید متفاوت باشند.',
+                    title: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.qualityChange.title"])),
+                    text: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.qualityChange.description"])),
                     source: false,
                     destination: false,
                     quality: false,
@@ -944,8 +981,8 @@
                     lineReason: false
                 },
                 Conversion: {
-                    title: 'سند تبدیل',
-                    text: 'برای مصرف اجزای سازنده و تولید کالای نهایی استفاده می‌شود. در هر ردیف فقط یکی از مبدا یا مقصد را پر کنید.',
+                    title: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.conversion.title"])),
+                    text: @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.conversion.createInfo"])),
                     source: true,
                     destination: true,
                     quality: true,
@@ -1027,23 +1064,12 @@
             function toggleTypeFields() {
                 var currentType = documentTypeSelect ? documentTypeSelect.value : 'Receipt';
                 if (currentType === 'Conversion') {
-                    var conversionVariantField = createForm.querySelector('[name="CreateForm.ConversionVariantId"]');
-                    var conversionOperationField = createForm.querySelector('[name="CreateForm.ConversionOperationType"]');
-                    var conversionQuantityField = createForm.querySelector('[name="CreateForm.ConversionQuantity"]');
-
-                    if (!conversionVariantField || !conversionVariantField.value) {
-                        showValidation('انتخاب واریانت برای سند تبدیل الزامی است.', conversionVariantField);
-                        return false;
+                    if (typeGuidance) {
+                        typeGuidance.innerHTML = '<strong>' + @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.info.conversion.title"])) + '</strong><div class="small mt-1">' + @Html.Raw(JsonSerializer.Serialize(UiText["inventory.documents.conversion.createInfo"])) + '</div>';
                     }
 
-                    if (!conversionOperationField || !conversionOperationField.value) {
-                        showValidation('نوع عملیات تبدیل الزامی است.', conversionOperationField);
-                        return false;
-                    }
-
-                    if (!conversionQuantityField || Number(conversionQuantityField.value) <= 0) {
-                        showValidation('تعداد باید بزرگتر از صفر باشد.', conversionQuantityField);
-                        return false;
+                    if (linesPanel) {
+                        linesPanel.classList.add('d-none');
                     }
 
                     return true;
@@ -1107,7 +1133,7 @@
                 uomRef.value = baseUom || '';
                 baseUomRef.value = baseUom || '';
                 if (hint) {
-                    hint.textContent = baseUom ? ('Base UOM: ' + baseUom) : 'UOM از Base UOM واریانت پر می شود.';
+                    hint.textContent = baseUom ? ('@UiText["common.uom"]: ' + baseUom) : '@UiText["inventory.documents.line.baseUomHint"]';
                 }
             }
 
@@ -1153,15 +1179,20 @@
                     return true;
                 }
 
+                var currentType = documentTypeSelect ? documentTypeSelect.value : 'Receipt';
+                if (currentType === 'Conversion') {
+                    return true;
+                }
+
                 var warehouseField = document.getElementById('create-warehouse-select');
                 if (warehouseField && !warehouseField.value) {
-                    showValidation('انتخاب انبار برای سند الزامی است.', warehouseField);
+                    showValidation('@UiText["inventory.documents.action.noWarehouseSelected"]', warehouseField);
                     return false;
                 }
 
                 var sellerField = createForm.querySelector('[name="CreateForm.SellerRef"]');
                 if (sellerField && !sellerField.value) {
-                    showValidation('انتخاب فروشنده برای سند الزامی است.', sellerField);
+                    showValidation('@UiText["inventory.documents.action.noSellerSelected"]', sellerField);
                     return false;
                 }
 
@@ -1185,27 +1216,27 @@
                     var toQuality = firstField(line, '.line-to-quality select');
 
                     if (!variant || !variant.value) {
-                        showValidation(lineTitle + ': انتخاب واریانت الزامی است.', variant);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.action.noVariantSelected"]', variant);
                         return false;
                     }
 
                     if (!qty || Number(qty.value) <= 0) {
-                        showValidation(lineTitle + ': تعداد باید بزرگ‌تر از صفر باشد.', qty);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.validation.qtyPositive"]', qty);
                         return false;
                     }
 
                     if (config.source && !config.exclusiveFlow && (!source || !source.value)) {
-                        showValidation(lineTitle + ': لوکیشن مبدا الزامی است.', source);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.conversion.validation.sourceLocationRequired"]', source);
                         return false;
                     }
 
                     if (config.destination && !config.exclusiveFlow && (!destination || !destination.value)) {
-                        showValidation(lineTitle + ': لوکیشن مقصد الزامی است.', destination);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.conversion.validation.destinationLocationRequired"]', destination);
                         return false;
                     }
 
                     if (!config.exclusiveFlow && config.source && config.destination && source && destination && source.value && source.value === destination.value) {
-                        showValidation(lineTitle + ': لوکیشن مبدا و مقصد باید متفاوت باشند.', destination);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.conversion.validation.locationsDifferent"]', destination);
                         return false;
                     }
 
@@ -1215,43 +1246,205 @@
                         var quality = firstField(line, '.line-quality select');
 
                         if (hasSource === hasDestination) {
-                            showValidation(lineTitle + ': در سند تبدیل، هر ردیف باید یا خروجی باشد یا ورودی.', source || destination);
+                            showValidation(lineTitle + ': @UiText["inventory.documents.validation.conversionFlowRequired"]', source || destination);
                             return false;
                         }
 
                         if (!quality || !quality.value) {
-                            showValidation(lineTitle + ': وضعیت کیفیت الزامی است.', quality);
+                            showValidation(lineTitle + ': @UiText["inventory.documents.action.noQualitySelected"]', quality);
                             return false;
                         }
                     }
 
                     if (config.adjustment && (!adjustment || !adjustment.value)) {
-                        showValidation(lineTitle + ': جهت تعدیل الزامی است.', adjustment);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.validation.adjustmentDirectionRequired"]', adjustment);
                         return false;
                     }
 
                     if (config.lineReason && (!reason || !reason.value.trim())) {
-                        showValidation(lineTitle + ': علت ردیف الزامی است.', reason);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.line.reason"]', reason);
                         return false;
                     }
 
                     if (config.qualityChange && (!fromQuality || !fromQuality.value)) {
-                        showValidation(lineTitle + ': کیفیت مبدا الزامی است.', fromQuality);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.action.noQualitySelected"]', fromQuality);
                         return false;
                     }
 
                     if (config.qualityChange && (!toQuality || !toQuality.value)) {
-                        showValidation(lineTitle + ': کیفیت مقصد الزامی است.', toQuality);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.action.noQualitySelected"]', toQuality);
                         return false;
                     }
 
                     if (config.qualityChange && fromQuality && toQuality && fromQuality.value && fromQuality.value === toQuality.value) {
-                        showValidation(lineTitle + ': کیفیت مبدا و مقصد باید متفاوت باشند.', toQuality);
+                        showValidation(lineTitle + ': @UiText["inventory.documents.validation.qualitiesDifferent"]', toQuality);
                         return false;
                     }
                 }
 
                 return true;
+            }
+
+            function setConversionPreviewError(message) {
+                if (!conversionPreviewContainer) {
+                    return;
+                }
+
+                if (!message) {
+                    conversionPreviewContainer.innerHTML = '';
+                    return;
+                }
+
+                conversionPreviewContainer.innerHTML = '<div class="alert alert-danger">' + escapeHtml(message) + '</div>';
+            }
+
+            function refreshPreviewWidgets(root) {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function' && root) {
+                    window.appUi.initSearchableSelects(root);
+                }
+            }
+
+            function renderConversionPreview(html) {
+                if (!conversionPreviewContainer) {
+                    return;
+                }
+
+                conversionPreviewContainer.innerHTML = html || '';
+                refreshPreviewWidgets(conversionPreviewContainer);
+            }
+
+            function collectConversionPreviewSelections() {
+                var selections = [];
+                if (!conversionPreviewContainer) {
+                    return selections;
+                }
+
+                var lines = conversionPreviewContainer.querySelectorAll('[data-conversion-preview-line]');
+                lines.forEach(function (line) {
+                    var select = line.querySelector('[data-conversion-preview-location-select]');
+                    var selectedOption = select && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+                    var lineKey = line.getAttribute('data-line-key') || '';
+                    var variantId = line.getAttribute('data-variant-id') || '';
+                    var role = line.getAttribute('data-role') || '';
+                    var requiredQty = Number(line.getAttribute('data-required-qty') || '0');
+                    var locationRef = selectedOption ? String(selectedOption.value || '').trim() : '';
+                    if (!locationRef) {
+                        return;
+                    }
+
+                    selections.push({
+                        lineKey: lineKey,
+                        variantId: variantId,
+                        role: role,
+                        locationRef: locationRef,
+                        requiredQty: requiredQty
+                    });
+                });
+
+                return selections;
+            }
+
+            async function submitConversionPreview(event) {
+                if (!conversionPreviewForm || !conversionPreviewContainer) {
+                    return;
+                }
+
+                event.preventDefault();
+                setConversionPreviewError('');
+
+                var previewUrl = conversionPreviewForm.getAttribute('data-preview-url') || conversionPreviewForm.action;
+                if (!previewUrl) {
+                    setConversionPreviewError('@UiText["inventory.documents.conversion.previewUrlMissing"]');
+                    return;
+                }
+
+                var response = await fetch(previewUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html,application/json'
+                    },
+                    body: new FormData(conversionPreviewForm)
+                });
+
+                var contentType = response.headers.get('content-type') || '';
+                if (contentType.indexOf('application/json') > -1) {
+                    var json = await response.json();
+                    if (!json || json.isSuccess === false) {
+                        setConversionPreviewError((json && json.errorMessage) || '@UiText["inventory.documents.conversion.previewFailed"]');
+                        return;
+                    }
+                    setConversionPreviewError('@UiText["inventory.documents.conversion.previewFailed"]');
+                    return;
+                }
+
+                var html = await response.text();
+                if (!response.ok || !html) {
+                    setConversionPreviewError('@UiText["inventory.documents.conversion.previewFailed"]');
+                    return;
+                }
+
+                renderConversionPreview(html);
+            }
+
+            async function commitConversionPreview(event) {
+                if (!conversionPreviewForm || !conversionPreviewContainer) {
+                    return;
+                }
+
+                var button = event.target && event.target.closest ? event.target.closest('[data-conversion-preview-commit]') : null;
+                if (!button) {
+                    return;
+                }
+
+                event.preventDefault();
+                setConversionPreviewError('');
+
+                var selections = collectConversionPreviewSelections();
+                if (!selections.length) {
+                    setConversionPreviewError('@UiText["inventory.documents.conversion.selectLocationRequired"]');
+                    return;
+                }
+
+                var commitUrl = conversionPreviewForm.getAttribute('data-commit-url') || '';
+                if (!commitUrl) {
+                    setConversionPreviewError('@UiText["inventory.documents.conversion.commitUrlMissing"]');
+                    return;
+                }
+
+                var payload = new FormData(conversionPreviewForm);
+                payload.append('previewSelectionsJson', JSON.stringify(selections));
+                var variantField = conversionPreviewForm.querySelector('[name="CreateForm.ConversionVariantId"]');
+                var operationField = conversionPreviewForm.querySelector('[name="CreateForm.ConversionOperationType"]');
+                var quantityField = conversionPreviewForm.querySelector('[name="CreateForm.ConversionQuantity"]');
+
+                payload.append('variantId', variantField ? variantField.value : '');
+                payload.append('operationType', operationField ? operationField.value : '');
+                payload.append('quantity', quantityField ? quantityField.value : '0');
+
+                var response = await fetch(commitUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: payload
+                });
+
+                var result = await response.json().catch(function () {
+                    return null;
+                });
+
+                if (!response.ok || !result || result.isSuccess === false) {
+                    setConversionPreviewError((result && result.errorMessage) || '@UiText["inventory.documents.conversion.commitFailed"]');
+                    return;
+                }
+
+                if (result.redirectUrl) {
+                    window.location.href = result.redirectUrl;
+                } else {
+                    window.location.reload();
+                }
             }
 
             function addLine() {
@@ -1309,6 +1502,14 @@
                         event.stopPropagation();
                     }
                 });
+            }
+
+            if (conversionPreviewForm) {
+                conversionPreviewForm.addEventListener('submit', submitConversionPreview);
+            }
+
+            if (conversionPreviewContainer) {
+                conversionPreviewContainer.addEventListener('click', commitConversionPreview);
             }
 
             lineContainer.querySelectorAll('.document-line').forEach(bindLine);

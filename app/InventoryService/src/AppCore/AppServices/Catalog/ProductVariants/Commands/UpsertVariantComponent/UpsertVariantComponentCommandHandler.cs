@@ -25,12 +25,6 @@ public class UpsertVariantComponentCommandHandler : CommandHandler<UpsertVariant
         if (command.ProductVariantBusinessKey == command.ComponentVariantRef)
             return Fail("Variant cannot reference itself as a component.");
 
-        if (command.WarehouseRef == Guid.Empty)
-            return Fail("WarehouseRef is required.");
-
-        if (command.LocationRef == Guid.Empty)
-            return Fail("LocationRef is required.");
-
         if (command.Quantity <= 0)
             return Fail("Quantity must be greater than zero.");
 
@@ -42,7 +36,7 @@ public class UpsertVariantComponentCommandHandler : CommandHandler<UpsertVariant
         if (!componentExists)
             return Fail("Component variant was not found.");
 
-        var component = variant.AddOrUpdateComponent(command.VariantComponentBusinessKey, command.ComponentVariantRef, command.WarehouseRef, command.LocationRef, command.Quantity);
+        var component = variant.AddOrUpdateComponent(command.VariantComponentBusinessKey, command.ComponentVariantRef, command.Quantity);
         await _variantRepository.CommitAsync();
 
         return Ok(new UpsertVariantComponentCommandResult
@@ -50,8 +44,6 @@ public class UpsertVariantComponentCommandHandler : CommandHandler<UpsertVariant
             ProductVariantBusinessKey = variant.BusinessKey.Value,
             VariantComponentBusinessKey = component.BusinessKey.Value,
             ComponentVariantRef = command.ComponentVariantRef,
-            WarehouseRef = command.WarehouseRef,
-            LocationRef = command.LocationRef,
             Quantity = command.Quantity
         });
     }

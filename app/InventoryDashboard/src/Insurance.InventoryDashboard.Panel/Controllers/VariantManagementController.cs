@@ -873,8 +873,6 @@ public sealed class VariantManagementController : CatalogManagementController
             {
                 ComponentId = form.ComponentId,
                 ComponentVariantRef = form.ComponentVariantId,
-                WarehouseRef = form.WarehouseId,
-                LocationRef = form.LocationId,
                 Quantity = form.Quantity
             },
             token);

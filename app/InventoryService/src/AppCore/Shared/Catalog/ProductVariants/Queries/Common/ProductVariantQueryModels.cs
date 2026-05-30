@@ -52,14 +52,10 @@ public class VariantComponentViewItem
     public Guid VariantComponentBusinessKey { get; set; }
     public Guid VariantRef { get; set; }
     public Guid ComponentVariantRef { get; set; }
-    public Guid WarehouseRef { get; set; }
-    public Guid LocationRef { get; set; }
     public decimal Quantity { get; set; }
     public string ComponentSku { get; set; } = string.Empty;
     public string? ComponentBarcode { get; set; }
     public bool ComponentIsActive { get; set; }
-    public string WarehouseCode { get; set; } = string.Empty;
-    public string LocationCode { get; set; } = string.Empty;
 }
 
 public class VariantAddOnViewItem

@@ -232,8 +232,6 @@ public sealed class VariantComponentModel
     public string ComponentSku { get; set; } = string.Empty;
     public string? ComponentBarcode { get; set; }
     public bool ComponentIsActive { get; set; }
-    public string? WarehouseCode { get; set; }
-    public string? LocationCode { get; set; }
     public decimal Quantity { get; set; }
 }
 
@@ -513,8 +511,6 @@ public sealed class UpsertVariantComponentRequest
 {
     public string? ComponentId { get; set; }
     public string ComponentVariantRef { get; set; } = string.Empty;
-    public string WarehouseRef { get; set; } = string.Empty;
-    public string LocationRef { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
 }
 

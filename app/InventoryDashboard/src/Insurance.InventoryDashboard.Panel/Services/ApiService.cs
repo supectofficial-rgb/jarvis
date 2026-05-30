@@ -869,8 +869,6 @@ public sealed class ApiService : IApiService
         {
             VariantComponentBusinessKey = ParseNullableGuid(request.ComponentId),
             ComponentVariantRef = ParseGuidOrEmpty(request.ComponentVariantRef),
-            WarehouseRef = ParseGuidOrEmpty(request.WarehouseRef),
-            LocationRef = ParseGuidOrEmpty(request.LocationRef),
             Quantity = request.Quantity
         };
 
@@ -896,20 +894,20 @@ public sealed class ApiService : IApiService
             return new ApiResponse<List<VariantComponentModel>> { IsSuccess = false, ErrorMessage = result.ErrorMessage };
         }
 
-        var mapped = result.Data?.Items.Select(item => new VariantComponentModel
+        var mapped = new List<VariantComponentModel>();
+        foreach (var item in result.Data?.Items ?? new List<VariantComponentItemDto>())
         {
-            ComponentId = item.VariantComponentBusinessKey.ToString("D"),
-            VariantId = item.VariantRef.ToString("D"),
-            ComponentVariantId = item.ComponentVariantRef.ToString("D"),
-            WarehouseId = item.WarehouseRef.ToString("D"),
-            LocationId = item.LocationRef.ToString("D"),
-            ComponentSku = item.ComponentSku,
-            ComponentBarcode = item.ComponentBarcode,
-            ComponentIsActive = item.ComponentIsActive,
-            WarehouseCode = item.WarehouseCode,
-            LocationCode = item.LocationCode,
-            Quantity = item.Quantity
-        }).ToList() ?? new List<VariantComponentModel>();
+            mapped.Add(new VariantComponentModel
+            {
+                ComponentId = item.VariantComponentBusinessKey.ToString("D"),
+                VariantId = item.VariantRef.ToString("D"),
+                ComponentVariantId = item.ComponentVariantRef.ToString("D"),
+                ComponentSku = item.ComponentSku,
+                ComponentBarcode = item.ComponentBarcode,
+                ComponentIsActive = item.ComponentIsActive,
+                Quantity = item.Quantity
+            });
+        }
 
         return new ApiResponse<List<VariantComponentModel>> { IsSuccess = true, Data = mapped };
     }
@@ -1200,13 +1198,11 @@ public sealed class ApiService : IApiService
                 ComponentId = component.VariantComponentBusinessKey.ToString("D"),
                 VariantId = component.VariantRef.ToString("D"),
                 ComponentVariantId = component.ComponentVariantRef.ToString("D"),
-                WarehouseId = component.WarehouseRef.ToString("D"),
-                LocationId = component.LocationRef.ToString("D"),
+                WarehouseId = string.Empty,
+                LocationId = string.Empty,
                 ComponentSku = component.ComponentSku,
                 ComponentBarcode = component.ComponentBarcode,
                 ComponentIsActive = component.ComponentIsActive,
-                WarehouseCode = component.WarehouseCode,
-                LocationCode = component.LocationCode,
                 Quantity = component.Quantity
             }).ToList(),
             AddOns = item.AddOns.Select(addOn => new VariantAddOnModel
@@ -3130,14 +3126,10 @@ public sealed class ApiService : IApiService
         public Guid VariantComponentBusinessKey { get; set; }
         public Guid VariantRef { get; set; }
         public Guid ComponentVariantRef { get; set; }
-        public Guid WarehouseRef { get; set; }
-        public Guid LocationRef { get; set; }
         public decimal Quantity { get; set; }
         public string ComponentSku { get; set; } = string.Empty;
         public string? ComponentBarcode { get; set; }
         public bool ComponentIsActive { get; set; }
-        public string WarehouseCode { get; set; } = string.Empty;
-        public string LocationCode { get; set; } = string.Empty;
     }
 
     private sealed class VariantAddOnItemDto

@@ -1997,6 +1997,260 @@ public sealed partial class InventoryManagementController
             pageSize,
             cancellationToken);
 
+    [HttpPost("/InventoryManagement/Documents/Conversion/Preview")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PreviewConversionDocument(
+        [Bind(Prefix = "CreateForm")] CreateInventoryDocumentForm form,
+        string documentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفاً دوباره وارد شوید."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی ایجاد سند را ندارید."
+            });
+        }
+
+        var previewResult = await BuildConversionPreviewAsync(token, documentId, form, cancellationToken);
+        if (!previewResult.Success || previewResult.Model is null)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = previewResult.Error ?? "امکان آماده‌سازی پیش‌نمایش سند تبدیل وجود نداشت."
+            });
+        }
+
+        return PartialView("~/Views/InventoryManagement/_ConversionDocumentPreviewBody.cshtml", previewResult.Model);
+    }
+
+    [HttpPost("/InventoryManagement/Documents/Conversion/CommitPreview")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CommitConversionPreview(
+        string documentId,
+        string previewSelectionsJson,
+        string variantId,
+        string operationType,
+        decimal quantity,
+        string? reasonCode,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetToken(out var token))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "نشست کاربری منقضی شده است. لطفاً دوباره وارد شوید."
+            });
+        }
+
+        if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "شما دسترسی ویرایش آیتم سند را ندارید."
+            });
+        }
+
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        if (!documentResult.IsSuccess || documentResult.Data is null)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = documentResult.ErrorMessage ?? "سند یافت نشد."
+            });
+        }
+
+        if (!string.Equals(documentResult.Data.DocumentType, "Conversion", StringComparison.OrdinalIgnoreCase))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "این سند تبدیل نیست."
+            });
+        }
+
+        var previewResult = await BuildConversionPreviewAsync(
+            token,
+            documentId,
+            new CreateInventoryDocumentForm
+            {
+                ConversionVariantId = variantId,
+                ConversionOperationType = operationType,
+                ConversionQuantity = quantity,
+                ReasonCode = reasonCode
+            },
+            cancellationToken);
+
+        if (!previewResult.Success || previewResult.Model is null)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = previewResult.Error ?? "امکان تایید پیش‌نمایش سند تبدیل وجود نداشت."
+            });
+        }
+
+        var selections = ParseConversionPreviewSelections(previewSelectionsJson);
+        if (selections is null || selections.Count == 0)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "انتخاب لوکیشن‌های پیش‌نمایش معتبر نیست."
+            });
+        }
+
+        var linesByKey = previewResult.Model.Lines
+            .ToDictionary(x => x.LineKey, x => x, StringComparer.OrdinalIgnoreCase);
+        var selectedGroup = previewResult.Model.SelectedSellerQualityKey;
+        var selectedLocationLookup = selections
+            .Where(x => !string.IsNullOrWhiteSpace(x.LineKey) && !string.IsNullOrWhiteSpace(x.LocationRef))
+            .ToDictionary(x => x.LineKey, x => x.LocationRef, StringComparer.OrdinalIgnoreCase);
+
+        if (selectedLocationLookup.Count == 0 || selectedLocationLookup.Any(pair => !linesByKey.ContainsKey(pair.Key)))
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = "انتخاب‌های پیش‌نمایش معتبر نیستند."
+            });
+        }
+
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var locationLookup = locationLookupResult.Data ?? new List<LocationLookupItemModel>();
+        var selectedLines = new List<InventoryDocumentLineForm>();
+
+        foreach (var line in previewResult.Model.Lines)
+        {
+            if (!selectedLocationLookup.TryGetValue(line.LineKey, out var selectedLocationRef) || string.IsNullOrWhiteSpace(selectedLocationRef))
+            {
+                return Json(new
+                {
+                    isSuccess = false,
+                    errorMessage = $"برای ردیف {line.LineKey} لوکیشن انتخاب نشده است."
+                });
+            }
+
+            var lineLocation = line.LocationOptions.FirstOrDefault(x => string.Equals(x.LocationRef, selectedLocationRef, StringComparison.OrdinalIgnoreCase));
+            if (lineLocation is null)
+            {
+                return Json(new
+                {
+                    isSuccess = false,
+                    errorMessage = $"لوکیشن انتخاب‌شده برای ردیف {line.LineKey} معتبر نیست."
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(line.BaseUomRef))
+            {
+                return Json(new
+                {
+                    isSuccess = false,
+                    errorMessage = $"واحد پایه برای ردیف {line.LineKey} مشخص نشده است."
+                });
+            }
+
+            var location = locationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, selectedLocationRef, StringComparison.OrdinalIgnoreCase));
+            if (location is null)
+            {
+                return Json(new
+                {
+                    isSuccess = false,
+                    errorMessage = $"لوکیشن انتخاب‌شده برای ردیف {line.LineKey} در سیستم پیدا نشد."
+                });
+            }
+
+            var targetQuality = TryParseSellerQualityKey(selectedGroup)?.QualityStatusRef;
+            var baseUomRef = string.IsNullOrWhiteSpace(line.BaseUomRef) ? string.Empty : line.BaseUomRef;
+            selectedLines.Add(new InventoryDocumentLineForm
+            {
+                VariantId = line.VariantId,
+                Qty = line.RequiredQty,
+                UomRef = baseUomRef,
+                BaseUomRef = baseUomRef,
+                SourceLocationRef = string.Equals(line.Role, "Source", StringComparison.OrdinalIgnoreCase) ? selectedLocationRef : null,
+                DestinationLocationRef = string.Equals(line.Role, "Destination", StringComparison.OrdinalIgnoreCase) ? selectedLocationRef : null,
+                QualityStatusRef = targetQuality?.ToString("D")
+            });
+        }
+
+        var documentHeader = new CreateInventoryDocumentForm
+        {
+            DocumentId = documentId,
+            DocumentType = "Conversion",
+            DocumentNo = documentResult.Data.DocumentNo,
+            ReferenceType = documentResult.Data.ReferenceType,
+            ReferenceBusinessId = documentResult.Data.ReferenceBusinessId,
+            WarehouseRef = locationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, selectedLocationLookup.Values.First(), StringComparison.OrdinalIgnoreCase))?.WarehouseRef ?? string.Empty,
+            SellerRef = TryParseSellerQualityKey(selectedGroup)?.SellerRef.ToString("D") ?? string.Empty,
+            OccurredAt = documentResult.Data.OccurredAt,
+            ReasonCode = documentResult.Data.ReasonCode,
+            Lines = selectedLines.Select(line => new CreateInventoryDocumentLineForm
+            {
+                VariantId = line.VariantId,
+                Qty = line.Qty,
+                UomRef = line.UomRef,
+                BaseUomRef = line.BaseUomRef,
+                SourceLocationRef = line.SourceLocationRef,
+                DestinationLocationRef = line.DestinationLocationRef,
+                QualityStatusRef = line.QualityStatusRef,
+                FromQualityStatusRef = line.FromQualityStatusRef,
+                ToQualityStatusRef = line.ToQualityStatusRef,
+                LotBatchNo = line.LotBatchNo,
+                ReasonCode = line.ReasonCode,
+                AdjustmentDirection = line.AdjustmentDirection
+            }).ToList()
+        };
+
+        var updateResult = await _apiService.UpdateInventoryDocumentAsync(documentHeader, token);
+        if (!updateResult.IsSuccess)
+        {
+            return Json(new
+            {
+                isSuccess = false,
+                errorMessage = updateResult.ErrorMessage ?? "تایید پیش‌نمایش سند تبدیل انجام نشد."
+            });
+        }
+
+        foreach (var line in selectedLines)
+        {
+            var addResult = await _apiService.AddInventoryDocumentLineAsync(documentId, line, token);
+            if (!addResult.IsSuccess)
+            {
+                return Json(new
+                {
+                    isSuccess = false,
+                    errorMessage = addResult.ErrorMessage ?? "ذخیره ردیف‌های سند تبدیل انجام نشد."
+                });
+            }
+        }
+
+        return Json(new
+        {
+            isSuccess = true,
+            redirectUrl = Url.Action(nameof(ConversionDocuments), new
+            {
+                documentId,
+                documentType = "Conversion",
+                tab = "list"
+            })
+        });
+    }
+
     [HttpGet("/InventoryManagement/Documents/Return/ReferenceSearch")]
     public async Task<IActionResult> SearchReturnReferenceDocuments(
         string? term,
@@ -2318,15 +2572,10 @@ public sealed partial class InventoryManagementController
 
         var isUpdate = !string.IsNullOrWhiteSpace(form.DocumentId);
         var isReceiptDocument = string.Equals(form.DocumentType, "Receipt", StringComparison.OrdinalIgnoreCase);
-        var isConversionDocument = string.Equals(form.DocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
         var isReturnDocument = IsReturnDocumentType(form.DocumentType);
         form.Lines ??= new List<CreateInventoryDocumentLineForm>();
 
         if (isUpdate)
-        {
-            form.Lines.Clear();
-        }
-        else if (isConversionDocument)
         {
             form.Lines.Clear();
         }
@@ -2374,25 +2623,7 @@ public sealed partial class InventoryManagementController
 
         if (!isUpdate)
         {
-            if (isConversionDocument)
-            {
-                var conversionError = ValidateConversionDocumentForm(form);
-                if (!string.IsNullOrWhiteSpace(conversionError))
-                {
-                    TempData["CatalogError"] = conversionError;
-                    return RedirectToAction(routeActionName);
-                }
-
-                var conversionBuildResult = await BuildConversionDocumentAsync(token, form);
-                if (!conversionBuildResult.Success || conversionBuildResult.Form is null)
-                {
-                    TempData["CatalogError"] = conversionBuildResult.Error ?? "امکان آماده‌سازی سند تبدیل وجود نداشت.";
-                    return RedirectToAction(routeActionName);
-                }
-
-                form = conversionBuildResult.Form;
-            }
-            else if (!isReceiptDocument)
+            if (!isReceiptDocument)
             {
                 var ruleError = ValidateDocumentFormAgainstBackendRules(form);
                 if (!string.IsNullOrWhiteSpace(ruleError))
@@ -3468,6 +3699,7 @@ public sealed partial class InventoryManagementController
             && existingDocument is not null;
         var isReceiptDocument = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase);
         var isAdjustmentDocument = string.Equals(documentType, "Adjustment", StringComparison.OrdinalIgnoreCase);
+        var isConversionDocument = string.Equals(documentType, "Conversion", StringComparison.OrdinalIgnoreCase);
 
         return new CreateInventoryDocumentForm
         {
@@ -3476,10 +3708,10 @@ public sealed partial class InventoryManagementController
             DocumentNo = isEditMode ? existingDocument?.DocumentNo : null,
             ReferenceType = isEditMode ? existingDocument?.ReferenceType : null,
             ReferenceBusinessId = isEditMode ? existingDocument?.ReferenceBusinessId?.ToString() : null,
-            WarehouseRef = isReceiptDocument || isAdjustmentDocument
+            WarehouseRef = isConversionDocument || isReceiptDocument || isAdjustmentDocument
                 ? string.Empty
                 : isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
-            SellerRef = isReceiptDocument
+            SellerRef = isConversionDocument || isReceiptDocument
                 ? string.Empty
                 : isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
             ReceivedBy = isEditMode ? existingDocument?.ReceivedBy : null,
@@ -4020,6 +4252,381 @@ public sealed partial class InventoryManagementController
         }
 
         return variant.Id;
+    }
+
+    private static (Guid SellerRef, Guid QualityStatusRef)? TryParseSellerQualityKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return null;
+        }
+
+        var parts = key.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        if (!Guid.TryParse(parts[0], out var sellerRef) || !Guid.TryParse(parts[1], out var qualityStatusRef))
+        {
+            return null;
+        }
+
+        return (sellerRef, qualityStatusRef);
+    }
+
+    private static List<ConversionDocumentPreviewSelectionModel>? ParseConversionPreviewSelections(string? previewSelectionsJson)
+    {
+        if (string.IsNullOrWhiteSpace(previewSelectionsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var selections = JsonSerializer.Deserialize<List<ConversionDocumentPreviewSelectionModel>>(previewSelectionsJson, PostDocumentSerialSelectionsJsonOptions);
+            if (selections is null || selections.Count == 0)
+            {
+                return null;
+            }
+
+            return selections
+                .Where(selection => !string.IsNullOrWhiteSpace(selection.LineKey) && !string.IsNullOrWhiteSpace(selection.LocationRef))
+                .Select(selection => new ConversionDocumentPreviewSelectionModel
+                {
+                    LineKey = selection.LineKey?.Trim() ?? string.Empty,
+                    VariantId = selection.VariantId?.Trim() ?? string.Empty,
+                    Role = selection.Role?.Trim() ?? string.Empty,
+                    LocationRef = selection.LocationRef?.Trim() ?? string.Empty,
+                    RequiredQty = selection.RequiredQty
+                })
+                .ToList();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<(bool Success, string? Error, ConversionDocumentPreviewViewModel? Model)> BuildConversionPreviewAsync(
+        string token,
+        string documentId,
+        CreateInventoryDocumentForm form,
+        CancellationToken cancellationToken = default)
+    {
+        var validationError = ValidateConversionDocumentForm(form);
+        if (!string.IsNullOrWhiteSpace(validationError))
+        {
+            return (false, validationError, null);
+        }
+
+        if (string.IsNullOrWhiteSpace(documentId))
+        {
+            return (false, "شناسه سند معتبر نیست.", null);
+        }
+
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(documentId, token);
+        if (!documentResult.IsSuccess || documentResult.Data is null)
+        {
+            return (false, documentResult.ErrorMessage ?? "سند یافت نشد.", null);
+        }
+
+        if (!string.Equals(documentResult.Data.DocumentType, "Conversion", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "این سند تبدیل نیست.", null);
+        }
+
+        if (!string.Equals(documentResult.Data.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "فقط سندهای پیش‌نویس قابل پیش‌نمایش هستند.", null);
+        }
+
+        var variantResult = await _apiService.GetProductVariantFullDetailsAsync(form.ConversionVariantId ?? string.Empty, token);
+        if (!variantResult.IsSuccess || variantResult.Data is null)
+        {
+            return (false, variantResult.ErrorMessage ?? "جزئیات واریانت دریافت نشد.", null);
+        }
+
+        var variantsResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var variantLookup = (variantsResult.Data ?? new List<ProductVariantSummaryModel>())
+            .ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+
+        var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
+        var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
+        var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
+        var uomLookup = (uomLookupResult.Data ?? new List<UnitOfMeasureLookupModel>())
+            .ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+        var warehouseLookup = warehouseLookupResult.Data ?? new List<WarehouseLookupItemModel>();
+        var locationLookup = locationLookupResult.Data ?? new List<LocationLookupItemModel>();
+
+        var variant = variantResult.Data;
+        var recipe = variant.Components
+            .Where(x => !string.IsNullOrWhiteSpace(x.ComponentVariantId) && x.Quantity > 0)
+            .ToList();
+
+        if (recipe.Count == 0)
+        {
+            return (false, "برای این واریانت recipe یا جزء سازنده معتبر ثبت نشده است.", null);
+        }
+
+        var assemble = string.Equals(form.ConversionOperationType, "Assemble", StringComparison.OrdinalIgnoreCase);
+        var previewLines = new List<ConversionDocumentPreviewLineModel>();
+        string? selectedGroup = null;
+
+        string BuildLocationLabel(LocationLookupItemModel location)
+        {
+            var warehouseLabel = warehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, location.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+            var warehouseText = warehouseLabel is null ? location.WarehouseRef : $"{warehouseLabel.Code} - {warehouseLabel.Name}";
+            var locationText = string.IsNullOrWhiteSpace(location.LocationType)
+                ? location.LocationCode
+                : $"{location.LocationCode} ({location.LocationType})";
+            return string.IsNullOrWhiteSpace(warehouseText) ? locationText : $"{warehouseText} - {locationText}";
+        }
+
+        string BuildUomLabel(string uomRef)
+        {
+            if (string.IsNullOrWhiteSpace(uomRef))
+            {
+                return "-";
+            }
+
+            return uomLookup.TryGetValue(uomRef, out var uom)
+                ? $"{uom.Code} - {uom.Name}"
+                : uomRef;
+        }
+
+        List<StockDetailBucketModel> FilterBucketsByGroupAndQty(IEnumerable<StockDetailBucketModel> buckets, string groupKey, decimal requiredQty)
+        {
+            return buckets
+                .Where(x => x.QuantityOnHand >= requiredQty && string.Equals(ToSellerQualityKey(x), groupKey, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.QuantityOnHand)
+                .ThenBy(x => x.LocationRef)
+                .ToList();
+        }
+
+        if (assemble)
+        {
+            var componentCandidates = new List<(string LineKey, string VariantId, string Label, string BaseUomRef, decimal RequiredQty, List<StockDetailBucketModel> Buckets)>();
+
+            foreach (var component in recipe)
+            {
+                var requiredQty = component.Quantity * form.ConversionQuantity;
+                if (!Guid.TryParse(component.ComponentVariantId, out var parsedVariantId))
+                {
+                    return (false, "شناسه واریانت جزء معتبر نیست.", null);
+                }
+
+                var componentVariant = variantLookup.TryGetValue(component.ComponentVariantId, out var componentLookupVariant)
+                    ? componentLookupVariant
+                    : null;
+
+                var bucketsResult = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: parsedVariantId, minQuantity: requiredQty);
+                if (!bucketsResult.IsSuccess)
+                {
+                    return (false, bucketsResult.ErrorMessage ?? "موجودی جزء سازنده دریافت نشد.", null);
+                }
+
+                var buckets = (bucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+                    .Where(x => x.QuantityOnHand >= requiredQty)
+                    .ToList();
+
+                if (buckets.Count == 0)
+                {
+                    return (false, $"برای جزء سازنده {BuildVariantLookupLabel(componentVariant ?? new ProductVariantSummaryModel { Id = component.ComponentVariantId, Sku = component.ComponentVariantId })} موجودی کافی پیدا نشد.", null);
+                }
+
+                componentCandidates.Add((component.ComponentId, component.ComponentVariantId, BuildVariantLookupLabel(componentVariant ?? new ProductVariantSummaryModel { Id = component.ComponentVariantId, Sku = component.ComponentVariantId }), componentVariant?.BaseUomRef ?? string.Empty, requiredQty, buckets));
+            }
+
+            var groups = componentCandidates
+                .Select(candidate => candidate.Buckets
+                    .GroupBy(ToSellerQualityKey)
+                    .Where(group => group.Sum(x => x.QuantityOnHand) >= candidate.RequiredQty)
+                    .Select(group => group.Key)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase))
+                .ToList();
+
+            if (groups.Any(group => group.Count == 0))
+            {
+                return (false, "برای یکی از اجزای سازنده موجودی کافی در انبار پیدا نشد.", null);
+            }
+
+            selectedGroup = groups
+                .Skip(1)
+                .Aggregate(new HashSet<string>(groups.First(), StringComparer.OrdinalIgnoreCase), (acc, set) =>
+                {
+                    acc.IntersectWith(set);
+                    return acc;
+                })
+                .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(selectedGroup))
+            {
+                return (false, "اجزای سازنده در یک seller/quality مشترک برای مونتاژ پیدا نشدند.", null);
+            }
+
+            foreach (var candidate in componentCandidates)
+            {
+                var options = FilterBucketsByGroupAndQty(candidate.Buckets, selectedGroup, candidate.RequiredQty);
+                if (options.Count == 0)
+                {
+                    return (false, $"برای جزء سازنده {candidate.Label} لوکیشن کافی پیدا نشد.", null);
+                }
+
+                previewLines.Add(new ConversionDocumentPreviewLineModel
+                {
+                    LineKey = $"component-{candidate.LineKey}",
+                    Role = "Source",
+                    VariantId = candidate.VariantId,
+                    VariantLabel = candidate.Label,
+                    BaseUomRef = candidate.BaseUomRef,
+                    BaseUomLabel = BuildUomLabel(candidate.BaseUomRef),
+                    RequiredQty = candidate.RequiredQty,
+                    SelectedLocationRef = options.First().LocationRef.ToString("D"),
+                    LocationOptions = options.Select(bucket =>
+                    {
+                        var location = locationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, bucket.LocationRef.ToString("D"), StringComparison.OrdinalIgnoreCase));
+                        return new ConversionDocumentPreviewLocationModel
+                        {
+                            LocationRef = bucket.LocationRef.ToString("D"),
+                            Label = location is null ? bucket.LocationRef.ToString("D") : BuildLocationLabel(location),
+                            QuantityOnHand = bucket.QuantityOnHand,
+                            IsDefault = false
+                        };
+                    }).ToList()
+                });
+            }
+
+            var destinationOptions = locationLookup
+                .Select(location => new ConversionDocumentPreviewLocationModel
+                {
+                    LocationRef = location.LocationBusinessKey,
+                    Label = BuildLocationLabel(location),
+                    QuantityOnHand = 0,
+                    IsDefault = false
+                })
+                .ToList();
+
+            previewLines.Insert(0, new ConversionDocumentPreviewLineModel
+            {
+                LineKey = "main-variant",
+                Role = "Destination",
+                VariantId = variant.Id,
+                VariantLabel = BuildVariantLookupLabel(variantLookup.TryGetValue(variant.Id, out var mainLookupVariant) ? mainLookupVariant : new ProductVariantSummaryModel { Id = variant.Id, Sku = variant.Sku, Name = variant.Name }),
+                BaseUomRef = variant.BaseUomRef,
+                BaseUomLabel = BuildUomLabel(variant.BaseUomRef),
+                RequiredQty = form.ConversionQuantity,
+                SelectedLocationRef = destinationOptions.FirstOrDefault()?.LocationRef,
+                LocationOptions = destinationOptions
+            });
+        }
+        else
+        {
+            if (!Guid.TryParse(variant.Id, out var parsedVariantId))
+            {
+                return (false, "شناسه واریانت اصلی معتبر نیست.", null);
+            }
+
+            var mainBucketsResult = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: parsedVariantId, minQuantity: form.ConversionQuantity);
+            if (!mainBucketsResult.IsSuccess)
+            {
+                return (false, mainBucketsResult.ErrorMessage ?? "موجودی واریانت اصلی دریافت نشد.", null);
+            }
+
+            var mainBuckets = (mainBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+                .Where(x => x.QuantityOnHand >= form.ConversionQuantity)
+                .ToList();
+
+            if (mainBuckets.Count == 0)
+            {
+                return (false, "برای واریانت اصلی موجودی کافی پیدا نشد.", null);
+            }
+
+            var groupKeys = mainBuckets
+                .GroupBy(ToSellerQualityKey)
+                .Where(group => group.Sum(x => x.QuantityOnHand) >= form.ConversionQuantity)
+                .Select(group => group.Key)
+                .ToList();
+
+            if (groupKeys.Count == 0)
+            {
+                return (false, "برای دی‌اسمبل موجودی کافی از واریانت اصلی پیدا نشد.", null);
+            }
+
+            if (groupKeys.Count > 1)
+            {
+                return (false, "برای دی‌اسمبل بیش از یک seller/quality ممکن پیدا شد. ابتدا یکی را یکتا کنید.", null);
+            }
+
+            selectedGroup = groupKeys[0];
+            var mainOptions = FilterBucketsByGroupAndQty(mainBuckets, selectedGroup, form.ConversionQuantity);
+            if (mainOptions.Count == 0)
+            {
+                return (false, "لوکیشن مناسب برای واریانت اصلی پیدا نشد.", null);
+            }
+
+            previewLines.Add(new ConversionDocumentPreviewLineModel
+            {
+                LineKey = "main-variant",
+                Role = "Source",
+                VariantId = variant.Id,
+                VariantLabel = BuildVariantLookupLabel(variantLookup.TryGetValue(variant.Id, out var mainLookupVariant) ? mainLookupVariant : new ProductVariantSummaryModel { Id = variant.Id, Sku = variant.Sku, Name = variant.Name }),
+                BaseUomRef = variant.BaseUomRef,
+                BaseUomLabel = BuildUomLabel(variant.BaseUomRef),
+                RequiredQty = form.ConversionQuantity,
+                SelectedLocationRef = mainOptions.First().LocationRef.ToString("D"),
+                LocationOptions = mainOptions.Select(bucket =>
+                {
+                    var location = locationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, bucket.LocationRef.ToString("D"), StringComparison.OrdinalIgnoreCase));
+                    return new ConversionDocumentPreviewLocationModel
+                    {
+                        LocationRef = bucket.LocationRef.ToString("D"),
+                        Label = location is null ? bucket.LocationRef.ToString("D") : BuildLocationLabel(location),
+                        QuantityOnHand = bucket.QuantityOnHand,
+                        IsDefault = false
+                    };
+                }).ToList()
+            });
+
+            foreach (var component in recipe)
+            {
+                var componentVariant = variantLookup.TryGetValue(component.ComponentVariantId, out var componentLookupVariant)
+                    ? componentLookupVariant
+                    : null;
+
+                previewLines.Add(new ConversionDocumentPreviewLineModel
+                {
+                    LineKey = $"component-{component.ComponentId}",
+                    Role = "Destination",
+                    VariantId = component.ComponentVariantId,
+                    VariantLabel = BuildVariantLookupLabel(componentVariant ?? new ProductVariantSummaryModel { Id = component.ComponentVariantId, Sku = component.ComponentVariantId }),
+                    BaseUomRef = componentVariant?.BaseUomRef ?? string.Empty,
+                    BaseUomLabel = BuildUomLabel(componentVariant?.BaseUomRef ?? string.Empty),
+                    RequiredQty = component.Quantity * form.ConversionQuantity,
+                    SelectedLocationRef = locationLookup.FirstOrDefault()?.LocationBusinessKey,
+                    LocationOptions = locationLookup.Select(location => new ConversionDocumentPreviewLocationModel
+                    {
+                        LocationRef = location.LocationBusinessKey,
+                        Label = BuildLocationLabel(location),
+                        QuantityOnHand = 0,
+                        IsDefault = false
+                    }).ToList()
+                });
+            }
+        }
+
+        return (true, null, new ConversionDocumentPreviewViewModel
+        {
+            DocumentId = documentId,
+            DocumentNo = documentResult.Data.DocumentNo,
+            VariantId = variant.Id,
+            VariantLabel = BuildVariantLookupLabel(variantLookup.TryGetValue(variant.Id, out var previewVariant) ? previewVariant : new ProductVariantSummaryModel { Id = variant.Id, Sku = variant.Sku, Name = variant.Name }),
+            OperationType = form.ConversionOperationType,
+            Quantity = form.ConversionQuantity,
+            ReasonCode = form.ReasonCode,
+            SelectedSellerQualityKey = selectedGroup,
+            Lines = previewLines
+        });
     }
 
     private async Task<string?> ResolveReceiptDefaultLocationRefAsync(string warehouseRef, string token, CancellationToken cancellationToken)

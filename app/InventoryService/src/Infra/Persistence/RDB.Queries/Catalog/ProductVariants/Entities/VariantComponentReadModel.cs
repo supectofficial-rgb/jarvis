@@ -6,7 +6,5 @@ public class VariantComponentReadModel
     public Guid BusinessKey { get; set; }
     public Guid VariantRef { get; set; }
     public Guid ComponentVariantRef { get; set; }
-    public Guid WarehouseRef { get; set; }
-    public Guid LocationRef { get; set; }
     public decimal Quantity { get; set; }
 }

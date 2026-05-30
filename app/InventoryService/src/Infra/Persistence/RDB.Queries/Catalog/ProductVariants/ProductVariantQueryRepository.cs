@@ -445,23 +445,17 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
         return await (
             from component in _dbContext.Set<VariantComponentReadModel>()
             join variant in _dbContext.Set<ProductVariantReadModel>() on component.ComponentVariantRef equals variant.BusinessKey
-            join location in _dbContext.Set<LocationReadModel>() on component.LocationRef equals location.BusinessKey
-            join warehouse in _dbContext.Set<WarehouseReadModel>() on component.WarehouseRef equals warehouse.BusinessKey
             where component.VariantRef == variantId
-            orderby warehouse.Code, location.LocationCode, variant.VariantSku
+            orderby variant.VariantSku
             select new VariantComponentViewItem
             {
                 VariantComponentBusinessKey = component.BusinessKey,
                 VariantRef = component.VariantRef,
                 ComponentVariantRef = component.ComponentVariantRef,
-                WarehouseRef = component.WarehouseRef,
-                LocationRef = component.LocationRef,
                 Quantity = component.Quantity,
                 ComponentSku = variant.VariantSku,
                 ComponentBarcode = variant.Barcode,
-                ComponentIsActive = variant.IsActive,
-                WarehouseCode = warehouse.Code,
-                LocationCode = location.LocationCode
+                ComponentIsActive = variant.IsActive
             }).ToListAsync();
     }
 

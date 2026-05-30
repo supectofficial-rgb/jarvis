@@ -6,8 +6,6 @@ public sealed class VariantComponent : Aggregate
 {
     public Guid VariantRef { get; private set; }
     public Guid ComponentVariantRef { get; private set; }
-    public Guid WarehouseRef { get; private set; }
-    public Guid LocationRef { get; private set; }
     public decimal Quantity { get; private set; }
 
     private VariantComponent()
@@ -18,8 +16,6 @@ public sealed class VariantComponent : Aggregate
         Guid variantRef,
         Guid componentBusinessKey,
         Guid componentVariantRef,
-        Guid warehouseRef,
-        Guid locationRef,
         decimal quantity)
     {
         if (componentBusinessKey == Guid.Empty)
@@ -30,17 +26,13 @@ public sealed class VariantComponent : Aggregate
             BusinessKey = componentBusinessKey,
             VariantRef = variantRef,
             ComponentVariantRef = componentVariantRef,
-            WarehouseRef = warehouseRef,
-            LocationRef = locationRef,
             Quantity = quantity
         };
     }
 
-    internal void Update(Guid componentVariantRef, Guid warehouseRef, Guid locationRef, decimal quantity)
+    internal void Update(Guid componentVariantRef, decimal quantity)
     {
         ComponentVariantRef = componentVariantRef;
-        WarehouseRef = warehouseRef;
-        LocationRef = locationRef;
         Quantity = quantity;
     }
 }

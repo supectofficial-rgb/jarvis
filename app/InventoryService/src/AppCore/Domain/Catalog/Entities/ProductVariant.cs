@@ -173,7 +173,7 @@ public sealed class ProductVariant : AggregateRoot
         Apply(new ProductVariantUomConversionRemovedEvent(BusinessKey, fromUomRef, toUomRef));
     }
 
-    public VariantComponent AddOrUpdateComponent(Guid? variantComponentBusinessKey, Guid componentVariantRef, Guid warehouseRef, Guid locationRef, decimal quantity)
+    public VariantComponent AddOrUpdateComponent(Guid? variantComponentBusinessKey, Guid componentVariantRef, decimal quantity)
     {
         if (componentVariantRef == Guid.Empty)
             throw new ArgumentException("ComponentVariantRef is required.", nameof(componentVariantRef));
@@ -181,21 +181,12 @@ public sealed class ProductVariant : AggregateRoot
         if (componentVariantRef == BusinessKey.Value)
             throw new ArgumentException("Variant cannot reference itself as a component.", nameof(componentVariantRef));
 
-        if (warehouseRef == Guid.Empty)
-            throw new ArgumentException("WarehouseRef is required.", nameof(warehouseRef));
-
-        if (locationRef == Guid.Empty)
-            throw new ArgumentException("LocationRef is required.", nameof(locationRef));
-
         if (quantity <= 0)
             throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity must be greater than zero.");
 
         var existing = variantComponentBusinessKey.HasValue && variantComponentBusinessKey.Value != Guid.Empty
             ? _components.FirstOrDefault(x => x.BusinessKey.Value == variantComponentBusinessKey.Value)
-            : _components.FirstOrDefault(x =>
-                x.ComponentVariantRef == componentVariantRef &&
-                x.WarehouseRef == warehouseRef &&
-                x.LocationRef == locationRef);
+            : _components.FirstOrDefault(x => x.ComponentVariantRef == componentVariantRef);
 
         var componentBusinessKey = existing?.BusinessKey.Value
             ?? (variantComponentBusinessKey.HasValue && variantComponentBusinessKey.Value != Guid.Empty
@@ -206,8 +197,6 @@ public sealed class ProductVariant : AggregateRoot
             BusinessKey,
             componentBusinessKey,
             componentVariantRef,
-            warehouseRef,
-            locationRef,
             quantity));
 
         return _components.First(x => x.BusinessKey.Value == componentBusinessKey);
@@ -502,13 +491,11 @@ public sealed class ProductVariant : AggregateRoot
                 BusinessKey.Value,
                 @event.VariantComponentBusinessKey,
                 @event.ComponentVariantRef,
-                @event.WarehouseRef,
-                @event.LocationRef,
                 @event.Quantity));
             return;
         }
 
-        existing.Update(@event.ComponentVariantRef, @event.WarehouseRef, @event.LocationRef, @event.Quantity);
+        existing.Update(@event.ComponentVariantRef, @event.Quantity);
     }
 
     private void On(ProductVariantComponentRemovedEvent @event)

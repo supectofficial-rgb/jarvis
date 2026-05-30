@@ -782,9 +782,8 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
                         <div>
                             <h6 class="card-title mb-1">@UiText["catalog.variants.addOrEditComponent"]</h6>
-                            <p class="text-muted small mb-0">واریانت، انبار و لوکیشن را همین‌جا انتخاب کن و سپس ثبت بزن.</p>
+                            <p class="text-muted small mb-0">واریانت سازنده و تعداد را انتخاب کن و سپس ثبت بزن.</p>
                         </div>
-                        <span class="badge badge-pill badge-outline-info" id="variant-component-stock-summary">@UiText["catalog.variants.selectVariantSimple"]</span>
                     </div>
                     <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-ajax-submit="variant-components" data-loading-form data-dirty-watch>
                         @Html.AntiForgeryToken()
@@ -801,17 +800,6 @@
                                         data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
                                     <option value="">کد یا نام واریانت را جستجو کنید</option>
                                 </select>
-                                <small class="text-muted d-block mt-1">بعد از انتخاب واریانت، انبار و لوکیشن‌های مرتبط همان کالا بارگذاری می‌شوند.</small>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="col-md-12 mb-2">
-                                <label class="font-weight-bold">@UiText["catalog.variants.componentLocation"]</label>
-                                <select asp-for="VariantComponentForm.LocationId" class="form-control" id="VariantComponentForm_LocationId">
-                                    <option value="">@UiText["catalog.variants.selectLocation"]</option>
-                                </select>
-                                <input asp-for="VariantComponentForm.WarehouseId" type="hidden" id="VariantComponentForm_WarehouseId" />
-                                <small class="text-muted d-block mt-1">هر گزینه، انبار و لوکیشن را با هم نشان می‌دهد؛ با انتخاب آن، انبار هم پشت‌صحنه پر می‌شود.</small>
                             </div>
                         </div>
                         <div class="form-row">
@@ -2985,109 +2973,11 @@
             var componentVariantIdInput = document.getElementById('VariantComponentForm_VariantId');
             var componentIdInput = document.getElementById('VariantComponentForm_ComponentId');
             var componentVariantInput = document.getElementById('VariantComponentForm_ComponentVariantId');
-            var componentWarehouseInput = document.getElementById('VariantComponentForm_WarehouseId');
-            var componentLocationInput = document.getElementById('VariantComponentForm_LocationId');
             var componentQuantityInput = document.getElementById('VariantComponentForm_Quantity');
-            var componentStockPanel = document.getElementById('variant-component-form-panel');
-            var componentStockSummary = document.getElementById('variant-component-stock-summary');
             var addonModal = window.jQuery ? window.jQuery('#variant-bulk-addon-modal') : null;
             var addonModalTitle = document.querySelector('#variant-bulk-addon-modal .modal-title');
             var componentVariantSearchUrl = componentVariantInput ? (componentVariantInput.getAttribute('data-ajax-url') || '') : '';
-            var componentStockLookupUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("GetVariantComponentInventoryLookup", "CatalogManagement") ?? string.Empty));
             var componentVariantPlaceholder = componentVariantInput ? (componentVariantInput.getAttribute('data-placeholder') || '') : '';
-            var componentStockLocations = [];
-
-            function setSelectOptions(select, items, placeholder, valueKey, textKey) {
-                if (!select) {
-                    return;
-                }
-
-                var currentValue = (select.value || '').trim();
-                select.innerHTML = '';
-
-                var placeholderOption = document.createElement('option');
-                placeholderOption.value = '';
-                placeholderOption.textContent = placeholder || '';
-                select.appendChild(placeholderOption);
-
-                (Array.isArray(items) ? items : []).forEach(function (item) {
-                    var option = document.createElement('option');
-                    option.value = item && item[valueKey] ? item[valueKey] : '';
-                    option.textContent = item && item[textKey] ? item[textKey] : option.value;
-                    if (item && item.warehouseId) {
-                        option.setAttribute('data-warehouse-id', item.warehouseId);
-                    }
-                    if (item && item.warehouseText) {
-                        option.setAttribute('data-warehouse-text', item.warehouseText);
-                    }
-                    if (item && item.locationText) {
-                        option.setAttribute('data-location-text', item.locationText);
-                    }
-                    if (item && item.warehouseText) {
-                        option.setAttribute('data-warehouse-text', item.warehouseText);
-                    }
-                    if (item && item.locationText) {
-                        option.setAttribute('data-location-text', item.locationText);
-                    }
-                    select.appendChild(option);
-                });
-
-                if (currentValue) {
-                    select.value = currentValue;
-                }
-            }
-
-            function syncComponentWarehouseFromLocation() {
-                if (!componentLocationInput) {
-                    return;
-                }
-
-                var selectedOption = componentLocationInput.options[componentLocationInput.selectedIndex];
-                var warehouseId = selectedOption ? (selectedOption.getAttribute('data-warehouse-id') || '') : '';
-
-                if (componentWarehouseInput) {
-                    componentWarehouseInput.value = warehouseId;
-                }
-            }
-
-            function setLocationOptions(items, selectedLocationId) {
-                if (!componentLocationInput) {
-                    return;
-                }
-
-                var currentLocationId = (selectedLocationId || componentLocationInput.value || '').trim();
-                setSelectOptions(componentLocationInput, Array.isArray(items) ? items : [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
-
-                if (currentLocationId) {
-                    componentLocationInput.value = currentLocationId;
-                }
-
-                syncComponentWarehouseFromLocation();
-            }
-
-            function setComponentStockPanelVisible(isVisible) {
-                if (!componentStockPanel) {
-                    return;
-                }
-
-                componentStockPanel.classList.toggle('d-none', !isVisible);
-            }
-
-            function updateComponentStockSummary(message) {
-                if (!componentStockSummary) {
-                    return;
-                }
-
-                componentStockSummary.textContent = message || '';
-            }
-
-            function refreshComponentLocationFilter() {
-                if (!componentLocationInput) {
-                    return;
-                }
-
-                setLocationOptions(componentStockLocations, componentLocationInput.value || '');
-            }
 
             function initializeComponentVariantSearch() {
                 if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !componentVariantInput) {
@@ -3172,53 +3062,6 @@
                 });
 
                 bulkAddonSelect.dataset.select2Initialized = 'true';
-            }
-
-            function loadComponentInventoryOptions(variantId, selectedWarehouseId, selectedLocationId) {
-                if (!componentStockLookupUrl) {
-                    return Promise.resolve();
-                }
-
-                if (!variantId) {
-                    componentStockLocations = [];
-                    setSelectOptions(componentLocationInput, [], @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectLocation"])), 'locationId', 'text');
-                    if (componentWarehouseInput) {
-                        componentWarehouseInput.value = '';
-                    }
-                    setComponentStockPanelVisible(false);
-                    updateComponentStockSummary(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectVariantSimple"])));
-                    return Promise.resolve();
-                }
-
-                return fetch(componentStockLookupUrl + '?variantId=' + encodeURIComponent(variantId), {
-                    headers: { 'Accept': 'application/json' }
-                })
-                    .then(function (response) { return response.json(); })
-                    .then(function (payload) {
-                        if (!payload || payload.isSuccess === false) {
-                            throw new Error((payload && payload.errorMessage) || 'Loading inventory options failed.');
-                        }
-
-                        componentStockLocations = Array.isArray(payload.locations) ? payload.locations.slice() : [];
-                        setLocationOptions(componentStockLocations, selectedLocationId);
-                        setComponentStockPanelVisible(true);
-                        updateComponentStockSummary(
-                            (payload.locations && payload.locations.length ? payload.locations.length : 0) + ' لوکیشن برای این واریانت پیدا شد');
-
-                        if (selectedLocationId) {
-                            componentLocationInput.value = selectedLocationId;
-                            syncComponentWarehouseFromLocation();
-                        } else if (componentLocationInput && componentLocationInput.options && componentLocationInput.options.length === 2) {
-                            componentLocationInput.value = componentLocationInput.options[1].value || '';
-                            syncComponentWarehouseFromLocation();
-                        }
-                    });
-            }
-
-            if (componentLocationInput) {
-                componentLocationInput.addEventListener('change', function () {
-                    syncComponentWarehouseFromLocation();
-                });
             }
 
             initializeComponentVariantSearch();
@@ -3379,10 +3222,7 @@
 
             if (componentVariantInput) {
                 componentVariantInput.addEventListener('change', function () {
-                    var selectedVariantId = (componentVariantInput.value || '').trim();
-                    loadComponentInventoryOptions(selectedVariantId, '', '').catch(function () {
-                        updateComponentStockSummary('Loading inventory options failed.');
-                    });
+                    updateAddonSubmitState();
                 });
             }
 
@@ -3418,38 +3258,10 @@
                     }
                 }
 
-                if (componentWarehouseInput) {
-                    componentWarehouseInput.value = button.getAttribute('data-component-warehouse-id') || '';
-                }
-
-                if (componentLocationInput) {
-                    componentLocationInput.value = button.getAttribute('data-component-location-id') || '';
-                    syncComponentWarehouseFromLocation();
-                }
-
                 if (componentQuantityInput) {
                     componentQuantityInput.value = button.getAttribute('data-component-quantity') || '1';
                     componentQuantityInput.focus();
                 }
-
-                var editVariantId = (button.getAttribute('data-component-variant-id') || '').trim();
-                var editWarehouseId = (button.getAttribute('data-component-warehouse-id') || '').trim();
-                var editLocationId = (button.getAttribute('data-component-location-id') || '').trim();
-                    if (editVariantId) {
-                        loadComponentInventoryOptions(editVariantId, editWarehouseId, editLocationId)
-                            .then(function () {
-                                if (componentLocationInput && editLocationId) {
-                                    componentLocationInput.value = editLocationId;
-                                    syncComponentWarehouseFromLocation();
-                                }
-                                if (componentStockPanel) {
-                                    componentStockPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                }
-                            })
-                            .catch(function () {
-                                updateComponentStockSummary('Loading inventory options failed.');
-                            });
-                    }
             });
 
             if (addonModal) {
