@@ -9,6 +9,7 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
     public Guid CategoryRef { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Separator { get; private set; } = " ";
+    public bool IncludeCategoryName { get; private set; } = true;
     public int DisplayOrder { get; private set; }
     public bool IsActive { get; private set; }
     public IReadOnlyCollection<CategoryVariantNameFormulaPart> Parts => _parts.AsReadOnly();
@@ -21,6 +22,7 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
         Guid categoryRef,
         string name,
         string? separator,
+        bool includeCategoryName,
         int displayOrder,
         IEnumerable<(Guid AttributeRef, string? Separator, int SortOrder)> parts,
         bool isActive = true)
@@ -33,6 +35,7 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
             CategoryRef = categoryRef,
             Name = NormalizeRequired(name, nameof(name)),
             Separator = NormalizeSeparator(separator),
+            IncludeCategoryName = includeCategoryName,
             DisplayOrder = displayOrder,
             IsActive = isActive
         };
@@ -44,6 +47,7 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
         Guid categoryRef,
         string name,
         string? separator,
+        bool includeCategoryName,
         int displayOrder,
         IEnumerable<Guid> attributeRefs,
         bool isActive = true)
@@ -54,24 +58,26 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
             .Select((attributeRef, index) => (AttributeRef: attributeRef, Separator: (string?)separator, SortOrder: index + 1))
             .ToList();
 
-        return Create(categoryRef, name, separator, displayOrder, parts, isActive);
+        return Create(categoryRef, name, separator, includeCategoryName, displayOrder, parts, isActive);
     }
 
     public void Update(
         string name,
         string? separator,
+        bool includeCategoryName,
         int displayOrder,
         IEnumerable<(Guid AttributeRef, string? Separator, int SortOrder)> parts,
         bool isActive)
     {
         Name = NormalizeRequired(name, nameof(name));
         Separator = NormalizeSeparator(separator);
+        IncludeCategoryName = includeCategoryName;
         DisplayOrder = displayOrder;
         IsActive = isActive;
         ReplaceParts(parts);
     }
 
-    public void Update(string name, string? separator, int displayOrder, IEnumerable<Guid> attributeRefs, bool isActive)
+    public void Update(string name, string? separator, bool includeCategoryName, int displayOrder, IEnumerable<Guid> attributeRefs, bool isActive)
     {
         var parts = (attributeRefs ?? Array.Empty<Guid>())
             .Where(x => x != Guid.Empty)
@@ -79,7 +85,7 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
             .Select((attributeRef, index) => (AttributeRef: attributeRef, Separator: (string?)separator, SortOrder: index + 1))
             .ToList();
 
-        Update(name, separator, displayOrder, parts, isActive);
+        Update(name, separator, includeCategoryName, displayOrder, parts, isActive);
     }
 
     private void ReplaceParts(IEnumerable<(Guid AttributeRef, string? Separator, int SortOrder)> parts)

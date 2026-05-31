@@ -239,6 +239,7 @@
   "catalog.categories.formulas.separator.dash": "Dash (-)",
   "catalog.categories.formulas.separator.space": "Space",
   "catalog.categories.formulas.separator.none": "No separator",
+  "catalog.categories.formulas.includeCategoryName": "Prefix formula with category name",
   "catalog.categories.formulas.attributes": "Attributes",
   "catalog.categories.formulas.selectCategory": "Select category",
   "catalog.categories.formulas.selectAttribute": "Select attribute",

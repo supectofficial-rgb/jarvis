@@ -10,5 +10,6 @@ public sealed class CategoryVariantNameFormulaReadModelConfig : IEntityTypeConfi
     {
         builder.ToTable("CategoryVariantNameFormulas");
         builder.HasIndex(x => new { x.CategoryRef, x.Name }).IsUnique();
+        builder.Property(x => x.IncludeCategoryName).HasDefaultValue(true);
     }
 }

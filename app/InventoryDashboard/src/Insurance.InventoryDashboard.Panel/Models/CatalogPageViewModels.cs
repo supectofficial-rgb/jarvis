@@ -322,6 +322,8 @@ public sealed class VariantNameFormulaForm
     [StringLength(32, ErrorMessage = "جداکننده نمی‌تواند بیشتر از ۳۲ کاراکتر باشد.")]
     public string? Separator { get; set; } = " ";
 
+    public bool IncludeCategoryName { get; set; } = true;
+
     [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
     public int DisplayOrder { get; set; }
 

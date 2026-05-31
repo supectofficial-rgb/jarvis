@@ -7,6 +7,7 @@ public class CategoryVariantNameFormulaReadModel
     public Guid CategoryRef { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Separator { get; set; } = " ";
+    public bool IncludeCategoryName { get; set; } = true;
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; }
 }

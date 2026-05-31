@@ -55,6 +55,7 @@ public class CreateCategoryVariantNameFormulaCommandHandler
                 command.CategoryRef,
                 normalizedName,
                 command.Separator,
+                command.IncludeCategoryName,
                 command.DisplayOrder,
                 parts.Select(x => (x.AttributeRef, x.Separator, x.SortOrder)).ToList(),
                 command.IsActive);

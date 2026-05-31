@@ -18,6 +18,7 @@ public sealed class CategoryVariantNameFormulaConfig : IEntityTypeConfiguration<
 
         builder.Property(x => x.Name).HasMaxLength(160);
         builder.Property(x => x.Separator).HasMaxLength(16);
+        builder.Property(x => x.IncludeCategoryName).HasDefaultValue(true);
 
         builder.HasMany(x => x.Parts)
             .WithOne()

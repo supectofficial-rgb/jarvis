@@ -49,6 +49,7 @@ public class UpdateCategoryVariantNameFormulaCommandHandler
             aggregate.Update(
                 normalizedName,
                 command.Separator,
+                command.IncludeCategoryName,
                 command.DisplayOrder,
                 parts.Select(x => (x.AttributeRef, x.Separator, x.SortOrder)).ToList(),
                 command.IsActive);

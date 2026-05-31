@@ -210,6 +210,7 @@ public abstract partial class CatalogManagementController : Controller
             {
                 CategoryId = selectedCategoryId ?? string.Empty,
                 Separator = " ",
+                IncludeCategoryName = true,
                 IsActive = true,
                 PartsJson = "[]"
             }
@@ -1170,7 +1171,12 @@ public abstract partial class CatalogManagementController : Controller
             if (generatedVariantPlans.Count == 0)
             {
                 var baseSkuSegments = new[] { NormalizeSkuSegment(form.BaseSku.Trim()) }
-                    .Concat(productCodeSegments.Select(NormalizeSkuSegment))
+                    .Concat(productCodeSegments
+                        .OrderBy(x => x.DisplayOrder)
+                        .ThenBy(x => x.SourcePriority)
+                        .ThenBy(x => x.AttributeName)
+                        .ThenBy(x => x.Token)
+                        .Select(x => NormalizeSkuSegment(x.Token)))
                     .Where(x => !string.IsNullOrWhiteSpace(x));
 
                 generatedVariantPlans.Add(new GeneratedVariantPlan
@@ -2053,7 +2059,11 @@ public abstract partial class CatalogManagementController : Controller
             }
         }
 
-        return effective;
+        return effective
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name)
+            .ThenBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static IReadOnlyList<EffectiveAttributeViewModel> FindMissingRequiredAttributes(
@@ -2397,7 +2407,7 @@ public abstract partial class CatalogManagementController : Controller
         return null;
     }
 
-    private static List<string> BuildProductCodeSegments(
+    private static List<SkuSegmentSelection> BuildProductCodeSegments(
         IReadOnlyList<CatalogAttributeValueInputModel> productValues,
         IReadOnlyList<EffectiveAttributeViewModel> effectiveProductAttributes)
     {
@@ -2417,11 +2427,20 @@ public abstract partial class CatalogManagementController : Controller
                     return null;
                 }
 
-                return !string.IsNullOrWhiteSpace(value.Value)
+                var token = !string.IsNullOrWhiteSpace(value.Value)
                     ? value.Value
                     : attribute.Options.FirstOrDefault(o => string.Equals(o.Id, value.OptionId, StringComparison.OrdinalIgnoreCase))?.OptionValue;
+
+            return string.IsNullOrWhiteSpace(token)
+                    ? null
+                    : new SkuSegmentSelection(
+                        attribute.AttributeId,
+                        attribute.Name,
+                        attribute.DisplayOrder,
+                        0,
+                        token!);
             })
-            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => x is not null)
             .Select(x => x!)
             .ToList();
     }
@@ -2430,7 +2449,7 @@ public abstract partial class CatalogManagementController : Controller
         string categoryName,
         string baseSku,
         IReadOnlyList<VariantDimensionSelection> dimensions,
-        IReadOnlyList<string> productCodeSegments,
+        IReadOnlyList<SkuSegmentSelection> productCodeSegments,
         CategoryVariantNameFormulaModel? selectedFormula,
         IReadOnlyDictionary<string, CatalogAttributeValueInputModel> productValuesByAttributeId)
     {
@@ -2452,12 +2471,23 @@ public abstract partial class CatalogManagementController : Controller
                 .ThenBy(x => x.OptionName)
                 .ToList();
 
-            var skuSegments = productCodeSegments
-                .Concat(orderedSelection
+            var variantCodeSegments = orderedSelection
                 .Where(x => x.IsVariantCodeCovered)
-                .Select(x => NormalizeSkuSegment(x.OptionValue))
-                .Where(x => !string.IsNullOrWhiteSpace(x)))
-                .Select(NormalizeSkuSegment)
+                .Select(x => new SkuSegmentSelection(
+                    x.AttributeId,
+                    x.AttributeName,
+                    x.AttributeDisplayOrder,
+                    1,
+                    x.OptionValue))
+                .ToList();
+
+            var skuSegments = productCodeSegments
+                .Concat(variantCodeSegments)
+                .OrderBy(x => x.DisplayOrder)
+                .ThenBy(x => x.SourcePriority)
+                .ThenBy(x => x.AttributeName)
+                .ThenBy(x => x.Token)
+                .Select(x => NormalizeSkuSegment(x.Token))
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToList();
             var skuSuffix = string.Join("-", skuSegments);
@@ -2509,10 +2539,10 @@ public abstract partial class CatalogManagementController : Controller
         IReadOnlyList<VariantCombinationSelection> orderedSelection,
         IReadOnlyDictionary<string, CatalogAttributeValueInputModel> productValuesByAttributeId)
     {
-        var fallbackName = BuildFallbackVariantName(categoryName, orderedSelection);
+        var fallbackName = BuildFallbackVariantName(orderedSelection);
         if (selectedFormula is null || selectedFormula.Parts.Count == 0)
         {
-            return fallbackName;
+            return RenderCategoryPrefixedName(selectedFormula?.IncludeCategoryName ?? true, categoryName, fallbackName);
         }
 
         var selectedVariantValuesByAttributeId = orderedSelection
@@ -2548,29 +2578,33 @@ public abstract partial class CatalogManagementController : Controller
 
         if (parts.Count == 0)
         {
-            return fallbackName;
+            return RenderCategoryPrefixedName(selectedFormula.IncludeCategoryName, categoryName, fallbackName);
         }
 
         var generatedName = string.Concat(parts.Select((part, index) =>
             index < parts.Count - 1
                 ? $"{part.Token}{part.Separator}"
                 : part.Token));
-        return RenderCategoryPrefixedName(categoryName, generatedName);
+        return RenderCategoryPrefixedName(selectedFormula.IncludeCategoryName, categoryName, generatedName);
     }
 
     private static string BuildFallbackVariantName(
-        string categoryName,
         IReadOnlyList<VariantCombinationSelection> orderedSelection)
     {
         var generatedNameSuffix = string.Join(" / ", orderedSelection.Select(x => x.OptionName).Where(x => !string.IsNullOrWhiteSpace(x)));
         var fallbackBase = string.IsNullOrWhiteSpace(generatedNameSuffix)
             ? string.Empty
             : generatedNameSuffix;
-        return RenderCategoryPrefixedName(categoryName, fallbackBase);
+        return fallbackBase;
     }
 
-    private static string RenderCategoryPrefixedName(string categoryName, string generatedName)
+    private static string RenderCategoryPrefixedName(bool includeCategoryName, string categoryName, string generatedName)
     {
+        if (!includeCategoryName)
+        {
+            return (generatedName ?? string.Empty).Trim();
+        }
+
         var normalizedCategoryName = (categoryName ?? string.Empty).Trim();
         var normalizedGeneratedName = (generatedName ?? string.Empty).Trim();
 
@@ -3332,6 +3366,13 @@ public abstract partial class CatalogManagementController : Controller
         public string OptionValue { get; set; } = string.Empty;
         public int OptionDisplayOrder { get; set; }
     }
+
+    private sealed record SkuSegmentSelection(
+        string AttributeId,
+        string AttributeName,
+        int DisplayOrder,
+        int SourcePriority,
+        string Token);
 
     private sealed class GeneratedVariantPlan
     {

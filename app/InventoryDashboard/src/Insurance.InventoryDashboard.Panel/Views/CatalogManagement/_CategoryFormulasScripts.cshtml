@@ -56,8 +56,10 @@
         var formulas = @Html.Raw(JsonSerializer.Serialize(localFormulas.Select(functionFormula => new {
             formulaId = functionFormula.FormulaId,
             categoryId = functionFormula.CategoryId,
+            categoryName = functionFormula.CategoryName,
             name = functionFormula.Name,
             separator = functionFormula.Separator,
+            includeCategoryName = functionFormula.IncludeCategoryName,
             displayOrder = functionFormula.DisplayOrder,
             isActive = functionFormula.IsActive,
                 parts = functionFormula.Parts
@@ -82,13 +84,21 @@
         }).ToList()));
 
         var createForm = document.getElementById('variant-name-formula-create-form');
+        var createTitle = document.getElementById('formula-create-title');
         var createCategoryField = document.getElementById('VariantNameFormulaForm_Create_CategoryId');
+        var createFormulaIdField = document.getElementById('VariantNameFormulaForm_Create_FormulaId');
         var createPartsJsonField = document.getElementById('VariantNameFormulaForm_Create_PartsJson');
         var createAttributePicker = document.getElementById('formula-create-attribute-picker');
         var createSeparatorField = document.getElementById('VariantNameFormulaForm_Create_Separator');
+        var createIncludeCategoryNameField = document.getElementById('VariantNameFormulaForm_Create_IncludeCategoryName');
         var createAddPartBtn = document.getElementById('formula-create-add-part-btn');
         var createPartsList = document.getElementById('formula-create-parts-list');
         var createPartsEmpty = document.getElementById('formula-create-parts-empty');
+        var createSubmitBtn = document.getElementById('formula-create-submit-btn');
+        var createDefaultTitle = createTitle ? createTitle.textContent : '';
+        var createDefaultSubmitLabel = createSubmitBtn ? createSubmitBtn.textContent : '';
+        var createCreateActionUrl = createForm ? (createForm.getAttribute('data-create-action-url') || createForm.getAttribute('action') || '') : '';
+        var createUpdateActionUrl = createForm ? (createForm.getAttribute('data-update-action-url') || createCreateActionUrl) : '';
 
         var listFilterForm = document.getElementById('formula-category-list-form');
         var listCategoryField = listFilterForm ? listFilterForm.querySelector('select[name="categoryId"]') : null;
@@ -103,6 +113,7 @@
         var inlineCategoryField = document.getElementById('VariantNameFormulaForm_Inline_CategoryId');
         var inlineNameField = document.getElementById('VariantNameFormulaForm_Inline_Name');
         var inlineSeparatorField = document.getElementById('VariantNameFormulaForm_Inline_Separator');
+        var inlineIncludeCategoryNameField = document.getElementById('VariantNameFormulaForm_Inline_IncludeCategoryName');
         var inlineDisplayOrderField = document.getElementById('VariantNameFormulaForm_Inline_DisplayOrder');
         var inlineIsActiveField = document.getElementById('VariantNameFormulaForm_Inline_IsActive');
         var inlinePartsJsonField = document.getElementById('VariantNameFormulaForm_Inline_PartsJson');
@@ -118,7 +129,8 @@
         };
         var createState = {
             parts: [],
-            editingPartIndex: -1
+            editingPartIndex: -1,
+            editingFormulaId: ''
         };
 
         function normalizeSeparatorValue(separator) {
@@ -341,6 +353,9 @@
                     : formula.separator;
                 setSeparatorValue(inlineSeparatorField, normalizeSeparatorValue(firstSeparator));
             }
+            if (inlineIncludeCategoryNameField) {
+                inlineIncludeCategoryNameField.checked = !!formula.includeCategoryName;
+            }
             if (inlineDisplayOrderField) {
                 inlineDisplayOrderField.value = formula.displayOrder != null ? formula.displayOrder : 0;
             }
@@ -377,6 +392,71 @@
             clearPartEditing();
             renderParts();
             inlinePanel.style.display = 'none';
+        }
+
+        function setCreateEditorMode(isEditMode) {
+            if (createTitle) {
+                createTitle.textContent = isEditMode ? texts.editTitle : createDefaultTitle;
+            }
+
+            if (createSubmitBtn) {
+                createSubmitBtn.textContent = isEditMode ? texts.update : createDefaultSubmitLabel;
+            }
+
+            if (createForm) {
+                createForm.setAttribute('action', isEditMode ? createUpdateActionUrl : createCreateActionUrl);
+            }
+        }
+
+        function openCreateEditor(formula) {
+            if (!formula || !createForm) {
+                return;
+            }
+
+            var createTab = document.querySelector('#formula-section-tabs .nav-link[href="#formula-section-create"]');
+            if (window.jQuery && createTab) {
+                window.jQuery(createTab).tab('show');
+            }
+
+            createState.editingFormulaId = formula.formulaId || '';
+            if (createFormulaIdField) {
+                createFormulaIdField.value = formula.formulaId || '';
+            }
+            if (createCategoryField) {
+                createCategoryField.value = formula.categoryId || (listCategoryField ? listCategoryField.value : '') || '@Model.SelectedCategoryId';
+                if (window.jQuery) {
+                    window.jQuery(createCategoryField).val(createCategoryField.value || '').trigger('change');
+                }
+            }
+            if (createSeparatorField) {
+                var firstSeparator = (formula.parts && formula.parts.length > 0 && formula.parts[0].separator != null)
+                    ? formula.parts[0].separator
+                    : formula.separator;
+                setSeparatorValue(createSeparatorField, normalizeSeparatorValue(firstSeparator));
+            }
+            if (createIncludeCategoryNameField) {
+                createIncludeCategoryNameField.checked = !!formula.includeCategoryName;
+            }
+
+            createState.parts = (formula.parts || []).map(function (part) {
+                return clonePart(part);
+            });
+            createState.editingPartIndex = -1;
+            setCreateEditorMode(true);
+            clearCreatePartEditing();
+            renderCreateParts();
+            createForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function resetCreateEditor() {
+            createState.editingFormulaId = '';
+            if (createFormulaIdField) {
+                createFormulaIdField.value = '';
+            }
+            if (createIncludeCategoryNameField) {
+                createIncludeCategoryNameField.checked = true;
+            }
+            setCreateEditorMode(false);
         }
 
         function addOrReplacePart() {
@@ -714,7 +794,7 @@
             if (formulaEditButton) {
                 var formulaToEdit = getFormulaById(formulaEditButton.getAttribute('data-formula-id') || '');
                 if (formulaToEdit) {
-                    openInlineEditor(formulaToEdit);
+                    openCreateEditor(formulaToEdit);
                 }
                 return;
             }

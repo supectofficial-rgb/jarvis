@@ -239,6 +239,7 @@
   "catalog.categories.formulas.separator.dash": "خط تیره (-)",
   "catalog.categories.formulas.separator.space": "فاصله",
   "catalog.categories.formulas.separator.none": "بدون جداکننده",
+  "catalog.categories.formulas.includeCategoryName": "افزودن نام دسته‌بندی به ابتدای فرمول",
   "catalog.categories.formulas.attributes": "ویژگی‌ها",
   "catalog.categories.formulas.selectCategory": "انتخاب دسته‌بندی",
   "catalog.categories.formulas.selectAttribute": "انتخاب ویژگی",

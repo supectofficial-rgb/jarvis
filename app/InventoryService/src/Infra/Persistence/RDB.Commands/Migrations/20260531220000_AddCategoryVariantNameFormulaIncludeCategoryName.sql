@@ -1,0 +1,6 @@
+START TRANSACTION;
+
+ALTER TABLE "CategoryVariantNameFormulas"
+ADD COLUMN IF NOT EXISTS "IncludeCategoryName" boolean NOT NULL DEFAULT TRUE;
+
+COMMIT;

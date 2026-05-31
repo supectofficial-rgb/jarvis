@@ -1300,7 +1300,7 @@
                             inputHtml = '<input type="text" class="form-control js-auto-product-value" name="AutoProductValue_' + escapeHtml(attribute.attributeId || '') + '" placeholder="' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.attributeValuePlaceholder"])) + '" />';
                         }
 
-                        return '<div class="form-group js-auto-product-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
+                        return '<div class="form-group js-auto-product-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '" data-variant-code-covered="' + (attribute.isVariantCodeCovered ? 'true' : 'false') + '">'
                             + '<label>' + label + '</label>'
                             + inputHtml
                             + '<small class="form-text text-muted">' + escapeHtml(buildCreateAttributeOriginText(attribute, false)) + '</small>'
@@ -1495,6 +1495,39 @@
                 return normalized;
             }
 
+            function buildProductCodeSegments(productAttributes) {
+                if (!Array.isArray(productAttributes) || productAttributes.length === 0) {
+                    return [];
+                }
+
+                return productAttributes
+                    .filter(function (item) { return !!item && item.isVariantCodeCovered; })
+                    .map(function (item) {
+                        return {
+                            attributeId: (item.attributeId || '').toString().trim(),
+                            attributeName: (item.attributeName || '').toString().trim(),
+                            displayOrder: parseInt(item.displayOrder || 0, 10) || 0,
+                            sourcePriority: 0,
+                            token: (item.value || item.optionValue || item.optionName || '').toString().trim()
+                        };
+                    })
+                    .filter(function (item) { return !!item.token; })
+                    .sort(function (left, right) {
+                        if (left.displayOrder !== right.displayOrder) {
+                            return left.displayOrder - right.displayOrder;
+                        }
+
+                        if (left.sourcePriority !== right.sourcePriority) {
+                            return left.sourcePriority - right.sourcePriority;
+                        }
+
+                        if (left.attributeName < right.attributeName) return -1;
+                        if (left.attributeName > right.attributeName) return 1;
+
+                        return left.token.localeCompare(right.token);
+                    });
+            }
+
             function buildVariantCombinations(dimensions) {
                 if (!Array.isArray(dimensions) || dimensions.length === 0) {
                     return [];
@@ -1637,6 +1670,17 @@
                     return baseName ? (categoryName + ' - ' + baseName) : categoryName;
                 })();
 
+                if (formula && formula.includeCategoryName === false) {
+                    fallbackName = (function () {
+                        var suffix = (Array.isArray(combination) ? combination : [])
+                            .map(function (item) { return (item && item.optionName ? item.optionName : '').toString().trim(); })
+                            .filter(function (item) { return !!item; })
+                            .join(' / ');
+
+                        return suffix || '';
+                    })();
+                }
+
                 if (!formula || !Array.isArray(formula.parts) || formula.parts.length === 0) {
                     return fallbackName;
                 }
@@ -1673,6 +1717,10 @@
 
                     return part.token;
                 }).join('');
+                if (!formula || !formula.includeCategoryName) {
+                    return generatedName;
+                }
+
                 return categoryName
                     ? (generatedName ? (categoryName + ' - ' + generatedName) : categoryName)
                     : generatedName;
@@ -1765,8 +1813,13 @@
 
                     payload.productAttributes.push({
                         attributeId: attributeId,
+                        attributeName: attributeName,
                         value: value || null,
-                        optionId: optionId || null
+                        optionId: optionId || null,
+                        optionName: optionId ? ((input.options && input.options[input.selectedIndex]) ? (input.options[input.selectedIndex].getAttribute('data-option-name') || input.options[input.selectedIndex].textContent || '') : '') : null,
+                        optionValue: optionId ? value || null : null,
+                        displayOrder: parseInt(row.getAttribute('data-display-order') || '0', 10) || 0,
+                        isVariantCodeCovered: (row.getAttribute('data-variant-code-covered') || '').toLowerCase() === 'true'
                     });
                 });
 
@@ -1835,6 +1888,7 @@
                 return {
                     payload: payload,
                     dimensions: dimensions,
+                    productCodeSegments: buildProductCodeSegments(payload.productAttributes),
                     validationErrors: validationErrors
                 };
             }
@@ -1885,6 +1939,20 @@
                     return;
                 }
 
+                var productCodeSegments = Array.isArray(result.productCodeSegments)
+                    ? result.productCodeSegments
+                        .map(function (segment) {
+                            return {
+                                attributeId: (segment && segment.attributeId ? segment.attributeId : '').toString().trim(),
+                                attributeName: (segment && segment.attributeName ? segment.attributeName : '').toString().trim(),
+                                displayOrder: parseInt(segment && segment.displayOrder ? segment.displayOrder : 0, 10) || 0,
+                                sourcePriority: parseInt(segment && segment.sourcePriority ? segment.sourcePriority : 0, 10) || 0,
+                                token: (segment && segment.token ? segment.token : '').toString().trim()
+                            };
+                        })
+                        .filter(function (segment) { return !!segment.token; })
+                    : [];
+
                 var usedSkus = {};
                 var rows = combinations.map(function (combination, index) {
                     var ordered = combination.slice().sort(function (left, right) {
@@ -1899,11 +1967,41 @@
                         return left.optionName.localeCompare(right.optionName);
                     });
 
-                    var suffix = ordered
-                        .map(function (item) { return normalizeSkuSegment(item.optionValue); })
-                        .filter(function (token) { return !!token; })
-                        .join('-');
-                    var generatedSku = suffix ? (baseSku + '-' + suffix) : baseSku;
+                    var variantCodeSegments = ordered
+                        .filter(function (item) { return item && item.isVariantCodeCovered; })
+                        .map(function (item) {
+                            return {
+                                attributeId: (item.attributeId || '').toString().trim(),
+                                attributeName: (item.attributeName || '').toString().trim(),
+                                displayOrder: item.attributeDisplayOrder || 0,
+                                sourcePriority: 1,
+                                token: (item.optionValue || item.optionName || '').toString().trim()
+                            };
+                        })
+                        .filter(function (segment) { return !!segment.token; });
+
+                    var skuSegments = productCodeSegments
+                        .concat(variantCodeSegments)
+                        .sort(function (left, right) {
+                            if (left.displayOrder !== right.displayOrder) {
+                                return left.displayOrder - right.displayOrder;
+                            }
+
+                            if (left.sourcePriority !== right.sourcePriority) {
+                                return left.sourcePriority - right.sourcePriority;
+                            }
+
+                            if (left.attributeName < right.attributeName) return -1;
+                            if (left.attributeName > right.attributeName) return 1;
+
+                            return left.token.localeCompare(right.token);
+                        })
+                        .map(function (segment) { return normalizeSkuSegment(segment.token); })
+                        .filter(function (segment) { return !!segment; });
+
+                    var generatedSku = skuSegments.length > 0
+                        ? [baseSku].concat(skuSegments).join('-')
+                        : baseSku;
                     var candidateSku = generatedSku;
                     var sequence = 2;
                     while (usedSkus[candidateSku.toUpperCase()]) {

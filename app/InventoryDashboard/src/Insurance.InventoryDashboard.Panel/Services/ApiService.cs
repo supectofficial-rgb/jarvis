@@ -2316,8 +2316,10 @@ public sealed class ApiService : IApiService
         {
             FormulaId = item.FormulaBusinessKey.ToString("D"),
             CategoryId = item.CategoryRef.ToString("D"),
+            CategoryName = item.CategoryName,
             Name = item.Name,
             Separator = item.Separator,
+            IncludeCategoryName = item.IncludeCategoryName,
             DisplayOrder = item.DisplayOrder,
             IsActive = item.IsActive,
             Preview = item.Preview,
@@ -2933,8 +2935,10 @@ public sealed class ApiService : IApiService
     {
         public Guid FormulaBusinessKey { get; set; }
         public Guid CategoryRef { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Separator { get; set; } = " ";
+        public bool IncludeCategoryName { get; set; } = true;
         public int DisplayOrder { get; set; }
         public bool IsActive { get; set; }
         public string Preview { get; set; } = string.Empty;

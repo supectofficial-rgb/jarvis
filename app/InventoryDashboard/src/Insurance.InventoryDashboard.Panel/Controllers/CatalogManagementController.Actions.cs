@@ -347,6 +347,7 @@ public abstract partial class CatalogManagementController
             {
                 Name = form.Name.Trim(),
                 Separator = NormalizeFormulaSeparator(form.Separator),
+                IncludeCategoryName = form.IncludeCategoryName,
                 DisplayOrder = form.DisplayOrder,
                 IsActive = form.IsActive,
                 Parts = formulaParts
@@ -412,6 +413,7 @@ public abstract partial class CatalogManagementController
                 FormulaId = form.FormulaId,
                 Name = form.Name.Trim(),
                 Separator = NormalizeFormulaSeparator(form.Separator),
+                IncludeCategoryName = form.IncludeCategoryName,
                 DisplayOrder = form.DisplayOrder,
                 IsActive = form.IsActive,
                 Parts = formulaParts

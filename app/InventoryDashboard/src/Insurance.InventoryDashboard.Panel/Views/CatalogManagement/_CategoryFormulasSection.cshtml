@@ -31,9 +31,15 @@
                 <div class="col-12 mb-4">
                     <div class="card">
                         <div class="card-body">
-                            <h5 class="card-title mb-3">@UiText["catalog.categories.variantFormulaCreate"]</h5>
+                            <h5 class="card-title mb-3" id="formula-create-title">@UiText["catalog.categories.variantFormulaCreate"]</h5>
                             <p class="text-muted small mb-3">@UiText["catalog.categories.formulas.partsHelp"]</p>
-                            <form asp-action="CreateVariantNameFormula" method="post" id="variant-name-formula-create-form" data-loading-form data-dirty-watch>
+                            <form asp-action="CreateVariantNameFormula"
+                                  method="post"
+                                  id="variant-name-formula-create-form"
+                                  data-loading-form
+                                  data-dirty-watch
+                                  data-create-action-url="@Url.Action("CreateVariantNameFormula")"
+                                  data-update-action-url="@Url.Action("UpdateVariantNameFormula")">
                                 @Html.AntiForgeryToken()
                                 <div asp-validation-summary="All" class="text-danger small mb-2"></div>
                                 <input id="VariantNameFormulaForm_Create_FormulaId" name="VariantNameFormulaForm.FormulaId" type="hidden" value="" />
@@ -76,6 +82,13 @@
                                     </div>
                                 </div>
 
+                                <div class="form-group">
+                                    <div class="custom-control custom-checkbox">
+                                        <input asp-for="VariantNameFormulaForm.IncludeCategoryName" class="custom-control-input" id="VariantNameFormulaForm_Create_IncludeCategoryName" />
+                                        <label class="custom-control-label" for="VariantNameFormulaForm_Create_IncludeCategoryName">@UiText["catalog.categories.formulas.includeCategoryName"]</label>
+                                    </div>
+                                </div>
+
                                 <div class="form-group mt-3">
                                     <label>@UiText["catalog.categories.formulas.attributes"]</label>
                                     <div class="input-group mb-2">
@@ -99,7 +112,7 @@
                                 </div>
 
                                 <div class="mt-3">
-                                    <button class="btn btn-primary" type="submit" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.save"]</button>
+                                    <button class="btn btn-primary" type="submit" id="formula-create-submit-btn" @(Can("Catalog.Category.Formula.Manage", "Inventory.CategoryVariantNameFormula.Manage") ? null : "disabled")>@UiText["common.save"]</button>
                                 </div>
                             </form>
                         </div>
@@ -167,6 +180,13 @@
                                             <input asp-for="VariantNameFormulaForm.IsActive" class="custom-control-input" id="VariantNameFormulaForm_Inline_IsActive" />
                                             <label class="custom-control-label" for="VariantNameFormulaForm_Inline_IsActive">@UiText["catalog.categories.rules.isActive"]</label>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="custom-control custom-checkbox">
+                                        <input asp-for="VariantNameFormulaForm.IncludeCategoryName" class="custom-control-input" id="VariantNameFormulaForm_Inline_IncludeCategoryName" />
+                                        <label class="custom-control-label" for="VariantNameFormulaForm_Inline_IncludeCategoryName">@UiText["catalog.categories.formulas.includeCategoryName"]</label>
                                     </div>
                                 </div>
 

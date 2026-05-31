@@ -61,8 +61,10 @@ public sealed class CategoryVariantNameFormulaModel
 {
     public string FormulaId { get; set; } = string.Empty;
     public string CategoryId { get; set; } = string.Empty;
+    public string CategoryName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Separator { get; set; } = " ";
+    public bool IncludeCategoryName { get; set; } = true;
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; }
     public string Preview { get; set; } = string.Empty;
@@ -421,6 +423,7 @@ public sealed class UpsertCategoryVariantNameFormulaRequest
     public string? FormulaId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Separator { get; set; } = " ";
+    public bool IncludeCategoryName { get; set; } = true;
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
     public List<CategoryVariantNameFormulaPartRequest> Parts { get; set; } = new();

@@ -3,6 +3,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Varia
 using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Queries;
 using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Queries.Common;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.AttributeDefinitions.Entities;
+using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.Categories.Entities;
 using Insurance.InventoryService.Infra.Persistence.RDB.Queries.Catalog.VariantNameFormulas.Entities;
 using Microsoft.EntityFrameworkCore;
 using OysterFx.Infra.Persistence.RDB.Queries;
@@ -50,6 +51,12 @@ public class CategoryVariantNameFormulaQueryRepository
             return new List<CategoryVariantNameFormulaItem>();
 
         var formulaRefs = formulas.Select(x => x.BusinessKey).ToList();
+        var categoryRefs = formulas.Select(x => x.CategoryRef).Distinct().ToList();
+        var categories = await _dbContext.Set<CategoryReadModel>()
+            .Where(x => categoryRefs.Contains(x.BusinessKey))
+            .Select(x => new { x.BusinessKey, x.Name })
+            .ToListAsync();
+        var categoryNameByRef = categories.ToDictionary(x => x.BusinessKey, x => x.Name);
         var parts = await (
             from part in _dbContext.Set<CategoryVariantNameFormulaPartReadModel>()
             where formulaRefs.Contains(part.FormulaRef)
@@ -94,20 +101,52 @@ public class CategoryVariantNameFormulaQueryRepository
                 {
                     FormulaBusinessKey = formula.BusinessKey,
                     CategoryRef = formula.CategoryRef,
+                    CategoryName = categoryNameByRef.TryGetValue(formula.CategoryRef, out var categoryName) ? categoryName : string.Empty,
                     Name = formula.Name,
                     Separator = formula.Separator,
+                    IncludeCategoryName = formula.IncludeCategoryName,
                     DisplayOrder = formula.DisplayOrder,
                     IsActive = formula.IsActive,
-                    Preview = string.Concat(previewParts.Select((x, index) =>
-                        index < previewParts.Count - 1
-                            ? $"{x.AttributeName}{x.Separator}"
-                            : x.AttributeName)),
+                    Preview = BuildPreview(formula.IncludeCategoryName, categoryNameByRef.TryGetValue(formula.CategoryRef, out var previewCategoryName) ? previewCategoryName : string.Empty, previewParts),
                     Parts = partItems
                 };
             })
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
             .ToList();
+    }
+
+    private static string BuildPreview(bool includeCategoryName, string categoryName, IReadOnlyList<CategoryVariantNameFormulaPartItem> previewParts)
+    {
+        var generatedName = string.Concat(previewParts.Select((x, index) =>
+            index < previewParts.Count - 1
+                ? $"{x.AttributeName}{x.Separator}"
+                : x.AttributeName));
+
+        if (!includeCategoryName)
+        {
+            return generatedName;
+        }
+
+        return RenderCategoryPrefixedName(categoryName, generatedName);
+    }
+
+    private static string RenderCategoryPrefixedName(string categoryName, string generatedName)
+    {
+        var normalizedCategoryName = (categoryName ?? string.Empty).Trim();
+        var normalizedGeneratedName = (generatedName ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedCategoryName))
+        {
+            return normalizedGeneratedName;
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedGeneratedName))
+        {
+            return normalizedCategoryName;
+        }
+
+        return $"{normalizedCategoryName} - {normalizedGeneratedName}";
     }
 
     private sealed record FormulaPartProjection(
