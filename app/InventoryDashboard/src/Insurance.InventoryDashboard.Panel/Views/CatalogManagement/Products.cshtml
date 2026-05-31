@@ -1653,16 +1653,26 @@
                     return leftName.localeCompare(rightName);
                 });
 
-                var tokens = orderedParts
-                    .map(function (part) { return resolveFormulaToken(part, combination, productValues); })
-                    .filter(function (token) { return !!token; });
+                var parts = orderedParts
+                    .map(function (part) {
+                        return {
+                            token: resolveFormulaToken(part, combination, productValues),
+                            separator: normalizeFormulaSeparator(part && part.separator != null ? part.separator : '')
+                        };
+                    })
+                    .filter(function (item) { return !!(item && item.token); });
 
-                if (tokens.length === 0) {
+                if (parts.length === 0) {
                     return fallbackName;
                 }
 
-                var separator = normalizeFormulaSeparator(formula.separator);
-                var generatedName = separator ? tokens.join(separator) : tokens.join('');
+                var generatedName = parts.map(function (part, index) {
+                    if (index < parts.length - 1) {
+                        return part.token + part.separator;
+                    }
+
+                    return part.token;
+                }).join('');
                 return categoryName
                     ? (generatedName ? (categoryName + ' - ' + generatedName) : categoryName)
                     : generatedName;

@@ -2524,21 +2524,26 @@ public abstract partial class CatalogManagementController : Controller
             .ThenBy(x => x.AttributeName)
             .Select(part =>
             {
+                var token = string.Empty;
+
                 if (productValuesByAttributeId.TryGetValue(part.AttributeId, out var productValue))
                 {
-                    return ResolveAttributeValueToken(productValue, orderedSelection.FirstOrDefault(x => string.Equals(x.AttributeId, part.AttributeId, StringComparison.OrdinalIgnoreCase)));
+                    token = ResolveAttributeValueToken(productValue, orderedSelection.FirstOrDefault(x => string.Equals(x.AttributeId, part.AttributeId, StringComparison.OrdinalIgnoreCase)));
                 }
-
-                if (selectedVariantValuesByAttributeId.TryGetValue(part.AttributeId, out var variantValue))
+                else if (selectedVariantValuesByAttributeId.TryGetValue(part.AttributeId, out var variantValue))
                 {
-                    return !string.IsNullOrWhiteSpace(variantValue.OptionName)
+                    token = !string.IsNullOrWhiteSpace(variantValue.OptionName)
                         ? variantValue.OptionName
                         : variantValue.OptionValue;
                 }
 
-                return string.Empty;
+                return new
+                {
+                    Token = (token ?? string.Empty).Trim(),
+                    Separator = NormalizeFormulaSeparator(part.Separator)
+                };
             })
-            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Where(x => !string.IsNullOrWhiteSpace(x.Token))
             .ToList();
 
         if (parts.Count == 0)
@@ -2546,10 +2551,10 @@ public abstract partial class CatalogManagementController : Controller
             return fallbackName;
         }
 
-        var separator = NormalizeFormulaSeparator(selectedFormula.Separator);
-        var generatedName = string.IsNullOrEmpty(separator)
-            ? string.Concat(parts)
-            : string.Join(separator, parts);
+        var generatedName = string.Concat(parts.Select((part, index) =>
+            index < parts.Count - 1
+                ? $"{part.Token}{part.Separator}"
+                : part.Token));
         return RenderCategoryPrefixedName(categoryName, generatedName);
     }
 

@@ -320,7 +320,7 @@ public sealed class VariantNameFormulaForm
     public string Name { get; set; } = string.Empty;
 
     [StringLength(32, ErrorMessage = "جداکننده نمی‌تواند بیشتر از ۳۲ کاراکتر باشد.")]
-    public string Separator { get; set; } = " ";
+    public string? Separator { get; set; } = " ";
 
     [Range(0, 100000, ErrorMessage = "ترتیب نمایش باید عدد معتبر باشد.")]
     public int DisplayOrder { get; set; }
