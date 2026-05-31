@@ -229,7 +229,7 @@ public sealed class ProductVariant : AggregateRoot
 
         if (existing is null)
         {
-            existing = VariantAddOn.Create(BusinessKey.Value, addOnVariantRef, tagId, isRequired, Guid.NewGuid());
+            existing = VariantAddOn.Create(BusinessKey, addOnVariantRef, tagId, isRequired, Guid.NewGuid());
             _addOns.Add(existing);
         }
         else

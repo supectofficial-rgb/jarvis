@@ -3,12 +3,18 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Catalog.Prod
 using Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class VariantAddOnConfig : IEntityTypeConfiguration<VariantAddOn>
 {
     public void Configure(EntityTypeBuilder<VariantAddOn> builder)
     {
         builder.ToTable("VariantAddOns");
+        builder.Property(x => x.VariantRef)
+            .HasConversion(
+                key => key.Value,
+                value => BusinessKey.FromGuid(value))
+            .IsRequired();
         builder.Property(x => x.AddOnVariantRef).IsRequired(false);
         builder.Property(x => x.TagId).IsRequired(false);
         builder.Property(x => x.IsRequired).IsRequired();
