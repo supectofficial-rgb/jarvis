@@ -132,6 +132,7 @@ public sealed class VariantManagementPageViewModel
     public string? VariantSearchTerm { get; set; }
     public string? VariantCategoryFilterId { get; set; }
     public string? VariantAttributeOptionFilterIds { get; set; }
+    public string? VariantAttributeFiltersJson { get; set; }
     public string? VariantTrackingFilter { get; set; }
     public string? VariantStatusFilter { get; set; }
     public string? SelectedAttributeTypeFilter { get; set; }

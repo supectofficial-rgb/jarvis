@@ -45,6 +45,22 @@
         return seller is null ? sellerId : $"{seller.Code} - {seller.Name}";
     }
 
+    string UserNameLabel(Insurance.InventoryDashboard.Panel.Models.UserSummaryModel user)
+    {
+        var name = string.IsNullOrWhiteSpace(user.UserName) ? user.MobileNumber : user.UserName;
+        var phone = string.IsNullOrWhiteSpace(user.MobileNumber) ? null : user.MobileNumber;
+        return string.IsNullOrWhiteSpace(phone) ? (name ?? user.UserBusinessKey) : $"{name} - {phone}";
+    }
+
+    string RoleNameLabel(Insurance.InventoryDashboard.Panel.Models.RoleSummaryModel role)
+    {
+        return string.IsNullOrWhiteSpace(role.Name)
+            ? role.RoleBusinessKey
+            : string.IsNullOrWhiteSpace(role.Scope)
+                ? role.Name
+                : $"{role.Name} ({role.Scope})";
+    }
+
     string TypeLabel(string? type) => type switch
     {
         "Receipt" => UiText["inventory.documents.type.receipt"],
@@ -227,21 +243,81 @@
                             @Html.AntiForgeryToken()
                             <input type="hidden" asp-for="CreateForm.DocumentId" />
                             <input type="hidden" asp-for="CreateForm.DocumentType" id="document-type-input" />
-                            <input type="hidden" asp-for="CreateForm.WarehouseRef" />
-                            <input type="hidden" asp-for="CreateForm.SellerRef" />
                             <div class="form-row">
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.documentNo"]</label>
                                     <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
                                 </div>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["inventory.documents.referenceType"]</label>
+                                    <input asp-for="CreateForm.ReferenceType" class="form-control" />
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["inventory.documents.referenceId"]</label>
+                                    <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["inventory.documents.warehouse"]</label>
+                                    <select asp-for="CreateForm.WarehouseRef" class="form-control js-search-select" id="create-warehouse-select" required>
+                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
+                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey" selected="@(string.Equals(warehouse.WarehouseBusinessKey, Model.CreateForm.WarehouseRef, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["inventory.documents.seller"]</label>
+                                    <select asp-for="CreateForm.SellerRef" class="form-control js-search-select" required>
+                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
+                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@seller.SellerBusinessKey" selected="@(string.Equals(seller.SellerBusinessKey, Model.CreateForm.SellerRef, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@seller.Code - @seller.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
                                 <div class="form-group col-md-4">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
                                     <input type="hidden" asp-for="CreateForm.OccurredAt" id="conversion-occurred-at-value" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
                                     <input type="text" class="form-control datepicker" data-date-picker-target="#conversion-occurred-at-value" data-date-format="yyyy/mm/dd" value="@Model.CreateForm.OccurredAt.ToString("yyyy/MM/dd")" autocomplete="off" />
                                 </div>
-                                <div class="form-group col-md-5">
+                                <div class="form-group col-md-8">
                                     <label>@UiText["inventory.documents.reason"]</label>
                                     <input asp-for="CreateForm.ReasonCode" class="form-control" />
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mb-3">
+                                <div>
+                                    <h6 class="mb-0">@UiText["inventory.documents.people.title"]</h6>
+                                    <div class="text-muted small">@UiText["inventory.documents.people.description"]</div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-xs js-open-document-user-modal">+</button>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-5">
+                                    <label>@UiText["inventory.documents.people.deliveredBy"]</label>
+                                    <select asp-for="CreateForm.DeliveredBy" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.people.selectDeliveredBy"]">
+                                        <option value="">@UiText["inventory.documents.people.selectDeliveredBy"]</option>
+                                        @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
+                                        {
+                                            <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.DeliveredBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-5">
+                                    <label>@UiText["inventory.documents.people.receivedBy"]</label>
+                                    <select asp-for="CreateForm.ReceivedBy" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.people.selectReceivedBy"]">
+                                        <option value="">@UiText["inventory.documents.people.selectReceivedBy"]</option>
+                                        @foreach (var user in Model.UserLookup.OrderBy(x => x.UserName))
+                                        {
+                                            <option value="@user.UserBusinessKey" selected="@(string.Equals(user.UserBusinessKey, Model.CreateForm.ReceivedBy, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UserNameLabel(user)</option>
+                                        }
+                                    </select>
                                 </div>
                             </div>
 
@@ -253,6 +329,50 @@
 
                             <button class="btn btn-primary" type="submit" @(Can("Inventory.Document.Create", "InventoryDocument.Create", "Document.Create") ? null : "disabled")>ایجاد سند</button>
                         </form>
+
+                        <div class="modal fade" id="document-user-create-modal" tabindex="-1" role="dialog" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <div>
+                                            <h5 class="modal-title mb-0">ایجاد کاربر</h5>
+                                            <small class="text-muted">کاربر جدید به سازمان فعال اضافه می‌شود.</small>
+                                        </div>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">×</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="alert alert-danger d-none" id="document-user-create-error"></div>
+                                        <form asp-action="CreateDocumentUser" asp-controller="InventoryManagement" method="post" id="document-user-create-form">
+                                            @Html.AntiForgeryToken()
+                                            <div class="form-group">
+                                                <label>نام</label>
+                                                <input type="text" name="UserName" class="form-control" autocomplete="off" required />
+                                            </div>
+                                            <div class="form-group">
+                                                <label>شماره تلفن</label>
+                                                <input type="text" name="MobileNumber" class="form-control text-monospace" autocomplete="off" required />
+                                            </div>
+                                            <div class="form-group">
+                                                <label>نقش</label>
+                                                <select name="RoleBusinessKey" class="form-control js-search-select" data-placeholder="انتخاب نقش" required>
+                                                    <option value="">انتخاب نقش</option>
+                                                    @foreach (var role in Model.RoleLookup.OrderBy(x => x.Name))
+                                                    {
+                                                        <option value="@role.RoleBusinessKey">@RoleNameLabel(role)</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">بستن</button>
+                                        <button type="submit" class="btn btn-primary" form="document-user-create-form">ثبت</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         @*
                             @Html.AntiForgeryToken()
@@ -1180,10 +1300,6 @@
                 }
 
                 var currentType = documentTypeSelect ? documentTypeSelect.value : 'Receipt';
-                if (currentType === 'Conversion') {
-                    return true;
-                }
-
                 var warehouseField = document.getElementById('create-warehouse-select');
                 if (warehouseField && !warehouseField.value) {
                     showValidation('@UiText["inventory.documents.action.noWarehouseSelected"]', warehouseField);
@@ -1194,6 +1310,10 @@
                 if (sellerField && !sellerField.value) {
                     showValidation('@UiText["inventory.documents.action.noSellerSelected"]', sellerField);
                     return false;
+                }
+
+                if (currentType === 'Conversion') {
+                    return true;
                 }
 
                 var config = selectedConfig();
@@ -1517,6 +1637,114 @@
             toggleTypeFields();
             syncLocationsToWarehouse();
             setLinesPanelVisible(false);
+        })();
+    </script>
+    <script data-ajax-reinit="document-user-create">
+        (function () {
+            var modalSelector = '#document-user-create-modal';
+            var formSelector = '#document-user-create-form';
+            var errorSelector = '#document-user-create-error';
+            var createUserUrl = '@Url.Action("CreateDocumentUser", "InventoryManagement")';
+
+            function showModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalSelector).modal('show');
+                }
+            }
+
+            function hideModal() {
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalSelector).modal('hide');
+                }
+            }
+
+            function setError(message) {
+                var errorBox = document.querySelector(errorSelector);
+                if (!errorBox) {
+                    return;
+                }
+
+                if (!message) {
+                    errorBox.textContent = '';
+                    errorBox.classList.add('d-none');
+                    return;
+                }
+
+                errorBox.textContent = message;
+                errorBox.classList.remove('d-none');
+            }
+
+            function resetForm() {
+                var form = document.querySelector(formSelector);
+                if (!form) {
+                    return;
+                }
+
+                form.reset();
+                if (window.jQuery) {
+                    window.jQuery(form).find('select').trigger('change.select2');
+                }
+                setError('');
+            }
+
+            async function submitUserForm(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                var form = event.currentTarget;
+                setError('');
+
+                var response = await fetch(createUserUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(form)
+                });
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    setError((payload && payload.errorMessage) || 'ایجاد کاربر انجام نشد.');
+                    return;
+                }
+
+                hideModal();
+                window.location.reload();
+            }
+
+            document.addEventListener('click', function (event) {
+                var trigger = event.target && event.target.closest ? event.target.closest('.js-open-document-user-modal') : null;
+                if (!trigger) {
+                    return;
+                }
+
+                event.preventDefault();
+                resetForm();
+                showModal();
+            }, true);
+
+            var form = document.querySelector(formSelector);
+            if (form && form.dataset.documentUserCreateBound !== 'true') {
+                form.addEventListener('submit', function (event) {
+                    submitUserForm(event).catch(function (error) {
+                        console.error(error);
+                        setError('ایجاد کاربر انجام نشد.');
+                    });
+                });
+                form.dataset.documentUserCreateBound = 'true';
+            }
+
+            var modalElement = document.querySelector(modalSelector);
+            if (modalElement && modalElement.dataset.documentUserCreateInit !== 'true') {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(modalElement);
+                }
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    resetForm();
+                });
+                modalElement.dataset.documentUserCreateInit = 'true';
+            }
         })();
     </script>
 }

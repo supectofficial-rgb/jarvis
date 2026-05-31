@@ -1112,6 +1112,7 @@ public sealed class ApiService : IApiService
         string? productId = null,
         string? categoryId = null,
         string? attributeOptionIds = null,
+        string? attributeFiltersJson = null,
         bool? isActive = null,
         int page = 1,
         int pageSize = 10)
@@ -1122,6 +1123,7 @@ public sealed class ApiService : IApiService
             ("ProductRef", productId),
             ("CategoryRef", categoryId),
             ("AttributeOptionRefs", attributeOptionIds),
+            ("AttributeFiltersJson", attributeFiltersJson),
             ("IsActive", isActive?.ToString().ToLowerInvariant()),
             ("Page", Math.Max(page, 1).ToString()),
             ("PageSize", Math.Clamp(pageSize, 1, 200).ToString()));

@@ -2,6 +2,7 @@
 
 using System.Data.Common;
 using System.Globalization;
+using System.Text.Json;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.Common;
 using Insurance.InventoryService.AppCore.Shared.Catalog.ProductVariants.Queries.GetByBusinessKey;
@@ -178,6 +179,30 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
 
         if (query.IsActive.HasValue)
             dbQuery = dbQuery.Where(x => x.IsActive == query.IsActive.Value);
+
+        var attributeFilters = ParseAttributeFilters(query.AttributeFiltersJson);
+        foreach (var filter in attributeFilters)
+        {
+            if (filter.AttributeRef == Guid.Empty)
+            {
+                continue;
+            }
+
+            if (filter.OptionRefs.Count > 0)
+            {
+                dbQuery = filter.IsVariantLevel
+                    ? ApplyVariantAttributeOptionFilter(dbQuery, filter.AttributeRef, filter.OptionRefs)
+                    : ApplyProductAttributeOptionFilter(dbQuery, filter.AttributeRef, filter.OptionRefs);
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.Value))
+            {
+                dbQuery = filter.IsVariantLevel
+                    ? ApplyVariantAttributeTextFilter(dbQuery, filter.AttributeRef, filter.Value!.Trim())
+                    : ApplyProductAttributeTextFilter(dbQuery, filter.AttributeRef, filter.Value!.Trim());
+            }
+        }
 
         var selectedOptionRefs = ParseGuidCsv(query.AttributeOptionRefs);
         if (selectedOptionRefs.Count > 0)
@@ -968,6 +993,82 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             .ToList();
     }
 
+    private static IReadOnlyList<SearchVariantAttributeFilterItem> ParseAttributeFilters(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Array.Empty<SearchVariantAttributeFilterItem>();
+        }
+
+        try
+        {
+            var filters = JsonSerializer.Deserialize<List<SearchVariantAttributeFilterItem>>(
+                value,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            return filters ?? new List<SearchVariantAttributeFilterItem>();
+        }
+        catch
+        {
+            return new List<SearchVariantAttributeFilterItem>();
+        }
+    }
+
+    private IQueryable<ProductVariantReadModel> ApplyVariantAttributeOptionFilter(
+        IQueryable<ProductVariantReadModel> dbQuery,
+        Guid attributeRef,
+        IReadOnlyList<Guid> optionRefs)
+    {
+        return dbQuery.Where(variant =>
+            _dbContext.Set<VariantAttributeValueReadModel>().Any(value =>
+                value.VariantRef == variant.BusinessKey &&
+                value.AttributeRef == attributeRef &&
+                value.OptionRef.HasValue &&
+                optionRefs.Contains(value.OptionRef.Value)));
+    }
+
+    private IQueryable<ProductVariantReadModel> ApplyProductAttributeOptionFilter(
+        IQueryable<ProductVariantReadModel> dbQuery,
+        Guid attributeRef,
+        IReadOnlyList<Guid> optionRefs)
+    {
+        return dbQuery.Where(variant =>
+            _dbContext.Set<ProductAttributeValueReadModel>().Any(value =>
+                value.ProductRef == variant.ProductRef &&
+                value.AttributeRef == attributeRef &&
+                value.OptionRef.HasValue &&
+                optionRefs.Contains(value.OptionRef.Value)));
+    }
+
+    private IQueryable<ProductVariantReadModel> ApplyVariantAttributeTextFilter(
+        IQueryable<ProductVariantReadModel> dbQuery,
+        Guid attributeRef,
+        string term)
+    {
+        return dbQuery.Where(variant =>
+            _dbContext.Set<VariantAttributeValueReadModel>().Any(value =>
+                value.VariantRef == variant.BusinessKey &&
+                value.AttributeRef == attributeRef &&
+                value.Value != null &&
+                EF.Functions.ILike(value.Value, $"%{term}%")));
+    }
+
+    private IQueryable<ProductVariantReadModel> ApplyProductAttributeTextFilter(
+        IQueryable<ProductVariantReadModel> dbQuery,
+        Guid attributeRef,
+        string term)
+    {
+        return dbQuery.Where(variant =>
+            _dbContext.Set<ProductAttributeValueReadModel>().Any(value =>
+                value.ProductRef == variant.ProductRef &&
+                value.AttributeRef == attributeRef &&
+                value.Value != null &&
+                EF.Functions.ILike(value.Value, $"%{term}%")));
+    }
+
     private static VariantAttributeValueViewItem ToVariantAttributeValueItem(VariantAttributeValueReadModel x)
         => new()
         {
@@ -1000,6 +1101,15 @@ public class ProductVariantQueryRepository : QueryRepository<InventoryServiceQue
             TagColor = x.TagColor,
             DisplayOrder = x.DisplayOrder
         };
+
+    private sealed class SearchVariantAttributeFilterItem
+    {
+        public Guid AttributeRef { get; set; }
+        public bool IsVariantLevel { get; set; }
+        public string? DataType { get; set; }
+        public List<Guid> OptionRefs { get; set; } = new();
+        public string? Value { get; set; }
+    }
 
     private sealed class ResolvedCategoryRule
     {

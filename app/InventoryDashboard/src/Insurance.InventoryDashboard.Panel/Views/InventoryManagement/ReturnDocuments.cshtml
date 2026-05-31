@@ -1078,12 +1078,13 @@
                             return payload;
                         },
                         processResults: function (data) {
-                            var items = data && data.items ? data.items : [];
+                            var items = data && (data.items || data.documents) ? (data.items || data.documents) : [];
                             return {
                                 results: items.map(function (item) {
+                                    var documentBusinessKey = item.documentBusinessKey || item.id || item.documentId || '';
                                     return {
-                                        id: item.id,
-                                        text: item.text || item.documentNo || item.documentBusinessKey || '',
+                                        id: documentBusinessKey,
+                                        text: item.text || item.documentNo || documentBusinessKey || '',
                                         document: item
                                     };
                                 })

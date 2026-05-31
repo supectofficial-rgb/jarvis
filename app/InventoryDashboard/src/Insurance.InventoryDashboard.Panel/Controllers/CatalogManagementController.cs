@@ -1082,7 +1082,6 @@ public abstract partial class CatalogManagementController : Controller
             .ThenBy(x => x.Name)
             .ToList();
         var effectiveVariantAttributes = FilterEffectiveAttributesForVariant(effectiveAttributes)
-            .Where(x => x.IsVariantCodeCovered)
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
             .ToList();
@@ -1511,6 +1510,7 @@ public abstract partial class CatalogManagementController : Controller
             selectedProductId,
             selectedCategoryId,
             attributeOptionIds,
+            null,
             isActiveFilter,
             page,
             pageSize);
@@ -2310,8 +2310,7 @@ public abstract partial class CatalogManagementController : Controller
         out List<VariantDimensionSelection> dimensions)
     {
         dimensions = new List<VariantDimensionSelection>();
-        var codeCoveredVariantAttributes = effectiveVariantAttributes
-            .Where(x => x.IsVariantCodeCovered)
+        var variantAttributes = effectiveVariantAttributes
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)
             .ToList();
@@ -2321,7 +2320,7 @@ public abstract partial class CatalogManagementController : Controller
             .Select(x => x.Last())
             .ToDictionary(x => x.AttributeId, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var attribute in codeCoveredVariantAttributes)
+        foreach (var attribute in variantAttributes)
         {
             incoming.TryGetValue(attribute.AttributeId, out var item);
             var incomingOptionIds = (item?.OptionIds ?? new List<string>())
@@ -2387,7 +2386,7 @@ public abstract partial class CatalogManagementController : Controller
                 AttributeId = attribute.AttributeId,
                 AttributeName = attribute.Name,
                 AttributeDisplayOrder = attribute.DisplayOrder,
-                IsVariantCodeCovered = true,
+                IsVariantCodeCovered = attribute.IsVariantCodeCovered,
                 Options = selectedOptions
                     .OrderBy(x => x.OptionDisplayOrder)
                     .ThenBy(x => x.OptionName)
@@ -2982,7 +2981,7 @@ public abstract partial class CatalogManagementController : Controller
         IReadOnlyList<EffectiveAttributeViewModel> attributes)
     {
         return attributes
-            .Where(attribute => !attribute.IsVariantCodeCovered)
+            .Where(attribute => !attribute.IsVariantLevel)
             .ToList();
     }
 
@@ -2990,7 +2989,7 @@ public abstract partial class CatalogManagementController : Controller
         IReadOnlyList<EffectiveAttributeViewModel> attributes)
     {
         return attributes
-            .Where(attribute => attribute.IsVariantCodeCovered)
+            .Where(attribute => attribute.IsVariantLevel)
             .ToList();
     }
 

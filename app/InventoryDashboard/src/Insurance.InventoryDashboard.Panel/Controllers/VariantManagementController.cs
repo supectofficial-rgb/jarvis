@@ -34,6 +34,7 @@ public sealed class VariantManagementController : CatalogManagementController
         string? categoryId,
         string? searchTerm,
         string? attributeOptionIds,
+        string? attributeFiltersJson,
         string? trackingPolicy,
         string? statusFilter,
         string? attributeTypeFilter,
@@ -171,6 +172,7 @@ public sealed class VariantManagementController : CatalogManagementController
         string? categoryId,
         string? searchTerm,
         string? attributeOptionIds,
+        string? attributeFiltersJson,
         string? trackingPolicy,
         string? statusFilter,
         string? attributeTypeFilter,
@@ -204,6 +206,7 @@ public sealed class VariantManagementController : CatalogManagementController
             productId,
             categoryId,
             attributeOptionIds,
+            attributeFiltersJson,
             isActiveFilter,
             page,
             pageSize);
@@ -243,6 +246,7 @@ public sealed class VariantManagementController : CatalogManagementController
             VariantSearchTerm = searchTerm,
             VariantCategoryFilterId = categoryId,
             VariantAttributeOptionFilterIds = attributeOptionIds,
+            VariantAttributeFiltersJson = attributeFiltersJson,
             VariantTrackingFilter = trackingPolicy,
             VariantStatusFilter = statusFilter,
             SelectedAttributeTypeFilter = attributeTypeFilter,
@@ -986,11 +990,11 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (!result.IsSuccess)
         {
-            TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت Add-on واریانت انجام نشد.";
         }
         else
         {
-            TempData["CatalogSuccess"] = "Add-on Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â¨Ã˜Â§ Ã™â€¦Ã™Ë†Ã™ÂÃ™â€šÃ›Å’Ã˜Âª Ã˜Â°Ã˜Â®Ã›Å’Ã˜Â±Ã™â€¡ Ã˜Â´Ã˜Â¯.";
+            TempData["CatalogSuccess"] = "Add-on واریانت با موفقیت ذخیره شد.";
         }
 
         return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
@@ -1033,7 +1037,7 @@ public sealed class VariantManagementController : CatalogManagementController
                 return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف Add-on انجام نشد." });
             }
 
-            TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â­Ã˜Â°Ã™Â Add-on Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+            TempData["CatalogError"] = result.ErrorMessage ?? "حذف Add-on انجام نشد.";
         }
         else if (isAjaxRequest)
         {
@@ -1717,7 +1721,7 @@ public sealed class VariantManagementController : CatalogManagementController
             {
                 if (string.Equals(variantId, addOnVariantId, StringComparison.OrdinalIgnoreCase))
                 {
-                    failures.Add($"Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã™â€ Ã™â€¦Ã›Å’Ã¢â‚¬Å’Ã˜ÂªÃ™Ë†Ã˜Â§Ã™â€ Ã˜Â¯ Add-on Ã˜Â®Ã™Ë†Ã˜Â¯Ã˜Â´ Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â¯.");
+                    failures.Add($"واریانت {variantId} نمی‌تواند Add-on خودش باشد.");
                     continue;
                 }
 
@@ -1733,7 +1737,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
                 if (!addOnResultVariant.IsSuccess)
                 {
-                    failures.Add(addOnResultVariant.ErrorMessage ?? $"Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.");
+                    failures.Add(addOnResultVariant.ErrorMessage ?? $"ثبت Add-on برای واریانت {variantId} انجام نشد.");
                     continue;
                 }
 
@@ -1753,7 +1757,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
             if (!addOnResultTag.IsSuccess)
             {
-                failures.Add(addOnResultTag.ErrorMessage ?? $"Ã˜Â«Ã˜Â¨Ã˜Âª Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª {variantId} Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.");
+                failures.Add(addOnResultTag.ErrorMessage ?? $"ثبت Add-on برای واریانت {variantId} انجام نشد.");
                 continue;
             }
 
@@ -1762,7 +1766,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (successCount > 0)
         {
-            TempData["CatalogSuccess"] = $"Add-on Ã˜Â¨Ã˜Â±Ã˜Â§Ã›Å’ {successCount} Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â«Ã˜Â¨Ã˜Âª Ã˜Â´Ã˜Â¯.";
+            TempData["CatalogSuccess"] = $"Add-on برای {successCount} واریانت ثبت شد.";
         }
 
         if (isAjaxRequest)

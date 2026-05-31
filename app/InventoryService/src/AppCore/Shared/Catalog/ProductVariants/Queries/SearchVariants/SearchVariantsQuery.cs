@@ -10,6 +10,7 @@ public class SearchVariantsQuery : IQuery<SearchVariantsQueryResult>
     public string? VariantSku { get; set; }
     public string? Barcode { get; set; }
     public string? AttributeOptionRefs { get; set; }
+    public string? AttributeFiltersJson { get; set; }
     public bool? IsActive { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;

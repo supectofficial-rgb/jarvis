@@ -23,6 +23,7 @@
     var priceMatrixItems = Model.BulkPricingForm?.Prices ?? new List<Insurance.InventoryDashboard.Panel.Models.VariantPriceMatrixInputModel>();
     var ownerSellerId = Model.OwnerSeller?.SellerBusinessKey.ToString("D") ?? string.Empty;
     var pricingEnabled = Model.OwnerSeller is not null;
+    var variantSearchAttributesUrl = Url.Action("CreateAttributes", "ProductManagement") ?? string.Empty;
 
     var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     var isAdmin = Model.Roles.Any(x =>
@@ -52,9 +53,6 @@
     var effectiveVariantAttributeLookup = Model.EffectiveProductAttributes
         .GroupBy(x => x.AttributeId, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-    var selectedAttributeOptionIds = (Model.VariantAttributeOptionFilterIds ?? string.Empty)
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
     string WarehouseName(string id)
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -160,6 +158,7 @@
                         <h6 class="card-title mb-3">@UiText["catalog.variants.searchAndFilter"]</h6>
                         <form method="get" asp-action="Variants" class="row" id="variant-search-form" data-state-form>
                             <input type="hidden" name="attributeOptionIds" id="variant-attribute-option-ids" value="@Model.VariantAttributeOptionFilterIds" />
+                            <input type="hidden" name="attributeFiltersJson" id="variant-attribute-filters-json" value="@Model.VariantAttributeFiltersJson" />
                             <div class="col-md-3 mb-2">
                                 <label class="text-muted small">@UiText["catalog.variants.productSearchLabel"]</label>
                                 <input name="searchTerm" value="@Model.VariantSearchTerm" class="form-control" data-filter-label='@UiText["common.search"]' placeholder='@UiText["catalog.variants.productSearchPlaceholder"]' />
@@ -181,26 +180,19 @@
                                     }
                                 </select>
                             </div>
-                            <div class="col-md-3 mb-2">
-                                <label class="text-muted small">@UiText["catalog.variants.attributesFilter"]</label>
-                                <select id="variant-attribute-options-filter" class="form-control js-search-select" multiple data-placeholder='@UiText["catalog.variants.selectOptions"]'>
-                                    @foreach (var attr in Model.EffectiveProductAttributes.Where(x => x.Options.Count > 0).OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name))
-                                    {
-                                        <optgroup label="@attr.Name">
-                                            @foreach (var option in attr.Options.OrderBy(x => x.DisplayOrder).ThenBy(x => x.OptionName))
-                                            {
-                                                if (selectedAttributeOptionIds.Contains(option.Id))
-                                                {
-                                                    <option value="@option.Id" selected="selected">@option.OptionName (@option.OptionValue)</option>
-                                                }
-                                                else
-                                                {
-                                                    <option value="@option.Id">@option.OptionName (@option.OptionValue)</option>
-                                                }
-                                            }
-                                        </optgroup>
-                                    }
-                                </select>
+                            <div class="col-12 mb-2">
+                                <div class="border rounded bg-light p-3" id="variant-attribute-filters-shell">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <label class="text-muted small mb-0">@UiText["catalog.variants.attributesFilter"]</label>
+                                            <div class="small text-muted">دسته‌بندی را انتخاب کن تا فیلترهای اتریبیوت همان دسته باز شوند.</div>
+                                        </div>
+                                        <span class="badge badge-light border" id="variant-attribute-filters-summary">0</span>
+                                    </div>
+                                    <div id="variant-attribute-filters-panel">
+                                        <div class="alert alert-light mb-0">ابتدا یک دسته‌بندی انتخاب کنید.</div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-3 mb-2">
                                 <label class="text-muted small">@UiText["catalog.variants.trackingPolicy"]</label>
@@ -933,8 +925,12 @@
             var pageElement = document.getElementById('variants-page');
             var productSelectorForm = document.getElementById('variant-product-selector-form');
             var searchForm = document.getElementById('variant-search-form');
-            var attributeOptionsFilter = document.getElementById('variant-attribute-options-filter');
-            var attributeOptionIdsInput = document.getElementById('variant-attribute-option-ids');
+            var legacyAttributeOptionIdsInput = document.getElementById('variant-attribute-option-ids');
+            var variantAttributeFiltersInput = document.getElementById('variant-attribute-filters-json');
+            var variantAttributeFiltersPanel = document.getElementById('variant-attribute-filters-panel');
+            var variantAttributeFiltersSummary = document.getElementById('variant-attribute-filters-summary');
+            var variantSearchAttributesUrl = @Html.Raw(JsonSerializer.Serialize(variantSearchAttributesUrl));
+            var variantCategorySelect = searchForm ? searchForm.querySelector('select[name="categoryId"]') : null;
             var detailModal = $('#variant-detail-modal');
             var detailModalTitle = document.getElementById('variant-detail-modal-title');
             var detailModalBody = document.getElementById('variant-detail-modal-body');
@@ -1051,13 +1047,306 @@
                 .map(function (formId) { return document.getElementById(formId); })
                 .filter(function (form) { return form instanceof HTMLFormElement; });
 
-            if (searchForm && attributeOptionsFilter && attributeOptionIdsInput) {
-                searchForm.addEventListener('submit', function () {
-                    attributeOptionIdsInput.value = Array.from(attributeOptionsFilter.selectedOptions || [])
-                        .map(function (option) { return option.value || ''; })
-                        .filter(Boolean)
-                        .join(',');
+            function normalizeString(value) {
+                return (value === null || value === undefined ? '' : String(value)).trim();
+            }
+
+            function parseJsonArray(value) {
+                if (!value) {
+                    return [];
+                }
+
+                try {
+                    var parsed = JSON.parse(value);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (error) {
+                    return [];
+                }
+            }
+
+            function getLegacyAttributeOptionIds() {
+                var raw = legacyAttributeOptionIdsInput ? (legacyAttributeOptionIdsInput.value || '') : '';
+                return raw
+                    .split(',')
+                    .map(function (item) { return normalizeString(item); })
+                    .filter(Boolean);
+            }
+
+            function getSelectedVariantAttributeFilters() {
+                var raw = variantAttributeFiltersInput ? (variantAttributeFiltersInput.value || '') : '';
+                return parseJsonArray(raw)
+                    .map(function (item) {
+                        if (!item || typeof item !== 'object') {
+                            return null;
+                        }
+
+                        var attributeId = normalizeString(item.attributeId || item.AttributeId);
+                        if (!attributeId) {
+                            return null;
+                        }
+
+                        var optionRefs = Array.isArray(item.optionRefs || item.OptionRefs)
+                            ? (item.optionRefs || item.OptionRefs).map(function (optionId) { return normalizeString(optionId); }).filter(Boolean)
+                            : [];
+
+                        return {
+                            attributeId: attributeId,
+                            isVariantLevel: !!(item.isVariantLevel || item.IsVariantLevel),
+                            dataType: normalizeString(item.dataType || item.DataType),
+                            value: normalizeString(item.value || item.Value),
+                            optionRefs: optionRefs
+                        };
+                    })
+                    .filter(function (item) { return !!item; });
+            }
+
+            function buildVariantAttributeFilterItem(attribute, selectedFilter, legacyOptionIds) {
+                if (!attribute || !attribute.attributeId) {
+                    return '';
+                }
+
+                var attributeId = normalizeString(attribute.attributeId);
+                var isVariantLevel = !!attribute.isVariantLevel;
+                var dataType = normalizeString(attribute.dataType);
+                var name = normalizeString(attribute.name);
+                var options = Array.isArray(attribute.options) ? attribute.options : [];
+                var selectedOptionIds = [];
+                var textValue = '';
+
+                if (selectedFilter && selectedFilter.attributeId && normalizeString(selectedFilter.attributeId).toLowerCase() === attributeId.toLowerCase()) {
+                    selectedOptionIds = Array.isArray(selectedFilter.optionRefs) ? selectedFilter.optionRefs.slice() : [];
+                    textValue = normalizeString(selectedFilter.value);
+                } else if (options.length > 0 && Array.isArray(legacyOptionIds) && legacyOptionIds.length > 0) {
+                    var legacyLookup = legacyOptionIds.reduce(function (map, id) {
+                        map[id.toLowerCase()] = true;
+                        return map;
+                    }, {});
+
+                    selectedOptionIds = options
+                        .map(function (option) { return normalizeString(option.id); })
+                        .filter(function (optionId) { return !!legacyLookup[optionId.toLowerCase()]; });
+                }
+
+                var optionMarkup = '';
+                if (options.length > 0) {
+                    optionMarkup = '<select class="form-control js-search-select js-variant-attribute-filter-select" multiple data-placeholder="' + escapeHtml((window.appUi && window.appUi.text && window.appUi.text["catalog.variants.selectOptions"]) || "گزینه‌ها را انتخاب کنید") + '">' +
+                        options
+                            .sort(function (a, b) {
+                                var aOrder = Number(a.displayOrder || 0);
+                                var bOrder = Number(b.displayOrder || 0);
+                                if (aOrder !== bOrder) {
+                                    return aOrder - bOrder;
+                                }
+
+                                return normalizeString(a.optionName).localeCompare(normalizeString(b.optionName), 'fa');
+                            })
+                            .map(function (option) {
+                                var optionId = normalizeString(option.id);
+                                var optionText = normalizeString(option.optionName);
+                                var optionValue = normalizeString(option.optionValue);
+                                var isSelected = selectedOptionIds.some(function (selectedId) {
+                                    return selectedId && optionId && selectedId.toLowerCase() === optionId.toLowerCase();
+                                });
+                                return '<option value="' + escapeHtml(optionId) + '"' + (isSelected ? ' selected="selected"' : '') + '>' +
+                                    escapeHtml(optionText + (optionValue ? ' (' + optionValue + ')' : '')) +
+                                '</option>';
+                            })
+                            .join('') +
+                        '</select>';
+                } else {
+                    optionMarkup = '<input type="text" class="form-control js-variant-attribute-filter-value" value="' + escapeHtml(textValue) + '" placeholder="جستجو با مقدار" />';
+                }
+
+                return '<div class="col-md-6 mb-3 js-variant-attribute-filter-row" ' +
+                    'data-attribute-id="' + escapeHtml(attributeId) + '" ' +
+                    'data-is-variant-level="' + (isVariantLevel ? 'true' : 'false') + '" ' +
+                    'data-data-type="' + escapeHtml(dataType) + '">' +
+                        '<div class="border rounded bg-white p-3 h-100">' +
+                            '<div class="d-flex justify-content-between align-items-start mb-2">' +
+                                '<div class="pr-2">' +
+                                    '<div class="font-weight-bold">' + escapeHtml(name) + '</div>' +
+                                    '<div class="small text-muted">' + escapeHtml(dataType || '-') + '</div>' +
+                                '</div>' +
+                                '<span class="badge badge-light border">' + (isVariantLevel ? 'Variant' : 'Product') + '</span>' +
+                            '</div>' +
+                            optionMarkup +
+                        '</div>' +
+                    '</div>';
+            }
+
+            function renderVariantAttributeFilters(attributes, selectedFilters, legacyOptionIds) {
+                if (!variantAttributeFiltersPanel) {
+                    return;
+                }
+
+                var normalizedAttributes = Array.isArray(attributes) ? attributes.slice() : [];
+                normalizedAttributes.sort(function (a, b) {
+                    var aVariant = !!(a && a.isVariantLevel);
+                    var bVariant = !!(b && b.isVariantLevel);
+                    if (aVariant !== bVariant) {
+                        return aVariant ? 1 : -1;
+                    }
+
+                    var aOrder = Number(a && a.displayOrder !== undefined ? a.displayOrder : 0);
+                    var bOrder = Number(b && b.displayOrder !== undefined ? b.displayOrder : 0);
+                    if (aOrder !== bOrder) {
+                        return aOrder - bOrder;
+                    }
+
+                    return normalizeString(a && a.name).localeCompare(normalizeString(b && b.name), 'fa');
                 });
+
+                if (!normalizedAttributes.length) {
+                    variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-light mb-0">برای این دسته‌بندی اتریبیوتی یافت نشد.</div>';
+                    if (variantAttributeFiltersSummary) {
+                        variantAttributeFiltersSummary.textContent = '0';
+                    }
+                    return;
+                }
+
+                var productRows = [];
+                var variantRows = [];
+                normalizedAttributes.forEach(function (attribute) {
+                    var itemHtml = buildVariantAttributeFilterItem(attribute, selectedFilters, legacyOptionIds);
+                    if (!itemHtml) {
+                        return;
+                    }
+
+                    if (attribute && attribute.isVariantLevel) {
+                        variantRows.push(itemHtml);
+                    } else {
+                        productRows.push(itemHtml);
+                    }
+                });
+
+                var sections = [];
+                if (productRows.length > 0) {
+                    sections.push(
+                        '<div class="mb-3">' +
+                            '<div class="small text-muted mb-2">ویژگی‌های محصول</div>' +
+                            '<div class="row">' + productRows.join('') + '</div>' +
+                        '</div>'
+                    );
+                }
+
+                if (variantRows.length > 0) {
+                    sections.push(
+                        '<div>' +
+                            '<div class="small text-muted mb-2">ویژگی‌های واریانت</div>' +
+                            '<div class="row">' + variantRows.join('') + '</div>' +
+                        '</div>'
+                    );
+                }
+
+                variantAttributeFiltersPanel.innerHTML = sections.join('');
+                if (window.appUi && window.appUi.initSearchableSelects) {
+                    window.appUi.initSearchableSelects(variantAttributeFiltersPanel);
+                }
+
+                var selectedCount = collectVariantAttributeFilters().length;
+                if (variantAttributeFiltersSummary) {
+                    variantAttributeFiltersSummary.textContent = selectedCount > 0 ? selectedCount + ' فیلتر' : '0';
+                }
+            }
+
+            async function loadVariantAttributeFilters(categoryId, selectedFilters, legacyOptionIds) {
+                if (!variantAttributeFiltersPanel) {
+                    return;
+                }
+
+                var normalizedCategoryId = normalizeString(categoryId);
+                if (!normalizedCategoryId) {
+                    variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-light mb-0">ابتدا یک دسته‌بندی انتخاب کنید.</div>';
+                    if (variantAttributeFiltersSummary) {
+                        variantAttributeFiltersSummary.textContent = '0';
+                    }
+                    return;
+                }
+
+                if (!variantSearchAttributesUrl) {
+                    return;
+                }
+
+                variantAttributeFiltersPanel.innerHTML = '<div class="text-muted small">در حال بارگذاری فیلترهای اتریبیوت...</div>';
+
+                var url = new URL(variantSearchAttributesUrl, window.location.origin);
+                url.searchParams.set('categoryId', normalizedCategoryId);
+
+                var response = await fetch(url.toString(), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Loading variant search attributes failed.');
+                }
+
+                var payload = await response.json();
+                if (!payload || payload.isSuccess === false) {
+                    throw new Error((payload && payload.errorMessage) || 'Loading variant search attributes failed.');
+                }
+
+                var mergedAttributes = []
+                    .concat(Array.isArray(payload.productAttributes) ? payload.productAttributes : [])
+                    .concat(Array.isArray(payload.variantAttributes) ? payload.variantAttributes : []);
+
+                renderVariantAttributeFilters(mergedAttributes, selectedFilters || [], legacyOptionIds || []);
+            }
+
+            function collectVariantAttributeFilters() {
+                if (!variantAttributeFiltersPanel) {
+                    return [];
+                }
+
+                var filters = [];
+                variantAttributeFiltersPanel.querySelectorAll('.js-variant-attribute-filter-row').forEach(function (row) {
+                    if (!(row instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    var attributeId = normalizeString(row.getAttribute('data-attribute-id'));
+                    if (!attributeId) {
+                        return;
+                    }
+
+                    var isVariantLevel = (row.getAttribute('data-is-variant-level') || '').toLowerCase() === 'true';
+                    var dataType = normalizeString(row.getAttribute('data-data-type'));
+                    var select = row.querySelector('select.js-variant-attribute-filter-select');
+                    if (select) {
+                        var optionRefs = Array.from(select.selectedOptions || [])
+                            .map(function (option) { return normalizeString(option.value); })
+                            .filter(Boolean);
+
+                        if (optionRefs.length > 0) {
+                            filters.push({
+                                attributeId: attributeId,
+                                isVariantLevel: isVariantLevel,
+                                dataType: dataType,
+                                optionRefs: optionRefs,
+                                value: ''
+                            });
+                        }
+
+                        return;
+                    }
+
+                    var input = row.querySelector('input.js-variant-attribute-filter-value');
+                    var value = input ? normalizeString(input.value) : '';
+                    if (value) {
+                        filters.push({
+                            attributeId: attributeId,
+                            isVariantLevel: isVariantLevel,
+                            dataType: dataType,
+                            optionRefs: [],
+                            value: value
+                        });
+                    }
+                });
+
+                return filters;
             }
 
             function escapeHtml(value) {
@@ -1747,7 +2036,7 @@
                 }
 
                 syncBulkSelectionInputs(selectedVariantIds);
-                addonSubmitButton.disabled = !hasVariantSelection || (!selectedAddOnId && !selectedTagId) || (!!selectedAddOnId && !!selectedTagId);
+                addonSubmitButton.disabled = false;
             }
 
             function refreshComponentList() {
@@ -1905,11 +2194,17 @@
                     return;
                 }
 
+                if (!variantId) {
+                    alert(loadInfoFailedText);
+                    return;
+                }
+
                 if (addonModal && addonModal.attr) {
                     addonModal.attr('data-addon-mode', 'single');
                     addonModal.attr('data-variant-id', variantId || '');
                     addonModal.attr('data-variant-label', label || '');
                     addonModal.attr('data-product-id', activeProductId || '');
+                    addonModal.attr('data-bulk-has-selection', 'true');
                 }
 
                 if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
@@ -1921,7 +2216,6 @@
                 if (bulkAddonRequiredInput) {
                     bulkAddonRequiredInput.checked = false;
                 }
-                ensureVariantSelectedForBulk(variantId);
                 syncBulkSelectionInputs([variantId]);
                 updateAddonSubmitState();
                 if (addonModalTitle) {
@@ -2218,9 +2512,12 @@
                     },
                     filters: {
                         searchTerm: readField(searchForm, 'searchTerm'),
+                        categoryId: readField(searchForm, 'categoryId'),
                         trackingPolicy: readField(searchForm, 'trackingPolicy'),
                         statusFilter: readField(searchForm, 'statusFilter'),
                         attributeTypeFilter: readField(searchForm, 'attributeTypeFilter'),
+                        attributeFiltersJson: readField(searchForm, 'attributeFiltersJson'),
+                        attributeOptionIds: readField(searchForm, 'attributeOptionIds'),
                         sort: readField(searchForm, 'sort'),
                         pageSize: readField(searchForm, 'pageSize')
                     },
@@ -2245,9 +2542,12 @@
                 }
                 if (state.filters) {
                     setFieldIfMissing(searchForm, 'searchTerm', state.filters.searchTerm);
+                    setFieldIfMissing(searchForm, 'categoryId', state.filters.categoryId);
                     setFieldIfMissing(searchForm, 'trackingPolicy', state.filters.trackingPolicy);
                     setFieldIfMissing(searchForm, 'statusFilter', state.filters.statusFilter);
                     setFieldIfMissing(searchForm, 'attributeTypeFilter', state.filters.attributeTypeFilter);
+                    setFieldIfMissing(searchForm, 'attributeFiltersJson', state.filters.attributeFiltersJson);
+                    setFieldIfMissing(searchForm, 'attributeOptionIds', state.filters.attributeOptionIds);
                     setFieldIfMissing(searchForm, 'sort', state.filters.sort);
                     setFieldIfMissing(searchForm, 'pageSize', state.filters.pageSize);
                 }
@@ -2785,6 +3085,58 @@
                 openModalFromHash(window.location.hash);
             });
 
+            function initializeVariantAttributeFilters() {
+                if (!searchForm) {
+                    return;
+                }
+
+                var categoryId = normalizeString(readField(searchForm, 'categoryId'));
+                var selectedFilters = getSelectedVariantAttributeFilters();
+                var legacyOptionIds = getLegacyAttributeOptionIds();
+
+                if (!categoryId) {
+                    renderVariantAttributeFilters([], [], []);
+                    return;
+                }
+
+                loadVariantAttributeFilters(categoryId, selectedFilters, legacyOptionIds).catch(function (error) {
+                    console.error(error);
+                    if (variantAttributeFiltersPanel) {
+                        variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">بارگذاری فیلترهای اتریبیوت با خطا مواجه شد.</div>';
+                    }
+                });
+            }
+
+            if (variantCategorySelect && variantCategorySelect.dataset.variantFilterBound !== 'true') {
+                variantCategorySelect.dataset.variantFilterBound = 'true';
+                variantCategorySelect.addEventListener('change', function () {
+                    if (variantAttributeFiltersInput) {
+                        variantAttributeFiltersInput.value = '';
+                    }
+
+                    if (legacyAttributeOptionIdsInput) {
+                        legacyAttributeOptionIdsInput.value = '';
+                    }
+
+                    var categoryId = normalizeString(variantCategorySelect.value);
+                    if (!categoryId) {
+                        renderVariantAttributeFilters([], [], []);
+                        savePageState();
+                        return;
+                    }
+
+                    loadVariantAttributeFilters(categoryId, [], []).catch(function (error) {
+                        console.error(error);
+                        if (variantAttributeFiltersPanel) {
+                            variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">بارگذاری فیلترهای اتریبیوت با خطا مواجه شد.</div>';
+                        }
+                    });
+                    savePageState();
+                });
+            }
+
+            initializeVariantAttributeFilters();
+
             if (attributeSelect && hiddenValue && form) {
                 function parseOptions(optionElement) {
                     var optionsData = optionElement ? optionElement.getAttribute('data-options') : null;
@@ -3068,11 +3420,11 @@
             initializeAddonVariantSearch();
             ensureTagLookupOptions();
 
-            if (bulkAddonSelect) {
-                bulkAddonSelect.addEventListener('change', function () {
-                    if ((bulkAddonSelect.value || '').trim()) {
-                        if (bulkAddonTagSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                            window.jQuery(bulkAddonTagSelect).val(null).trigger('change');
+                if (bulkAddonSelect) {
+                    bulkAddonSelect.addEventListener('change', function () {
+                        if ((bulkAddonSelect.value || '').trim()) {
+                            if (bulkAddonTagSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                                window.jQuery(bulkAddonTagSelect).val(null).trigger('change');
                         } else if (bulkAddonTagSelect) {
                             bulkAddonTagSelect.value = '';
                         }
@@ -3081,11 +3433,11 @@
                 });
             }
 
-            if (bulkAddonTagSelect) {
-                bulkAddonTagSelect.addEventListener('change', function () {
-                    if ((bulkAddonTagSelect.value || '').trim()) {
-                        if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-                            window.jQuery(bulkAddonSelect).val(null).trigger('change');
+                if (bulkAddonTagSelect) {
+                    bulkAddonTagSelect.addEventListener('change', function () {
+                        if ((bulkAddonTagSelect.value || '').trim()) {
+                            if (bulkAddonSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                                window.jQuery(bulkAddonSelect).val(null).trigger('change');
                         } else if (bulkAddonSelect) {
                             bulkAddonSelect.value = '';
                         }
@@ -3094,12 +3446,40 @@
                 });
             }
 
+            if (bulkAddonSelect && window.jQuery) {
+                window.jQuery(bulkAddonSelect).on('select2:select select2:unselect select2:clear', updateAddonSubmitState);
+            }
+
+            if (bulkAddonTagSelect && window.jQuery) {
+                window.jQuery(bulkAddonTagSelect).on('select2:select select2:unselect select2:clear', updateAddonSubmitState);
+            }
+
             if (bulkAddonRequiredInput) {
                 bulkAddonRequiredInput.addEventListener('change', updateAddonSubmitState);
             }
 
             if (searchForm) {
                 searchForm.addEventListener('submit', function (event) {
+                    if (variantAttributeFiltersInput) {
+                        variantAttributeFiltersInput.value = JSON.stringify(collectVariantAttributeFilters());
+                    }
+
+                    if (legacyAttributeOptionIdsInput) {
+                        var selectedFilters = collectVariantAttributeFilters();
+                        var selectedOptionIds = [];
+                        selectedFilters.forEach(function (filter) {
+                            if (filter && Array.isArray(filter.optionRefs)) {
+                                filter.optionRefs.forEach(function (optionId) {
+                                    if (optionId) {
+                                        selectedOptionIds.push(optionId);
+                                    }
+                                });
+                            }
+                        });
+
+                        legacyAttributeOptionIdsInput.value = selectedOptionIds.join(',');
+                    }
+
                     event.preventDefault();
                     savePageState();
                     loadVariantList();
@@ -3374,7 +3754,7 @@
             $('#variant-bulk-addon-modal').on('show.bs.modal', function () {
                 var currentMode = addonModal && addonModal.attr ? (addonModal.attr('data-addon-mode') || 'bulk') : 'bulk';
                 var currentVariantId = addonModal && addonModal.attr ? (addonModal.attr('data-variant-id') || '') : '';
-                var hasSelection = currentMode === 'single' ? !!currentVariantId : getSelectedVariantCount() > 0;
+                var hasSelection = currentMode === 'single' ? true : getSelectedVariantCount() > 0;
                 if (addonModal && addonModal.attr) {
                     addonModal.attr('data-addon-mode', currentMode);
                 }
@@ -3445,6 +3825,31 @@
                     }
 
                 var submitButtons = ajaxForm.querySelectorAll('button[type="submit"]');
+                var mode = ajaxForm.getAttribute('data-ajax-submit') || '';
+
+                if (mode === 'bulk-addon') {
+                    var selectedAddOnId = bulkAddonSelect
+                        ? ((window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)
+                            ? (window.jQuery(bulkAddonSelect).val() || '').toString().trim()
+                            : (bulkAddonSelect.value || '').trim())
+                        : '';
+                    var selectedTagId = bulkAddonTagSelect
+                        ? ((window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)
+                            ? (window.jQuery(bulkAddonTagSelect).val() || '').toString().trim()
+                            : (bulkAddonTagSelect.value || '').trim())
+                        : '';
+
+                    if (!selectedAddOnId && !selectedTagId) {
+                        alert('حداقل یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.');
+                        return;
+                    }
+
+                    if (selectedAddOnId && selectedTagId) {
+                        alert('فقط یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.');
+                        return;
+                    }
+                }
+
                 submitButtons.forEach(function (button) {
                     button.setAttribute('disabled', 'disabled');
                 });

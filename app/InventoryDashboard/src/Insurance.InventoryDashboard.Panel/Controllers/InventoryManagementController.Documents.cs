@@ -3109,6 +3109,19 @@ public sealed partial class InventoryManagementController
 
     private static string? ValidateDocumentFormAgainstBackendRules(CreateInventoryDocumentForm form)
     {
+        if (string.Equals(form.DocumentType, "Conversion", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(form.WarehouseRef))
+            {
+                return "انتخاب انبار برای سند تبدیل الزامی است.";
+            }
+
+            if (string.IsNullOrWhiteSpace(form.SellerRef))
+            {
+                return "انتخاب فروشنده برای سند تبدیل الزامی است.";
+            }
+        }
+
         foreach (var line in form.Lines)
         {
             switch (form.DocumentType)
@@ -3708,11 +3721,15 @@ public sealed partial class InventoryManagementController
             DocumentNo = isEditMode ? existingDocument?.DocumentNo : null,
             ReferenceType = isEditMode ? existingDocument?.ReferenceType : null,
             ReferenceBusinessId = isEditMode ? existingDocument?.ReferenceBusinessId?.ToString() : null,
-            WarehouseRef = isConversionDocument || isReceiptDocument || isAdjustmentDocument
-                ? string.Empty
+            WarehouseRef = isConversionDocument
+                ? isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty
+                : isReceiptDocument || isAdjustmentDocument
+                    ? string.Empty
                 : isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
-            SellerRef = isConversionDocument || isReceiptDocument
-                ? string.Empty
+            SellerRef = isConversionDocument
+                ? isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty
+                : isReceiptDocument
+                    ? string.Empty
                 : isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
             ReceivedBy = isEditMode ? existingDocument?.ReceivedBy : null,
             DeliveredBy = isEditMode ? existingDocument?.DeliveredBy : null,
