@@ -73,6 +73,7 @@ public sealed class CategoryVariantNameFormulaPartModel
 {
     public string PartId { get; set; } = string.Empty;
     public string AttributeId { get; set; } = string.Empty;
+    public string Separator { get; set; } = string.Empty;
     public string AttributeCode { get; set; } = string.Empty;
     public string AttributeName { get; set; } = string.Empty;
     public string DataType { get; set; } = string.Empty;
@@ -422,7 +423,14 @@ public sealed class UpsertCategoryVariantNameFormulaRequest
     public string Separator { get; set; } = " ";
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
-    public List<string> AttributeIds { get; set; } = new();
+    public List<CategoryVariantNameFormulaPartRequest> Parts { get; set; } = new();
+}
+
+public sealed class CategoryVariantNameFormulaPartRequest
+{
+    public string AttributeId { get; set; } = string.Empty;
+    public string? Separator { get; set; }
+    public int SortOrder { get; set; }
 }
 
 public sealed class UpsertProductRequest

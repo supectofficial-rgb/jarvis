@@ -328,13 +328,13 @@ public abstract partial class CatalogManagementController
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
-        if (!TryParseFormulaAttributeIds(form.PartsJson, out var attributeIds, out var parseError))
+        if (!TryParseFormulaParts(form.PartsJson, out var formulaParts, out var parseError))
         {
             TempData["CatalogError"] = parseError;
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
-        var normalizedResult = await ValidateFormulaAttributeRefs(form.CategoryId, attributeIds, token);
+        var normalizedResult = await ValidateFormulaAttributeRefs(form.CategoryId, formulaParts.Select(x => x.AttributeId).ToList(), token);
         if (!normalizedResult.IsSuccess)
         {
             TempData["CatalogError"] = normalizedResult.ErrorMessage ?? "اعتبارسنجی فرمول انجام نشد.";
@@ -349,7 +349,14 @@ public abstract partial class CatalogManagementController
                 Separator = NormalizeFormulaSeparator(form.Separator),
                 DisplayOrder = form.DisplayOrder,
                 IsActive = form.IsActive,
-                AttributeIds = normalizedResult.Data ?? new List<string>()
+                Parts = formulaParts
+                    .Select((part, index) => new CategoryVariantNameFormulaPartRequest
+                    {
+                        AttributeId = part.AttributeId,
+                        Separator = NormalizeFormulaSeparator(part.Separator),
+                        SortOrder = part.SortOrder > 0 ? part.SortOrder : index + 1
+                    })
+                    .ToList()
             },
             token);
 
@@ -385,13 +392,13 @@ public abstract partial class CatalogManagementController
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
-        if (!TryParseFormulaAttributeIds(form.PartsJson, out var attributeIds, out var parseError))
+        if (!TryParseFormulaParts(form.PartsJson, out var formulaParts, out var parseError))
         {
             TempData["CatalogError"] = parseError;
             return RedirectToAction(nameof(Categories), new { categoryId = form.CategoryId });
         }
 
-        var normalizedResult = await ValidateFormulaAttributeRefs(form.CategoryId, attributeIds, token);
+        var normalizedResult = await ValidateFormulaAttributeRefs(form.CategoryId, formulaParts.Select(x => x.AttributeId).ToList(), token);
         if (!normalizedResult.IsSuccess)
         {
             TempData["CatalogError"] = normalizedResult.ErrorMessage ?? "اعتبارسنجی فرمول انجام نشد.";
@@ -407,7 +414,14 @@ public abstract partial class CatalogManagementController
                 Separator = NormalizeFormulaSeparator(form.Separator),
                 DisplayOrder = form.DisplayOrder,
                 IsActive = form.IsActive,
-                AttributeIds = normalizedResult.Data ?? new List<string>()
+                Parts = formulaParts
+                    .Select((part, index) => new CategoryVariantNameFormulaPartRequest
+                    {
+                        AttributeId = part.AttributeId,
+                        Separator = NormalizeFormulaSeparator(part.Separator),
+                        SortOrder = part.SortOrder > 0 ? part.SortOrder : index + 1
+                    })
+                    .ToList()
             },
             token);
 
@@ -1295,9 +1309,9 @@ public abstract partial class CatalogManagementController
         return new ApiResponse<List<string>> { IsSuccess = true, Data = normalized };
     }
 
-    private static bool TryParseFormulaAttributeIds(string? partsJson, out List<string> attributeIds, out string errorMessage)
+    private static bool TryParseFormulaParts(string? partsJson, out List<VariantNameFormulaPartInput> parts, out string errorMessage)
     {
-        attributeIds = new List<string>();
+        parts = new List<VariantNameFormulaPartInput>();
         errorMessage = string.Empty;
 
         if (string.IsNullOrWhiteSpace(partsJson))
@@ -1307,17 +1321,73 @@ public abstract partial class CatalogManagementController
 
         try
         {
-            attributeIds = System.Text.Json.JsonSerializer.Deserialize<List<string>>(partsJson) ?? new List<string>();
+            using var document = System.Text.Json.JsonDocument.Parse(partsJson);
+            if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+            {
+                throw new InvalidOperationException("Parts JSON must be an array.");
+            }
+
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var stringAttributeId = element.GetString();
+                    if (!string.IsNullOrWhiteSpace(stringAttributeId))
+                    {
+                        parts.Add(new VariantNameFormulaPartInput
+                        {
+                            AttributeId = stringAttributeId.Trim(),
+                            Separator = " ",
+                            SortOrder = parts.Count + 1
+                        });
+                    }
+                    continue;
+                }
+
+                if (element.ValueKind != System.Text.Json.JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                var objectAttributeId = element.TryGetProperty("attributeId", out var attributeIdProperty)
+                    ? attributeIdProperty.GetString()
+                    : null;
+
+                if (string.IsNullOrWhiteSpace(objectAttributeId))
+                {
+                    continue;
+                }
+
+                var separator = element.TryGetProperty("separator", out var separatorProperty)
+                    ? separatorProperty.GetString()
+                    : null;
+
+                var sortOrder = element.TryGetProperty("sortOrder", out var sortOrderProperty) && sortOrderProperty.TryGetInt32(out var parsedSortOrder)
+                    ? parsedSortOrder
+                    : parts.Count + 1;
+
+                parts.Add(new VariantNameFormulaPartInput
+                {
+                    AttributeId = objectAttributeId.Trim(),
+                    Separator = NormalizeFormulaSeparator(separator),
+                    SortOrder = sortOrder
+                });
+            }
         }
         catch
         {
-            errorMessage = "ساختار ویژگی‌های فرمول نامعتبر است.";
+            errorMessage = "ساختار جزئیات فرمول نامعتبر است.";
             return false;
         }
 
-        attributeIds = attributeIds
-            .Where(attributeId => !string.IsNullOrWhiteSpace(attributeId))
-            .Select(attributeId => attributeId.Trim())
+        parts = parts
+            .Where(part => !string.IsNullOrWhiteSpace(part.AttributeId))
+            .Select(part => new VariantNameFormulaPartInput
+            {
+                AttributeId = part.AttributeId.Trim(),
+                Separator = NormalizeFormulaSeparator(part.Separator),
+                SortOrder = part.SortOrder
+            })
             .ToList();
 
         return true;
@@ -1330,7 +1400,14 @@ public abstract partial class CatalogManagementController
             return string.Empty;
         }
 
-        return string.IsNullOrEmpty(separator) ? " " : separator;
+        return separator is null ? " " : separator;
+    }
+
+    private sealed class VariantNameFormulaPartInput
+    {
+        public string AttributeId { get; set; } = string.Empty;
+        public string? Separator { get; set; }
+        public int SortOrder { get; set; }
     }
 
     private static IReadOnlyList<string> ParseSelectedIds(string? selectedIds)

@@ -449,6 +449,11 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("FormulaRef")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Separator")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("text");
+
                     b.Property<string>("ModifiedByUserId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");

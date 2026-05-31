@@ -9,6 +9,7 @@ public sealed class CategoryVariantNameFormulaPartReadModelConfig : IEntityTypeC
     public void Configure(EntityTypeBuilder<CategoryVariantNameFormulaPartReadModel> builder)
     {
         builder.ToTable("CategoryVariantNameFormulaParts");
+        builder.Property(x => x.Separator).HasMaxLength(16);
         builder.HasIndex(x => new { x.FormulaRef, x.SortOrder }).IsUnique();
         builder.HasIndex(x => new { x.FormulaRef, x.AttributeRef }).IsUnique();
     }

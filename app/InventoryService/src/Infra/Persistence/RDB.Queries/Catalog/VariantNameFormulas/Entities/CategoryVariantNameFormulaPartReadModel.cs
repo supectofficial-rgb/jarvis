@@ -6,5 +6,6 @@ public class CategoryVariantNameFormulaPartReadModel
     public Guid BusinessKey { get; set; }
     public Guid FormulaRef { get; set; }
     public Guid AttributeRef { get; set; }
+    public string Separator { get; set; } = string.Empty;
     public int SortOrder { get; set; }
 }

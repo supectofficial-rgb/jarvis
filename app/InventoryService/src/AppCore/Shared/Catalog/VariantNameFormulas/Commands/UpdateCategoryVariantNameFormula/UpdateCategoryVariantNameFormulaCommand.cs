@@ -1,5 +1,6 @@
 namespace Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Commands.UpdateCategoryVariantNameFormula;
 
+using Insurance.InventoryService.AppCore.Shared.Catalog.VariantNameFormulas.Commands;
 using OysterFx.AppCore.Shared.Commands;
 
 public class UpdateCategoryVariantNameFormulaCommand : ICommand<UpdateCategoryVariantNameFormulaCommandResult>
@@ -10,4 +11,5 @@ public class UpdateCategoryVariantNameFormulaCommand : ICommand<UpdateCategoryVa
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
     public List<Guid> AttributeRefs { get; set; } = new();
+    public List<CategoryVariantNameFormulaPartCommand> Parts { get; set; } = new();
 }

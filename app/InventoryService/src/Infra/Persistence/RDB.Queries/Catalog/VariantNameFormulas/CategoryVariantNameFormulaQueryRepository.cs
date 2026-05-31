@@ -77,6 +77,7 @@ public class CategoryVariantNameFormulaQueryRepository
                         {
                             PartBusinessKey = x.Part.BusinessKey,
                             AttributeRef = x.Part.AttributeRef,
+                            Separator = x.Part.Separator,
                             AttributeCode = x.Attribute?.Code ?? string.Empty,
                             AttributeName = attributeName,
                             DataType = x.Attribute?.DataType.ToString() ?? string.Empty,
@@ -84,6 +85,9 @@ public class CategoryVariantNameFormulaQueryRepository
                             SortOrder = x.Part.SortOrder
                         };
                     })
+                    .ToList();
+                var previewParts = partItems
+                    .Where(x => !string.IsNullOrWhiteSpace(x.AttributeName))
                     .ToList();
 
                 return new CategoryVariantNameFormulaItem
@@ -94,7 +98,10 @@ public class CategoryVariantNameFormulaQueryRepository
                     Separator = formula.Separator,
                     DisplayOrder = formula.DisplayOrder,
                     IsActive = formula.IsActive,
-                    Preview = string.Join(formula.Separator, partItems.Select(x => x.AttributeName).Where(x => !string.IsNullOrWhiteSpace(x))),
+                    Preview = string.Concat(previewParts.Select((x, index) =>
+                        index < previewParts.Count - 1
+                            ? $"{x.AttributeName}{x.Separator}"
+                            : x.AttributeName)),
                     Parts = partItems
                 };
             })

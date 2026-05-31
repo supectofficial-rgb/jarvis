@@ -433,6 +433,9 @@
                 update: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.update"])),
                 empty: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.emptyParts"])),
                 inheritedSuffix: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.inheritedSuffix"])),
+                separatorDash: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.separator.dash"])),
+                separatorSpace: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.separator.space"])),
+                separatorNone: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.formulas.separator.none"])),
                 editTitle: @Html.Raw(JsonSerializer.Serialize(UiText["catalog.categories.variantFormulaEdit"]))
             };
 
@@ -448,6 +451,7 @@
                     .ThenBy(x => x.AttributeName)
                     .Select(part => new {
                         attributeId = part.AttributeId,
+                        separator = part.Separator,
                         attributeName = part.AttributeName,
                         attributeCode = part.AttributeCode,
                         sortOrder = part.SortOrder
@@ -467,6 +471,7 @@
             var createCategoryField = document.getElementById('VariantNameFormulaForm_Create_CategoryId');
             var createPartsJsonField = document.getElementById('VariantNameFormulaForm_Create_PartsJson');
             var createAttributePicker = document.getElementById('formula-create-attribute-picker');
+            var createSeparatorField = document.getElementById('VariantNameFormulaForm_Create_Separator');
             var createAddPartBtn = document.getElementById('formula-create-add-part-btn');
             var createPartsList = document.getElementById('formula-create-parts-list');
             var createPartsEmpty = document.getElementById('formula-create-parts-empty');
@@ -501,6 +506,50 @@
                 parts: [],
                 editingPartIndex: -1
             };
+
+            function normalizeSeparatorValue(separator) {
+                if (separator === '__none') {
+                    return '';
+                }
+
+                return separator == null ? ' ' : separator;
+            }
+
+            function getSeparatorValue(field) {
+                if (!field) {
+                    return ' ';
+                }
+
+                return normalizeSeparatorValue(field.value);
+            }
+
+            function setSeparatorValue(field, value) {
+                if (!field) {
+                    return;
+                }
+
+                field.value = value === '' ? '__none' : (value || ' ');
+                if (window.jQuery) {
+                    window.jQuery(field).val(field.value).trigger('change');
+                }
+            }
+
+            function clonePart(part) {
+                return {
+                    attributeId: part ? part.attributeId || '' : '',
+                    separator: part ? normalizeSeparatorValue(part.separator) : ' '
+                };
+            }
+
+            function serializeParts(parts) {
+                return (parts || []).map(function (part, index) {
+                    return {
+                        attributeId: part.attributeId,
+                        separator: normalizeSeparatorValue(part.separator),
+                        sortOrder: index + 1
+                    };
+                });
+            }
 
             function getFormulaById(formulaId) {
                 if (!formulaId) {
@@ -563,7 +612,7 @@
 
             function syncInlinePartsJson() {
                 if (inlinePartsJsonField) {
-                    inlinePartsJsonField.value = JSON.stringify(state.parts);
+                    inlinePartsJsonField.value = JSON.stringify(serializeParts(state.parts));
                 }
             }
 
@@ -581,6 +630,22 @@
                 state.editingPartIndex = -1;
                 setPickerValue('');
                 updateInlineButtons();
+            }
+
+            function getSeparatorLabel(separator) {
+                if (separator === '') {
+                    return texts.separatorNone;
+                }
+
+                if (separator === ' ') {
+                    return texts.separatorSpace;
+                }
+
+                if (separator === '-') {
+                    return texts.separatorDash;
+                }
+
+                return separator;
             }
 
             function renderParts() {
@@ -602,18 +667,19 @@
 
                 partsEmpty.style.display = 'none';
 
-                state.parts.forEach(function (attributeId, index) {
-                    var attribute = getAttributeById(attributeId);
+                state.parts.forEach(function (part, index) {
+                    var attribute = getAttributeById(part.attributeId);
                     var item = document.createElement('div');
                     item.className = 'list-group-item';
                     item.innerHTML = ''
                         + '<div class="d-flex justify-content-between align-items-center flex-wrap">'
                         + '<div class="pr-2 mb-2 mb-md-0">'
-                        + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : attributeId) + '</div>'
+                        + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : part.attributeId) + '</div>'
                         + '<div class="small text-muted">'
                         + escapeHtml(attribute ? attribute.attributeCode : '')
                         + (attribute && attribute.isInherited ? escapeHtml(texts.inheritedSuffix) : '')
                         + '</div>'
+                        + '<div class="small text-muted">' + escapeHtml(getSeparatorLabel(part.separator)) + '</div>'
                         + '</div>'
                         + '<div class="btn-group btn-group-sm" role="group">'
                         + '<button type="button" class="btn btn-outline-secondary formula-part-action" data-formula-action="up" data-formula-index="' + index + '"' + (index === 0 ? ' disabled' : '') + '>&uarr;</button>'
@@ -653,7 +719,10 @@
                     inlineNameField.value = formula.name || '';
                 }
                 if (inlineSeparatorField) {
-                    inlineSeparatorField.value = formula.separator === '' ? '__none' : (formula.separator || ' ');
+                    var firstSeparator = (formula.parts && formula.parts.length > 0 && formula.parts[0].separator != null)
+                        ? formula.parts[0].separator
+                        : formula.separator;
+                    setSeparatorValue(inlineSeparatorField, normalizeSeparatorValue(firstSeparator));
                 }
                 if (inlineDisplayOrderField) {
                     inlineDisplayOrderField.value = formula.displayOrder != null ? formula.displayOrder : 0;
@@ -663,7 +732,7 @@
                 }
 
                 state.parts = (formula.parts || []).map(function (part) {
-                    return part.attributeId;
+                    return clonePart(part);
                 });
 
                 clearPartEditing();
@@ -698,22 +767,29 @@
                 if (!attributeId) {
                     return;
                 }
+                var separator = getSeparatorValue(inlineSeparatorField);
 
                 var normalized = String(attributeId).toLowerCase();
-                var existingIndex = state.parts.findIndex(function (partId) {
-                    return String(partId).toLowerCase() === normalized;
+                var existingIndex = state.parts.findIndex(function (part) {
+                    return String(part.attributeId || '').toLowerCase() === normalized;
                 });
 
                 if (state.editingPartIndex >= 0) {
                     if (existingIndex >= 0 && existingIndex !== state.editingPartIndex) {
                         return;
                     }
-                    state.parts[state.editingPartIndex] = attributeId;
+                    state.parts[state.editingPartIndex] = {
+                        attributeId: attributeId,
+                        separator: separator
+                    };
                 } else {
                     if (existingIndex >= 0) {
                         return;
                     }
-                    state.parts.push(attributeId);
+                    state.parts.push({
+                        attributeId: attributeId,
+                        separator: separator
+                    });
                 }
 
                 clearPartEditing();
@@ -759,7 +835,8 @@
                 }
 
                 state.editingPartIndex = index;
-                setPickerValue(state.parts[index]);
+                setPickerValue(state.parts[index].attributeId);
+                setSeparatorValue(inlineSeparatorField, normalizeSeparatorValue(state.parts[index].separator));
                 updateInlineButtons();
                 if (attributePicker) {
                     attributePicker.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -768,7 +845,7 @@
 
             function syncCreateParts() {
                 if (createPartsJsonField) {
-                    createPartsJsonField.value = JSON.stringify(createState.parts);
+                    createPartsJsonField.value = JSON.stringify(serializeParts(createState.parts));
                 }
             }
 
@@ -833,18 +910,19 @@
 
                 createPartsEmpty.style.display = 'none';
 
-                createState.parts.forEach(function (attributeId, index) {
-                    var attribute = getAttributeById(attributeId);
+                createState.parts.forEach(function (part, index) {
+                    var attribute = getAttributeById(part.attributeId);
                     var item = document.createElement('div');
                     item.className = 'list-group-item';
                     item.innerHTML = ''
                         + '<div class="d-flex justify-content-between align-items-center flex-wrap">'
                         + '<div class="pr-2 mb-2 mb-md-0">'
-                        + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : attributeId) + '</div>'
+                        + '<div class="font-weight-bold">' + escapeHtml(attribute ? attribute.attributeName : part.attributeId) + '</div>'
                         + '<div class="small text-muted">'
                         + escapeHtml(attribute ? attribute.attributeCode : '')
                         + (attribute && attribute.isInherited ? escapeHtml(texts.inheritedSuffix) : '')
                         + '</div>'
+                        + '<div class="small text-muted">' + escapeHtml(getSeparatorLabel(part.separator)) + '</div>'
                         + '</div>'
                         + '<div class="btn-group btn-group-sm" role="group">'
                         + '<button type="button" class="btn btn-outline-secondary formula-create-part-action" data-formula-action="up" data-formula-index="' + index + '"' + (index === 0 ? ' disabled' : '') + '>&uarr;</button>'
@@ -865,22 +943,29 @@
                 if (!attributeId) {
                     return;
                 }
+                var separator = getSeparatorValue(createSeparatorField);
 
                 var normalized = String(attributeId).toLowerCase();
-                var existingIndex = createState.parts.findIndex(function (partId) {
-                    return String(partId).toLowerCase() === normalized;
+                var existingIndex = createState.parts.findIndex(function (part) {
+                    return String(part.attributeId || '').toLowerCase() === normalized;
                 });
 
                 if (createState.editingPartIndex >= 0) {
                     if (existingIndex >= 0 && existingIndex !== createState.editingPartIndex) {
                         return;
                     }
-                    createState.parts[createState.editingPartIndex] = attributeId;
+                    createState.parts[createState.editingPartIndex] = {
+                        attributeId: attributeId,
+                        separator: separator
+                    };
                 } else {
                     if (existingIndex >= 0) {
                         return;
                     }
-                    createState.parts.push(attributeId);
+                    createState.parts.push({
+                        attributeId: attributeId,
+                        separator: separator
+                    });
                 }
 
                 clearCreatePartEditing();
@@ -912,7 +997,8 @@
                 }
 
                 createState.editingPartIndex = index;
-                setCreatePickerValue(createState.parts[index]);
+                setCreatePickerValue(createState.parts[index].attributeId);
+                setSeparatorValue(createSeparatorField, normalizeSeparatorValue(createState.parts[index].separator));
                 updateCreateButtons();
                 if (createAttributePicker) {
                     createAttributePicker.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -22,7 +22,7 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
         string name,
         string? separator,
         int displayOrder,
-        IEnumerable<Guid> attributeRefs,
+        IEnumerable<(Guid AttributeRef, string? Separator, int SortOrder)> parts,
         bool isActive = true)
     {
         if (categoryRef == Guid.Empty)
@@ -36,29 +36,64 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
             DisplayOrder = displayOrder,
             IsActive = isActive
         };
-        formula.ReplaceParts(attributeRefs);
+        formula.ReplaceParts(parts);
         return formula;
     }
 
-    public void Update(string name, string? separator, int displayOrder, IEnumerable<Guid> attributeRefs, bool isActive)
+    public static CategoryVariantNameFormula Create(
+        Guid categoryRef,
+        string name,
+        string? separator,
+        int displayOrder,
+        IEnumerable<Guid> attributeRefs,
+        bool isActive = true)
+    {
+        var parts = (attributeRefs ?? Array.Empty<Guid>())
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .Select((attributeRef, index) => (AttributeRef: attributeRef, Separator: (string?)separator, SortOrder: index + 1))
+            .ToList();
+
+        return Create(categoryRef, name, separator, displayOrder, parts, isActive);
+    }
+
+    public void Update(
+        string name,
+        string? separator,
+        int displayOrder,
+        IEnumerable<(Guid AttributeRef, string? Separator, int SortOrder)> parts,
+        bool isActive)
     {
         Name = NormalizeRequired(name, nameof(name));
         Separator = NormalizeSeparator(separator);
         DisplayOrder = displayOrder;
         IsActive = isActive;
-        ReplaceParts(attributeRefs);
+        ReplaceParts(parts);
     }
 
-    private void ReplaceParts(IEnumerable<Guid> attributeRefs)
+    public void Update(string name, string? separator, int displayOrder, IEnumerable<Guid> attributeRefs, bool isActive)
     {
-        var distinctRefs = (attributeRefs ?? Array.Empty<Guid>())
+        var parts = (attributeRefs ?? Array.Empty<Guid>())
             .Where(x => x != Guid.Empty)
             .Distinct()
+            .Select((attributeRef, index) => (AttributeRef: attributeRef, Separator: (string?)separator, SortOrder: index + 1))
+            .ToList();
+
+        Update(name, separator, displayOrder, parts, isActive);
+    }
+
+    private void ReplaceParts(IEnumerable<(Guid AttributeRef, string? Separator, int SortOrder)> parts)
+    {
+        var normalizedParts = (parts ?? Array.Empty<(Guid AttributeRef, string? Separator, int SortOrder)>())
+            .Where(x => x.AttributeRef != Guid.Empty)
+            .GroupBy(x => x.AttributeRef)
+            .Select(x => x.First())
+            .OrderBy(x => x.SortOrder)
             .ToList();
 
         _parts.Clear();
-        for (var i = 0; i < distinctRefs.Count; i++)
-            _parts.Add(CategoryVariantNameFormulaPart.Create(BusinessKey.Value, distinctRefs[i], i + 1));
+        for (var i = 0; i < normalizedParts.Count; i++)
+            _parts.Add(CategoryVariantNameFormulaPart.Create(BusinessKey.Value, normalizedParts[i].AttributeRef, normalizedParts[i].Separator, i + 1));
     }
 
     private static string NormalizeRequired(string value, string paramName)
@@ -69,5 +104,5 @@ public sealed class CategoryVariantNameFormula : AggregateRoot
         return value.Trim();
     }
 
-    private static string NormalizeSeparator(string? value) => string.IsNullOrEmpty(value) ? " " : value;
+    private static string NormalizeSeparator(string? value) => value is null ? " " : value;
 }

@@ -7,13 +7,14 @@ public sealed class CategoryVariantNameFormulaPart : Aggregate
 {
     public BusinessKey FormulaRef { get; private set; } = null!;
     public Guid AttributeRef { get; private set; }
+    public string Separator { get; private set; } = string.Empty;
     public int SortOrder { get; private set; }
 
     private CategoryVariantNameFormulaPart()
     {
     }
 
-    internal static CategoryVariantNameFormulaPart Create(Guid formulaRef, Guid attributeRef, int sortOrder)
+    internal static CategoryVariantNameFormulaPart Create(Guid formulaRef, Guid attributeRef, string? separator, int sortOrder)
     {
         if (formulaRef == Guid.Empty)
             throw new ArgumentException("FormulaRef is required.", nameof(formulaRef));
@@ -25,7 +26,10 @@ public sealed class CategoryVariantNameFormulaPart : Aggregate
         {
             FormulaRef = BusinessKey.FromGuid(formulaRef),
             AttributeRef = attributeRef,
+            Separator = NormalizeSeparator(separator),
             SortOrder = sortOrder
         };
     }
+
+    private static string NormalizeSeparator(string? value) => value is null ? " " : value;
 }

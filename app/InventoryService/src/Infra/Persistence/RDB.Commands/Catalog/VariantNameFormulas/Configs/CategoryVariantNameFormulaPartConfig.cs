@@ -10,6 +10,7 @@ public sealed class CategoryVariantNameFormulaPartConfig : IEntityTypeConfigurat
     public void Configure(EntityTypeBuilder<CategoryVariantNameFormulaPart> builder)
     {
         builder.ToTable("CategoryVariantNameFormulaParts");
+        builder.Property(x => x.Separator).HasMaxLength(16);
         builder.Property(x => x.FormulaRef)
             .HasConversion(
                 key => key.Value,

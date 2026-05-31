@@ -274,7 +274,15 @@ public sealed class ApiService : IApiService
             Separator = NormalizeOptional(request.Separator) ?? " ",
             DisplayOrder = request.DisplayOrder,
             IsActive = request.IsActive,
-            AttributeRefs = MapGuidList(request.AttributeIds)
+            Parts = request.Parts
+                .Where(part => !string.IsNullOrWhiteSpace(part.AttributeId))
+                .Select((part, index) => new
+                {
+                    AttributeRef = ParseNullableGuid(part.AttributeId) ?? Guid.Empty,
+                    Separator = part.Separator ?? " ",
+                    SortOrder = part.SortOrder > 0 ? part.SortOrder : index + 1
+                })
+                .ToList()
         };
 
         return PostCommandAsync(
@@ -295,7 +303,15 @@ public sealed class ApiService : IApiService
             Separator = NormalizeOptional(request.Separator) ?? " ",
             DisplayOrder = request.DisplayOrder,
             IsActive = request.IsActive,
-            AttributeRefs = MapGuidList(request.AttributeIds)
+            Parts = request.Parts
+                .Where(part => !string.IsNullOrWhiteSpace(part.AttributeId))
+                .Select((part, index) => new
+                {
+                    AttributeRef = ParseNullableGuid(part.AttributeId) ?? Guid.Empty,
+                    Separator = part.Separator ?? " ",
+                    SortOrder = part.SortOrder > 0 ? part.SortOrder : index + 1
+                })
+                .ToList()
         };
 
         return PutCommandAsync(
@@ -2319,6 +2335,7 @@ public sealed class ApiService : IApiService
         {
             PartId = item.PartBusinessKey.ToString("D"),
             AttributeId = item.AttributeRef.ToString("D"),
+            Separator = item.Separator,
             AttributeCode = item.AttributeCode,
             AttributeName = item.AttributeName,
             DataType = item.DataType,
@@ -2928,6 +2945,7 @@ public sealed class ApiService : IApiService
     {
         public Guid PartBusinessKey { get; set; }
         public Guid AttributeRef { get; set; }
+        public string Separator { get; set; } = string.Empty;
         public string AttributeCode { get; set; } = string.Empty;
         public string AttributeName { get; set; } = string.Empty;
         public string DataType { get; set; } = string.Empty;

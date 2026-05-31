@@ -38,17 +38,20 @@ public class UpdateCategoryVariantNameFormulaCommandHandler
 
         var allowedAttributes = await _categoryQueryRepository.GetCategoryAttributeRulesByCategoryIdAsync(aggregate.CategoryRef, includeInherited: true, includeInactive: false);
         var allowedAttributeRefs = allowedAttributes.Select(x => x.AttributeRef).ToHashSet();
-        var attributeRefs = (command.AttributeRefs ?? new List<Guid>())
-            .Where(x => x != Guid.Empty)
-            .Distinct()
-            .ToList();
+        var parts = ResolveParts(command);
+        var attributeRefs = parts.Select(x => x.AttributeRef).ToList();
 
         if (attributeRefs.Any(x => !allowedAttributeRefs.Contains(x)))
             return Fail("Formula contains attributes that are not assigned to the selected category.");
 
         try
         {
-            aggregate.Update(normalizedName, command.Separator, command.DisplayOrder, attributeRefs, command.IsActive);
+            aggregate.Update(
+                normalizedName,
+                command.Separator,
+                command.DisplayOrder,
+                parts.Select(x => (x.AttributeRef, x.Separator, x.SortOrder)).ToList(),
+                command.IsActive);
             await _repository.CommitAsync();
             return Ok(new UpdateCategoryVariantNameFormulaCommandResult { FormulaBusinessKey = aggregate.BusinessKey.Value });
         }
@@ -56,5 +59,35 @@ public class UpdateCategoryVariantNameFormulaCommandHandler
         {
             return Fail($"Updating variant name formula failed: {ex.Message}");
         }
+    }
+
+    private static List<CategoryVariantNameFormulaPartCommand> ResolveParts(UpdateCategoryVariantNameFormulaCommand command)
+    {
+        if (command.Parts.Count > 0)
+        {
+            return command.Parts
+                .Where(x => x.AttributeRef != Guid.Empty)
+                .GroupBy(x => x.AttributeRef)
+                .Select(x => x.First())
+                .OrderBy(x => x.SortOrder)
+                .Select((part, index) => new CategoryVariantNameFormulaPartCommand
+                {
+                    AttributeRef = part.AttributeRef,
+                    Separator = part.Separator,
+                    SortOrder = index + 1
+                })
+                .ToList();
+        }
+
+        return (command.AttributeRefs ?? new List<Guid>())
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .Select((attributeRef, index) => new CategoryVariantNameFormulaPartCommand
+            {
+                AttributeRef = attributeRef,
+                Separator = command.Separator,
+                SortOrder = index + 1
+            })
+            .ToList();
     }
 }

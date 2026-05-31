@@ -16,6 +16,7 @@ public class CategoryVariantNameFormulaPartItem
 {
     public Guid PartBusinessKey { get; set; }
     public Guid AttributeRef { get; set; }
+    public string Separator { get; set; } = string.Empty;
     public string AttributeCode { get; set; } = string.Empty;
     public string AttributeName { get; set; } = string.Empty;
     public string DataType { get; set; } = string.Empty;
