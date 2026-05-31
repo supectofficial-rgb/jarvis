@@ -240,10 +240,6 @@
                                     <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]" data-ajax-url="/InventoryManagement/Documents/Return/ReferenceSearch" data-ajax-extra-params='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { referenceDocumentType = returnReferenceDocumentType }))' data-ajax-result-mode="document" data-ajax-local-init="true" data-return-reference-document-type="@returnReferenceDocumentType">
                                         <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
                                     </select>
-                                    <input type="hidden" asp-for="CreateForm.ReferenceType" id="return-reference-type-input" value="@returnReferenceDocumentType" />
-                                    <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="return-reference-id-input" />
-                                    <input type="hidden" asp-for="CreateForm.WarehouseRef" id="return-warehouse-ref-input" />
-                                    <input type="hidden" asp-for="CreateForm.SellerRef" id="return-seller-ref-input" />
                                     <div class="mt-2 d-none" id="return-reference-selected">
                                         <div class="alert alert-light border mb-2 py-2">
                                             <strong>@UiText["inventory.documents.return.referenceSelected"]</strong>
@@ -251,10 +247,22 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="form-group col-md-2">
+                                    <label>@UiText["inventory.documents.referenceType"]</label>
+                                    <input asp-for="CreateForm.ReferenceType" id="return-reference-type-input" class="form-control" value="@returnReferenceDocumentType" readonly />
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label>@UiText["inventory.documents.referenceId"]</label>
+                                    <input asp-for="CreateForm.ReferenceBusinessId" id="return-reference-id-input" class="form-control text-monospace" readonly />
+                                </div>
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
                                     <input type="hidden" asp-for="CreateForm.OccurredAt" id="return-occurred-at-value" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
                                     <input type="text" class="form-control datepicker" data-date-picker-target="#return-occurred-at-value" data-date-format="yyyy/mm/dd" value="@Model.CreateForm.OccurredAt.ToString("yyyy/MM/dd")" autocomplete="off" />
+                                </div>
+                                <div class="form-group col-md-1 d-none">
+                                    <input type="hidden" asp-for="CreateForm.WarehouseRef" id="return-warehouse-ref-input" />
+                                    <input type="hidden" asp-for="CreateForm.SellerRef" id="return-seller-ref-input" />
                                 </div>
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.reason"]</label>
@@ -1254,6 +1262,31 @@
                 updateReturnLineSerials(firstLine);
             }
 
+            if (returnReferenceTypeInput) {
+                returnReferenceTypeInput.value = returnReferenceDocumentType;
+            }
+
+            function syncReturnReferenceInputsFromSelect() {
+                if (!returnReferenceSelect) {
+                    return false;
+                }
+
+                var selectedValue = String(returnReferenceSelect.value || '').trim();
+                if (!selectedValue) {
+                    return false;
+                }
+
+                if (returnReferenceIdInput) {
+                    returnReferenceIdInput.value = selectedValue;
+                }
+
+                if (returnReferenceTypeInput) {
+                    returnReferenceTypeInput.value = returnReferenceDocumentType;
+                }
+
+                return true;
+            }
+
             function updateReturnLineSerials(line) {
                 var variantSelect = line.querySelector('.document-variant-select');
                 if (!variantSelect) {
@@ -1582,11 +1615,17 @@
                 var $returnReferenceSelect = window.jQuery(returnReferenceSelect);
                 $returnReferenceSelect.off('select2:select.returnReference').on('select2:select.returnReference', function (event) {
                     var data = event.params && event.params.data ? event.params.data : null;
-                    if (!data || !data.document) {
+                    var selectedKey = data && (data.documentBusinessKey || data.id || data.value || '');
+                    if (!selectedKey) {
                         return;
                     }
 
-                    selectReturnReferenceDocument(data.document).catch(function (error) {
+                    var selectedDocument = data && data.document ? data.document : null;
+                    var selectionPayload = selectedDocument
+                        ? selectedDocument
+                        : { documentBusinessKey: selectedKey };
+
+                    selectReturnReferenceDocument(selectionPayload).catch(function (error) {
                         console.error(error);
                     });
                 });
@@ -1616,6 +1655,21 @@
                     resetReturnLineDraftsForReferenceChange();
                     refreshReturnVariantOptions();
                 });
+
+                $returnReferenceSelect.off('change.returnReferenceSync').on('change.returnReferenceSync', function () {
+                    var selectedValue = String(this.value || '').trim();
+                    if (!selectedValue) {
+                        return;
+                    }
+
+                    if (returnReferenceIdInput) {
+                        returnReferenceIdInput.value = selectedValue;
+                    }
+
+                    if (returnReferenceTypeInput) {
+                        returnReferenceTypeInput.value = returnReferenceDocumentType;
+                    }
+                });
             }
 
             function firstField(line, selector) {
@@ -1643,6 +1697,9 @@
 
                 var config = selectedConfig();
                 var isReturnDocument = ['Return', 'ReturnFromSell', 'ReturnFromBuy', 'ReturnFromTransfer'].indexOf(documentTypeSelect ? documentTypeSelect.value : 'Receipt') > -1;
+                if (isReturnDocument) {
+                    syncReturnReferenceInputsFromSelect();
+                }
                 if (isReturnDocument && (!returnReferenceIdInput || !returnReferenceIdInput.value)) {
                     showValidation('@UiText["inventory.documents.return.referenceLabel"]', returnReferenceSelect || createForm);
                     return false;

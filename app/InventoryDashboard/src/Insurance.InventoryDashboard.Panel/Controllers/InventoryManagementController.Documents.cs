@@ -2573,6 +2573,11 @@ public sealed partial class InventoryManagementController
         var isUpdate = !string.IsNullOrWhiteSpace(form.DocumentId);
         var isReceiptDocument = string.Equals(form.DocumentType, "Receipt", StringComparison.OrdinalIgnoreCase);
         var isReturnDocument = IsReturnDocumentType(form.DocumentType);
+        var returnReferenceDocumentType = ResolveReturnReferenceDocumentType(form.ReferenceType, form.DocumentType);
+        if (isReturnDocument && string.IsNullOrWhiteSpace(form.ReferenceType))
+        {
+            form.ReferenceType = returnReferenceDocumentType;
+        }
         form.Lines ??= new List<CreateInventoryDocumentLineForm>();
 
         if (isUpdate)
@@ -2591,7 +2596,6 @@ public sealed partial class InventoryManagementController
         }
 
         var routeActionName = ResolveDocumentRouteActionName(form.DocumentType, form.ReferenceType);
-        var returnReferenceDocumentType = ResolveReturnReferenceDocumentType(form.ReferenceType, form.DocumentType);
 
         if (!TryValidateModel(form))
         {

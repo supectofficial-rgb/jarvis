@@ -31,74 +31,81 @@ public class CreateProductCommandHandler : CommandHandler<CreateProductCommand, 
 
     public override async Task<CommandResult<CreateProductCommandResult>> Handle(CreateProductCommand command)
     {
-        if (command.CategoryRef == Guid.Empty)
-            return Fail("CategoryRef is required.");
-
-        if (command.DefaultUomRef == Guid.Empty)
-            return Fail("DefaultUomRef is required.");
-
-        if (string.IsNullOrWhiteSpace(command.BaseSku))
-            return Fail("BaseSku is required.");
-
-        if (string.IsNullOrWhiteSpace(command.Name))
-            return Fail("Name is required.");
-
-        var normalizedBaseSku = command.BaseSku.Trim();
-        if (await _productRepository.ExistsByBaseSkuAsync(normalizedBaseSku))
-            return Fail($"Product base sku '{normalizedBaseSku}' already exists.");
-
-        var category = await _categoryRepository.GetByBusinessKeyAsync(command.CategoryRef);
-        if (category is null)
-            return Fail("Category was not found.");
-
-        if (!category.IsActive)
-            return Fail("Product cannot be created under inactive category.");
-
-        var categorySchemaVersionRef = category.CurrentSchemaVersionRef;
-
-        var uom = await _uomRepository.GetByBusinessKeyAsync(command.DefaultUomRef);
-        if (uom is null)
-            return Fail("Default unit of measure was not found.");
-
-        if (!uom.IsActive)
-            return Fail("Default unit of measure must be active.");
-
-        var attributes = (command.AttributeValues ?? new List<CreateProductAttributeValueItem>())
-            .Where(x => x.AttributeRef != Guid.Empty)
-            .GroupBy(x => x.AttributeRef)
-            .Select(x => x.Last())
-            .Select(x => new ProductAttributeInput(x.AttributeRef, x.Value, x.OptionRef))
-            .ToList();
-
-        var attributeValidationError = await ValidateProductAttributesAsync(category, categorySchemaVersionRef, attributes);
-        if (attributeValidationError is not null)
-            return Fail(attributeValidationError);
-
-        var aggregate = Product.Create(
-            command.CategoryRef,
-            categorySchemaVersionRef,
-            normalizedBaseSku,
-            command.Name.Trim(),
-            command.DefaultUomRef,
-            command.TaxCategoryRef,
-            command.ImageFileKey,
-            command.ImageUrl,
-            command.ImageThumbnailUrl);
-
-        foreach (var attribute in attributes)
-            aggregate.SetAttributeValue(attribute.AttributeRef, attribute.Value, attribute.OptionRef);
-
-        await _productRepository.InsertAsync(aggregate);
-        await _productRepository.CommitAsync();
-
-        return Ok(new CreateProductCommandResult
+        try
         {
-            ProductBusinessKey = aggregate.BusinessKey.Value,
-            CategorySchemaVersionRef = aggregate.CategorySchemaVersionRef,
-            BaseSku = aggregate.BaseSku,
-            Name = aggregate.Name,
-            IsActive = aggregate.IsActive
-        });
+            if (command.CategoryRef == Guid.Empty)
+                return Fail("CategoryRef is required.");
+
+            if (command.DefaultUomRef == Guid.Empty)
+                return Fail("DefaultUomRef is required.");
+
+            if (string.IsNullOrWhiteSpace(command.BaseSku))
+                return Fail("BaseSku is required.");
+
+            if (string.IsNullOrWhiteSpace(command.Name))
+                return Fail("Name is required.");
+
+            var normalizedBaseSku = command.BaseSku.Trim();
+            if (await _productRepository.ExistsByBaseSkuAsync(normalizedBaseSku))
+                return Fail($"Product base sku '{normalizedBaseSku}' already exists.");
+
+            var category = await _categoryRepository.GetByBusinessKeyAsync(command.CategoryRef);
+            if (category is null)
+                return Fail("Category was not found.");
+
+            if (!category.IsActive)
+                return Fail("Product cannot be created under inactive category.");
+
+            var categorySchemaVersionRef = category.CurrentSchemaVersionRef;
+
+            var uom = await _uomRepository.GetByBusinessKeyAsync(command.DefaultUomRef);
+            if (uom is null)
+                return Fail("Default unit of measure was not found.");
+
+            if (!uom.IsActive)
+                return Fail("Default unit of measure must be active.");
+
+            var attributes = (command.AttributeValues ?? new List<CreateProductAttributeValueItem>())
+                .Where(x => x.AttributeRef != Guid.Empty)
+                .GroupBy(x => x.AttributeRef)
+                .Select(x => x.Last())
+                .Select(x => new ProductAttributeInput(x.AttributeRef, x.Value, x.OptionRef))
+                .ToList();
+
+            var attributeValidationError = await ValidateProductAttributesAsync(category, categorySchemaVersionRef, attributes);
+            if (attributeValidationError is not null)
+                return Fail(attributeValidationError);
+
+            var aggregate = Product.Create(
+                command.CategoryRef,
+                categorySchemaVersionRef,
+                normalizedBaseSku,
+                command.Name.Trim(),
+                command.DefaultUomRef,
+                command.TaxCategoryRef,
+                command.ImageFileKey,
+                command.ImageUrl,
+                command.ImageThumbnailUrl);
+
+            foreach (var attribute in attributes)
+                aggregate.SetAttributeValue(attribute.AttributeRef, attribute.Value, attribute.OptionRef);
+
+            await _productRepository.InsertAsync(aggregate);
+            await _productRepository.CommitAsync();
+
+            return Ok(new CreateProductCommandResult
+            {
+                ProductBusinessKey = aggregate.BusinessKey.Value,
+                CategorySchemaVersionRef = aggregate.CategorySchemaVersionRef,
+                BaseSku = aggregate.BaseSku,
+                Name = aggregate.Name,
+                IsActive = aggregate.IsActive
+            });
+        }
+        catch (Exception ex)
+        {
+            return Fail($"Creating product failed: {GetExceptionMessage(ex)}");
+        }
     }
 
     private async Task<string?> ValidateProductAttributesAsync(Category category, Guid categorySchemaVersionRef, IReadOnlyCollection<ProductAttributeInput> attributes)
@@ -156,6 +163,19 @@ public class CreateProductCommandHandler : CommandHandler<CreateProductCommand, 
         }
 
         return null;
+    }
+
+    private static string GetExceptionMessage(Exception exception)
+    {
+        var current = exception;
+        while (current.InnerException is not null)
+        {
+            current = current.InnerException;
+        }
+
+        return string.IsNullOrWhiteSpace(current.Message)
+            ? exception.Message
+            : current.Message;
     }
 
     private static string? ValidateAttributeValue(AttributeDefinition definition, string? rawValue, Guid? optionRef)

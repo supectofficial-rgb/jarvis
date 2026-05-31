@@ -931,6 +931,7 @@
             var variantAttributeFiltersSummary = document.getElementById('variant-attribute-filters-summary');
             var variantSearchAttributesUrl = @Html.Raw(JsonSerializer.Serialize(variantSearchAttributesUrl));
             var variantCategorySelect = searchForm ? searchForm.querySelector('select[name="categoryId"]') : null;
+            var lastVariantAttributeFiltersCategoryId = '';
             var detailModal = $('#variant-detail-modal');
             var detailModalTitle = document.getElementById('variant-detail-modal-title');
             var detailModalBody = document.getElementById('variant-detail-modal-body');
@@ -3107,32 +3108,61 @@
                 });
             }
 
-            if (variantCategorySelect && variantCategorySelect.dataset.variantFilterBound !== 'true') {
-                variantCategorySelect.dataset.variantFilterBound = 'true';
-                variantCategorySelect.addEventListener('change', function () {
-                    if (variantAttributeFiltersInput) {
-                        variantAttributeFiltersInput.value = '';
-                    }
+            function handleVariantCategoryChange() {
+                if (!searchForm) {
+                    return;
+                }
 
-                    if (legacyAttributeOptionIdsInput) {
-                        legacyAttributeOptionIdsInput.value = '';
-                    }
+                if (variantAttributeFiltersInput) {
+                    variantAttributeFiltersInput.value = '';
+                }
 
-                    var categoryId = normalizeString(variantCategorySelect.value);
-                    if (!categoryId) {
-                        renderVariantAttributeFilters([], [], []);
-                        savePageState();
+                if (legacyAttributeOptionIdsInput) {
+                    legacyAttributeOptionIdsInput.value = '';
+                }
+
+                var categoryId = normalizeString(readField(searchForm, 'categoryId'));
+                if (!categoryId) {
+                    lastVariantAttributeFiltersCategoryId = '';
+                    renderVariantAttributeFilters([], [], []);
+                    savePageState();
+                    return;
+                }
+
+                if (lastVariantAttributeFiltersCategoryId.toLowerCase() === categoryId.toLowerCase()) {
+                    savePageState();
+                    return;
+                }
+
+                lastVariantAttributeFiltersCategoryId = categoryId;
+                loadVariantAttributeFilters(categoryId, [], []).catch(function (error) {
+                    console.error(error);
+                    if (variantAttributeFiltersPanel) {
+                        variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">بارگذاری فیلترهای اتریبیوت با خطا مواجه شد.</div>';
+                    }
+                });
+                savePageState();
+            }
+
+            if (searchForm && searchForm.dataset.variantFilterBound !== 'true') {
+                searchForm.dataset.variantFilterBound = 'true';
+                searchForm.addEventListener('change', function (event) {
+                    var target = event && event.target ? event.target : null;
+                    if (!target || target.name !== 'categoryId') {
                         return;
                     }
 
-                    loadVariantAttributeFilters(categoryId, [], []).catch(function (error) {
-                        console.error(error);
-                        if (variantAttributeFiltersPanel) {
-                            variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">بارگذاری فیلترهای اتریبیوت با خطا مواجه شد.</div>';
-                        }
-                    });
-                    savePageState();
+                    handleVariantCategoryChange();
                 });
+            }
+
+            if (variantCategorySelect && variantCategorySelect.dataset.variantFilterBound !== 'true') {
+                variantCategorySelect.dataset.variantFilterBound = 'true';
+                if (window.jQuery) {
+                    window.jQuery(variantCategorySelect).on('select2:select select2:clear', function () {
+                        handleVariantCategoryChange();
+                    });
+                }
             }
 
             initializeVariantAttributeFilters();
