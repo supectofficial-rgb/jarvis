@@ -25,12 +25,6 @@ public sealed class VariantAddOnConfig : IEntityTypeConfiguration<VariantAddOn>
             .IsUnique()
             .HasFilter("\"TagId\" IS NOT NULL");
 
-        builder.HasOne<Tag>()
-            .WithMany()
-            .HasForeignKey(x => x.TagId)
-            .HasPrincipalKey(x => x.BusinessKey)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne<ProductVariant>()
             .WithMany(x => x.AddOns)
             .HasForeignKey(x => x.VariantRef)
