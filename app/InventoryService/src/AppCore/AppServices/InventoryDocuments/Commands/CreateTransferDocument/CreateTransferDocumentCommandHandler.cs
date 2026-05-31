@@ -21,6 +21,7 @@ public class CreateTransferDocumentCommandHandler : CommandHandler<CreateTransfe
         var result = await _creationService.CreateAsync(
             InventoryDocumentType.Transfer,
             command.DocumentNo,
+            command.ExternalReferenceNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
             command.WarehouseRef,

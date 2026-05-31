@@ -163,6 +163,7 @@
             <p class="mb-1"><strong>@UiText["inventory.documents.seller"]:</strong> @SellerName(document.SellerRef)</p>
             <p class="mb-1"><strong>@UiText["inventory.documents.details.occurredAt"]:</strong> @document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
             <p class="mb-1"><strong>@UiText["inventory.documents.details.reference"]:</strong> @(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</p>
+            <p class="mb-1"><strong>@UiText["inventory.documents.externalReferenceNo"]:</strong> @(string.IsNullOrWhiteSpace(document.ExternalReferenceNo) ? "-" : document.ExternalReferenceNo)</p>
             <p class="mb-1"><strong>@UiText["inventory.documents.details.reason"]:</strong> @(string.IsNullOrWhiteSpace(document.ReasonCode) ? "-" : document.ReasonCode)</p>
             <p class="mb-1"><strong>@UiText["inventory.documents.details.approvedAt"]:</strong> @(document.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
             <p class="mb-3"><strong>@UiText["inventory.documents.details.postedAt"]:</strong> @(document.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>

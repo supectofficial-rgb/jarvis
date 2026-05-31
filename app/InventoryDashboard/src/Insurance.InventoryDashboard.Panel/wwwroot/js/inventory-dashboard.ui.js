@@ -321,6 +321,94 @@
         });
     }
 
+    function initDocumentReferenceLookups(root) {
+        root = getScope(root);
+        if (!window.jQuery) {
+            return;
+        }
+
+        var $ = window.jQuery;
+        root.querySelectorAll('[data-document-reference-lookup]').forEach(function (wrapper) {
+            if (wrapper.dataset.documentReferenceLookupBound === 'true') {
+                return;
+            }
+
+            var select = wrapper.querySelector('select.document-reference-search-select');
+            var typeInput = wrapper.querySelector('.document-reference-type-input');
+            var idInput = wrapper.querySelector('.document-reference-id-input');
+            var selectedPanel = wrapper.querySelector('.document-reference-selected');
+            var selectedLabel = wrapper.querySelector('.document-reference-selected-label');
+
+            if (!select) {
+                return;
+            }
+
+            function setSelectedLabel(value) {
+                if (selectedLabel) {
+                    selectedLabel.textContent = value || '-';
+                }
+                if (selectedPanel) {
+                    selectedPanel.classList.toggle('d-none', !value);
+                }
+            }
+
+            function clearSelection() {
+                if (typeInput) {
+                    typeInput.value = '';
+                }
+                if (idInput) {
+                    idInput.value = '';
+                }
+                setSelectedLabel('');
+            }
+
+            function applySelection(data) {
+                var item = data && data.document ? data.document : data;
+                if (!item) {
+                    clearSelection();
+                    return;
+                }
+
+                var documentType = item.documentType || item.type || item.referenceType || '';
+                var documentBusinessKey = item.documentBusinessKey || item.businessKey || item.id || '';
+                var documentNo = item.documentNo || item.number || item.text || documentBusinessKey;
+
+                if (typeInput) {
+                    typeInput.value = documentType;
+                }
+                if (idInput) {
+                    idInput.value = documentBusinessKey;
+                }
+                setSelectedLabel(documentNo);
+            }
+
+            $(select).off('select2:select.documentReferenceLookup select2:clear.documentReferenceLookup');
+            $(select).on('select2:select.documentReferenceLookup', function (event) {
+                applySelection(event.params && event.params.data ? event.params.data : null);
+            });
+            $(select).on('select2:clear.documentReferenceLookup', function () {
+                clearSelection();
+            });
+            $(select).on('change.documentReferenceLookup', function () {
+                if (!select.value) {
+                    clearSelection();
+                }
+            });
+
+            if (select.value) {
+                applySelection({
+                    documentType: select.selectedOptions.length > 0 ? select.selectedOptions[0].getAttribute('data-document-type') || '' : '',
+                    documentBusinessKey: select.value,
+                    documentNo: select.selectedOptions.length > 0 ? select.selectedOptions[0].textContent || select.value : select.value
+                });
+            } else {
+                clearSelection();
+            }
+
+            wrapper.dataset.documentReferenceLookupBound = 'true';
+        });
+    }
+
     function initDatePickers(root) {
         root = getScope(root);
         if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.datepicker) {
@@ -778,6 +866,7 @@
     onReady(function () {
         window.appUi = window.appUi || {};
         window.appUi.initSearchableSelects = initSearchableSelects;
+        window.appUi.initDocumentReferenceLookups = initDocumentReferenceLookups;
         window.appUi.initDatePickers = initDatePickers;
         window.appUi.initAutoSubmit = initAutoSubmit;
         window.appUi.initBulkActions = initBulkActions;
@@ -786,6 +875,7 @@
 
         initLocalizationBridge();
         initSearchableSelects();
+        initDocumentReferenceLookups();
         initDatePickers();
         initAutoSubmit();
         initBulkActions();

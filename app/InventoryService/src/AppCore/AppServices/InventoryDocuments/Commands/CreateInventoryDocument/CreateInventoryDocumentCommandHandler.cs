@@ -37,6 +37,7 @@ public class CreateInventoryDocumentCommandHandler
             command.ReceivedBy,
             command.DeliveredBy,
             command.OccurredAt == default ? DateTime.UtcNow : command.OccurredAt,
+            command.ExternalReferenceNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
             command.CorrelationId,

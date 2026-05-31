@@ -252,14 +252,7 @@
                                         </select>
                                     </div>
                                 }
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.referenceType"]</label>
-                                    <input asp-for="CreateForm.ReferenceType" class="form-control" />
-                                </div>
-                                <div class="form-group col-md-2">
-                                    <label>@UiText["inventory.documents.referenceId"]</label>
-                                    <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
-                                </div>
+                                @await Html.PartialAsync("_DocumentReferenceLookup", Model, new ViewDataDictionary(ViewData) { ["ReferenceLookupPrefix"] = "adjustment-reference" })
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
                                     <input type="hidden" asp-for="CreateForm.OccurredAt" id="adjustment-occurred-at-value" value="@Model.CreateForm.OccurredAt.ToString("yyyy-MM-ddTHH:mm")" />
@@ -447,6 +440,7 @@
                             <p class="mb-1"><strong>@UiText["common.seller"]:</strong> @SellerName(Model.SelectedDocumentDetails.SellerRef)</p>
                             <p class="mb-1"><strong>@UiText["inventory.documents.details.occurredAt"]:</strong> @Model.SelectedDocumentDetails.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
                             <p class="mb-1"><strong>@UiText["inventory.documents.details.reference"]:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReferenceType) ? "-" : $"{Model.SelectedDocumentDetails.ReferenceType} / {Model.SelectedDocumentDetails.ReferenceBusinessId}")</p>
+                            <p class="mb-1"><strong>@UiText["inventory.documents.externalReferenceNo"]:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ExternalReferenceNo) ? "-" : Model.SelectedDocumentDetails.ExternalReferenceNo)</p>
                             <p class="mb-1"><strong>@UiText["inventory.documents.details.reason"]:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReasonCode) ? "-" : Model.SelectedDocumentDetails.ReasonCode)</p>
                             <p class="mb-1"><strong>@UiText["inventory.documents.details.approvedAt"]:</strong> @(Model.SelectedDocumentDetails.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
                             <p class="mb-3"><strong>@UiText["inventory.documents.details.postedAt"]:</strong> @(Model.SelectedDocumentDetails.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>

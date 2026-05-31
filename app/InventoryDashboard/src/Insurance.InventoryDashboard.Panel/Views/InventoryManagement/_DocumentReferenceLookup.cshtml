@@ -1,0 +1,47 @@
+@using System.Text.Json
+@model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
+@{
+    var prefix = ViewData["ReferenceLookupPrefix"] as string ?? "document-reference";
+    var searchUrl = ViewData["ReferenceLookupSearchUrl"] as string ?? Url.Action("SearchDocumentReferenceDocuments", "InventoryManagement") ?? string.Empty;
+    var referenceDocumentType = ViewData["ReferenceLookupDocumentType"] as string;
+    var label = ViewData["ReferenceLookupLabel"] as string ?? UiText["inventory.documents.reference.searchLabel"];
+    var placeholder = ViewData["ReferenceLookupPlaceholder"] as string ?? UiText["inventory.documents.reference.searchPlaceholder"];
+    var selectedLabel = ViewData["ReferenceLookupSelectedLabel"] as string ?? UiText["inventory.documents.reference.selected"];
+    var extraParams = string.IsNullOrWhiteSpace(referenceDocumentType)
+        ? null
+        : JsonSerializer.Serialize(new { referenceDocumentType });
+
+    var selectId = $"{prefix}-select";
+    var typeInputId = $"{prefix}-type-input";
+    var idInputId = $"{prefix}-id-input";
+    var selectedId = $"{prefix}-selected";
+    var selectedLabelId = $"{prefix}-selected-label";
+}
+
+<div class="form-group col-md-4" data-document-reference-lookup data-reference-prefix="@prefix">
+    <label for="@selectId">@label</label>
+    <select id="@selectId"
+            class="form-control js-search-select document-reference-search-select"
+            data-placeholder="@placeholder"
+            data-ajax-url="@searchUrl"
+            data-ajax-result-mode="document"
+            @if (!string.IsNullOrWhiteSpace(extraParams))
+            {
+                <text>data-ajax-extra-params='@Html.Raw(extraParams)'</text>
+            }>
+        <option value="">@placeholder</option>
+    </select>
+    <input type="hidden" asp-for="CreateForm.ReferenceType" id="@typeInputId" class="document-reference-type-input" />
+    <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="@idInputId" class="document-reference-id-input" />
+    <div class="mt-2 d-none document-reference-selected" id="@selectedId">
+        <div class="alert alert-light border mb-0 py-2">
+            <strong>@selectedLabel</strong>
+            <span class="document-reference-selected-label" id="@selectedLabelId">-</span>
+        </div>
+    </div>
+</div>
+
+<div class="form-group col-md-2">
+    <label>@UiText["inventory.documents.externalReferenceNo"]</label>
+    <input asp-for="CreateForm.ExternalReferenceNo" class="form-control text-monospace" />
+</div>

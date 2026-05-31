@@ -21,6 +21,7 @@ public class CreateQualityChangeDocumentCommandHandler : CommandHandler<CreateQu
         var result = await _creationService.CreateAsync(
             InventoryDocumentType.QualityChange,
             command.DocumentNo,
+            command.ExternalReferenceNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
             command.WarehouseRef,

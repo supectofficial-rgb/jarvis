@@ -6,6 +6,7 @@ using OysterFx.AppCore.Shared.Commands;
 public class CreateAdjustmentDocumentCommand : ICommand<Guid>
 {
     public string? DocumentNo { get; set; }
+    public string? ExternalReferenceNo { get; set; }
     public string? ReferenceType { get; set; }
     public Guid? ReferenceBusinessId { get; set; }
     public Guid WarehouseRef { get; set; }

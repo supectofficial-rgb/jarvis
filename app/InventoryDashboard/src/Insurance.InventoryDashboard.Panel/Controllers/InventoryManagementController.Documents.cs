@@ -2193,6 +2193,7 @@ public sealed partial class InventoryManagementController
             DocumentId = documentId,
             DocumentType = "Conversion",
             DocumentNo = documentResult.Data.DocumentNo,
+            ExternalReferenceNo = documentResult.Data.ExternalReferenceNo,
             ReferenceType = documentResult.Data.ReferenceType,
             ReferenceBusinessId = documentResult.Data.ReferenceBusinessId,
             WarehouseRef = locationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, selectedLocationLookup.Values.First(), StringComparison.OrdinalIgnoreCase))?.WarehouseRef ?? string.Empty,
@@ -2251,8 +2252,25 @@ public sealed partial class InventoryManagementController
         });
     }
 
+    [HttpGet("/InventoryManagement/Documents/ReferenceSearch")]
+    public async Task<IActionResult> SearchDocumentReferenceDocuments(
+        string? term,
+        string? referenceDocumentType,
+        CancellationToken cancellationToken = default)
+    {
+        return await SearchDocumentReferenceDocumentsInternalAsync(term, referenceDocumentType, cancellationToken);
+    }
+
     [HttpGet("/InventoryManagement/Documents/Return/ReferenceSearch")]
     public async Task<IActionResult> SearchReturnReferenceDocuments(
+        string? term,
+        string? referenceDocumentType,
+        CancellationToken cancellationToken = default)
+    {
+        return await SearchDocumentReferenceDocumentsInternalAsync(term, referenceDocumentType, cancellationToken);
+    }
+
+    private async Task<IActionResult> SearchDocumentReferenceDocumentsInternalAsync(
         string? term,
         string? referenceDocumentType,
         CancellationToken cancellationToken = default)
@@ -2275,7 +2293,9 @@ public sealed partial class InventoryManagementController
             });
         }
 
-        var resolvedReferenceDocumentType = ResolveReturnReferenceDocumentType(referenceDocumentType);
+        var resolvedReferenceDocumentType = string.IsNullOrWhiteSpace(referenceDocumentType)
+            ? null
+            : ResolveReturnReferenceDocumentType(referenceDocumentType);
 
         var searchResult = await _apiService.SearchInventoryDocumentsAsync(
             token,
@@ -2307,6 +2327,7 @@ public sealed partial class InventoryManagementController
                 .Select(document => new
                 {
                     documentBusinessKey = document.DocumentBusinessKey,
+                    documentType = document.DocumentType,
                     documentNo = document.DocumentNo,
                     status = document.Status,
                     warehouseRef = document.WarehouseRef,
@@ -3514,6 +3535,7 @@ public sealed partial class InventoryManagementController
             WarehouseRef = warehouseRef.ToString("D"),
             SellerRef = sellerRef.ToString("D"),
             OccurredAt = DateTime.Now,
+            ExternalReferenceNo = null,
             ReferenceType = referenceType,
             ReasonCode = string.IsNullOrWhiteSpace(reasonCode) ? null : reasonCode.Trim(),
             Lines = lines
@@ -3723,6 +3745,7 @@ public sealed partial class InventoryManagementController
             DocumentId = isEditMode ? existingDocument?.DocumentBusinessKey : null,
             DocumentType = documentType,
             DocumentNo = isEditMode ? existingDocument?.DocumentNo : null,
+            ExternalReferenceNo = isEditMode ? existingDocument?.ExternalReferenceNo : null,
             ReferenceType = isEditMode ? existingDocument?.ReferenceType : null,
             ReferenceBusinessId = isEditMode ? existingDocument?.ReferenceBusinessId?.ToString() : null,
             WarehouseRef = isConversionDocument

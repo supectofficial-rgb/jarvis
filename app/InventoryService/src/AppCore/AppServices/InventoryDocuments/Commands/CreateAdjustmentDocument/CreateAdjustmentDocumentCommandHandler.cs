@@ -21,6 +21,7 @@ public class CreateAdjustmentDocumentCommandHandler : CommandHandler<CreateAdjus
         var result = await _creationService.CreateAsync(
             InventoryDocumentType.Adjustment,
             command.DocumentNo,
+            command.ExternalReferenceNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
             command.WarehouseRef,

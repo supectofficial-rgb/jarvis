@@ -9,6 +9,7 @@ public class InventoryDocumentReadModel
     public string DocumentNo { get; set; } = string.Empty;
     public InventoryDocumentType DocumentType { get; set; }
     public InventoryDocumentStatus Status { get; set; }
+    public string? ExternalReferenceNo { get; set; }
     public string? ReferenceType { get; set; }
     public Guid? ReferenceBusinessId { get; set; }
     public Guid WarehouseRef { get; set; }

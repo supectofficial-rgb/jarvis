@@ -16,6 +16,7 @@ internal sealed class InventoryDocumentCreationService
     public async Task<(bool Success, string? Error, Guid DocumentBusinessKey)> CreateAsync(
         InventoryDocumentType documentType,
         string? documentNo,
+        string? externalReferenceNo,
         string? referenceType,
         Guid? referenceBusinessId,
         Guid warehouseRef,
@@ -44,6 +45,7 @@ internal sealed class InventoryDocumentCreationService
                 receivedBy: null,
                 deliveredBy: null,
                 occurredAt == default ? DateTime.UtcNow : occurredAt,
+                externalReferenceNo,
                 referenceType,
                 referenceBusinessId,
                 correlationId,

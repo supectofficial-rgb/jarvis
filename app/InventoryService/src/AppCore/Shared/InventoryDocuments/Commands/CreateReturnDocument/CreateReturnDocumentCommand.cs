@@ -7,6 +7,7 @@ public class CreateReturnDocumentCommand : ICommand<Guid>
 {
     public string? DocumentType { get; set; } = "ReturnFromSell";
     public string? DocumentNo { get; set; }
+    public string? ExternalReferenceNo { get; set; }
     public string? ReferenceType { get; set; }
     public Guid? ReferenceBusinessId { get; set; }
     public Guid WarehouseRef { get; set; }

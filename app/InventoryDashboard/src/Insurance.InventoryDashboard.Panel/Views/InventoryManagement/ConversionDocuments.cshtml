@@ -250,14 +250,7 @@
                                         شماره سند هنگام ثبت توسط سیستم ایجاد می‌شود.
                                     </div>
                                 </div>
-                                <div class="form-group col-md-3">
-                                    <label>@UiText["inventory.documents.referenceType"]</label>
-                                    <input asp-for="CreateForm.ReferenceType" class="form-control" />
-                                </div>
-                                <div class="form-group col-md-3">
-                                    <label>@UiText["inventory.documents.referenceId"]</label>
-                                    <input asp-for="CreateForm.ReferenceBusinessId" class="form-control text-monospace" />
-                                </div>
+                                @await Html.PartialAsync("_DocumentReferenceLookup", Model, new ViewDataDictionary(ViewData) { ["ReferenceLookupPrefix"] = "conversion-reference" })
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.warehouse"]</label>
                                     <select asp-for="CreateForm.WarehouseRef" class="form-control js-search-select" id="create-warehouse-select" required>
@@ -722,6 +715,7 @@
                             <p class="mb-1"><strong>فروشنده:</strong> @SellerName(Model.SelectedDocumentDetails.SellerRef)</p>
                             <p class="mb-1"><strong>تاریخ وقوع:</strong> @Model.SelectedDocumentDetails.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
                             <p class="mb-1"><strong>مرجع:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReferenceType) ? "-" : $"{Model.SelectedDocumentDetails.ReferenceType} / {Model.SelectedDocumentDetails.ReferenceBusinessId}")</p>
+                            <p class="mb-1"><strong>@UiText["inventory.documents.externalReferenceNo"]:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ExternalReferenceNo) ? "-" : Model.SelectedDocumentDetails.ExternalReferenceNo)</p>
                             <p class="mb-1"><strong>علت:</strong> @(string.IsNullOrWhiteSpace(Model.SelectedDocumentDetails.ReasonCode) ? "-" : Model.SelectedDocumentDetails.ReasonCode)</p>
                             <p class="mb-1"><strong>تاریخ تایید:</strong> @(Model.SelectedDocumentDetails.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
                             <p class="mb-3"><strong>تاریخ پست:</strong> @(Model.SelectedDocumentDetails.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>

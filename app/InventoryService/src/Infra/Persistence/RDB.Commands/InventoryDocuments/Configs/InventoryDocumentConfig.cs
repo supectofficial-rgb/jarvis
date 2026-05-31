@@ -10,6 +10,7 @@ public sealed class InventoryDocumentConfig : IEntityTypeConfiguration<Inventory
     {
         builder.ToTable("InventoryDocuments");
         builder.HasIndex(x => x.DocumentNo).IsUnique();
+        builder.Property(x => x.ExternalReferenceNo).HasMaxLength(120);
 
         builder.HasMany(x => x.Lines)
             .WithOne()

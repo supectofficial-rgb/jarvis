@@ -22,6 +22,7 @@ public class CreateReturnDocumentCommandHandler : CommandHandler<CreateReturnDoc
         var result = await _creationService.CreateAsync(
             documentType,
             command.DocumentNo,
+            command.ExternalReferenceNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
             command.WarehouseRef,

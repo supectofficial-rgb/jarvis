@@ -12,5 +12,6 @@ public sealed class InventoryDocumentReadModelConfig : IEntityTypeConfiguration<
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.BusinessKey).IsUnique();
         builder.HasIndex(x => x.DocumentNo).IsUnique();
+        builder.Property(x => x.ExternalReferenceNo).HasMaxLength(120);
     }
 }

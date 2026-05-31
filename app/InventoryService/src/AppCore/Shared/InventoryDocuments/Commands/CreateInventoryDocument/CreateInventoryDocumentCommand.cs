@@ -6,6 +6,7 @@ public class CreateInventoryDocumentCommand : ICommand<CreateInventoryDocumentCo
 {
     public string? DocumentNo { get; set; }
     public string DocumentType { get; set; } = string.Empty;
+    public string? ExternalReferenceNo { get; set; }
     public string? ReferenceType { get; set; }
     public Guid? ReferenceBusinessId { get; set; }
     public Guid WarehouseRef { get; set; }

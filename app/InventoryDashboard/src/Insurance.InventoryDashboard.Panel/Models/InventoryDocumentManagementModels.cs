@@ -53,6 +53,7 @@ public sealed class InventoryDocumentListItemModel
     public string DocumentNo { get; set; } = string.Empty;
     public string DocumentType { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string? ExternalReferenceNo { get; set; }
     public string? ReferenceType { get; set; }
     public string? ReferenceBusinessId { get; set; }
     public string WarehouseRef { get; set; } = string.Empty;
@@ -128,6 +129,7 @@ public sealed class InventoryDocumentDetailsModel
     public string DocumentNo { get; set; } = string.Empty;
     public string DocumentType { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string? ExternalReferenceNo { get; set; }
     public string? ReferenceType { get; set; }
     public string? ReferenceBusinessId { get; set; }
     public string WarehouseRef { get; set; } = string.Empty;
@@ -202,6 +204,9 @@ public sealed class CreateInventoryDocumentForm
 
     [StringLength(64)]
     public string? DocumentNo { get; set; }
+
+    [StringLength(120)]
+    public string? ExternalReferenceNo { get; set; }
 
     [StringLength(80)]
     public string? ReferenceType { get; set; }

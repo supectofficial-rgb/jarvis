@@ -21,6 +21,7 @@ public class CreateIssueDocumentCommandHandler : CommandHandler<CreateIssueDocum
         var result = await _creationService.CreateAsync(
             InventoryDocumentType.Issue,
             command.DocumentNo,
+            command.ExternalReferenceNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
             command.WarehouseRef,

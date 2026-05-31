@@ -1615,6 +1615,7 @@ public sealed class ApiService : IApiService
         {
             DocumentNo = NormalizeOptional(form.DocumentNo),
             DocumentType = form.DocumentType.Trim(),
+            ExternalReferenceNo = NormalizeOptional(form.ExternalReferenceNo),
             ReferenceType = NormalizeOptional(form.ReferenceType),
             ReferenceBusinessId = ParseNullableGuid(form.ReferenceBusinessId),
             WarehouseRef = ParseGuidOrEmpty(form.WarehouseRef),
@@ -1678,6 +1679,7 @@ public sealed class ApiService : IApiService
         {
             DocumentNo = NormalizeOptional(form.DocumentNo),
             DocumentType = form.DocumentType.Trim(),
+            ExternalReferenceNo = NormalizeOptional(form.ExternalReferenceNo),
             ReferenceType = NormalizeOptional(form.ReferenceType),
             ReferenceBusinessId = ParseNullableGuid(form.ReferenceBusinessId),
             WarehouseRef = ParseGuidOrEmpty(form.WarehouseRef),

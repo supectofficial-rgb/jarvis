@@ -10,6 +10,7 @@ public sealed class InventoryDocument : AggregateRoot
     public string DocumentNo { get; private set; } = string.Empty;
     public InventoryDocumentType DocumentType { get; private set; }
     public InventoryDocumentStatus Status { get; private set; }
+    public string? ExternalReferenceNo { get; private set; }
     public string? ReferenceType { get; private set; }
     public Guid? ReferenceBusinessId { get; private set; }
     public Guid WarehouseRef { get; private set; }
@@ -41,6 +42,7 @@ public sealed class InventoryDocument : AggregateRoot
         string? receivedBy,
         string? deliveredBy,
         DateTime occurredAt,
+        string? externalReferenceNo,
         string? referenceType,
         Guid? referenceBusinessId,
         string? correlationId,
@@ -57,6 +59,7 @@ public sealed class InventoryDocument : AggregateRoot
         ReceivedBy = Normalize(receivedBy);
         DeliveredBy = Normalize(deliveredBy);
         OccurredAt = occurredAt;
+        ExternalReferenceNo = Normalize(externalReferenceNo);
         ReferenceType = Normalize(referenceType);
         ReferenceBusinessId = referenceBusinessId;
         CorrelationId = Normalize(correlationId);
@@ -73,6 +76,7 @@ public sealed class InventoryDocument : AggregateRoot
         string? receivedBy,
         string? deliveredBy,
         DateTime occurredAt,
+        string? externalReferenceNo = null,
         string? referenceType = null,
         Guid? referenceBusinessId = null,
         string? correlationId = null,
@@ -87,6 +91,7 @@ public sealed class InventoryDocument : AggregateRoot
             receivedBy,
             deliveredBy,
             occurredAt,
+            externalReferenceNo,
             referenceType,
             referenceBusinessId,
             correlationId,
@@ -162,6 +167,7 @@ public sealed class InventoryDocument : AggregateRoot
         string? receivedBy,
         string? deliveredBy,
         DateTime occurredAt,
+        string? externalReferenceNo = null,
         string? referenceType = null,
         Guid? referenceBusinessId = null,
         string? reasonCode = null)
@@ -178,6 +184,7 @@ public sealed class InventoryDocument : AggregateRoot
         ReceivedBy = Normalize(receivedBy);
         DeliveredBy = Normalize(deliveredBy);
         OccurredAt = occurredAt;
+        ExternalReferenceNo = Normalize(externalReferenceNo);
         ReferenceType = Normalize(referenceType);
         ReferenceBusinessId = referenceBusinessId;
         ReasonCode = Normalize(reasonCode);

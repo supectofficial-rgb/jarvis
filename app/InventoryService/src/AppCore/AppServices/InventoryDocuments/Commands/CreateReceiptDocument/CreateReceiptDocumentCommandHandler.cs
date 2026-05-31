@@ -21,6 +21,7 @@ public class CreateReceiptDocumentCommandHandler : CommandHandler<CreateReceiptD
         var result = await _creationService.CreateAsync(
             InventoryDocumentType.Receipt,
             command.DocumentNo,
+            command.ExternalReferenceNo,
             command.ReferenceType,
             command.ReferenceBusinessId,
             command.WarehouseRef,

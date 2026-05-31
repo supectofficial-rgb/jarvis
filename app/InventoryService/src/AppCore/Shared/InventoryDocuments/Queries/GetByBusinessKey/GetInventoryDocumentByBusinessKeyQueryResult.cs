@@ -6,6 +6,7 @@ public class GetInventoryDocumentByBusinessKeyQueryResult
     public string DocumentNo { get; set; } = string.Empty;
     public string DocumentType { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string? ExternalReferenceNo { get; set; }
     public string? ReferenceType { get; set; }
     public Guid? ReferenceBusinessId { get; set; }
     public Guid WarehouseRef { get; set; }
