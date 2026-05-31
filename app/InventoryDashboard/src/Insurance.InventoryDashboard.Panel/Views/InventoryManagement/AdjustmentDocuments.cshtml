@@ -231,7 +231,9 @@
                                 <input type="hidden" asp-for="CreateForm.SellerRef" />
                                 <div class="form-group col-md-2">
                                     <label>@UiText["inventory.documents.documentNo"]</label>
-                                    <input asp-for="CreateForm.DocumentNo" class="form-control text-monospace" />
+                                    <div class="form-control-plaintext pt-2 text-muted">
+                                        شماره سند هنگام ثبت توسط سیستم ایجاد می‌شود.
+                                    </div>
                                 </div>
                                 @if (isAdjustmentDocument)
                                 {

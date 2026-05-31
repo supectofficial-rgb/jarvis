@@ -27,7 +27,7 @@ internal sealed class InventoryDocumentCreationService
         List<InventoryDocumentCommandLineItem> lines)
     {
         var finalDocumentNo = string.IsNullOrWhiteSpace(documentNo)
-            ? $"INV-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}"
+            ? await _repository.GetNextDocumentNoAsync()
             : documentNo.Trim();
 
         if (await _repository.ExistsByDocumentNoAsync(finalDocumentNo))

@@ -1,5 +1,6 @@
 namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.InventoryDocuments;
 
+using System.Data.Common;
 using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,35 @@ public class InventoryDocumentCommandRepository : CommandRepository<InventoryDoc
             query = query.Where(x => x.BusinessKey != BusinessKey.FromGuid(exceptBusinessKey.Value));
 
         return query.AnyAsync();
+    }
+
+    public async Task<string> GetNextDocumentNoAsync()
+    {
+        const string sequenceName = "\"InventoryDocumentNoSequence\"";
+        var connection = _dbContext.Database.GetDbConnection();
+        var shouldCloseConnection = connection.State != System.Data.ConnectionState.Open;
+
+        try
+        {
+            if (shouldCloseConnection)
+            {
+                await connection.OpenAsync();
+            }
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = $@"SELECT nextval('{sequenceName}')";
+
+            var result = await command.ExecuteScalarAsync();
+            var nextValue = Convert.ToInt64(result ?? 0L);
+            return $"INV-{nextValue:000000}";
+        }
+        finally
+        {
+            if (shouldCloseConnection)
+            {
+                await connection.CloseAsync();
+            }
+        }
     }
 
     public Task<bool> ExistsLineByVariantRefAsync(Guid variantRef)

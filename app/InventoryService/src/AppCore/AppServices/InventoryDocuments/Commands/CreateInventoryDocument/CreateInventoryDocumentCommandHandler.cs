@@ -22,7 +22,7 @@ public class CreateInventoryDocumentCommandHandler
             return Fail($"Unsupported inventory document type '{command.DocumentType}'.");
 
         var documentNo = string.IsNullOrWhiteSpace(command.DocumentNo)
-            ? $"INV-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}"
+            ? await _documentRepository.GetNextDocumentNoAsync()
             : command.DocumentNo.Trim();
 
         if (await _documentRepository.ExistsByDocumentNoAsync(documentNo))
