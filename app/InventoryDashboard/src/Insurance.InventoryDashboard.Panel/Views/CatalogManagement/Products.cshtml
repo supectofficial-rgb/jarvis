@@ -829,7 +829,9 @@
                             return;
                         }
 
-                        productListTabPanel.innerHTML = html;
+                        var parsedDocument = new DOMParser().parseFromString(html, 'text/html');
+                        var nextPanel = parsedDocument.querySelector('#product-list-tab-panel');
+                        productListTabPanel.innerHTML = nextPanel ? nextPanel.innerHTML : html;
 
                         if (window.history && window.history.replaceState) {
                             var nextUrl = new URL(requestUrl, window.location.origin);
