@@ -1929,7 +1929,7 @@
                     }
                 }
 
-                if (!baseSku || combinations.length === 0) {
+                if (!baseSku) {
                     autoVariantPreviewBody.innerHTML = '';
                     autoVariantPreviewContainer.classList.add('d-none');
                     autoVariantPreviewEmpty.classList.remove('d-none');
@@ -1937,6 +1937,14 @@
                         autoVariantPreviewMeta.textContent = '';
                     }
                     return;
+                }
+
+                if (combinations.length === 0) {
+                    combinations = [[]];
+                    if (autoVariantPreviewDebug) {
+                        autoVariantPreviewDebug.textContent = 'هیچ ویژگی واریانت‌ساز انتخاب نشده است؛ یک واریانت واحد ساخته می‌شود.';
+                        autoVariantPreviewDebug.classList.remove('d-none');
+                    }
                 }
 
                 var productCodeSegments = Array.isArray(result.productCodeSegments)

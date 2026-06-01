@@ -2454,12 +2454,11 @@ public abstract partial class CatalogManagementController : Controller
         IReadOnlyDictionary<string, CatalogAttributeValueInputModel> productValuesByAttributeId)
     {
         var plans = new List<GeneratedVariantPlan>();
-        if (dimensions.Count == 0)
-        {
-            return plans;
-        }
-
-        var combinations = BuildVariantCombinations(dimensions);
+        IReadOnlyList<IReadOnlyList<VariantCombinationSelection>> combinations = dimensions.Count == 0
+            ? new List<IReadOnlyList<VariantCombinationSelection>> { Array.Empty<VariantCombinationSelection>() }
+            : BuildVariantCombinations(dimensions)
+                .Select(x => (IReadOnlyList<VariantCombinationSelection>)x)
+                .ToList();
         var usedSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var combination in combinations)

@@ -167,7 +167,7 @@ public class CreateProductVariantCommandHandler : CommandHandler<CreateProductVa
     private async Task<string?> ValidateVariantAttributesAsync(Category category, Guid categorySchemaVersionRef, IReadOnlyCollection<VariantAttributeInput> attributes)
     {
         var variantRules = category.GetAttributeRules(categorySchemaVersionRef)
-            .Where(x => x.IsActive && x.IsVariantCodeCovered)
+            .Where(x => x.IsActive && x.IsVariant && x.IsVariantCodeCovered)
             .ToList();
 
         if (variantRules.Count > 0)

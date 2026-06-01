@@ -87,6 +87,7 @@
         var createTitle = document.getElementById('formula-create-title');
         var createCategoryField = document.getElementById('VariantNameFormulaForm_Create_CategoryId');
         var createFormulaIdField = document.getElementById('VariantNameFormulaForm_Create_FormulaId');
+        var createNameField = document.getElementById('VariantNameFormulaForm_Create_Name');
         var createPartsJsonField = document.getElementById('VariantNameFormulaForm_Create_PartsJson');
         var createAttributePicker = document.getElementById('formula-create-attribute-picker');
         var createSeparatorField = document.getElementById('VariantNameFormulaForm_Create_Separator');
@@ -127,11 +128,12 @@
             parts: [],
             editingPartIndex: -1
         };
-        var createState = {
-            parts: [],
-            editingPartIndex: -1,
-            editingFormulaId: ''
-        };
+            var createState = {
+                parts: [],
+                editingPartIndex: -1,
+                editingFormulaId: ''
+            };
+            var isFormulaEditorHydrating = false;
 
         function normalizeSeparatorValue(separator) {
             if (separator === '__none') {
@@ -413,6 +415,7 @@
                 return;
             }
 
+            isFormulaEditorHydrating = true;
             var createTab = document.querySelector('#formula-section-tabs .nav-link[href="#formula-section-create"]');
             if (window.jQuery && createTab) {
                 window.jQuery(createTab).tab('show');
@@ -421,6 +424,9 @@
             createState.editingFormulaId = formula.formulaId || '';
             if (createFormulaIdField) {
                 createFormulaIdField.value = formula.formulaId || '';
+            }
+            if (createNameField) {
+                createNameField.value = formula.name || '';
             }
             if (createCategoryField) {
                 createCategoryField.value = formula.categoryId || (listCategoryField ? listCategoryField.value : '') || '@Model.SelectedCategoryId';
@@ -445,6 +451,7 @@
             setCreateEditorMode(true);
             clearCreatePartEditing();
             renderCreateParts();
+            isFormulaEditorHydrating = false;
             createForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
@@ -453,9 +460,22 @@
             if (createFormulaIdField) {
                 createFormulaIdField.value = '';
             }
+            if (createNameField) {
+                createNameField.value = '';
+            }
+            if (createSeparatorField) {
+                setSeparatorValue(createSeparatorField, ' ');
+            }
             if (createIncludeCategoryNameField) {
                 createIncludeCategoryNameField.checked = true;
             }
+            if (createPartsJsonField) {
+                createPartsJsonField.value = '[]';
+            }
+            createState.parts = [];
+            createState.editingPartIndex = -1;
+            clearCreatePartEditing();
+            renderCreateParts();
             setCreateEditorMode(false);
         }
 
@@ -719,6 +739,10 @@
         }
 
         function syncCategorySelections(sourceValue) {
+            if (isFormulaEditorHydrating) {
+                return;
+            }
+
             if (createCategoryField && sourceValue && createCategoryField.value !== sourceValue) {
                 createCategoryField.value = sourceValue;
                 if (window.jQuery) {
