@@ -2008,7 +2008,7 @@
                         .filter(function (segment) { return !!segment; });
 
                     var generatedSku = skuSegments.length > 0
-                        ? [baseSku].concat(skuSegments).join('-')
+                        ? skuSegments.join('-')
                         : baseSku;
                     var candidateSku = generatedSku;
                     var sequence = 2;

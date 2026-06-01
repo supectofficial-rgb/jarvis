@@ -236,14 +236,6 @@ public class UpdateProductVariantCommandHandler : CommandHandler<UpdateProductVa
             if (unknown.Count > 0)
                 return $"Some variant attributes are not allowed for category '{category.Code}': {string.Join(", ", unknown)}";
 
-            var missingRequired = variantRules
-                .Where(x => x.IsRequired)
-                .Select(x => x.AttributeRef)
-                .Where(x => attributes.All(a => a.AttributeRef != x))
-                .ToList();
-
-            if (missingRequired.Count > 0)
-                return $"Required variant attributes are missing: {string.Join(", ", missingRequired)}";
         }
 
         if (attributes.Count == 0)

@@ -272,6 +272,7 @@ public sealed class ApiService : IApiService
         {
             Name = request.Name.Trim(),
             Separator = NormalizeOptional(request.Separator) ?? " ",
+            IncludeCategoryName = request.IncludeCategoryName,
             DisplayOrder = request.DisplayOrder,
             IsActive = request.IsActive,
             Parts = request.Parts
@@ -301,6 +302,7 @@ public sealed class ApiService : IApiService
         {
             Name = request.Name.Trim(),
             Separator = NormalizeOptional(request.Separator) ?? " ",
+            IncludeCategoryName = request.IncludeCategoryName,
             DisplayOrder = request.DisplayOrder,
             IsActive = request.IsActive,
             Parts = request.Parts

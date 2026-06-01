@@ -1133,17 +1133,6 @@ public abstract partial class CatalogManagementController : Controller
                 return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
             }
 
-            var missingRequiredVariant = effectiveVariantAttributes
-                .Where(x => x.IsRequired)
-                .Where(x => variantDimensions.All(d => !string.Equals(d.AttributeId, x.AttributeId, StringComparison.OrdinalIgnoreCase)))
-                .ToList();
-            if (missingRequiredVariant.Count > 0)
-            {
-                TempData["CatalogError"] = "برای ویژگی‌های واریانت‌ساز الزامی باید حداقل یک گزینه انتخاب شود: " +
-                    string.Join("، ", missingRequiredVariant.Select(x => x.Name));
-                return RedirectToAction(nameof(Products), new { categoryId = form.CategoryId, productId = form.ProductId });
-            }
-
             shouldReconcileVariants = string.IsNullOrWhiteSpace(form.ProductId) || effectiveVariantAttributes.Count > 0;
             var productCodeSegments = BuildProductCodeSegments(productCreateAttributes, effectiveProductAttributes);
             CategoryVariantNameFormulaModel? selectedVariantNameFormula = null;
@@ -2493,7 +2482,7 @@ public abstract partial class CatalogManagementController : Controller
 
             var generatedSku = string.IsNullOrWhiteSpace(skuSuffix)
                 ? NormalizeSkuSegment(baseSku)
-                : $"{NormalizeSkuSegment(baseSku)}-{skuSuffix}";
+                : skuSuffix;
 
             if (string.IsNullOrWhiteSpace(generatedSku))
             {
