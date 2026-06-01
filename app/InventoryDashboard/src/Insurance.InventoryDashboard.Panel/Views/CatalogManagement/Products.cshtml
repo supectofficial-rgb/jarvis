@@ -833,6 +833,13 @@
                         var nextPanel = parsedDocument.querySelector('#product-list-tab-panel');
                         productListTabPanel.innerHTML = nextPanel ? nextPanel.innerHTML : html;
 
+                        if (window.appUi && typeof window.appUi.initBulkActions === 'function') {
+                            window.appUi.initBulkActions(productListTabPanel);
+                        }
+                        if (window.appUi && typeof window.appUi.refreshBulkActions === 'function') {
+                            window.appUi.refreshBulkActions(productListTabPanel);
+                        }
+
                         if (window.history && window.history.replaceState) {
                             var nextUrl = new URL(requestUrl, window.location.origin);
                             nextUrl.hash = 'product-tab-list';

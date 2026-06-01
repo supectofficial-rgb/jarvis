@@ -127,6 +127,36 @@
     .variant-status-toggle-form .custom-switch .custom-control-input:not(:checked) ~ .custom-control-label::after {
         background-color: #fff;
     }
+
+    .variant-bulk-actions .variant-bulk-action-btn {
+        min-width: 7.5rem;
+    }
+
+    .variant-bulk-actions .variant-bulk-action-btn:focus,
+    .variant-bulk-actions .variant-bulk-action-btn:hover {
+        text-decoration: none;
+    }
+
+    .variant-bulk-actions .variant-bulk-action-btn[data-bulk-action="activate"]:hover,
+    .variant-bulk-actions .variant-bulk-action-btn[data-bulk-action="activate"]:focus {
+        color: #fff !important;
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
+    }
+
+    .variant-bulk-actions .variant-bulk-action-btn[data-bulk-action="deactivate"]:hover,
+    .variant-bulk-actions .variant-bulk-action-btn[data-bulk-action="deactivate"]:focus {
+        color: #212529 !important;
+        background-color: #ffc107 !important;
+        border-color: #ffc107 !important;
+    }
+
+    .variant-bulk-actions .variant-bulk-action-btn[data-bulk-action="delete"]:hover,
+    .variant-bulk-actions .variant-bulk-action-btn[data-bulk-action="delete"]:focus {
+        color: #fff !important;
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+    }
 </style>
 
 <main id="variants-page"
@@ -419,9 +449,9 @@
                             <div class="small text-muted mr-2 mb-2">
                                 @UiText["catalog.variants.selectedCount"] <span data-bulk-count>0</span>
                             </div>
-                            <div class="btn-group btn-group-sm mb-2">
+                            <div class="btn-group btn-group-sm mb-2 variant-bulk-actions">
                                 <button type="submit"
-                                        class="btn btn-outline-success btn-xs"
+                                        class="btn btn-outline-success btn-xs variant-bulk-action-btn"
                                         data-bulk-action="activate"
                                         data-bulk-permission="@(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? "allowed" : "denied")"
                                         data-confirm-title="@UiText["catalog.variants.bulkActivateTitle"]"
@@ -431,7 +461,7 @@
                                     @UiText["catalog.variants.bulkActivateButton"]
                                 </button>
                                 <button type="submit"
-                                        class="btn btn-outline-warning btn-xs"
+                                        class="btn btn-outline-warning btn-xs variant-bulk-action-btn"
                                         data-bulk-action="deactivate"
                                         data-bulk-permission="@(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? "allowed" : "denied")"
                                         data-confirm-title="@UiText["catalog.variants.bulkDeactivateTitle"]"
@@ -441,7 +471,7 @@
                                     @UiText["catalog.variants.bulkDeactivateButton"]
                                 </button>
                                 <button type="submit"
-                                        class="btn btn-outline-danger btn-xs"
+                                        class="btn btn-outline-danger btn-xs variant-bulk-action-btn"
                                         data-bulk-action="delete"
                                         data-bulk-permission="@(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? "allowed" : "denied")"
                                         data-confirm-title="@UiText["catalog.variants.bulkDeleteTitle"]"
@@ -1864,6 +1894,9 @@
                 variantListContainer.setAttribute('data-source-url', url);
                 variantListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
                 return refreshFragmentBody(variantListContainer).then(function () {
+                    if (window.appUi && typeof window.appUi.refreshBulkActions === 'function') {
+                        window.appUi.refreshBulkActions();
+                    }
                     restoreBulkSelectionState();
                     updateBulkModalTriggers();
                     if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
@@ -4040,11 +4073,7 @@
                     .then(function (result) {
                         var mode = result && result.mode ? result.mode : (ajaxForm.getAttribute('data-ajax-submit') || '');
                         if (mode === 'variant-components') {
-                            return refreshComponentList().then(function () {
-                                if (componentStockPanel) {
-                                    componentStockPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                }
-                            });
+                            return refreshComponentList();
                         }
 
                         if (mode === 'variant-media-remove') {

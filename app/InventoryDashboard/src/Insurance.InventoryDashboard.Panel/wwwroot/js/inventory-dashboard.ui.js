@@ -585,21 +585,30 @@
     function initBulkActions(root) {
         root = getScope(root);
         root.querySelectorAll("form[data-bulk-form]").forEach(function (form) {
+            if (form.dataset.bulkActionsBound === "true") {
+                return;
+            }
+
             var scopeSelector = form.getAttribute("data-bulk-scope") || "";
             var scope = scopeSelector ? document.querySelector(scopeSelector) : null;
             if (!scope) {
                 return;
             }
 
-            var rows = Array.prototype.slice.call(scope.querySelectorAll("input[type='checkbox'][data-bulk-row]"));
             var master = scope.querySelector("input[type='checkbox'][data-bulk-toggle]");
             var targetField = form.querySelector("input[data-bulk-target]");
             var actionField = form.querySelector("input[data-bulk-action-input]");
             var countElements = Array.prototype.slice.call(form.querySelectorAll("[data-bulk-count]"));
             var actionButtons = Array.prototype.slice.call(form.querySelectorAll("button[data-bulk-action]"));
 
+            form.dataset.bulkActionsBound = "true";
+
+            function currentRows() {
+                return Array.prototype.slice.call(scope.querySelectorAll("input[type='checkbox'][data-bulk-row]"));
+            }
+
             function selectedIds() {
-                return rows
+                return currentRows()
                     .filter(function (row) { return row.checked; })
                     .map(function (row) { return row.value || ""; })
                     .filter(Boolean);
@@ -621,29 +630,59 @@
                 });
 
                 if (master) {
+                    var rows = currentRows();
                     master.checked = rows.length > 0 && ids.length === rows.length;
                     master.indeterminate = ids.length > 0 && ids.length < rows.length;
                 }
             }
 
+            form.__bulkActionsUpdateState = updateState;
+
             if (master) {
                 master.addEventListener("change", function () {
-                    rows.forEach(function (row) {
+                    currentRows().forEach(function (row) {
                         row.checked = master.checked;
                     });
                     updateState();
                 });
             }
 
-            rows.forEach(function (row) {
-                row.addEventListener("change", updateState);
+            scope.addEventListener("change", function (event) {
+                var target = event.target;
+                if (!(target instanceof HTMLInputElement)) {
+                    return;
+                }
+
+                if (target.matches("input[type='checkbox'][data-bulk-row]")) {
+                    updateState();
+                }
+
+                if (target.matches("input[type='checkbox'][data-bulk-toggle]")) {
+                    updateState();
+                }
             });
 
             actionButtons.forEach(function (button) {
-                button.addEventListener("click", function () {
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    var ids = selectedIds();
+                    if (ids.length === 0) {
+                        window.alert((window.appUi && window.appUi.text && window.appUi.text["bulk.selectAtLeastOne"]) || "حداقل یک ردیف را برای عملیات گروهی انتخاب کنید.");
+                        return;
+                    }
+
                     if (actionField) {
                         actionField.value = button.getAttribute("data-bulk-action") || "";
                     }
+
+                    if (typeof form.requestSubmit === "function") {
+                        form.requestSubmit(button);
+                        return;
+                    }
+
+                    form.submit();
                 });
             });
 
@@ -870,6 +909,15 @@
         window.appUi.initDatePickers = initDatePickers;
         window.appUi.initAutoSubmit = initAutoSubmit;
         window.appUi.initBulkActions = initBulkActions;
+        window.appUi.refreshBulkActions = function (root) {
+            root = getScope(root);
+
+            root.querySelectorAll("form[data-bulk-form]").forEach(function (form) {
+                if (typeof form.__bulkActionsUpdateState === "function") {
+                    form.__bulkActionsUpdateState();
+                }
+            });
+        };
         window.appUi.initDocumentSearchFilters = initDocumentSearchFilters;
         window.appUi.initInventoryManagementPage = initInventoryManagementPage;
 

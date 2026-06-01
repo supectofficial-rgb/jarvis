@@ -83,9 +83,8 @@
                                                id="variant-active-toggle-@variant.Id"
                                                @(variant.IsActive ? "checked" : null)
                                                @(Can("Catalog.Variant.Activate", "ProductVariant.Activate", "Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled") />
-                                        <label class="custom-control-label sr-only" for="variant-active-toggle-@variant.Id">
-                                            @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
-                                        </label>
+                                        <label class="custom-control-label"
+                                               for="variant-active-toggle-@variant.Id"></label>
                                     </div>
                                 </form>
                                 @if (variant.InventoryMovementLocked)
