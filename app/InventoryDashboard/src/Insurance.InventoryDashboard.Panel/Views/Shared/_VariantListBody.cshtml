@@ -67,15 +67,10 @@
                         <td>@(string.IsNullOrWhiteSpace(variant.Barcode) ? "-" : $"#{variant.Barcode}")</td>
                         <td>@variant.BaseUom</td>
                         <td>@variant.TrackingPolicy</td>
-                        <td>
+                        <td class="variant-status-cell js-variant-status-cell">
                             <div class="d-flex flex-column align-items-start">
-                                <span class="badge badge-pill @(variant.IsActive ? "badge-primary" : "badge-secondary") js-variant-status-badge"
-                                      data-active-text="@UiText["common.active"]"
-                                      data-inactive-text="@UiText["common.inactive"]">
-                                    @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
-                                </span>
                                 <form method="post"
-                                      class="mt-2"
+                                      class="variant-status-toggle-form"
                                       data-variant-active-toggle-form
                                       data-activate-url="@Url.Action("ActivateVariant", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
                                       data-deactivate-url="@Url.Action("DeactivateVariant", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })">
@@ -88,7 +83,7 @@
                                                id="variant-active-toggle-@variant.Id"
                                                @(variant.IsActive ? "checked" : null)
                                                @(Can("Catalog.Variant.Activate", "ProductVariant.Activate", "Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled") />
-                                        <label class="custom-control-label small" for="variant-active-toggle-@variant.Id">
+                                        <label class="custom-control-label sr-only" for="variant-active-toggle-@variant.Id">
                                             @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
                                         </label>
                                     </div>

@@ -1573,16 +1573,17 @@
                 dimensions.forEach(function (dimension) {
                     var next = [];
                     combinations.forEach(function (existing) {
-                        (dimension.options || []).forEach(function (option) {
-                            next.push(existing.concat([{
-                                attributeId: dimension.attributeId,
-                                attributeName: dimension.attributeName,
-                                attributeDisplayOrder: dimension.attributeDisplayOrder || 0,
-                                optionId: option.optionId,
-                                optionName: option.optionName,
-                                optionValue: option.optionValue,
-                                optionDisplayOrder: option.optionDisplayOrder || 0
-                            }]));
+                            (dimension.options || []).forEach(function (option) {
+                                next.push(existing.concat([{
+                                    attributeId: dimension.attributeId,
+                                    attributeName: dimension.attributeName,
+                                    attributeDisplayOrder: dimension.attributeDisplayOrder || 0,
+                                    isVariantCodeCovered: !!dimension.isVariantCodeCovered,
+                                    optionId: option.optionId,
+                                    optionName: option.optionName,
+                                    optionValue: option.optionValue,
+                                    optionDisplayOrder: option.optionDisplayOrder || 0
+                                }]));
                         });
                     });
                     combinations = next;

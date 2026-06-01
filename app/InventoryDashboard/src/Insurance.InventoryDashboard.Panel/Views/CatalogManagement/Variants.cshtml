@@ -107,6 +107,28 @@
     };
 }
 
+<style>
+    .variant-status-cell {
+        transition: background-color .15s ease, color .15s ease;
+        border-radius: .25rem;
+    }
+
+    .variant-status-toggle-form .custom-switch .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: #7a7f86;
+        border-color: #7a7f86;
+    }
+
+    .variant-status-toggle-form .custom-switch .custom-control-input:checked ~ .custom-control-label::after {
+        background-color: #1d72f3;
+        border-color: #1d72f3;
+        box-shadow: 0 0 0 .15rem rgba(29, 114, 243, .35);
+    }
+
+    .variant-status-toggle-form .custom-switch .custom-control-input:not(:checked) ~ .custom-control-label::after {
+        background-color: #fff;
+    }
+</style>
+
 <main id="variants-page"
       class="catalog-page"
       data-selected-product-id="@Model.SelectedProductId"
@@ -1860,17 +1882,7 @@
                     return;
                 }
 
-                var badge = row.querySelector('.js-variant-status-badge');
-                if (badge) {
-                    badge.textContent = isActive ? activeText : inactiveText;
-                    badge.classList.remove('badge-primary', 'badge-secondary');
-                    badge.classList.add(isActive ? 'badge-primary' : 'badge-secondary');
-                }
-
-                var label = row.querySelector('label[for="' + toggleInput.id + '"]');
-                if (label) {
-                    label.textContent = isActive ? activeText : inactiveText;
-                }
+                toggleInput.checked = !!isActive;
             }
 
             function sendVariantStatusToggle(toggleInput) {
