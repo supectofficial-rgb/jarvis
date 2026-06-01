@@ -565,6 +565,7 @@ public abstract partial class CatalogManagementController : Controller
             return RedirectToAction("Login", "Auth");
         }
 
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
         var roles = ResolveRolesFromSession(token);
         if (!IsAuthorizedFor(token, "Catalog.Product.View", "Product.Read", "Product.Search"))
         {
@@ -579,6 +580,7 @@ public abstract partial class CatalogManagementController : Controller
         var flatCategories = FlattenCategories(categories).ToList();
         var leafCategories = GetLeafCategories(flatCategories);
 
+        var categoryFilterScope = ResolveCategoryFilterScope(categoryFilterId, flatCategories);
         var productsResult = await _apiService.SearchProductsAsync(token, searchTerm, categoryFilterId);
         var allProducts = productsResult.Data ?? new List<ProductSummaryModel>();
         var uomLookupResult = await _apiService.GetUnitOfMeasureLookupAsync(token);
@@ -599,7 +601,7 @@ public abstract partial class CatalogManagementController : Controller
             }
         }
 
-        var filteredProducts = ApplyProductFilters(allProducts, searchTerm, categoryFilterId, statusFilter, sort);
+        var filteredProducts = ApplyProductFilters(allProducts, searchTerm, categoryFilterScope, statusFilter, sort);
         var pagedProducts = Paginate(filteredProducts, page, pageSize, out var normalizedPage, out var normalizedPageSize, out var totalCount, out var totalPages);
 
         var isCreateMode = create && string.IsNullOrWhiteSpace(productId);
@@ -715,6 +717,12 @@ public abstract partial class CatalogManagementController : Controller
         };
 
         SetLayoutViewBag(model.Modules, model.ActiveModule?.ModuleId, model.ActiveItem?.ItemId, model.UserName);
+
+        if (isAjaxRequest)
+        {
+            return PartialView("~/Views/CatalogManagement/_ProductListSection.cshtml", model);
+        }
+
         return View("~/Views/CatalogManagement/Products.cshtml", model);
     }
 
@@ -2418,7 +2426,8 @@ public abstract partial class CatalogManagementController : Controller
 
                 var token = !string.IsNullOrWhiteSpace(value.Value)
                     ? value.Value
-                    : attribute.Options.FirstOrDefault(o => string.Equals(o.Id, value.OptionId, StringComparison.OrdinalIgnoreCase))?.OptionValue;
+                    : attribute.Options.FirstOrDefault(o => string.Equals(o.Id, value.OptionId, StringComparison.OrdinalIgnoreCase))?.OptionValue
+                      ?? attribute.Options.FirstOrDefault(o => string.Equals(o.Id, value.OptionId, StringComparison.OrdinalIgnoreCase))?.OptionName;
 
             return string.IsNullOrWhiteSpace(token)
                     ? null
@@ -2466,7 +2475,9 @@ public abstract partial class CatalogManagementController : Controller
                     x.AttributeName,
                     x.AttributeDisplayOrder,
                     1,
-                    x.OptionValue))
+                    !string.IsNullOrWhiteSpace(x.OptionValue)
+                        ? x.OptionValue
+                        : x.OptionName))
                 .ToList();
 
             var skuSegments = productCodeSegments
@@ -3085,7 +3096,7 @@ public abstract partial class CatalogManagementController : Controller
     private static IReadOnlyList<ProductSummaryModel> ApplyProductFilters(
         IReadOnlyList<ProductSummaryModel> products,
         string? searchTerm,
-        string? categoryFilterId,
+        IReadOnlyCollection<string>? categoryFilterIds,
         string? statusFilter,
         string? sort)
     {
@@ -3102,9 +3113,10 @@ public abstract partial class CatalogManagementController : Controller
                 ContainsText(p.Id, term));
         }
 
-        if (!string.IsNullOrWhiteSpace(categoryFilterId))
+        if (categoryFilterIds is { Count: > 0 })
         {
-            query = query.Where(p => string.Equals(p.CategoryId, categoryFilterId, StringComparison.OrdinalIgnoreCase));
+            var categorySet = categoryFilterIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            query = query.Where(p => categorySet.Contains(p.CategoryId));
         }
 
         if (TryParseStatusFilter(statusFilter, out var isActive))
@@ -3124,6 +3136,49 @@ public abstract partial class CatalogManagementController : Controller
         };
 
         return query.ToList();
+    }
+
+    private static IReadOnlyCollection<string>? ResolveCategoryFilterScope(
+        string? categoryFilterId,
+        IReadOnlyList<CategoryNodeModel> flatCategories)
+    {
+        if (string.IsNullOrWhiteSpace(categoryFilterId))
+        {
+            return null;
+        }
+
+        var lookup = flatCategories
+            .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+            .ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+
+        if (!lookup.ContainsKey(categoryFilterId))
+        {
+            return new[] { categoryFilterId.Trim() };
+        }
+
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var stack = new Stack<string>();
+        stack.Push(categoryFilterId.Trim());
+
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            if (!result.Add(current))
+            {
+                continue;
+            }
+
+            foreach (var child in flatCategories.Where(x =>
+                         string.Equals(x.ParentCategoryId, current, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!string.IsNullOrWhiteSpace(child.Id))
+                {
+                    stack.Push(child.Id);
+                }
+            }
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<ProductVariantSummaryModel> ApplyVariantFilters(

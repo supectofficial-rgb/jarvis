@@ -65,7 +65,10 @@ public class ProductQueryRepository : QueryRepository<InventoryServiceQueryDbCon
         IQueryable<ProductReadModel> dbQuery = _dbContext.Set<ProductReadModel>();
 
         if (query.CategoryRef.HasValue)
-            dbQuery = dbQuery.Where(x => x.CategoryRef == query.CategoryRef.Value);
+        {
+            var categoryRefs = await ResolveCategoryScopeAsync(query.CategoryRef.Value);
+            dbQuery = dbQuery.Where(x => categoryRefs.Contains(x.CategoryRef));
+        }
 
         if (!string.IsNullOrWhiteSpace(query.BaseSku))
         {
@@ -98,6 +101,45 @@ public class ProductQueryRepository : QueryRepository<InventoryServiceQueryDbCon
             PageSize = pageSize,
             Items = items
         };
+    }
+
+    private async Task<HashSet<Guid>> ResolveCategoryScopeAsync(Guid categoryRef)
+    {
+        var categories = await _dbContext.Set<CategoryReadModel>()
+            .Select(x => new
+            {
+                x.BusinessKey,
+                x.ParentCategoryRef
+            })
+            .ToListAsync();
+
+        var childrenLookup = categories
+            .Where(x => x.ParentCategoryRef.HasValue)
+            .GroupBy(x => x.ParentCategoryRef!.Value)
+            .ToDictionary(x => x.Key, x => x.Select(y => y.BusinessKey).ToList());
+
+        var result = new HashSet<Guid>();
+        var stack = new Stack<Guid>();
+        stack.Push(categoryRef);
+
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            if (!result.Add(current))
+            {
+                continue;
+            }
+
+            if (childrenLookup.TryGetValue(current, out var children))
+            {
+                foreach (var child in children)
+                {
+                    stack.Push(child);
+                }
+            }
+        }
+
+        return result;
     }
 
     public async Task<List<ProductListItem>> GetByCategoryIdAsync(Guid categoryId, bool includeInactive = false)

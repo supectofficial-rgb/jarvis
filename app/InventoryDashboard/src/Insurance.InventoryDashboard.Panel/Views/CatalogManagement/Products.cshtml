@@ -829,15 +829,7 @@
                             return;
                         }
 
-                        var parser = new DOMParser();
-                        var nextDocument = parser.parseFromString(html, 'text/html');
-                        var nextPanel = nextDocument.getElementById('product-list-tab-panel');
-
-                        if (!nextPanel) {
-                            throw new Error('Product list panel not found in response.');
-                        }
-
-                        productListTabPanel.innerHTML = nextPanel.innerHTML;
+                        productListTabPanel.innerHTML = html;
 
                         if (window.history && window.history.replaceState) {
                             var nextUrl = new URL(requestUrl, window.location.origin);
@@ -846,7 +838,9 @@
                         }
                     })
                     .catch(function () {
-                        window.location.href = requestUrl;
+                        // Keep the current page in place if the AJAX refresh fails.
+                        // The user can retry without losing the current tab state.
+                        return;
                     })
                     .finally(function () {
                         if (currentRequestId === productListRequestId) {
