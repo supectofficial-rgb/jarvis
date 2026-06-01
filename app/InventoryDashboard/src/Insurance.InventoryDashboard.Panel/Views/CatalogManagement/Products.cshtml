@@ -423,9 +423,51 @@
                                 <h5 class="card-title mb-3">@UiText["catalog.products.searchAndFilter"]</h5>
                                 <form method="get" asp-action="Products" class="row" id="product-search-form" data-state-form>
                                     <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
-                                    <div class="col-lg-10 col-md-9 mb-2">
+                                    <div class="col-lg-4 col-md-6 mb-2">
                                         <label class="text-muted small">@UiText["catalog.products.searchLabel"]</label>
                                         <input name="searchTerm" value="@Model.ProductSearchTerm" class="form-control" data-filter-label='@UiText["common.search"]' placeholder='@UiText["catalog.products.searchPlaceholder"]' />
+                                    </div>
+                                    <div class="col-lg-4 col-md-6 mb-2">
+                                        <label class="text-muted small">@UiText["catalog.products.category"]</label>
+                                        <select name="categoryFilterId"
+                                                class="form-control js-search-select"
+                                                data-placeholder='@UiText["common.all"]'
+                                                data-filter-label='@UiText["catalog.products.category"]'>
+                                            <option value="">@UiText["common.all"]</option>
+                                            @foreach (var category in Model.LeafCategories)
+                                            {
+                                                if (string.Equals(Model.ProductCategoryFilterId, category.Id, StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <option value="@category.Id" selected="selected">@category.Name</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@category.Id">@category.Name</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-2 col-md-3 mb-2">
+                                        <label class="text-muted small">@UiText["common.status"]</label>
+                                        <select name="statusFilter" class="form-control" data-filter-label='@UiText["common.status"]'>
+                                            <option value="">@UiText["common.all"]</option>
+                                            @if (string.Equals(Model.ProductStatusFilter, "active", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <option value="active" selected="selected">@UiText["common.active"]</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="active">@UiText["common.active"]</option>
+                                            }
+                                            @if (string.Equals(Model.ProductStatusFilter, "inactive", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <option value="inactive" selected="selected">@UiText["common.inactive"]</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="inactive">@UiText["common.inactive"]</option>
+                                            }
+                                        </select>
                                     </div>
                                     <div class="col-lg-2 col-md-3 mb-2 d-flex align-items-end">
                                         <button type="submit" class="btn btn-primary btn-block">@UiText["common.apply"]</button>

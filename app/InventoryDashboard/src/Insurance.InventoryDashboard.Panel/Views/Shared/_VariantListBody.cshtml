@@ -130,6 +130,18 @@
                                         data-detail-title="@UiText["catalog.variants.componentsTitle"]">
                                     @UiText["catalog.variants.componentsTitle"]
                                 </button>
+                                <form asp-action="DeleteVariant" method="post" class="d-inline" data-loading-form>
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                    <input type="hidden" name="variantId" value="@variant.Id" />
+                                    <button type="submit"
+                                            class="btn btn-outline-danger btn-xs"
+                                            data-confirm-title="@UiText["catalog.variants.deleteTitle"]"
+                                            data-confirm="@UiText["catalog.variants.deleteConfirm"]"
+                                            @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>
+                                        @UiText["common.delete"]
+                                    </button>
+                                </form>
                                 <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     <span class="sr-only">@UiText["common.operations"]</span>
                                 </button>

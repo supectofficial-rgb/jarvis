@@ -136,6 +136,18 @@
                                                asp-route-page="@Model.ProductPage"
                                                asp-route-pageSize="@Model.ProductPageSize"
                                                asp-fragment="product-tab-main">@UiText["common.edit"]</a>
+                                            <form asp-action="DeleteProduct" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="productId" value="@product.Id" />
+                                                <input type="hidden" name="categoryId" value="@product.CategoryId" />
+                                                <button type="submit"
+                                                        class="btn btn-outline-danger btn-xs"
+                                                        data-confirm-title="@UiText["catalog.products.deleteTitle"]"
+                                                        data-confirm="@UiText["catalog.products.deleteConfirm"]"
+                                                        @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
+                                                    @UiText["common.delete"]
+                                                </button>
+                                            </form>
                                             <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                 <span class="sr-only">@UiText["common.operations"]</span>
                                             </button>
@@ -156,18 +168,6 @@
                                                     <input type="hidden" name="productId" value="@product.Id" />
                                                     <input type="hidden" name="categoryId" value="@product.CategoryId" />
                                                     <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Product.Deactivate", "Product.Deactivate") ? null : "disabled")>@UiText["catalog.products.deactivateButton"]</button>
-                                                </form>
-                                                <form asp-action="DeleteProduct" method="post" class="px-3 py-1" data-loading-form>
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="productId" value="@product.Id" />
-                                                    <input type="hidden" name="categoryId" value="@product.CategoryId" />
-                                                    <button type="submit"
-                                                            class="btn btn-link text-danger p-0"
-                                                            data-confirm-title="@UiText["catalog.products.deleteTitle"]"
-                                                            data-confirm="@UiText["catalog.products.deleteConfirm"]"
-                                                            @(Can("Catalog.Product.Delete", "Product.Delete") ? null : "disabled")>
-                                                        @UiText["common.delete"]
-                                                    </button>
                                                 </form>
                                             </div>
                                         </div>
