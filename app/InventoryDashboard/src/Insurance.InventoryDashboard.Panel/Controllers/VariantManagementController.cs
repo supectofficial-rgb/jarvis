@@ -24,6 +24,11 @@ public sealed class VariantManagementController : CatalogManagementController
         _inventoryApiService = inventoryApiService;
     }
 
+    private string T(string key) => _uiText[key];
+
+    private string T(string key, params object[] args) =>
+        string.Format(System.Globalization.CultureInfo.CurrentCulture, _uiText[key], args);
+
     [HttpGet]
     public IActionResult Index() => RedirectToAction(nameof(Variants));
 
@@ -52,7 +57,7 @@ public sealed class VariantManagementController : CatalogManagementController
         var roles = ResolveRolesFromSession(token);
         if (!IsAuthorizedFor(token, "Catalog.Variant.View", "ProductVariant.Read", "ProductVariant.Search"))
         {
-            TempData["CatalogError"] = "شما دسترسی مشاهده مدیریت واریانت‌ها را ندارید.";
+            TempData["CatalogError"] = T("catalog.variants.accessDenied");
             return RedirectToAction("Index", "Dashboard");
         }
 
@@ -78,7 +83,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         var model = new VariantManagementPageViewModel
         {
-            UserName = HttpContext.Session.GetString("UserName") ?? "کاربر",
+            UserName = HttpContext.Session.GetString("UserName") ?? T("common.user"),
             Roles = roles,
             Permissions = permissions,
             Modules = modules,
@@ -154,11 +159,11 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (ownerSellers.Count == 0)
         {
-            model.ErrorMessage ??= "Seller Owner فعال در سیستم پیدا نشد. تا زمان ثبت Seller Owner، قیمت‌گذاری این بخش غیرفعال است.";
+            model.ErrorMessage ??= T("catalog.variants.noActiveSellerOwnerForCatalogPricing");
         }
         else if (ownerSellers.Count > 1)
         {
-            model.ErrorMessage ??= "بیش از یک Seller Owner فعال پیدا شد. تا زمان تعیین یک Owner یکتا، قیمت‌گذاری این بخش غیرفعال است.";
+            model.ErrorMessage ??= T("catalog.variants.multipleActiveSellerOwnersForPricing");
         }
 
         SetLayoutViewBag(model.Modules, model.ActiveModule?.ModuleId, model.ActiveItem?.ItemId, model.UserName);
@@ -186,7 +191,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             return PartialView("~/Views/Shared/_VariantListBody.cshtml", new VariantManagementPageViewModel
             {
-                ErrorMessage = "برای مشاهده لیست واریانت‌ها باید دوباره وارد شوید."
+                ErrorMessage = T("catalog.variants.loginRequiredVariants")
             });
         }
 
@@ -195,7 +200,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             return PartialView("~/Views/Shared/_VariantListBody.cshtml", new VariantManagementPageViewModel
             {
-                ErrorMessage = "شما دسترسی مشاهده لیست واریانت‌ها را ندارید."
+                ErrorMessage = T("catalog.variants.accessDeniedVariants")
             });
         }
 
@@ -290,7 +295,7 @@ public sealed class VariantManagementController : CatalogManagementController
             {
                 SelectedProductId = productId,
                 SelectedVariantId = variantId,
-                ErrorMessage = "برای مشاهده کامپوننت‌های واریانت باید دوباره وارد شوید."
+                ErrorMessage = T("catalog.variants.loginRequiredComponents")
             });
         }
 
@@ -301,7 +306,7 @@ public sealed class VariantManagementController : CatalogManagementController
             {
                 SelectedProductId = productId,
                 SelectedVariantId = variantId,
-                ErrorMessage = "شما دسترسی مشاهده کامپوننت‌های واریانت را ندارید."
+                ErrorMessage = T("catalog.variants.accessDeniedComponents")
             });
         }
 
@@ -602,13 +607,13 @@ public sealed class VariantManagementController : CatalogManagementController
     {
         if (!TryGetToken(out var token))
         {
-            return Json(new { isSuccess = false, error = "برای قیمت‌گذاری باید دوباره وارد شوید." });
+            return Json(new { isSuccess = false, error = T("catalog.variants.loginRequiredPricing") });
         }
 
         var ownerSeller = await ResolveOwnerSellerAsync(token);
         if (ownerSeller is null)
         {
-            return Json(new { isSuccess = false, error = "برای قیمت‌گذاری باید Seller Owner فعال در سیستم ثبت شده باشد." });
+            return Json(new { isSuccess = false, error = T("catalog.variants.noActiveSellerOwnerForPricing") });
         }
 
         var variantRefs = (request.SelectedVariantRefs ?? new List<string>())
@@ -619,7 +624,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (variantRefs.Count == 0)
         {
-            return Json(new { isSuccess = false, error = "حداقل یک واریانت را برای قیمت‌گذاری انتخاب کنید." });
+            return Json(new { isSuccess = false, error = T("catalog.variants.pricingSelectAtLeastOneVariant") });
         }
 
         var entries = (request.Prices ?? new List<VariantPriceMatrixInputModel>())
@@ -634,7 +639,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (entries.Count == 0)
         {
-            return Json(new { isSuccess = false, error = "حداقل یک مبلغ معتبر برای یکی از ترکیب‌های نوع قیمت و کانال وارد کنید." });
+            return Json(new { isSuccess = false, error = T("catalog.variants.pricingEnterValidAmount") });
         }
 
         var processedCount = 0;
@@ -651,7 +656,7 @@ public sealed class VariantManagementController : CatalogManagementController
                 return Json(new
                 {
                     isSuccess = false,
-                    error = currentPricesResult.ErrorMessage ?? "بارگذاری قیمت‌های فعلی واریانت ناموفق بود."
+                    error = currentPricesResult.ErrorMessage ?? T("catalog.variants.pricingLoadCurrentFailed")
                 });
             }
 
@@ -684,7 +689,7 @@ public sealed class VariantManagementController : CatalogManagementController
                     return Json(new
                     {
                         isSuccess = false,
-                        error = saveResult.ErrorMessage ?? "ثبت قیمت واریانت ناموفق بود."
+                        error = saveResult.ErrorMessage ?? T("catalog.variants.pricingSaveFailed")
                     });
                 }
 
@@ -695,7 +700,7 @@ public sealed class VariantManagementController : CatalogManagementController
         return Json(new
         {
             isSuccess = true,
-            message = $"{processedCount} قیمت برای Seller Owner ثبت یا به‌روزرسانی شد."
+            message = T("catalog.variants.pricingSavedCount", processedCount)
         });
     }
 
@@ -860,14 +865,28 @@ public sealed class VariantManagementController : CatalogManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpsertVariantComponent([Bind(Prefix = "VariantComponentForm")] VariantComponentForm form)
     {
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
         if (!TryGetToken(out var token))
         {
+            if (isAjaxRequest)
+            {
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
+            }
+
             return RedirectToAction("Login", "Auth");
         }
 
         if (!TryValidateModel(form))
         {
-            TempData["CatalogError"] = ExtractModelError(ModelState);
+            var errorMessage = ExtractModelError(ModelState);
+            if (isAjaxRequest)
+            {
+                return Json(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
         }
 
@@ -883,11 +902,28 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (!result.IsSuccess)
         {
-            TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â«Ã˜Â¨Ã˜Âª Ã˜Â¬Ã˜Â²Ã˜Â¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+            var errorMessage = result.ErrorMessage ?? T("catalog.variants.componentSaveFailed");
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
         }
         else
         {
-            TempData["CatalogSuccess"] = "Ã˜Â¬Ã˜Â²Ã˜Â¡/Ã™â€¦Ã˜Â¹Ã˜Â§Ã˜Â¯Ã™â€ž Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â¨Ã˜Â§ Ã™â€¦Ã™Ë†Ã™ÂÃ™â€šÃ›Å’Ã˜Âª Ã˜Â°Ã˜Â®Ã›Å’Ã˜Â±Ã™â€¡ Ã˜Â´Ã˜Â¯.";
+            if (isAjaxRequest)
+            {
+                return Json(new
+                {
+                    isSuccess = true,
+                    message = T("catalog.variants.componentSaveSuccess"),
+                    productId = form.ProductId,
+                    variantId = form.VariantId
+                });
+            }
+
+            TempData["CatalogSuccess"] = T("catalog.variants.componentSaveSuccess");
         }
 
         return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
@@ -904,7 +940,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -912,7 +948,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (string.IsNullOrWhiteSpace(variantComponentBusinessKey))
         {
-            var errorMessage = "شناسه کامپوننت معتبر نیست.";
+            var errorMessage = T("catalog.variants.componentInvalidId");
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
@@ -927,17 +963,17 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف کامپوننت انجام نشد." });
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? T("catalog.variants.componentDeleteFailed") });
             }
 
-            TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â­Ã˜Â°Ã™Â Ã˜Â¬Ã˜Â²Ã˜Â¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
+            TempData["CatalogError"] = result.ErrorMessage ?? T("catalog.variants.componentDeleteFailed");
         }
         else if (isAjaxRequest)
         {
             return Json(new
             {
                 isSuccess = true,
-                message = "کامپوننت با موفقیت حذف شد.",
+                message = T("catalog.variants.componentDeleteSuccess"),
                 productId,
                 variantComponentBusinessKey
             });
@@ -950,14 +986,28 @@ public sealed class VariantManagementController : CatalogManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpsertVariantAddOn([Bind(Prefix = "VariantAddOnForm")] VariantAddOnForm form)
     {
+        var isAjaxRequest = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase) ||
+                            Request.Headers.Accept.Any(x => x.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+
         if (!TryGetToken(out var token))
         {
+            if (isAjaxRequest)
+            {
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
+            }
+
             return RedirectToAction("Login", "Auth");
         }
 
         if (!TryValidateModel(form))
         {
-            TempData["CatalogError"] = ExtractModelError(ModelState);
+            var errorMessage = ExtractModelError(ModelState);
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
         }
 
@@ -968,13 +1018,25 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (!hasVariant && !hasTag)
         {
-            TempData["CatalogError"] = "حداقل یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
+            var errorMessage = T("catalog.variants.addonSelectVariantOrTag");
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
         }
 
         if (hasVariant && hasTag)
         {
-            TempData["CatalogError"] = "فقط یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
+            var errorMessage = T("catalog.variants.addonSelectOnlyOne");
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
             return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
         }
 
@@ -990,11 +1052,28 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (!result.IsSuccess)
         {
-            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت Add-on واریانت انجام نشد.";
+            var errorMessage = result.ErrorMessage ?? T("catalog.variants.addonSaveFailed");
+            if (isAjaxRequest)
+            {
+                return BadRequest(new { isSuccess = false, error = errorMessage });
+            }
+
+            TempData["CatalogError"] = errorMessage;
         }
         else
         {
-            TempData["CatalogSuccess"] = "Add-on واریانت با موفقیت ذخیره شد.";
+            if (isAjaxRequest)
+            {
+                return Json(new
+                {
+                    isSuccess = true,
+                    message = T("catalog.variants.addonSaveSuccess"),
+                    productId = form.ProductId,
+                    variantId = form.VariantId
+                });
+            }
+
+            TempData["CatalogSuccess"] = T("catalog.variants.addonSaveSuccess");
         }
 
         return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
@@ -1011,7 +1090,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -1019,7 +1098,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (string.IsNullOrWhiteSpace(variantAddOnBusinessKey))
         {
-            var errorMessage = "شناسه Add-on معتبر نیست.";
+            var errorMessage = T("catalog.variants.addonInvalidId");
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
@@ -1034,17 +1113,17 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف Add-on انجام نشد." });
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? T("catalog.variants.addonDeleteFailed") });
             }
 
-            TempData["CatalogError"] = result.ErrorMessage ?? "حذف Add-on انجام نشد.";
+            TempData["CatalogError"] = result.ErrorMessage ?? T("catalog.variants.addonDeleteFailed");
         }
         else if (isAjaxRequest)
         {
             return Json(new
             {
                 isSuccess = true,
-                message = "Add-on با موفقیت حذف شد.",
+                message = T("catalog.variants.addonDeleteSuccess"),
                 productId,
                 variantAddOnBusinessKey
             });
@@ -1240,7 +1319,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -1271,10 +1350,10 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "ثبت برچسب انجام نشد." });
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? T("catalog.variants.tagSaveFailed") });
             }
 
-            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت برچسب انجام نشد.";
+            TempData["CatalogError"] = result.ErrorMessage ?? T("catalog.variants.tagSaveFailed");
         }
         else
         {
@@ -1283,14 +1362,14 @@ public sealed class VariantManagementController : CatalogManagementController
                 return Json(new
                 {
                     isSuccess = true,
-                    message = "برچسب با موفقیت ذخیره شد.",
+                    message = T("catalog.variants.tagSaveSuccess"),
                     variantId = form.VariantId,
                     productId = form.ProductId,
                     tagId = form.TagId
                 });
             }
 
-            TempData["CatalogSuccess"] = "برچسب با موفقیت ذخیره شد.";
+            TempData["CatalogSuccess"] = T("catalog.variants.tagSaveSuccess");
         }
 
         return RedirectToAction(nameof(Variants), new { productId = form.ProductId, variantId = form.VariantId });
@@ -1307,7 +1386,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -1335,10 +1414,10 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "ثبت برچسب انجام نشد." });
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? T("catalog.variants.tagCreateFailed") });
             }
 
-            TempData["CatalogError"] = result.ErrorMessage ?? "ثبت برچسب انجام نشد.";
+            TempData["CatalogError"] = result.ErrorMessage ?? T("catalog.variants.tagCreateFailed");
         }
         else
         {
@@ -1347,14 +1426,14 @@ public sealed class VariantManagementController : CatalogManagementController
                 return Json(new
                 {
                     isSuccess = true,
-                    message = "برچسب با موفقیت ایجاد شد.",
+                    message = T("catalog.variants.tagCreateSuccess"),
                     tagId = result.Data?.TagId,
                     tagName = result.Data?.TagName,
                     tagColor = result.Data?.TagColor
                 });
             }
 
-            TempData["CatalogSuccess"] = "برچسب با موفقیت ایجاد شد.";
+            TempData["CatalogSuccess"] = T("catalog.variants.tagCreateSuccess");
         }
 
         return RedirectToAction(nameof(Variants), new { productId = string.Empty, variantId = string.Empty });
@@ -1371,7 +1450,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -1379,7 +1458,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (string.IsNullOrWhiteSpace(variantTagBusinessKey))
         {
-            var errorMessage = "شناسه Tag معتبر نیست.";
+            var errorMessage = T("catalog.variants.tagInvalidId");
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
@@ -1394,10 +1473,10 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف برچسب انجام نشد." });
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? T("catalog.variants.tagDeleteFailed") });
             }
 
-            TempData["CatalogError"] = result.ErrorMessage ?? "حذف برچسب انجام نشد.";
+            TempData["CatalogError"] = result.ErrorMessage ?? T("catalog.variants.tagDeleteFailed");
         }
         else
         {
@@ -1406,13 +1485,13 @@ public sealed class VariantManagementController : CatalogManagementController
                 return Json(new
                 {
                     isSuccess = true,
-                    message = "برچسب با موفقیت حذف شد.",
+                    message = T("catalog.variants.tagDeleteSuccess"),
                     productId,
                     variantTagBusinessKey
                 });
             }
 
-            TempData["CatalogSuccess"] = "برچسب با موفقیت حذف شد.";
+            TempData["CatalogSuccess"] = T("catalog.variants.tagDeleteSuccess");
         }
 
         return RedirectToAction(nameof(Variants), new { productId });
@@ -1429,7 +1508,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -1460,7 +1539,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (selectedVariantIds.Count == 0)
         {
-            var errorMessage = "حداقل یک واریانت را برای ثبت برچسب انتخاب کنید.";
+            var errorMessage = T("catalog.variants.tagBulkSelectVariants");
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
@@ -1472,7 +1551,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (tags.Count == 0)
         {
-            var errorMessage = "حداقل یک برچسب وارد کنید.";
+            var errorMessage = T("catalog.variants.tagBulkEnterAtLeastOne");
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
@@ -1501,7 +1580,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
                 if (!result.IsSuccess)
                 {
-                    failures.Add(result.ErrorMessage ?? $"ثبت برچسب برای واریانت {variantId} انجام نشد.");
+                    failures.Add(result.ErrorMessage ?? T("catalog.variants.tagBulkVariantFailed", variantId));
                     failed = true;
                     break;
                 }
@@ -1520,14 +1599,14 @@ public sealed class VariantManagementController : CatalogManagementController
                 return Json(new
                 {
                     isSuccess = true,
-                    message = $"برچسب برای {successCount} واریانت ثبت شد.",
+                    message = T("catalog.variants.tagBulkSaved", successCount),
                     productId = form.ProductId,
                     variantId = selectedVariantIds.FirstOrDefault(),
                     successCount
                 });
             }
 
-            TempData["CatalogSuccess"] = $"برچسب برای {successCount} واریانت ثبت شد.";
+            TempData["CatalogSuccess"] = T("catalog.variants.tagBulkSaved", successCount);
         }
 
         if (failures.Count > 0)
@@ -1648,7 +1727,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -1678,7 +1757,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (selectedVariantIds.Count == 0)
         {
-            var errorMessage = "حداقل یک واریانت را برای ثبت Add-on انتخاب کنید.";
+            var errorMessage = T("catalog.variants.addonBulkSelectVariants");
             if (isAjaxRequest)
             {
                 return Json(new { isSuccess = false, error = errorMessage });
@@ -1690,7 +1769,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (!hasVariant && !hasTag)
         {
-            var errorMessage = "حداقل یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
+            var errorMessage = T("catalog.variants.addonBulkSelectVariantOrTag");
             if (isAjaxRequest)
             {
                 return Json(new { isSuccess = false, error = errorMessage });
@@ -1702,7 +1781,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (hasVariant && hasTag)
         {
-            var errorMessage = "فقط یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.";
+            var errorMessage = T("catalog.variants.addonBulkSelectOnlyOne");
             if (isAjaxRequest)
             {
                 return Json(new { isSuccess = false, error = errorMessage });
@@ -1721,7 +1800,7 @@ public sealed class VariantManagementController : CatalogManagementController
             {
                 if (string.Equals(variantId, addOnVariantId, StringComparison.OrdinalIgnoreCase))
                 {
-                    failures.Add($"واریانت {variantId} نمی‌تواند Add-on خودش باشد.");
+                    failures.Add(T("catalog.variants.addonBulkSelfNotAllowed", variantId));
                     continue;
                 }
 
@@ -1737,7 +1816,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
                 if (!addOnResultVariant.IsSuccess)
                 {
-                    failures.Add(addOnResultVariant.ErrorMessage ?? $"ثبت Add-on برای واریانت {variantId} انجام نشد.");
+                    failures.Add(addOnResultVariant.ErrorMessage ?? T("catalog.variants.addonBulkVariantFailed", variantId));
                     continue;
                 }
 
@@ -1757,7 +1836,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
             if (!addOnResultTag.IsSuccess)
             {
-                failures.Add(addOnResultTag.ErrorMessage ?? $"ثبت Add-on برای واریانت {variantId} انجام نشد.");
+                failures.Add(addOnResultTag.ErrorMessage ?? T("catalog.variants.addonBulkVariantFailed", variantId));
                 continue;
             }
 
@@ -1766,7 +1845,7 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (successCount > 0)
         {
-            TempData["CatalogSuccess"] = $"Add-on برای {successCount} واریانت ثبت شد.";
+            TempData["CatalogSuccess"] = T("catalog.variants.addonBulkSaved", successCount);
         }
 
         if (isAjaxRequest)
@@ -1776,7 +1855,7 @@ public sealed class VariantManagementController : CatalogManagementController
                 isSuccess = failures.Count == 0,
                 successCount,
                 message = successCount > 0
-                    ? $"Add-on برای {successCount} واریانت ثبت شد."
+                    ? T("catalog.variants.addonBulkSaved", successCount)
                     : (failures.Count > 0 ? string.Join(" | ", failures.Take(3)) : string.Empty),
                 reloadVariantId = selectedVariantIds.FirstOrDefault(),
                 errors = failures.Take(3).ToList()
@@ -1940,7 +2019,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return Unauthorized(new { isSuccess = false, error = "Authentication required." });
+                return Unauthorized(new { isSuccess = false, error = T("common.authenticationRequired") });
             }
 
             return RedirectToAction("Login", "Auth");
@@ -1948,13 +2027,13 @@ public sealed class VariantManagementController : CatalogManagementController
 
         if (string.IsNullOrWhiteSpace(variantImageBusinessKey))
         {
-            var errorMessage = "شناسه مدیا معتبر نیست.";
+            var errorMessage = T("catalog.variants.mediaInvalidId");
             if (isAjaxRequest)
             {
                 return BadRequest(new { isSuccess = false, error = errorMessage });
             }
 
-            TempData["CatalogError"] = "Ã˜Â´Ã™â€ Ã˜Â§Ã˜Â³Ã™â€¡ Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã›Å’Ã˜Â§ Ã™ÂÃ˜Â§Ã›Å’Ã™â€ž Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™â€¦Ã˜Â¹Ã˜ÂªÃ˜Â¨Ã˜Â± Ã™â€ Ã›Å’Ã˜Â³Ã˜Âª.";
+            TempData["CatalogError"] = T("catalog.variants.mediaInvalidId");
             return RedirectToAction(nameof(Variants), new { productId });
         }
 
@@ -1963,7 +2042,7 @@ public sealed class VariantManagementController : CatalogManagementController
         {
             if (isAjaxRequest)
             {
-                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? "حذف تصویر واریانت انجام نشد." });
+                return BadRequest(new { isSuccess = false, error = result.ErrorMessage ?? T("catalog.variants.mediaDeleteFailed") });
             }
 
             TempData["CatalogError"] = result.ErrorMessage ?? "Ã˜Â­Ã˜Â°Ã™Â Ã˜ÂªÃ˜ÂµÃ™Ë†Ã›Å’Ã˜Â± Ã™Ë†Ã˜Â§Ã˜Â±Ã›Å’Ã˜Â§Ã™â€ Ã˜Âª Ã˜Â§Ã™â€ Ã˜Â¬Ã˜Â§Ã™â€¦ Ã™â€ Ã˜Â´Ã˜Â¯.";
@@ -1973,7 +2052,7 @@ public sealed class VariantManagementController : CatalogManagementController
             return Json(new
             {
                 isSuccess = true,
-                message = "تصویر واریانت حذف شد.",
+                message = T("catalog.variants.mediaDeleteSuccess"),
                 productId,
                 variantImageBusinessKey
             });

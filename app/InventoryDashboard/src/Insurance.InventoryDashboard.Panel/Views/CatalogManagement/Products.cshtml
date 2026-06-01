@@ -832,6 +832,11 @@
                         var parsedDocument = new DOMParser().parseFromString(html, 'text/html');
                         var nextPanel = parsedDocument.querySelector('#product-list-tab-panel');
                         productListTabPanel.innerHTML = nextPanel ? nextPanel.innerHTML : html;
+                        productListTabPanel.style.display = '';
+
+                        if (productListTabPane) {
+                            productListTabPane.classList.add('show', 'active');
+                        }
 
                         if (window.appUi && typeof window.appUi.initBulkActions === 'function') {
                             window.appUi.initBulkActions(productListTabPanel);

@@ -975,9 +975,6 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<DateTime?>("CreatedDateTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("LocationRef")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("ModifiedByUserId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -1002,9 +999,6 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<Guid>("VariantRef")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("WarehouseRef")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
@@ -1013,7 +1007,7 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("VariantRef", "ComponentVariantRef", "WarehouseRef", "LocationRef")
+                    b.HasIndex("VariantRef", "ComponentVariantRef")
                         .IsUnique();
 
                     b.ToTable("VariantComponents", (string)null);

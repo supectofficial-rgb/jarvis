@@ -22,9 +22,17 @@ public sealed class VariantAddOn : Aggregate
 
     internal static VariantAddOn Create(BusinessKey variantRef, Guid? addOnVariantRef, Guid? tagId, bool isRequired, Guid businessKey)
     {
-        var addOn = Create(variantRef, addOnVariantRef, tagId, isRequired);
-        addOn.BusinessKey = OysterFx.AppCore.Domain.ValueObjects.BusinessKey.FromGuid(businessKey);
-        return addOn;
+        if (businessKey == Guid.Empty)
+            throw new ArgumentException("VariantAddOnBusinessKey is required.", nameof(businessKey));
+
+        return new VariantAddOn
+        {
+            BusinessKey = OysterFx.AppCore.Domain.ValueObjects.BusinessKey.FromGuid(businessKey),
+            VariantRef = variantRef,
+            AddOnVariantRef = addOnVariantRef,
+            TagId = tagId,
+            IsRequired = isRequired
+        };
     }
 
     internal void Update(Guid? addOnVariantRef, Guid? tagId, bool isRequired)

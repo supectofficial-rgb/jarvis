@@ -128,6 +128,19 @@
         background-color: #fff;
     }
 
+    .variant-status-toggle-form .custom-switch {
+        direction: ltr;
+        padding-left: 2.25rem;
+        padding-right: 0;
+        margin-bottom: 0;
+    }
+
+    .variant-status-toggle-form .custom-switch .custom-control-label::before,
+    .variant-status-toggle-form .custom-switch .custom-control-label::after {
+        left: -2.25rem !important;
+        right: auto !important;
+    }
+
     .variant-bulk-actions .variant-bulk-action-btn {
         min-width: 7.5rem;
     }
@@ -237,12 +250,12 @@
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <div>
                                             <label class="text-muted small mb-0">@UiText["catalog.variants.attributesFilter"]</label>
-                                            <div class="small text-muted">دسته‌بندی را انتخاب کن تا فیلترهای اتریبیوت همان دسته باز شوند.</div>
+                                            <div class="small text-muted">@UiText["catalog.variants.attributeFilterCategoryHint"]</div>
                                         </div>
                                         <span class="badge badge-light border" id="variant-attribute-filters-summary">0</span>
                                     </div>
                                     <div id="variant-attribute-filters-panel">
-                                        <div class="alert alert-light mb-0">ابتدا یک دسته‌بندی انتخاب کنید.</div>
+                                        <div class="alert alert-light mb-0">@UiText["catalog.variants.selectCategoryToLoadFilters"]</div>
                                     </div>
                                 </div>
                             </div>
@@ -401,14 +414,14 @@
                                         data-target="#variant-bulk-media-modal"
                                         data-mode="bulk"
                                         data-requires-bulk-selection="true">
-                                    افزودن مدیا
+                                    @UiText["catalog.variants.bulkMediaButton"]
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
                                         data-target="#variant-bulk-addon-modal"
                                         data-mode="bulk"
                                         data-requires-bulk-selection="true">
-                                    افزودن ادز آن
+                                    @UiText["catalog.variants.bulkAddonButton"]
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
@@ -417,18 +430,18 @@
                                         data-pricing-enabled="@(pricingEnabled ? "true" : "false")"
                                         data-requires-bulk-selection="true"
                                         @(pricingEnabled ? null : "disabled")>
-                                    قیمت‌گذاری
+                                    @UiText["catalog.variants.bulkPricingButton"]
                                 </button>
                                 <button type="button"
                                         class="btn btn-outline-primary btn-xs"
                                         data-target="#variant-tags-modal"
                                         data-tag-mode="bulk"
                                         data-requires-bulk-selection="true">
-                                    افزودن متاتگ
+                                    @UiText["catalog.variants.bulkTagsButton"]
                                 </button>
                             </div>
                         </div>
-                        <div class="alert alert-warning d-none py-2 mb-3" id="variant-bulk-selection-warning">یک یا چند مورد از موارد را انتخاب کنید</div>
+                        <div class="alert alert-warning d-none py-2 mb-3" id="variant-bulk-selection-warning">@UiText["bulk.selectAtLeastOne"]</div>
                         <form asp-action="ApplyVariantBulkAction"
                               method="post"
                               class="form-inline mb-3"
@@ -492,7 +505,7 @@
                                         </button>
                                     </div>
                                     <div class="modal-body" id="variant-bulk-addon-modal-body">
-                                        <div class="alert alert-warning d-none" data-bulk-empty>یک یا چند مورد از موارد را انتخاب کنید</div>
+                                        <div class="alert alert-warning d-none" data-bulk-empty>@UiText["bulk.selectAtLeastOne"]</div>
                                         <div data-bulk-content>
                                             <form asp-action="BulkAssignVariantAddOn"
                                                   method="post"
@@ -517,25 +530,25 @@
                                                     <select asp-for="BulkVariantAddOnForm.AddOnVariantId"
                                                             class="form-control"
                                                             id="BulkVariantAddOnForm_AddOnVariantId"
-                                                            data-placeholder='کد، نام یا بارکد ادزآن را جستجو کنید'>
+                                                            data-placeholder='@UiText["catalog.variants.bulkAddonSearchPlaceholder"]'>
                                                         <option value="">@UiText["catalog.variants.selectVariantOption"]</option>
                                                     </select>
-                                                    <div class="small text-muted mt-2">یا یک واریانت انتخاب کن یا یک هشتگ.</div>
+                                                    <div class="small text-muted mt-2">@UiText["catalog.variants.bulkAddonSearchHelp"]</div>
                                                 </div>
                                                 <div class="form-row">
                                                     <div class="form-group col-md-6 mb-2">
-                                                        <label>هشتگ ادزآن</label>
+                                                        <label>@UiText["catalog.variants.bulkAddonTagLabel"]</label>
                                                         <select asp-for="BulkVariantAddOnForm.TagId"
                                                                 class="form-control"
                                                                 id="BulkVariantAddOnForm_TagId"
-                                                                data-placeholder='هشتگ را جستجو و انتخاب کنید'>
-                                                            <option value="">انتخاب هشتگ</option>
+                                                                data-placeholder='@UiText["catalog.variants.tagSearchPlaceholder"]'>
+                                                            <option value="">@UiText["catalog.variants.tagSelectOption"]</option>
                                                         </select>
                                                     </div>
                                                     <div class="form-group col-md-6 mb-2 d-flex align-items-end">
                                                         <div class="custom-control custom-checkbox mb-2">
                                                             <input asp-for="BulkVariantAddOnForm.IsRequired" class="custom-control-input" type="checkbox" id="BulkVariantAddOnForm_IsRequired" />
-                                                            <label class="custom-control-label" for="BulkVariantAddOnForm_IsRequired">اجباری</label>
+                                                            <label class="custom-control-label" for="BulkVariantAddOnForm_IsRequired">@UiText["catalog.variants.required"]</label>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -577,7 +590,7 @@
                                         </button>
                                     </div>
                                     <div class="modal-body" id="variant-bulk-media-modal-body">
-                                        <div class="alert alert-warning d-none" data-bulk-empty>یک یا چند مورد از موارد را انتخاب کنید</div>
+                                        <div class="alert alert-warning d-none" data-bulk-empty>@UiText["bulk.selectAtLeastOne"]</div>
                                         <div data-bulk-content>
                                             <form asp-action="BulkAssignVariantImages"
                                                   method="post"
@@ -684,7 +697,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <h5 class="modal-title" id="variant-movement-modal-title">گردش واریانت</h5>
+                    <h5 class="modal-title" id="variant-movement-modal-title">@UiText["catalog.variants.movementTitle"]</h5>
                     <div class="small text-muted" id="variant-movement-modal-subtitle"></div>
                 </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label='@UiText["catalog.variants.close"]'>
@@ -692,7 +705,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-light mb-3" id="variant-movement-modal-summary">در حال بارگذاری...</div>
+                <div class="alert alert-light mb-3" id="variant-movement-modal-summary">@UiText["catalog.variants.movementSummaryLoading"]</div>
                 <div class="alert alert-danger d-none" id="variant-movement-modal-error"></div>
                 <div class="table-responsive" id="variant-movement-modal-body">
                     <div class="text-muted">@UiText["catalog.variants.loading"]</div>
@@ -715,7 +728,7 @@
                 </button>
             </div>
             <div class="modal-body" id="variant-prices-modal-body">
-                <div class="alert alert-warning d-none" id="variant-prices-bulk-empty">یک یا چند مورد از موارد را انتخاب کنید</div>
+                        <div class="alert alert-warning d-none" id="variant-prices-bulk-empty">@UiText["bulk.selectAtLeastOne"]</div>
                 <div class="alert alert-danger d-none" id="variant-prices-modal-error"></div>
                 <div class="alert alert-light" id="variant-prices-modal-summary"></div>
 
@@ -731,27 +744,27 @@
                         <div class="border rounded bg-light p-3 mb-3">
                             <div class="form-row align-items-end">
                                 <div class="form-group col-md-4 mb-2">
-                                    <label>قیمت یکسان برای همه ردیف‌ها</label>
+                                    <label>@UiText["catalog.variants.samePriceForAllRows"]</label>
                                     <input name="ApplyToAllAmount" class="form-control" id="variant-pricing-fill-amount" type="number" min="0" step="0.01" value="@Model.BulkPricingForm.ApplyToAllAmount?.ToString()" />
                                 </div>
                                 <div class="form-group col-md-3 mb-2">
                                     <label class="d-none d-md-block">&nbsp;</label>
-                                    <button type="button" class="btn btn-outline-primary btn-block" id="variant-pricing-fill-button">پر کردن همه</button>
+                                    <button type="button" class="btn btn-outline-primary btn-block" id="variant-pricing-fill-button">@UiText["catalog.variants.fillAllRows"]</button>
                                 </div>
                                 <div class="form-group col-md-2 mb-2">
-                                    <label>ارز</label>
+                                    <label>@UiText["pricing.currency"]</label>
                                     <input name="Currency" class="form-control" maxlength="8" value="@Model.BulkPricingForm.Currency" />
                                 </div>
                                 <div class="form-group col-md-2 mb-2">
-                                    <label>حداقل مقدار</label>
+                                    <label>@UiText["catalog.variants.minQuantityLabel"]</label>
                                     <input name="MinQty" class="form-control" type="number" min="1" step="0.01" value="@Model.BulkPricingForm.MinQty" />
                                 </div>
                                 <div class="form-group col-md-1 mb-2">
-                                    <label>اولویت</label>
+                                    <label>@UiText["pricing.priority"]</label>
                                     <input name="Priority" class="form-control" type="number" value="@Model.BulkPricingForm.Priority" />
                                 </div>
                             </div>
-                            <small class="text-muted">اگر برای بعضی ردیف‌ها مقدار وارد نشود، همین مقدار استفاده می‌شود.</small>
+                            <small class="text-muted">@UiText["catalog.variants.variantFormValueHelp"]</small>
                         </div>
 
                         <div class="table-responsive">
@@ -797,7 +810,7 @@
                     </div>
 
                     <div class="text-right mt-3">
-                        <button type="submit" class="btn btn-primary">ثبت قیمت‌ها</button>
+                        <button type="submit" class="btn btn-primary">@UiText["catalog.variants.submitPrices"]</button>
                     </div>
                 </form>
             </div>
@@ -826,7 +839,7 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
                         <div>
                             <h6 class="card-title mb-1">@UiText["catalog.variants.addOrEditComponent"]</h6>
-                            <p class="text-muted small mb-0">واریانت سازنده و تعداد را انتخاب کن و سپس ثبت بزن.</p>
+                            <p class="text-muted small mb-0">@UiText["catalog.variants.componentFormHelp"]</p>
                         </div>
                     </div>
                     <form asp-action="UpsertVariantComponent" method="post" id="variant-component-form" data-ajax-submit="variant-components" data-loading-form data-dirty-watch>
@@ -840,9 +853,9 @@
                                 <select asp-for="VariantComponentForm.ComponentVariantId"
                                         class="form-control js-component-variant-search"
                                         id="VariantComponentForm_ComponentVariantId"
-                                        data-placeholder='کد یا نام واریانت را جستجو کنید'
+                                        data-placeholder='@UiText["catalog.variants.searchVariantPlaceholder"]'
                                         data-ajax-url='@Url.Action("SearchVariantComponentLookup", "VariantManagement")'>
-                                    <option value="">کد یا نام واریانت را جستجو کنید</option>
+                                    <option value="">@UiText["catalog.variants.searchVariantPlaceholder"]</option>
                                 </select>
                             </div>
                         </div>
@@ -874,7 +887,7 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="variant-tags-modal-title">برچسب واریانت</h5>
+                <h5 class="modal-title" id="variant-tags-modal-title">@UiText["catalog.variants.tagsTitle"]</h5>
                 <button type="button"
                         class="btn btn-outline-primary btn-sm ml-auto mr-2 d-none"
                         id="variant-tags-create-toggle">
@@ -885,13 +898,13 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-warning d-none" id="variant-tags-bulk-empty">یک یا چند مورد از موارد را انتخاب کنید</div>
+                <div class="alert alert-warning d-none" id="variant-tags-bulk-empty">@UiText["bulk.selectAtLeastOne"]</div>
                 <div class="alert alert-light" id="variant-tags-modal-summary"></div>
                 <div id="variant-tags-create-card" class="card mb-3 d-none">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong>ایجاد برچسب جدید</strong>
-                            <button type="button" class="btn btn-link btn-sm p-0" id="variant-tags-create-cancel">بستن</button>
+                            <strong>@UiText["catalog.variants.createTagTitle"]</strong>
+                            <button type="button" class="btn btn-link btn-sm p-0" id="variant-tags-create-cancel">@UiText["common.cancel"]</button>
                         </div>
                         <form asp-action="CreateTagDefinition"
                               method="post"
@@ -900,15 +913,15 @@
                               data-loading-form>
                             @Html.AntiForgeryToken()
                             <div class="form-group">
-                                <label>نام برچسب</label>
-                                <input name="TagDefinitionForm.TagName" class="form-control" placeholder="مثلا ویژه یا تخفیف" />
+                                <label>@UiText["catalog.variants.tagNameLabel"]</label>
+                                <input name="TagDefinitionForm.TagName" class="form-control" placeholder='@UiText["catalog.variants.tagPlaceholder"]' />
                             </div>
                             <div class="form-group">
-                                <label>رنگ برچسب</label>
+                                <label>@UiText["catalog.variants.tagColorLabel"]</label>
                                 <input type="color" name="TagDefinitionForm.TagColor" class="form-control form-control-color" value="#64748b" style="max-width: 96px;" />
-                                <div class="small text-muted mt-2">رنگ را با انتخاب‌گر سیستم مشخص کن، نه از لیست ثابت.</div>
+                                <div class="small text-muted mt-2">@UiText["catalog.variants.tagColorHelp"]</div>
                             </div>
-                            <button type="submit" class="btn btn-primary">تایید</button>
+                            <button type="submit" class="btn btn-primary">@UiText["common.confirm"]</button>
                         </form>
                     </div>
                 </div>
@@ -924,15 +937,15 @@
                         <input asp-for="BulkVariantTagForm.ProductId" type="hidden" value="@Model.SelectedProductId" />
                         <input asp-for="BulkVariantTagForm.SelectedVariantIds" type="hidden" id="bulk-tags-selected-ids" />
                         <div class="form-group">
-                            <label>برچسب‌ها</label>
+                            <label>@UiText["catalog.variants.tagsLabel"]</label>
                             <select id="bulk-variant-tag-lookup"
                                     class="form-control js-search-select"
                                     multiple
-                                    data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
+                                    data-placeholder='@UiText["catalog.variants.tagSearchPlaceholder"]'></select>
                             <input asp-for="BulkVariantTagForm.TagIds" type="hidden" />
-                            <div class="small text-muted mt-2">این فیلد از برچسب‌های ثبت‌شده در سیستم تغذیه می‌شود.</div>
+                            <div class="small text-muted mt-2">@UiText["catalog.variants.tagSearchHelp"]</div>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-block">ثبت گروهی برچسب</button>
+                        <button type="submit" class="btn btn-primary btn-block">@UiText["catalog.variants.bulkTagSubmit"]</button>
                     </form>
                 </div>
 
@@ -948,20 +961,20 @@
                         <input asp-for="VariantTagForm.TagId" type="hidden" />
                         <div class="form-row">
                             <div class="col-md-8 mb-2">
-                                <label>برچسب</label>
+                                <label>@UiText["catalog.variants.tagsLabel"]</label>
                                 <select id="single-variant-tag-lookup"
                                         class="form-control js-search-select"
-                                        data-placeholder="از لیست برچسب‌های سیستم انتخاب کنید"></select>
+                                        data-placeholder='@UiText["catalog.variants.tagSearchPlaceholder"]'></select>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-outline-primary btn-block">ثبت برچسب</button>
+                        <button type="submit" class="btn btn-outline-primary btn-block">@UiText["catalog.variants.singleTagSubmit"]</button>
                     </form>
                 </div>
 
                 <div id="variant-tags-current-wrapper">
                     <hr />
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong>برچسب‌های فعلی</strong>
+                        <strong>@UiText["catalog.variants.currentTagsTitle"]</strong>
                         <span class="text-muted small" id="variant-tags-count">0</span>
                     </div>
                     <div id="variant-tags-list" class="d-flex flex-wrap"></div>
@@ -1035,6 +1048,7 @@
             var tagsCurrentWrapper = document.getElementById('variant-tags-current-wrapper');
             var bulkSelectionWarning = document.getElementById('variant-bulk-selection-warning');
             var componentListContainer = document.getElementById('variant-components-list-container');
+            var componentFormPanel = document.getElementById('variant-component-form-panel');
             var addonListContainer = document.getElementById('variant-addons-list-container');
             var componentModalBody = document.getElementById('variant-components-modal-body');
             var componentModalTitle = document.querySelector('#variant-components-modal .modal-title');
@@ -1065,16 +1079,31 @@
             var qualityStatusText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.qualityStatus"]));
             var noSerialsText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noSerials"]));
             var sellerText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.seller"]));
-            var movementNoDataText = @Html.Raw(JsonSerializer.Serialize("برای این واریانت هنوز تراکنشی ثبت نشده است."));
-            var movementLoadingText = @Html.Raw(JsonSerializer.Serialize("در حال بارگذاری گردش..."));
-            var movementSummaryText = @Html.Raw(JsonSerializer.Serialize("خلاصه گردش واریانت"));
-            var movementTotalText = @Html.Raw(JsonSerializer.Serialize("تعداد تراکنش‌ها"));
-            var movementStatusText = @Html.Raw(JsonSerializer.Serialize("وضعیت"));
-            var movementWarehouseText = @Html.Raw(JsonSerializer.Serialize("انبار"));
-            var movementOccurredText = @Html.Raw(JsonSerializer.Serialize("زمان وقوع"));
-            var movementPostedText = @Html.Raw(JsonSerializer.Serialize("زمان پست"));
-            var movementReasonText = @Html.Raw(JsonSerializer.Serialize("علت"));
-            var movementReferenceText = @Html.Raw(JsonSerializer.Serialize("مرجع"));
+            var movementNoDataText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementNoData"]));
+            var movementLoadingText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementLoading"]));
+            var movementSummaryText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementSummary"]));
+            var movementTotalText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementTotal"]));
+            var movementStatusText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementStatus"]));
+            var movementWarehouseText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementWarehouse"]));
+            var movementOccurredText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementOccurredAt"]));
+            var movementPostedText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementPostedAt"]));
+            var movementReasonText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementReason"]));
+            var movementReferenceText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementReference"]));
+            var numberText = @Html.Raw(JsonSerializer.Serialize(UiText["common.number"]));
+            var typeText = @Html.Raw(JsonSerializer.Serialize(UiText["common.type"]));
+            var sellerOwnerNotFoundText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.sellerOwnerNotFound"]));
+            var pricingBulkSelectionText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricingBulkSelection"]));
+            var pricingBulkHelpText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricingBulkHelp"]));
+            var pricingSingleHelpText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricingSingleHelp"]));
+            var bulkMediaGroupMessageText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.bulkMediaGroupMessage"]));
+            var tagsBulkSummaryText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.tagsBulkSummary"]));
+            var tagsSingleSummaryText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.tagsSingleSummary"]));
+            var addonModalFallbackTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.addonModalFallbackTitle"]));
+            var addonSelectionErrorText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.addonSelectionError"]));
+            var addonSelectionConflictErrorText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.addonSelectionConflictError"]));
+            var tagsTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.tagsTitle"]));
+            var tagsBulkTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.tagsBulkTitle"]));
+            var movementTitleText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.movementTitle"]));
             var priceTypeText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceType"]));
             var priceChannelText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.priceChannel"]));
             var amountText = @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.amount"]));
@@ -1182,7 +1211,7 @@
 
                 var optionMarkup = '';
                 if (options.length > 0) {
-                    optionMarkup = '<select class="form-control js-search-select js-variant-attribute-filter-select" multiple data-placeholder="' + escapeHtml((window.appUi && window.appUi.text && window.appUi.text["catalog.variants.selectOptions"]) || "گزینه‌ها را انتخاب کنید") + '">' +
+                    optionMarkup = '<select class="form-control js-search-select js-variant-attribute-filter-select" multiple data-placeholder="' + escapeHtml((window.appUi && window.appUi.text && window.appUi.text["catalog.variants.selectOptions"]) || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectOptions"]))) + '">' +
                         options
                             .sort(function (a, b) {
                                 var aOrder = Number(a.displayOrder || 0);
@@ -1207,7 +1236,7 @@
                             .join('') +
                         '</select>';
                 } else {
-                    optionMarkup = '<input type="text" class="form-control js-variant-attribute-filter-value" value="' + escapeHtml(textValue) + '" placeholder="جستجو با مقدار" />';
+                    optionMarkup = '<input type="text" class="form-control js-variant-attribute-filter-value" value="' + escapeHtml(textValue) + '" placeholder="' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.searchByValuePlaceholder"]))) + '" />';
                 }
 
                 return '<div class="col-md-6 mb-3 js-variant-attribute-filter-row" ' +
@@ -1250,7 +1279,7 @@
                 });
 
                 if (!normalizedAttributes.length) {
-                    variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-light mb-0">برای این دسته‌بندی اتریبیوتی یافت نشد.</div>';
+                    variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-light mb-0">' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noAttributeFiltersForCategory"]))) + '</div>';
                     if (variantAttributeFiltersSummary) {
                         variantAttributeFiltersSummary.textContent = '0';
                     }
@@ -1276,7 +1305,7 @@
                 if (productRows.length > 0) {
                     sections.push(
                         '<div class="mb-3">' +
-                            '<div class="small text-muted mb-2">ویژگی‌های محصول</div>' +
+                            '<div class="small text-muted mb-2">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.tabs.attributes"])) + '</div>' +
                             '<div class="row">' + productRows.join('') + '</div>' +
                         '</div>'
                     );
@@ -1285,7 +1314,7 @@
                 if (variantRows.length > 0) {
                     sections.push(
                         '<div>' +
-                            '<div class="small text-muted mb-2">ویژگی‌های واریانت</div>' +
+                            '<div class="small text-muted mb-2">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.variantAttributesSectionTitle"])) + '</div>' +
                             '<div class="row">' + variantRows.join('') + '</div>' +
                         '</div>'
                     );
@@ -1298,7 +1327,7 @@
 
                 var selectedCount = collectVariantAttributeFilters().length;
                 if (variantAttributeFiltersSummary) {
-                    variantAttributeFiltersSummary.textContent = selectedCount > 0 ? selectedCount + ' فیلتر' : '0';
+                    variantAttributeFiltersSummary.textContent = selectedCount > 0 ? selectedCount + ' ' + @Html.Raw(JsonSerializer.Serialize(UiText["common.filter"])) : '0';
                 }
             }
 
@@ -1309,7 +1338,7 @@
 
                 var normalizedCategoryId = normalizeString(categoryId);
                 if (!normalizedCategoryId) {
-                    variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-light mb-0">ابتدا یک دسته‌بندی انتخاب کنید.</div>';
+                        variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-light mb-0">' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.selectCategoryToLoadFilters"]))) + '</div>';
                     if (variantAttributeFiltersSummary) {
                         variantAttributeFiltersSummary.textContent = '0';
                     }
@@ -1320,7 +1349,7 @@
                     return;
                 }
 
-                variantAttributeFiltersPanel.innerHTML = '<div class="text-muted small">در حال بارگذاری فیلترهای اتریبیوت...</div>';
+                variantAttributeFiltersPanel.innerHTML = '<div class="text-muted small">' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.loadingVariantAttributeFilters"]))) + '</div>';
 
                 var url = new URL(variantSearchAttributesUrl, window.location.origin);
                 url.searchParams.set('categoryId', normalizedCategoryId);
@@ -1519,8 +1548,8 @@
                 }
 
                 var head = [
-                    'شماره',
-                    'نوع',
+                    numberText,
+                    typeText,
                     movementStatusText,
                     movementWarehouseText,
                     movementOccurredText,
@@ -1644,7 +1673,7 @@
 
                 if (pricingModalSubtitle) {
                     pricingModalSubtitle.textContent = mode === 'bulk'
-                        ? (selectedRefs.length > 0 ? ('برای ' + selectedRefs.length + ' واریانت') : '')
+                        ? (selectedRefs.length > 0 ? pricingBulkSelectionText.replace('{0}', selectedRefs.length.toString()) : '')
                         : (label || '');
                 }
 
@@ -1664,15 +1693,15 @@
                 if (pricingModalSummary) {
                     pricingModalSummary.classList.remove('d-none');
                     pricingModalSummary.textContent = mode === 'bulk'
-                        ? 'قیمت پایه را برای همه ترکیب‌ها وارد کن و سپس ثبت را بزن.'
-                        : 'قیمت‌های فعلی واریانت بارگذاری می‌شود و می‌توانی سریع آن را ویرایش کنی.';
+                        ? pricingBulkHelpText
+                        : pricingSingleHelpText;
                 }
             }
 
             function loadVariantPricingForModal(mode, variantId, label, selectedVariantRefs) {
                 var ownerSellerId = getOwnerSellerId();
                 if (!ownerSellerId) {
-                    setPricingModalFeedback('Seller Owner فعال برای قیمت‌گذاری پیدا نشد.', true);
+                    setPricingModalFeedback(sellerOwnerNotFoundText, true);
                     return Promise.resolve();
                 }
 
@@ -1993,7 +2022,7 @@
                 }
 
                 if (movementModalTitle) {
-                    movementModalTitle.textContent = label || 'گردش واریانت';
+                    movementModalTitle.textContent = label || movementTitleText;
                 }
                 if (movementModalSubtitle) {
                     movementModalSubtitle.textContent = variantId;
@@ -2187,7 +2216,7 @@
                             } else {
                                 mediaModalBody.removeAttribute('data-source-url');
                                 mediaModalBody.removeAttribute('data-source-selector');
-                                mediaModalBody.innerHTML = @Html.Raw(JsonSerializer.Serialize(Model.SelectedVariantDetails is null ? "<div class=\"alert alert-light mb-0\">در حالت گروهی، لیست مدیا برای واریانت انتخاب‌شده نمایش داده می‌شود.</div>" : ""));
+                                mediaModalBody.innerHTML = @Html.Raw(JsonSerializer.Serialize(Model.SelectedVariantDetails is null ? $"<div class=\"alert alert-light mb-0\">{UiText["catalog.variants.bulkMediaGroupMessage"]}</div>" : ""));
                             }
                         }
                         bulkMediaModal.modal('show');
@@ -2342,7 +2371,7 @@
                 syncBulkSelectionInputs([variantId]);
                 updateAddonSubmitState();
                 if (addonModalTitle) {
-                    addonModalTitle.textContent = label || 'Add-on';
+                    addonModalTitle.textContent = label || addonModalFallbackTitleText;
                 }
                 if (addonListContainer) {
                     addonListContainer.setAttribute('data-source-url', addonUrl);
@@ -2379,7 +2408,7 @@
                 if (movementButton) {
                     event.preventDefault();
                     var movementVariantId = movementButton.getAttribute('data-variant-id') || '';
-                    var movementLabel = movementButton.getAttribute('data-variant-label') || movementButton.getAttribute('data-detail-title') || 'گردش واریانت';
+                    var movementLabel = movementButton.getAttribute('data-variant-label') || movementButton.getAttribute('data-detail-title') || movementTitleText;
                     loadVariantMovementForModal(movementVariantId, movementLabel).catch(function () {
                         // handled inside loader
                     });
@@ -2796,12 +2825,12 @@
                 }
 
                 if (isBulkMode) {
-                    tagsList.innerHTML = '<div class="alert alert-info mb-0">در ثبت گروهی، لیست برچسب‌های فعلی نمایش داده نمی‌شود.</div>';
+                    tagsList.innerHTML = '<div class="alert alert-info mb-0">' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.tagsBulkListHidden"]))) + '</div>';
                     return;
                 }
 
                 if (normalizedTags.length === 0) {
-                    tagsList.innerHTML = '<div class="alert alert-light mb-0">هیچ برچسبی ثبت نشده است.</div>';
+                    tagsList.innerHTML = '<div class="alert alert-light mb-0">' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.noTagsRegistered"]))) + '</div>';
                     return;
                 }
 
@@ -2964,7 +2993,7 @@
                     minimumInputLength: 0,
                     language: {
                         noResults: function () {
-                            return 'موردی پیدا نشد';
+                            return @Html.Raw(JsonSerializer.Serialize(UiText["common.noRecords"]));
                         }
                     }
                 });
@@ -3084,13 +3113,13 @@
 
             function loadVariantTagsForModal(variantId, mode, label) {
                 if (tagsModalTitle) {
-                    tagsModalTitle.textContent = mode === 'bulk' ? 'ثبت گروهی برچسب' : (label || 'برچسب واریانت');
+                    tagsModalTitle.textContent = mode === 'bulk' ? tagsBulkTitleText : (label || tagsTitleText);
                 }
 
                 if (tagsModalSummary) {
                     tagsModalSummary.textContent = mode === 'bulk'
-                        ? 'برچسب‌ها برای واریانت‌های انتخاب‌شده ثبت می‌شوند.'
-                        : 'برچسب‌های ثبت‌شده‌ی همین واریانت را می‌بینی و می‌توانی اضافه/حذف کنی.';
+                        ? tagsBulkSummaryText
+                        : tagsSingleSummaryText;
                 }
 
                 if (tagsSingleVariantId) {
@@ -3225,7 +3254,7 @@
                 loadVariantAttributeFilters(categoryId, selectedFilters, legacyOptionIds).catch(function (error) {
                     console.error(error);
                     if (variantAttributeFiltersPanel) {
-                        variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">بارگذاری فیلترهای اتریبیوت با خطا مواجه شد.</div>';
+                        variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.loadingAttributeFiltersError"]))) + '</div>';
                     }
                 });
             }
@@ -3260,7 +3289,7 @@
                 loadVariantAttributeFilters(categoryId, [], []).catch(function (error) {
                     console.error(error);
                     if (variantAttributeFiltersPanel) {
-                        variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">بارگذاری فیلترهای اتریبیوت با خطا مواجه شد.</div>';
+                        variantAttributeFiltersPanel.innerHTML = '<div class="alert alert-warning mb-0">' + escapeHtml(@Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.loadingAttributeFiltersError"]))) + '</div>';
                     }
                 });
                 savePageState();
@@ -3990,6 +4019,7 @@
 
                 var submitButtons = ajaxForm.querySelectorAll('button[type="submit"]');
                 var mode = ajaxForm.getAttribute('data-ajax-submit') || '';
+                var expectsJson = mode === 'variant-components' || mode === 'variant-pricing' || mode === 'bulk-media' || mode === 'bulk-addon' || (mode === 'variant-tags' && ajaxForm === tagsCreateForm);
 
                 if (mode === 'bulk-addon') {
                     var selectedAddOnId = bulkAddonSelect
@@ -4004,12 +4034,12 @@
                         : '';
 
                     if (!selectedAddOnId && !selectedTagId) {
-                        alert('حداقل یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.');
+                        alert(addonSelectionErrorText);
                         return;
                     }
 
                     if (selectedAddOnId && selectedTagId) {
-                        alert('فقط یکی از واریانت یا هشتگ را برای Add-on انتخاب کنید.');
+                        alert(addonSelectionConflictErrorText);
                         return;
                     }
                 }
@@ -4022,38 +4052,30 @@
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
+                        'Accept': expectsJson ? 'application/json' : 'text/html'
                     },
                     body: new FormData(ajaxForm)
                 })
                     .then(function (response) {
                         if (!response.ok) {
+                            if (expectsJson) {
+                                return response.text().then(function (text) {
+                                    try {
+                                        var payload = text ? JSON.parse(text) : null;
+                                        throw new Error((payload && (payload.error || payload.message)) ? (payload.error || payload.message) : text || loadInfoFailedText);
+                                    } catch (parseError) {
+                                        throw new Error(text || loadInfoFailedText);
+                                    }
+                                });
+                            }
+
                             return response.text().then(function (text) {
                                 throw new Error(text || loadInfoFailedText);
                             });
                         }
 
                         var mode = ajaxForm.getAttribute('data-ajax-submit') || '';
-                        if (mode === 'bulk-media' || mode === 'bulk-addon') {
-                            return response.json().then(function (payload) {
-                                return {
-                                    mode: mode,
-                                    ok: response.ok,
-                                    payload: payload || {}
-                                };
-                            });
-                        }
-
-                        if (mode === 'variant-tags' && ajaxForm === tagsCreateForm) {
-                            return response.json().then(function (payload) {
-                                return {
-                                    mode: mode,
-                                    payload: payload || {}
-                                };
-                            });
-                        }
-
-                        if (mode === 'variant-pricing') {
+                        if (mode === 'variant-components' || mode === 'bulk-media' || mode === 'bulk-addon' || mode === 'variant-pricing' || (mode === 'variant-tags' && ajaxForm === tagsCreateForm)) {
                             return response.json().then(function (payload) {
                                 return {
                                     mode: mode,
@@ -4073,6 +4095,28 @@
                     .then(function (result) {
                         var mode = result && result.mode ? result.mode : (ajaxForm.getAttribute('data-ajax-submit') || '');
                         if (mode === 'variant-components') {
+                            var componentPayload = result && result.payload ? result.payload : {};
+                            if (!result.ok || !componentPayload.isSuccess) {
+                                throw new Error(componentPayload.error || componentPayload.message || loadInfoFailedText);
+                            }
+
+                            if (componentListContainer) {
+                                componentListContainer.innerHTML = '<div class="text-muted">' + loadingText + '</div>';
+                            }
+
+                            if (componentIdInput) {
+                                componentIdInput.value = '';
+                            }
+                            if (componentVariantInput && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                                window.jQuery(componentVariantInput).val(null).trigger('change');
+                            } else if (componentVariantInput) {
+                                componentVariantInput.value = '';
+                            }
+
+                            if (componentQuantityInput) {
+                                componentQuantityInput.value = '1';
+                            }
+
                             return refreshComponentList();
                         }
 
@@ -4163,7 +4207,7 @@
 
                             if (pricingModalSummary) {
                                 pricingModalSummary.classList.remove('d-none');
-                                pricingModalSummary.textContent = pricingPayload.message || 'قیمت‌ها با موفقیت ثبت شد.';
+                                pricingModalSummary.textContent = pricingPayload.message || @Html.Raw(JsonSerializer.Serialize(UiText["catalog.variants.pricingSavedSuccess"]));
                             }
 
                             if (pricingModalError) {
