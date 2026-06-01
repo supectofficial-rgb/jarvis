@@ -24,18 +24,6 @@
     {
         <div class="card-body">
             <h5 class="card-title">@UiText["catalog.variants.domainActionsTitle"]</h5>
-            <form asp-action="ActivateVariant" method="post" class="d-inline" data-loading-form>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                    <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>@UiText["common.active"]</button>
-                </form>
-                <form asp-action="DeactivateVariant" method="post" class="d-inline" data-loading-form>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                    <input type="hidden" name="variantId" value="@Model.SelectedVariantId" />
-                    <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>@UiText["common.inactive"]</button>
-                </form>
                 <form asp-action="DeleteVariant" method="post" class="d-inline" data-loading-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="productId" value="@Model.SelectedProductId" />

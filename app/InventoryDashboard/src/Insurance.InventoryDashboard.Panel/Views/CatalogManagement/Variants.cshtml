@@ -1850,6 +1850,83 @@
                 });
             }
 
+            function updateVariantStatusVisuals(toggleInput, isActive) {
+                if (!(toggleInput instanceof HTMLInputElement)) {
+                    return;
+                }
+
+                var row = toggleInput.closest ? toggleInput.closest('tr') : null;
+                if (!row) {
+                    return;
+                }
+
+                var badge = row.querySelector('.js-variant-status-badge');
+                if (badge) {
+                    badge.textContent = isActive ? activeText : inactiveText;
+                    badge.classList.remove('badge-primary', 'badge-secondary');
+                    badge.classList.add(isActive ? 'badge-primary' : 'badge-secondary');
+                }
+
+                var label = row.querySelector('label[for="' + toggleInput.id + '"]');
+                if (label) {
+                    label.textContent = isActive ? activeText : inactiveText;
+                }
+            }
+
+            function sendVariantStatusToggle(toggleInput) {
+                if (!(toggleInput instanceof HTMLInputElement)) {
+                    return Promise.resolve();
+                }
+
+                var form = toggleInput.closest ? toggleInput.closest('form[data-variant-active-toggle-form]') : null;
+                if (!form) {
+                    return Promise.resolve();
+                }
+
+                var endpoint = toggleInput.checked
+                    ? (form.getAttribute('data-activate-url') || '')
+                    : (form.getAttribute('data-deactivate-url') || '');
+                if (!endpoint) {
+                    return Promise.resolve();
+                }
+
+                var previousActive = !toggleInput.checked;
+                toggleInput.disabled = true;
+
+                return fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(form)
+                })
+                    .then(function (response) {
+                        return response.json().then(function (payload) {
+                            return { response: response, payload: payload || {} };
+                        }).catch(function () {
+                            return { response: response, payload: {} };
+                        });
+                    })
+                    .then(function (result) {
+                        var response = result.response;
+                        var payload = result.payload || {};
+                        if (!response.ok || !payload.isSuccess) {
+                            throw new Error(payload.errorMessage || payload.message || loadInfoFailedText);
+                        }
+
+                        updateVariantStatusVisuals(toggleInput, !!payload.isActive);
+                    })
+                    .catch(function (error) {
+                        toggleInput.checked = previousActive;
+                        updateVariantStatusVisuals(toggleInput, previousActive);
+                        alert((error && error.message) ? error.message : loadInfoFailedText);
+                    })
+                    .finally(function () {
+                        toggleInput.disabled = false;
+                    });
+            }
+
             function getSelectedVariantIds() {
                 var scope = document.getElementById('variant-list-scope');
                 if (!scope) {
@@ -3525,6 +3602,18 @@
 
                     event.preventDefault();
                     loadVariantList(pageLink.href);
+                });
+
+                variantListContainer.addEventListener('change', function (event) {
+                    var target = event.target;
+                    if (!(target instanceof HTMLInputElement)) {
+                        return;
+                    }
+
+                    if (target.matches('input.js-variant-active-toggle')) {
+                        sendVariantStatusToggle(target);
+                        return;
+                    }
                 });
             }
 

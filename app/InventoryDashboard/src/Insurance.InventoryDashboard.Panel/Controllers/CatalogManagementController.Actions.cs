@@ -923,16 +923,36 @@ public abstract partial class CatalogManagementController
     {
         if (!TryGetToken(out var token))
         {
+            if (IsAjaxRequest())
+            {
+                return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربر منقضی شده است." });
+            }
+
             return RedirectToAction("Login", "Auth");
         }
 
         if (!IsAuthorizedFor(token, "Catalog.Variant.Activate", "ProductVariant.Activate"))
         {
+            if (IsAjaxRequest())
+            {
+                return Json(new { isSuccess = false, errorMessage = "شما دسترسی فعال‌سازی واریانت را ندارید." });
+            }
+
             TempData["CatalogError"] = "شهمها دسترسهمه فعالهمهOسازهمه همهارهمهاهمهت را همهدارهمهد.";
             return RedirectToAction(nameof(Variants), new { productId, variantId });
         }
 
         var result = await _apiService.ActivateProductVariantAsync(variantId, token);
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                isSuccess = result.IsSuccess,
+                isActive = true,
+                message = result.IsSuccess ? "واریانت فعال شد." : result.ErrorMessage ?? "فعال‌سازی واریانت انجام نشد."
+            });
+        }
+
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "همهارهمهاهمهت فعال شد." : result.ErrorMessage ?? "فعالهمهOسازهمه همهارهمهاهمهت اهمهجاهمه همهشد.";
         return RedirectToAction(nameof(Variants), new { productId, variantId });
@@ -944,16 +964,36 @@ public abstract partial class CatalogManagementController
     {
         if (!TryGetToken(out var token))
         {
+            if (IsAjaxRequest())
+            {
+                return Unauthorized(new { isSuccess = false, errorMessage = "نشست کاربر منقضی شده است." });
+            }
+
             return RedirectToAction("Login", "Auth");
         }
 
         if (!IsAuthorizedFor(token, "Catalog.Variant.Deactivate", "ProductVariant.Deactivate"))
         {
+            if (IsAjaxRequest())
+            {
+                return Json(new { isSuccess = false, errorMessage = "شما دسترسی غیرفعال‌سازی واریانت را ندارید." });
+            }
+
             TempData["CatalogError"] = "شهمها دسترسهمه غیرفعالهمهOسازهمه همهارهمهاهمهت را همهدارهمهد.";
             return RedirectToAction(nameof(Variants), new { productId, variantId });
         }
 
         var result = await _apiService.DeactivateProductVariantAsync(variantId, token);
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                isSuccess = result.IsSuccess,
+                isActive = false,
+                message = result.IsSuccess ? "واریانت غیرفعال شد." : result.ErrorMessage ?? "غیرفعال‌سازی واریانت انجام نشد."
+            });
+        }
+
         TempData[result.IsSuccess ? "CatalogSuccess" : "CatalogError"] =
             result.IsSuccess ? "همهارهمهاهمهت غیرفعال شد." : result.ErrorMessage ?? "غیرفعالهمهOسازهمه همهارهمهاهمهت اهمهجاهمه همهشد.";
         return RedirectToAction(nameof(Variants), new { productId, variantId });

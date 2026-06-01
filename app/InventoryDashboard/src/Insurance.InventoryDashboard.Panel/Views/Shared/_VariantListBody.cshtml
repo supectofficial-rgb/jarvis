@@ -68,16 +68,39 @@
                         <td>@variant.BaseUom</td>
                         <td>@variant.TrackingPolicy</td>
                         <td>
-                            <span class="badge badge-pill @(variant.IsActive ? "badge-primary" : "badge-secondary")">
-                                @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
-                            </span>
-                            @if (variant.InventoryMovementLocked)
-                            {
-                                <span class="badge badge-warning ml-1">@UiText["catalog.variants.locked"]</span>
-                            }
+                            <div class="d-flex flex-column align-items-start">
+                                <span class="badge badge-pill @(variant.IsActive ? "badge-primary" : "badge-secondary") js-variant-status-badge"
+                                      data-active-text="@UiText["common.active"]"
+                                      data-inactive-text="@UiText["common.inactive"]">
+                                    @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
+                                </span>
+                                <form method="post"
+                                      class="mt-2"
+                                      data-variant-active-toggle-form
+                                      data-activate-url="@Url.Action("ActivateVariant", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })"
+                                      data-deactivate-url="@Url.Action("DeactivateVariant", "VariantManagement", new { productId = Model.SelectedProductId, variantId = variant.Id })">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="productId" value="@Model.SelectedProductId" />
+                                    <input type="hidden" name="variantId" value="@variant.Id" />
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox"
+                                               class="custom-control-input js-variant-active-toggle"
+                                               id="variant-active-toggle-@variant.Id"
+                                               @(variant.IsActive ? "checked" : null)
+                                               @(Can("Catalog.Variant.Activate", "ProductVariant.Activate", "Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled") />
+                                        <label class="custom-control-label small" for="variant-active-toggle-@variant.Id">
+                                            @(variant.IsActive ? UiText["common.active"] : UiText["common.inactive"])
+                                        </label>
+                                    </div>
+                                </form>
+                                @if (variant.InventoryMovementLocked)
+                                {
+                                    <span class="badge badge-warning mt-2">@UiText["catalog.variants.locked"]</span>
+                                }
+                            </div>
                         </td>
                         <td>
-                            <div class="btn-group btn-group-sm">
+                            <div class="btn-group btn-group-sm flex-wrap">
                                 <button type="button" class="btn btn-outline-info btn-xs js-variant-stock-details"
                                         data-toggle="modal"
                                         data-target="#variant-stock-modal"
@@ -135,42 +158,28 @@
                                     <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                     <input type="hidden" name="variantId" value="@variant.Id" />
                                     <button type="submit"
-                                            class="btn btn-outline-danger btn-xs"
+                                            class="btn btn-outline-danger btn-xs ml-1"
                                             data-confirm-title="@UiText["catalog.variants.deleteTitle"]"
                                             data-confirm="@UiText["catalog.variants.deleteConfirm"]"
                                             @(Can("Catalog.Variant.Delete", "ProductVariant.Delete") ? null : "disabled")>
                                         @UiText["common.delete"]
                                     </button>
                                 </form>
-                                <button type="button" class="btn btn-outline-secondary btn-xs dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <span class="sr-only">@UiText["common.operations"]</span>
-                                </button>
-                                <div class="dropdown-menu dropdown-menu-right">
-                                    <form asp-action="ActivateVariant" method="post" class="px-3 py-1" data-loading-form>
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                        <input type="hidden" name="variantId" value="@variant.Id" />
-                                        <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Activate", "ProductVariant.Activate") ? null : "disabled")>@UiText["catalog.variants.activateButton"]</button>
-                                    </form>
-                                    <form asp-action="DeactivateVariant" method="post" class="px-3 py-1" data-loading-form>
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="productId" value="@Model.SelectedProductId" />
-                                        <input type="hidden" name="variantId" value="@variant.Id" />
-                                        <button type="submit" class="btn btn-link p-0" @(Can("Catalog.Variant.Deactivate", "ProductVariant.Deactivate") ? null : "disabled")>@UiText["catalog.variants.deactivateButton"]</button>
-                                    </form>
-                                    <form asp-action="LockVariantInventoryMovement" method="post" class="px-3 py-1" data-loading-form>
+                                @if (!variant.InventoryMovementLocked)
+                                {
+                                    <form asp-action="LockVariantInventoryMovement" method="post" class="d-inline" data-loading-form>
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="productId" value="@Model.SelectedProductId" />
                                         <input type="hidden" name="variantId" value="@variant.Id" />
                                         <button type="submit"
-                                                class="btn btn-link p-0"
+                                                class="btn btn-outline-dark btn-xs ml-1"
                                                 data-confirm-title="@UiText["catalog.variants.lockMovementTitle"]"
                                                 data-confirm="@UiText["catalog.variants.lockListConfirm"]"
                                                 @(Can("Catalog.Variant.LockInventoryMovement", "ProductVariant.LockInventoryMovement") ? null : "disabled")>
                                             @UiText["catalog.variants.lockButtonShort"]
                                         </button>
                                     </form>
-                                </div>
+                                }
                             </div>
                         </td>
                     </tr>

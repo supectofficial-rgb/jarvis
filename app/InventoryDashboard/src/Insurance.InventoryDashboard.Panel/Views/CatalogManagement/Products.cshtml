@@ -1347,7 +1347,7 @@
                     ? '<div class="text-muted small">' + @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.noVariantBuilderAttributeDefined"])) + '</div>'
                     : variantAttributes.map(function (attribute) {
                         var options = Array.isArray(attribute.options) ? attribute.options : [];
-                        return '<div class="form-group js-auto-variant-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '">'
+                        return '<div class="form-group js-auto-variant-attribute" data-attribute-id="' + escapeHtml(attribute.attributeId || '') + '" data-attribute-name="' + escapeHtml(attribute.name || '') + '" data-data-type="' + escapeHtml(attribute.dataType || '') + '" data-display-order="' + escapeHtml(attribute.displayOrder || 0) + '" data-required="' + (attribute.isRequired ? 'true' : 'false') + '" data-variant-code-covered="' + (attribute.isVariantCodeCovered ? 'true' : 'false') + '">'
                             + '<label>' + escapeHtml(attribute.name || '') + (attribute.isRequired ? ' *' : '') + '</label>'
                             + '<select ' + (attribute.isVariantLevel ? 'multiple ' : '') + 'class="form-control js-search-select js-auto-variant-values" name="AutoVariantOptions_' + escapeHtml(attribute.attributeId || '') + '" data-variant-code-covered="' + (attribute.isVariantCodeCovered ? 'true' : 'false') + '" data-no-search="true" data-placeholder="' + (attribute.isVariantLevel ? @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectMultipleOptions"])) : @Html.Raw(JsonSerializer.Serialize(UiText["catalog.products.selectOption"]))) + '">'
                             + options.map(function (option) {
@@ -2176,12 +2176,18 @@
                     if (href) {
                         localStorage.setItem(tabKey, href);
                         syncProductListTabPanel(href);
+                        if (href === '#product-tab-list') {
+                            refreshProductList(buildProductListUrl());
+                        }
                     }
                 });
             });
             var initialTab = window.location.hash || (hasRestorablePageState() ? localStorage.getItem(tabKey) : null) || '#product-tab-list';
             syncProductListTabPanel(initialTab);
             showTabByHref(initialTab);
+            if (initialTab === '#product-tab-list') {
+                refreshProductList(buildProductListUrl());
+            }
 
             if (productCategoryField && productUpsertForm) {
                 var handleCategoryChange = function (event) {

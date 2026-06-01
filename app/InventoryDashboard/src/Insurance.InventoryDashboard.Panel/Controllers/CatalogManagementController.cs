@@ -3443,6 +3443,12 @@ public abstract partial class CatalogManagementController : Controller
         return !string.IsNullOrWhiteSpace(token);
     }
 
+    protected bool IsAjaxRequest()
+    {
+        return string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase)
+            || Request.Headers.Accept.Any(value => value.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+    }
+
     private IReadOnlyList<string> ResolveRolesFromSession(string token)
     {
         var rolesJson = HttpContext.Session.GetString("Roles");
