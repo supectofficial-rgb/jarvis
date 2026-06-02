@@ -50,7 +50,18 @@ public class UpdatePriceTypeCommandHandler : CommandHandler<UpdatePriceTypeComma
         }
         catch (Exception ex)
         {
-            return Fail($"Updating price type failed: {ex.Message}");
+            return Fail($"Updating price type failed: {GetDeepMessage(ex)}");
         }
+    }
+
+    private static string GetDeepMessage(Exception exception)
+    {
+        var current = exception;
+        while (current.InnerException is not null)
+        {
+            current = current.InnerException;
+        }
+
+        return current.Message;
     }
 }

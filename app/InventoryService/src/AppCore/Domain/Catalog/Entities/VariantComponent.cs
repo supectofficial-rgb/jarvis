@@ -1,10 +1,11 @@
 namespace Insurance.InventoryService.AppCore.Domain.Catalog.Entities;
 
 using OysterFx.AppCore.Domain.Aggregates;
+using OysterFx.AppCore.Domain.ValueObjects;
 
 public sealed class VariantComponent : Aggregate
 {
-    public Guid VariantRef { get; private set; }
+    public BusinessKey VariantRef { get; private set; } = null!;
     public Guid ComponentVariantRef { get; private set; }
     public decimal Quantity { get; private set; }
 
@@ -13,7 +14,7 @@ public sealed class VariantComponent : Aggregate
     }
 
     internal static VariantComponent Create(
-        Guid variantRef,
+        BusinessKey variantRef,
         Guid componentBusinessKey,
         Guid componentVariantRef,
         decimal quantity)

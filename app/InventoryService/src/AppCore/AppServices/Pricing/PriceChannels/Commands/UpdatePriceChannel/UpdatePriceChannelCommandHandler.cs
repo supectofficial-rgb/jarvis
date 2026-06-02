@@ -50,7 +50,18 @@ public class UpdatePriceChannelCommandHandler : CommandHandler<UpdatePriceChanne
         }
         catch (Exception ex)
         {
-            return Fail($"Updating price channel failed: {ex.Message}");
+            return Fail($"Updating price channel failed: {GetDeepMessage(ex)}");
         }
+    }
+
+    private static string GetDeepMessage(Exception exception)
+    {
+        var current = exception;
+        while (current.InnerException is not null)
+        {
+            current = current.InnerException;
+        }
+
+        return current.Message;
     }
 }

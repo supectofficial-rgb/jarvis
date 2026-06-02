@@ -488,7 +488,7 @@ public sealed class ProductVariant : AggregateRoot
         if (existing is null)
         {
             _components.Add(VariantComponent.Create(
-                BusinessKey.Value,
+                BusinessKey,
                 @event.VariantComponentBusinessKey,
                 @event.ComponentVariantRef,
                 @event.Quantity));

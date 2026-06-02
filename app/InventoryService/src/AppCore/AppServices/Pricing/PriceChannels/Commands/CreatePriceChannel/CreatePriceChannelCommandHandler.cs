@@ -37,7 +37,18 @@ public class CreatePriceChannelCommandHandler : CommandHandler<CreatePriceChanne
         }
         catch (Exception ex)
         {
-            return Fail($"Creating price channel failed: {ex.Message}");
+            return Fail($"Creating price channel failed: {GetDeepMessage(ex)}");
         }
+    }
+
+    private static string GetDeepMessage(Exception exception)
+    {
+        var current = exception;
+        while (current.InnerException is not null)
+        {
+            current = current.InnerException;
+        }
+
+        return current.Message;
     }
 }
