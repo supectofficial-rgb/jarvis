@@ -188,6 +188,13 @@ public class LoginCompletionService : ILoginCompletionService
             .Distinct()
             .ToList();
 
+        var activeMembershipBusinessKey = GetBusinessKeyValue(activeMembership?.BusinessKey);
+        var activeOrganizationBusinessKey = GetBusinessKeyValue(activeMembership?.OrganizationBusinessKey);
+        var activeRoleBusinessKeys = activeRoleKeys
+            .Where(role => role is not null)
+            .Select(role => role!.Value)
+            .ToList();
+
         var result = new LoginByCredentialCommandResult
         {
             Token = tokenResult.AccessToken,
@@ -197,12 +204,15 @@ public class LoginCompletionService : ILoginCompletionService
             Memberships = membershipDtos,
             Permissions = activePermissionCodes,
             Roles = activeRoleNames,
-            ActiveMembershipBusinessKey = activeMembership?.BusinessKey.Value,
-            ActiveOrganizationBusinessKey = activeMembership?.OrganizationBusinessKey.Value,
+            ActiveMembershipBusinessKey = activeMembershipBusinessKey,
+            ActiveOrganizationBusinessKey = activeOrganizationBusinessKey,
             ActiveTenantId = activeMembership?.TenantId,
-            ActiveRoleBusinessKeys = activeRoleKeys.Select(role => role.Value).ToList()
+            ActiveRoleBusinessKeys = activeRoleBusinessKeys
         };
 
         return (result, null);
     }
+
+    private static Guid? GetBusinessKeyValue(BusinessKey? businessKey)
+        => businessKey is null ? null : businessKey.Value;
 }

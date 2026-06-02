@@ -47,7 +47,7 @@ public sealed class RedisAuthSessionService : IAuthSessionService
             AbsoluteExpirationMinutes: absoluteExpirationMinutes,
             SlidingExpirationMinutes: absoluteExpirationMinutes));
 
-        if (response.Error.Count > 0)
+        if (response.Error?.Count > 0)
         {
             _logger.LogWarning("Failed to store auth session {SessionId}: {Errors}", session.SessionId, string.Join(" | ", response.Error));
         }
@@ -56,14 +56,16 @@ public sealed class RedisAuthSessionService : IAuthSessionService
     public async Task<AuthSession?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         var response = await _cacheServiceCaller.GetAsync(new GetFromCacheRequest(BuildKey(sessionId)));
-        if (response.Error.Count > 0 || string.IsNullOrWhiteSpace(response.Success.Value))
+        var cachedValue = response.Success?.Value;
+
+        if (response.Error?.Count > 0 || string.IsNullOrWhiteSpace(cachedValue))
         {
             return null;
         }
 
         try
         {
-            return JsonSerializer.Deserialize<AuthSession>(response.Success.Value, JsonOptions);
+            return JsonSerializer.Deserialize<AuthSession>(cachedValue, JsonOptions);
         }
         catch (Exception ex)
         {
@@ -95,6 +97,6 @@ public sealed class RedisAuthSessionService : IAuthSessionService
             AbsoluteExpirationMinutes: absoluteExpirationMinutes,
             SlidingExpirationMinutes: absoluteExpirationMinutes));
 
-        return response.Error.Count == 0;
+        return response.Error?.Count == 0;
     }
 }
