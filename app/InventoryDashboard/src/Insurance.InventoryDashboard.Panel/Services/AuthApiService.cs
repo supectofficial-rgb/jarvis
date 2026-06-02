@@ -14,6 +14,9 @@ public sealed class AuthApiService : IAuthApiService
     public Task<ApiResponse<LoginResponse>> LoginAsync(string userName, string password) =>
         _apiService.LoginAsync(userName, password);
 
+    public Task<ApiResponse<bool>> LogoutAsync(string accessToken, string refreshToken, string? reason = null) =>
+        _apiService.LogoutAsync(accessToken, refreshToken, reason);
+
     public Task<ApiResponse<List<OrganizationViewModel>>> GetOrganizationsAsync(string token) =>
         _apiService.GetOrganizationsAsync(token);
 }

@@ -616,7 +616,7 @@ public sealed class VariantManagementController : CatalogManagementController
             return Json(new { isSuccess = false, error = T("catalog.variants.noActiveSellerOwnerForPricing") });
         }
 
-        var variantRefs = (request.SelectedVariantRefs ?? new List<string>())
+        var variantRefs = NormalizeSelectedVariantRefs(request.SelectedVariantRefs)
             .Select(value => Guid.TryParse(value, out var parsed) ? parsed : Guid.Empty)
             .Where(value => value != Guid.Empty)
             .Distinct()
@@ -702,6 +702,15 @@ public sealed class VariantManagementController : CatalogManagementController
             isSuccess = true,
             message = T("catalog.variants.pricingSavedCount", processedCount)
         });
+    }
+
+    private static IEnumerable<string> NormalizeSelectedVariantRefs(IEnumerable<string>? selectedVariantRefs)
+    {
+        return (selectedVariantRefs ?? Array.Empty<string>())
+            .SelectMany(value => (value ?? string.Empty)
+                .Split(new[] { ',', ';', '\r', '\n', '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            .Select(value => value.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value));
     }
 
     [HttpGet]

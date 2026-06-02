@@ -6,6 +6,7 @@ using OysterFx.AppCore.Domain.ValueObjects;
 public class LoginByCredentialCommandResult
 {
     public string Token { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
     public DateTime TokenExpiration { get; set; }
     public Account User { get; set; } = null!;
     public List<MembershipDto> Memberships { get; set; } = new();

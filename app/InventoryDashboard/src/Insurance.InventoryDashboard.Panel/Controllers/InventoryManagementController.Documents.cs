@@ -2462,7 +2462,7 @@ public sealed partial class InventoryManagementController
         var menu = ResolveMenu(modules, "document_management", ResolveDocumentMenuItemId(resolvedDocumentType));
 
         var createSellerId = sellerId;
-        if (string.IsNullOrWhiteSpace(createSellerId) && !string.Equals(resolvedDocumentType, "Receipt", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(createSellerId))
         {
             var ownerSellerResult = await ResolveOwnerSellerAsync(token);
             if (ownerSellerResult.IsSuccess && ownerSellerResult.Data is not null)
@@ -3755,8 +3755,6 @@ public sealed partial class InventoryManagementController
                 : isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
             SellerRef = isConversionDocument
                 ? isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty
-                : isReceiptDocument
-                    ? string.Empty
                 : isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
             ReceivedBy = isEditMode ? existingDocument?.ReceivedBy : null,
             DeliveredBy = isEditMode ? existingDocument?.DeliveredBy : null,

@@ -4,27 +4,35 @@ using Insurance.CacheService.Infra.CallerService.Abstractions;
 using Insurance.CacheService.Infra.CallerService.Models.Dtos.RemoveFromCache;
 using Insurance.CacheService.Infra.CallerService.Models.Dtos.SetToCache;
 using Insurance.UserService.AppCore.Domain.Accounts.Entities;
+using Insurance.UserService.AppCore.Domain.Common;
 using Insurance.UserService.AppCore.Domain.Roles.Enums;
 using Insurance.UserService.AppCore.Shared.AAA.Commands.LoginByCredential;
 using Insurance.UserService.AppCore.Shared.AAA.Services;
 using Insurance.UserService.Infra.Persistence.RDB.Commands;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OysterFx.AppCore.Domain.ValueObjects;
 
 public class LoginCompletionService : ILoginCompletionService
 {
     private readonly ITokenService _tokenService;
+    private readonly IAuthSessionService _authSessionService;
     private readonly ICacheServiceCaller _cacheServiceCaller;
     private readonly InsuranceUserServiceDbContext _dbContext;
+    private readonly JwtSettings _jwtSettings;
 
     public LoginCompletionService(
         ITokenService tokenService,
+        IAuthSessionService authSessionService,
         ICacheServiceCaller cacheServiceCaller,
-        InsuranceUserServiceDbContext dbContext)
+        InsuranceUserServiceDbContext dbContext,
+        IOptions<JwtSettings> jwtSettings)
     {
         _tokenService = tokenService;
+        _authSessionService = authSessionService;
         _cacheServiceCaller = cacheServiceCaller;
         _dbContext = dbContext;
+        _jwtSettings = jwtSettings.Value;
     }
 
     public async Task<(LoginByCredentialCommandResult? Result, string? Error)> CompleteAsync(Account user)
@@ -146,14 +154,32 @@ public class LoginCompletionService : ILoginCompletionService
         await _cacheServiceCaller.RemoveAsync(new RemoveFromCacheRequest(
             Key: PermissionCacheKeys.ForUserPermissions(user.UserBusinessKey.Value)));
 
+        var sessionId = Guid.NewGuid().ToString("N");
         var tokenResult = await _tokenService.GenerateTokenAsync(
             user,
             membershipDtos,
+            sessionId,
             activeMembership?.BusinessKey,
             activeMembership?.OrganizationBusinessKey,
             activeMembership?.TenantId,
             activeRoleKeys,
             activeRoleNames);
+
+        var authSession = new AuthSession
+        {
+            SessionId = sessionId,
+            UserId = user.Id,
+            UserBusinessKey = user.UserBusinessKey,
+            RefreshTokenHash = _authSessionService.HashRefreshToken(tokenResult.RefreshToken),
+            CreatedAt = DateTime.UtcNow,
+            LastActivityAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+            IsRevoked = false
+        };
+
+        await _authSessionService.CreateAsync(
+            authSession,
+            (int)TimeSpan.FromDays(_jwtSettings.RefreshTokenExpirationDays).TotalMinutes);
 
         var activePermissionCodes = activeRoleKeys
             .SelectMany(roleKey => rolePermissionMap.TryGetValue(roleKey, out var codes)
@@ -165,6 +191,7 @@ public class LoginCompletionService : ILoginCompletionService
         var result = new LoginByCredentialCommandResult
         {
             Token = tokenResult.AccessToken,
+            RefreshToken = tokenResult.RefreshToken,
             TokenExpiration = tokenResult.Expiration,
             User = user,
             Memberships = membershipDtos,

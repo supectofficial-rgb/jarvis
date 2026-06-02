@@ -83,6 +83,7 @@ builder.Services.AddScoped<Insurance.UserService.AppCore.Shared.AAA.Services.IAu
 builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<ILoginCompletionService, LoginCompletionService>();
+builder.Services.AddScoped<Insurance.UserService.AppCore.Shared.AAA.Services.IAuthSessionService, Insurance.UserService.AppCore.AppServices.AAA.Services.RedisAuthSessionService>();
 builder.Services.Configure<LegacyOtpFallbackOptions>(builder.Configuration.GetSection(LegacyOtpFallbackOptions.SectionName));
 builder.Services.AddScoped<UserOtpService>();
 builder.Services.AddScoped<ILegacyUserOtpService, LegacyUserOtpService>();
@@ -94,10 +95,6 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 
 // ????? ???? HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
-
-// ????? ???? ????????
-builder.Services.AddScoped<ITokenService, JwtTokenService>(); // Duplicate registration, you can remove one
-builder.Services.AddScoped<IUserContextService, UserContextService>(); // Duplicate registration, you can remove one
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 // ??????? ????? ???? ?? JWT

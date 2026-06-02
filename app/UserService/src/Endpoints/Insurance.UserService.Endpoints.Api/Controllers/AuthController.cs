@@ -4,11 +4,13 @@ using Insurance.UserService.AppCore.Domain.Accounts.Entities;
 using Insurance.UserService.AppCore.Shared.AAA.Commands.LoginByCredential;
 using Insurance.UserService.AppCore.Shared.AAA.Commands.LoginByOtp;
 using Insurance.UserService.AppCore.Shared.AAA.Commands.VerifyLoginOtp;
+using Insurance.UserService.AppCore.Shared.AAA.Services;
 using Insurance.UserService.AppCore.Shared.Users.Commands;
 using Insurance.UserService.Endpoints.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using OysterFx.Endpoints.Api.Controllers;
 
 [Authorize]
@@ -18,11 +20,16 @@ public class AuthController : OysterFxController
 {
     private readonly UserManager<Account> _userManager;
     private readonly IUserCommandRepository _userCommandRepository;
+    private readonly ITokenService _tokenService;
 
-    public AuthController(UserManager<Account> userManager, IUserCommandRepository userCommandRepository)
+    public AuthController(
+        UserManager<Account> userManager,
+        IUserCommandRepository userCommandRepository,
+        ITokenService tokenService)
     {
         _userManager = userManager;
         _userCommandRepository = userCommandRepository;
+        _tokenService = tokenService;
     }
 
     [Authorize(Policy = "Auth.Register")]
@@ -67,6 +74,51 @@ public class AuthController : OysterFxController
     [HttpPost("login/by-credential")]
     public async Task<IActionResult> LoginByCredential([FromBody] LoginByCredentialCommand request)
         => await SendCommand<LoginByCredentialCommand, LoginByCredentialCommandResult?>(request);
+
+    [AllowAnonymous]
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest("Access token and refresh token are required.");
+        }
+
+        try
+        {
+            var tokenResult = await _tokenService.RefreshTokenAsync(request.AccessToken, request.RefreshToken);
+            return Ok(new RefreshTokenResponse
+            {
+                Token = tokenResult.AccessToken,
+                RefreshToken = tokenResult.RefreshToken,
+                TokenExpiration = tokenResult.Expiration
+            });
+        }
+        catch (SecurityTokenException ex)
+        {
+            return Unauthorized(ex.Message);
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest("Access token and refresh token are required.");
+        }
+
+        try
+        {
+            await _tokenService.RevokeSessionAsync(request.AccessToken, request.RefreshToken, request.Reason);
+            return Ok(new { IsSuccess = true });
+        }
+        catch (SecurityTokenException ex)
+        {
+            return Unauthorized(ex.Message);
+        }
+    }
 
     [AllowAnonymous]
     [HttpPost("login/otp/{mobileNumber}/verify")]

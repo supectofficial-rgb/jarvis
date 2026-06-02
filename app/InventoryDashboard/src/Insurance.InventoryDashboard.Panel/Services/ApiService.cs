@@ -1,6 +1,9 @@
 using System.Net.Http.Headers;
+using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Insurance.InventoryDashboard.Panel.Models;
 
 namespace Insurance.InventoryDashboard.Panel.Services;
@@ -29,11 +32,13 @@ public sealed class ApiService : IApiService
     };
 
     private readonly HttpClient _httpClient;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<ApiService> _logger;
 
-    public ApiService(HttpClient httpClient, IConfiguration configuration, ILogger<ApiService> logger)
+    public ApiService(HttpClient httpClient, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, ILogger<ApiService> logger)
     {
         _httpClient = httpClient;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
         _httpClient.BaseAddress = new Uri(configuration["ApiGateway:BaseUrl"] ?? "https://localhost:7228");
     }
@@ -46,6 +51,18 @@ public sealed class ApiService : IApiService
             payload,
             token: null,
             fallbackError: "Login request failed.");
+    }
+
+    public Task<ApiResponse<bool>> LogoutAsync(string accessToken, string refreshToken, string? reason = null)
+    {
+        var payload = new
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            Reason = reason
+        };
+
+        return PostCommandAsync("/api/UserService/Auth/logout", payload, token: null, "Logout request failed.");
     }
 
     public Task<ApiResponse<List<OrganizationViewModel>>> GetOrganizationsAsync(string token) =>
@@ -2584,33 +2601,132 @@ public sealed class ApiService : IApiService
         return $"{route}?{string.Join("&", items)}";
     }
 
+    private bool ShouldAttemptTokenRefresh(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        var session = _httpContextAccessor.HttpContext?.Session;
+        if (session is null)
+        {
+            return false;
+        }
+
+        var expirationValue = session.GetString("TokenExpiration");
+        return DateTime.TryParse(expirationValue, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var expiration) &&
+               expiration <= DateTime.UtcNow;
+    }
+
+    private async Task<string?> TryRefreshTokenAsync(string? currentAccessToken)
+    {
+        if (string.IsNullOrWhiteSpace(currentAccessToken))
+        {
+            return null;
+        }
+
+        var session = _httpContextAccessor.HttpContext?.Session;
+        if (session is null)
+        {
+            return null;
+        }
+
+        var refreshToken = session.GetString("RefreshToken");
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return null;
+        }
+
+        try
+        {
+            var payload = new
+            {
+                AccessToken = currentAccessToken,
+                RefreshToken = refreshToken
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/UserService/Auth/refresh-token")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+
+            using var response = await _httpClient.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("POST {Route} failed while refreshing token: {StatusCode} / {Body}", "/api/UserService/Auth/refresh-token", response.StatusCode, body);
+                return null;
+            }
+
+            var result = JsonSerializer.Deserialize<RefreshTokenResponseDto>(body, JsonOptions);
+            if (result is null || string.IsNullOrWhiteSpace(result.Token) || string.IsNullOrWhiteSpace(result.RefreshToken))
+            {
+                return null;
+            }
+
+            session.SetString("Token", result.Token);
+            session.SetString("RefreshToken", result.RefreshToken);
+            session.SetString("TokenExpiration", result.TokenExpiration.ToString("O"));
+            return result.Token;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while refreshing access token");
+            return null;
+        }
+    }
+
     private async Task<ApiResponse<T>> GetQueryAsync<T>(string route, string token, string fallbackError)
     {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, route);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-            using var response = await _httpClient.SendAsync(request);
-            var body = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
+            var currentToken = token;
+            if (ShouldAttemptTokenRefresh(currentToken))
             {
-                _logger.LogWarning("GET {Route} failed: {StatusCode} / {Body}", route, response.StatusCode, body);
-                return new ApiResponse<T>
+                currentToken = await TryRefreshTokenAsync(currentToken) ?? currentToken;
+            }
+
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, route);
+                request.Headers.Authorization = string.IsNullOrWhiteSpace(currentToken)
+                    ? null
+                    : new AuthenticationHeaderValue("Bearer", currentToken);
+
+                using var response = await _httpClient.SendAsync(request);
+                var body = await response.Content.ReadAsStringAsync();
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
                 {
-                    IsSuccess = false,
-                    ErrorMessage = ExtractErrorMessage(body, fallbackError)
-                };
+                    var refreshed = await TryRefreshTokenAsync(currentToken);
+                    if (!string.IsNullOrWhiteSpace(refreshed) && refreshed != currentToken)
+                    {
+                        currentToken = refreshed;
+                        continue;
+                    }
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("GET {Route} failed: {StatusCode} / {Body}", route, response.StatusCode, body);
+                    return new ApiResponse<T>
+                    {
+                        IsSuccess = false,
+                        ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                    };
+                }
+
+                var result = JsonSerializer.Deserialize<QueryResultWrapper<T>>(body, JsonOptions);
+                if (result is { IsSuccess: true, Data: not null })
+                {
+                    return new ApiResponse<T> { IsSuccess = true, Data = result.Data };
+                }
+
+                return new ApiResponse<T> { IsSuccess = false, ErrorMessage = result?.ErrorMessage ?? fallbackError };
             }
 
-            var result = JsonSerializer.Deserialize<QueryResultWrapper<T>>(body, JsonOptions);
-            if (result is { IsSuccess: true, Data: not null })
-            {
-                return new ApiResponse<T> { IsSuccess = true, Data = result.Data };
-            }
-
-            return new ApiResponse<T> { IsSuccess = false, ErrorMessage = result?.ErrorMessage ?? fallbackError };
+            return new ApiResponse<T> { IsSuccess = false, ErrorMessage = fallbackError };
         }
         catch (Exception ex)
         {
@@ -2637,40 +2753,63 @@ public sealed class ApiService : IApiService
     {
         try
         {
-            using var request = new HttpRequestMessage(method, route);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-            if (payload is not null)
+            var currentToken = token;
+            if (ShouldAttemptTokenRefresh(currentToken))
             {
-                request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                currentToken = await TryRefreshTokenAsync(currentToken) ?? currentToken;
             }
 
-            using var response = await _httpClient.SendAsync(request);
-            var body = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                _logger.LogWarning("{Method} {Route} failed: {StatusCode} / {Body}", method, route, response.StatusCode, body);
+                using var request = new HttpRequestMessage(method, route);
+                request.Headers.Authorization = string.IsNullOrWhiteSpace(currentToken)
+                    ? null
+                    : new AuthenticationHeaderValue("Bearer", currentToken);
+
+                if (payload is not null)
+                {
+                    request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                }
+
+                using var response = await _httpClient.SendAsync(request);
+                var body = await response.Content.ReadAsStringAsync();
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
+                {
+                    var refreshed = await TryRefreshTokenAsync(currentToken);
+                    if (!string.IsNullOrWhiteSpace(refreshed) && refreshed != currentToken)
+                    {
+                        currentToken = refreshed;
+                        continue;
+                    }
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("{Method} {Route} failed: {StatusCode} / {Body}", method, route, response.StatusCode, body);
+                    return new ApiResponse<bool>
+                    {
+                        IsSuccess = false,
+                        Data = false,
+                        ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                    };
+                }
+
+                var result = JsonSerializer.Deserialize<CommandResultWrapper<object>>(body, JsonOptions);
+                if (result is { IsSuccess: true })
+                {
+                    return new ApiResponse<bool> { IsSuccess = true, Data = true };
+                }
+
                 return new ApiResponse<bool>
                 {
                     IsSuccess = false,
                     Data = false,
-                    ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                    ErrorMessage = result?.ErrorMessages?.FirstOrDefault() ?? fallbackError
                 };
             }
 
-            var result = JsonSerializer.Deserialize<CommandResultWrapper<object>>(body, JsonOptions);
-            if (result is { IsSuccess: true })
-            {
-                return new ApiResponse<bool> { IsSuccess = true, Data = true };
-            }
-
-            return new ApiResponse<bool>
-            {
-                IsSuccess = false,
-                Data = false,
-                ErrorMessage = result?.ErrorMessages?.FirstOrDefault() ?? fallbackError
-            };
+            return new ApiResponse<bool> { IsSuccess = false, Data = false, ErrorMessage = fallbackError };
         }
         catch (Exception ex)
         {
@@ -2766,38 +2905,59 @@ public sealed class ApiService : IApiService
     {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, route);
-            if (!string.IsNullOrWhiteSpace(token))
+            var currentToken = token;
+            if (ShouldAttemptTokenRefresh(currentToken))
             {
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                currentToken = await TryRefreshTokenAsync(currentToken) ?? currentToken;
             }
 
-            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-
-            using var response = await _httpClient.SendAsync(request);
-            var body = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                _logger.LogWarning("POST {Route} failed: {StatusCode} / {Body}", route, response.StatusCode, body);
+                using var request = new HttpRequestMessage(HttpMethod.Post, route);
+                if (!string.IsNullOrWhiteSpace(currentToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentToken);
+                }
+
+                request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+                using var response = await _httpClient.SendAsync(request);
+                var body = await response.Content.ReadAsStringAsync();
+
+                if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
+                {
+                    var refreshed = await TryRefreshTokenAsync(currentToken);
+                    if (!string.IsNullOrWhiteSpace(refreshed) && refreshed != currentToken)
+                    {
+                        currentToken = refreshed;
+                        continue;
+                    }
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("POST {Route} failed: {StatusCode} / {Body}", route, response.StatusCode, body);
+                    return new ApiResponse<T>
+                    {
+                        IsSuccess = false,
+                        ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                    };
+                }
+
+                var result = JsonSerializer.Deserialize<CommandResultWrapper<T>>(body, JsonOptions);
+                if (result is { IsSuccess: true, Data: not null })
+                {
+                    return new ApiResponse<T> { IsSuccess = true, Data = result.Data };
+                }
+
                 return new ApiResponse<T>
                 {
                     IsSuccess = false,
-                    ErrorMessage = ExtractErrorMessage(body, fallbackError)
+                    ErrorMessage = result?.ErrorMessages?.FirstOrDefault() ?? fallbackError
                 };
             }
 
-            var result = JsonSerializer.Deserialize<CommandResultWrapper<T>>(body, JsonOptions);
-            if (result is { IsSuccess: true, Data: not null })
-            {
-                return new ApiResponse<T> { IsSuccess = true, Data = result.Data };
-            }
-
-            return new ApiResponse<T>
-            {
-                IsSuccess = false,
-                ErrorMessage = result?.ErrorMessages?.FirstOrDefault() ?? fallbackError
-            };
+            return new ApiResponse<T> { IsSuccess = false, ErrorMessage = fallbackError };
         }
         catch (Exception ex)
         {
@@ -2809,6 +2969,13 @@ public sealed class ApiService : IApiService
     private sealed class CreateAttributeDefinitionCommandResultDto
     {
         public Guid AttributeDefinitionBusinessKey { get; set; }
+    }
+
+    private sealed class RefreshTokenResponseDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+        public DateTime TokenExpiration { get; set; }
     }
 
     private sealed class CreateTagDefinitionCommandResultDto

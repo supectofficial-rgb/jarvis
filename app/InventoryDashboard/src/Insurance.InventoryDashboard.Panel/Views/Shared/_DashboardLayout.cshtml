@@ -64,7 +64,17 @@
             <span class="logo-mobile d-block d-xs-none"></span>
         </a>
 
-        <div class="navbar-right">
+        <div class="navbar-right d-flex align-items-center">
+            <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline-block mr-2">
+                @Html.AntiForgeryToken()
+                <button type="submit"
+                        class="btn btn-link p-0 text-muted logout-icon-button"
+                        title="@UiText["layout.logout"]"
+                        aria-label="@UiText["layout.logout"]">
+                    <i class="simple-icon-logout" style="font-size: 1.15rem;"></i>
+                </button>
+            </form>
+
             <div class="user d-inline-block">
                 <button class="btn btn-empty p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <span class="name">@userDisplayName</span>

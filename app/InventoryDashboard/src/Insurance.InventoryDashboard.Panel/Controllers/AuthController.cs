@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+using System.Globalization;
+using System.Text.Json;
 using Insurance.InventoryDashboard.Panel.Models;
 using Insurance.InventoryDashboard.Panel.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -45,6 +46,7 @@ public sealed class AuthController : Controller
         var roles = ResolveRoles(loginData);
 
         HttpContext.Session.SetString("Token", loginData.Token);
+        HttpContext.Session.SetString("RefreshToken", loginData.RefreshToken);
         HttpContext.Session.SetString("UserName", loginData.User?.UserName ?? model.UserName);
         HttpContext.Session.SetString("TokenExpiration", loginData.TokenExpiration.ToString("O"));
         if (loginData.ActiveOrganizationBusinessKey.HasValue)
@@ -61,8 +63,16 @@ public sealed class AuthController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
+        var accessToken = HttpContext.Session.GetString("Token") ?? string.Empty;
+        var refreshToken = HttpContext.Session.GetString("RefreshToken") ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(accessToken) && !string.IsNullOrWhiteSpace(refreshToken))
+        {
+            await _apiService.LogoutAsync(accessToken, refreshToken, "User logout");
+        }
+
         HttpContext.Session.Clear();
         return RedirectToAction("Login");
     }
@@ -70,7 +80,23 @@ public sealed class AuthController : Controller
     private bool HasActiveToken()
     {
         var token = HttpContext.Session.GetString("Token");
-        return !string.IsNullOrWhiteSpace(token);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        var expirationValue = HttpContext.Session.GetString("TokenExpiration");
+        if (!DateTime.TryParse(expirationValue, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var expiration))
+        {
+            return true;
+        }
+
+        if (expiration > DateTime.UtcNow)
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(HttpContext.Session.GetString("RefreshToken"));
     }
 
     private static List<string> ResolveRoles(LoginResponse loginData)
@@ -91,4 +117,3 @@ public sealed class AuthController : Controller
             .ToList();
     }
 }
-

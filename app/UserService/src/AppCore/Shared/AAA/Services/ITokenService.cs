@@ -14,6 +14,7 @@ public interface ITokenService
     Task<TokenResult> GenerateTokenAsync(
         Account user,
         IEnumerable<MembershipDto> memberships,
+        string sessionId,
         BusinessKey? activeMembershipKey,
         BusinessKey? activeOrganizationKey,
         string? activeTenantId,
@@ -34,6 +35,11 @@ public interface ITokenService
     /// ابطال RefreshToken
     /// </summary>
     Task<bool> RevokeTokenAsync(string refreshToken);
+
+    /// <summary>
+    /// ابطال سشن و RefreshToken هم‌زمان
+    /// </summary>
+    Task<bool> RevokeSessionAsync(string accessToken, string refreshToken, string? reason = null);
 
     /// <summary>
     /// اعتبارسنجی یک Access Token

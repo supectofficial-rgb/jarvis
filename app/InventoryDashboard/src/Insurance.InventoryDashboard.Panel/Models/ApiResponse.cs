@@ -10,6 +10,7 @@ public sealed class ApiResponse<T>
 public sealed class LoginResponse
 {
     public string Token { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
     public DateTime TokenExpiration { get; set; }
     public UserInfo? User { get; set; }
     public List<object>? Memberships { get; set; }
