@@ -317,54 +317,28 @@
                                                         </td>
                                                         <td class="text-right">
                                                             <a class="btn btn-outline-primary btn-xs" asp-action="Locations" asp-route-warehouseId="@location.WarehouseRef" asp-route-locationId="@location.LocationBusinessKey" asp-route-locationTypes="@Model.LocationTypesFilter" asp-route-locationCode="@Model.LocationCodeFilter" asp-route-locationAisle="@Model.LocationAisleFilter" asp-route-locationRack="@Model.LocationRackFilter" asp-route-locationShelf="@Model.LocationShelfFilter" asp-route-locationBin="@Model.LocationBinFilter" asp-route-locationStatus="@Model.LocationStatusFilter" asp-route-tab="create">ویرایش</a>
-                                                            <form asp-action="ActivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-location-action-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
-                                                                <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
-                                                                <input type="hidden" name="locationCode" value="@Model.LocationCodeFilter" />
-                                                                @foreach (var locationType in Model.LocationTypesFilter)
-                                                                {
-                                                                    <input type="hidden" name="locationTypes" value="@locationType" />
-                                                                }
-                                                                <input type="hidden" name="locationAisle" value="@Model.LocationAisleFilter" />
-                                                                <input type="hidden" name="locationRack" value="@Model.LocationRackFilter" />
-                                                                <input type="hidden" name="locationShelf" value="@Model.LocationShelfFilter" />
-                                                                <input type="hidden" name="locationBin" value="@Model.LocationBinFilter" />
-                                                                <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
-                                                                <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Location.Activate", "Location.Activate") ? null : "disabled")>فعال</button>
-                                                            </form>
-                                                            <form asp-action="DeactivateLocation" method="post" class="d-inline inventory-status-action" data-loading-form data-location-action-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
-                                                                <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
-                                                                <input type="hidden" name="locationCode" value="@Model.LocationCodeFilter" />
-                                                                @foreach (var locationType in Model.LocationTypesFilter)
-                                                                {
-                                                                    <input type="hidden" name="locationTypes" value="@locationType" />
-                                                                }
-                                                                <input type="hidden" name="locationAisle" value="@Model.LocationAisleFilter" />
-                                                                <input type="hidden" name="locationRack" value="@Model.LocationRackFilter" />
-                                                                <input type="hidden" name="locationShelf" value="@Model.LocationShelfFilter" />
-                                                                <input type="hidden" name="locationBin" value="@Model.LocationBinFilter" />
-                                                                <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
-                                                                <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Location.Deactivate", "Location.Deactivate") ? null : "disabled")>غیرفعال</button>
-                                                            </form>
-                                                            <form asp-action="DeleteLocation" method="post" class="d-inline" data-loading-form data-location-action-form>
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="warehouseId" value="@location.WarehouseRef" />
-                                                                <input type="hidden" name="locationId" value="@location.LocationBusinessKey" />
-                                                                <input type="hidden" name="locationCode" value="@Model.LocationCodeFilter" />
-                                                                @foreach (var locationType in Model.LocationTypesFilter)
-                                                                {
-                                                                    <input type="hidden" name="locationTypes" value="@locationType" />
-                                                                }
-                                                                <input type="hidden" name="locationAisle" value="@Model.LocationAisleFilter" />
-                                                                <input type="hidden" name="locationRack" value="@Model.LocationRackFilter" />
-                                                                <input type="hidden" name="locationShelf" value="@Model.LocationShelfFilter" />
-                                                                <input type="hidden" name="locationBin" value="@Model.LocationBinFilter" />
-                                                                <input type="hidden" name="locationStatus" value="@Model.LocationStatusFilter" />
-                                                                <button class="btn btn-outline-danger btn-xs" type="submit" data-confirm-title="حذف لوکیشن" data-confirm="این لوکیشن حذف شود؟" @(Can("Inventory.Location.Delete", "Location.Delete") ? null : "disabled")>حذف</button>
-                                                            </form>
+                                                            <button type="button"
+                                                                    class="btn @(location.IsActive ? "btn-outline-warning" : "btn-outline-success") btn-xs"
+                                                                    data-location-action-button
+                                                                    data-location-action="@(location.IsActive ? "deactivate" : "activate")"
+                                                                    data-location-id="@location.LocationBusinessKey"
+                                                                    data-location-warehouse-id="@location.WarehouseRef"
+                                                                    @(location.IsActive
+                                                                        ? (Can("Inventory.Location.Deactivate", "Location.Deactivate") ? null : "disabled")
+                                                                        : (Can("Inventory.Location.Activate", "Location.Activate") ? null : "disabled"))>
+                                                                @(location.IsActive ? "غیرفعال" : "فعال")
+                                                            </button>
+                                                            <button type="button"
+                                                                    class="btn btn-outline-danger btn-xs"
+                                                                    data-location-action-button
+                                                                    data-location-action="delete"
+                                                                    data-location-id="@location.LocationBusinessKey"
+                                                                    data-location-warehouse-id="@location.WarehouseRef"
+                                                                    data-confirm-title="حذف لوکیشن"
+                                                                    data-confirm="این لوکیشن برای همیشه حذف شود؟"
+                                                                    @(Can("Inventory.Location.Delete", "Location.Delete") ? null : "disabled")>
+                                                                حذف
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 }
@@ -939,9 +913,12 @@
                 return url.pathname + url.search;
             }
 
-            function buildActionButton(label, action, kind, item, extraClass, disabled) {
+            function buildActionButton(label, action, item, extraClass, disabled, confirmTitle, confirmText) {
                 var state = disabled ? ' disabled' : '';
-                return '<button type="button" class="btn ' + extraClass + ' btn-xs" data-location-action-button data-location-action="' + action + '" data-location-id="' + escapeAttr(item.locationBusinessKey) + '" data-location-warehouse-id="' + escapeAttr(item.warehouseRef) + '"' + state + '>' + escapeHtml(label) + '</button>';
+                var confirmAttrs = confirmText
+                    ? ' data-confirm-title="' + escapeAttr(confirmTitle || '') + '" data-confirm="' + escapeAttr(confirmText) + '"'
+                    : '';
+                return '<button type="button" class="btn ' + extraClass + ' btn-xs" data-location-action-button data-location-action="' + action + '" data-location-id="' + escapeAttr(item.locationBusinessKey) + '" data-location-warehouse-id="' + escapeAttr(item.warehouseRef) + '"' + confirmAttrs + state + '>' + escapeHtml(label) + '</button>';
             }
 
             function renderRow(item) {
@@ -953,14 +930,15 @@
                 if (canEditLocation) {
                     actionButtons.push('<a class="btn btn-outline-primary btn-xs" href="' + escapeAttr(editUrl) + '">ویرایش</a>');
                 }
-                if (canActivateLocation) {
-                    actionButtons.push(buildActionButton('فعال', 'activate', 'success', item, 'btn-outline-success', false));
-                }
-                if (canDeactivateLocation) {
-                    actionButtons.push(buildActionButton('غیرفعال', 'deactivate', 'warning', item, 'btn-outline-warning', false));
+                if (item.isActive) {
+                    if (canDeactivateLocation) {
+                        actionButtons.push(buildActionButton('غیرفعال', 'deactivate', item, 'btn-outline-warning', false));
+                    }
+                } else if (canActivateLocation) {
+                    actionButtons.push(buildActionButton('فعال', 'activate', item, 'btn-outline-success', false));
                 }
                 if (canDeleteLocation) {
-                    actionButtons.push(buildActionButton('حذف', 'delete', 'danger', item, 'btn-outline-danger', false));
+                    actionButtons.push(buildActionButton('حذف', 'delete', item, 'btn-outline-danger', false, 'حذف لوکیشن', 'این لوکیشن برای همیشه حذف شود؟'));
                 }
 
                 return '<tr>' +
@@ -1201,6 +1179,10 @@
                     var warehouseId = actionButton.getAttribute('data-location-warehouse-id') || '';
                     var locationId = actionButton.getAttribute('data-location-id') || '';
                     var actionUrl = actionUrls[action];
+                    var confirmText = actionButton.getAttribute('data-confirm') || '';
+                    if (confirmText && !window.confirm(confirmText)) {
+                        return;
+                    }
 
                     if (!actionUrl) {
                         return;

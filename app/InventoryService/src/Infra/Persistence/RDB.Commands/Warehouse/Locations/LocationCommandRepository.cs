@@ -30,6 +30,20 @@ public class LocationCommandRepository : CommandRepository<Location, InventorySe
         return query.AnyAsync();
     }
 
+    public async Task DeleteStructureSelectionsAsync(Guid locationBusinessKey)
+    {
+        var existingSelections = await _dbContext.Set<LocationStructureSelection>()
+            .Where(x => x.LocationRef == locationBusinessKey)
+            .ToListAsync();
+
+        if (existingSelections.Count == 0)
+        {
+            return;
+        }
+
+        _dbContext.RemoveRange(existingSelections);
+    }
+
     public async Task ReplaceStructureSelectionsAsync(Guid locationBusinessKey, IReadOnlyCollection<LocationStructureSelectionItem> selections)
     {
         var existingSelections = await _dbContext.Set<LocationStructureSelection>()

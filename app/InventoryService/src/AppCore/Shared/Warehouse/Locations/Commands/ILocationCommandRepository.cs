@@ -9,5 +9,7 @@ public interface ILocationCommandRepository : ICommandRepository<Location, long>
 
     Task<bool> ExistsByCodeAsync(string locationCode, Guid? exceptBusinessKey = null);
 
+    Task DeleteStructureSelectionsAsync(Guid locationBusinessKey);
+
     Task ReplaceStructureSelectionsAsync(Guid locationBusinessKey, IReadOnlyCollection<LocationStructureSelectionItem> selections);
 }

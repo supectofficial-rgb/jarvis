@@ -25,7 +25,8 @@ public class DeleteLocationCommandHandler : CommandHandler<DeleteLocationCommand
             if (aggregate is null)
                 return Fail("Location was not found.");
 
-            aggregate.Deactivate();
+            await _repository.DeleteStructureSelectionsAsync(command.LocationBusinessKey);
+            _repository.Delete(aggregate);
             await _repository.CommitAsync();
 
             return Ok(new DeleteLocationCommandResult

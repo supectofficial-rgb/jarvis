@@ -1030,6 +1030,7 @@
             var tagsCreateCancel = document.getElementById('variant-tags-create-cancel');
             var tagsCreateForm = document.getElementById('variant-tag-create-form');
             var bulkMediaForm = document.getElementById('variant-bulk-media-form');
+            var bulkMediaSubmitButton = bulkMediaForm ? bulkMediaForm.querySelector('button[type="submit"][data-bulk-action="assign-media"]') : null;
             var bulkAddonSelect = document.getElementById('BulkVariantAddOnForm_AddOnVariantId');
             var addonSubmitButton = document.getElementById('variant-addon-submit-button');
             var mediaModal = $('#variant-bulk-media-modal');
@@ -2110,15 +2111,41 @@
                     return syncBulkSelectionInputs();
                 }
 
-                var checkbox = Array.prototype.slice.call(scope.querySelectorAll("input[type='checkbox'][data-bulk-row]")).find(function (item) {
+                var checkboxes = Array.prototype.slice.call(scope.querySelectorAll("input[type='checkbox'][data-bulk-row]"));
+                var checkbox = checkboxes.find(function (item) {
                     return (item.value || '').trim() === normalizedVariantId;
                 });
 
-                if (checkbox && !checkbox.checked) {
-                    checkbox.checked = true;
+                if (!checkbox) {
+                    return syncBulkSelectionInputs();
                 }
 
-                var selectedIds = syncBulkSelectionInputs();
+                checkboxes.forEach(function (item) {
+                    item.checked = (item === checkbox);
+                });
+
+                var selectedIds = syncBulkSelectionInputs([normalizedVariantId]);
+                updateBulkModalTriggers();
+                return selectedIds;
+            }
+
+            function selectOnlyVariantForBulk(variantId) {
+                var normalizedVariantId = (variantId || '').trim();
+                if (!normalizedVariantId) {
+                    return syncBulkSelectionInputs([]);
+                }
+
+                var scope = document.getElementById('variant-list-scope');
+                if (!scope) {
+                    return syncBulkSelectionInputs([normalizedVariantId]);
+                }
+
+                var checkboxes = Array.prototype.slice.call(scope.querySelectorAll("input[type='checkbox'][data-bulk-row]"));
+                checkboxes.forEach(function (item) {
+                    item.checked = (item.value || '').trim() === normalizedVariantId;
+                });
+
+                var selectedIds = syncBulkSelectionInputs([normalizedVariantId]);
                 updateBulkModalTriggers();
                 return selectedIds;
             }
@@ -2420,7 +2447,7 @@
                     event.preventDefault();
                     var mediaVariantId = mediaButton.getAttribute('data-variant-id') || '';
                     var mediaVariantLabel = mediaButton.getAttribute('data-detail-title') || variantMediaTitleText;
-                    ensureVariantSelectedForBulk(mediaVariantId);
+                    selectOnlyVariantForBulk(mediaVariantId);
                     loadVariantMediaForModal(
                         mediaVariantId,
                         'bulk',
@@ -2435,7 +2462,7 @@
                     var addonVariantId = addonButton.getAttribute('data-variant-id') || '';
                     var addonLabel = addonButton.getAttribute('data-detail-title') || '';
                     var addonProductId = addonButton.getAttribute('data-product-id') || '';
-                    ensureVariantSelectedForBulk(addonVariantId);
+                    selectOnlyVariantForBulk(addonVariantId);
                     loadVariantAddOnsForModal(
                         addonVariantId,
                         addonButton.getAttribute('data-mode') || 'single',
@@ -2470,6 +2497,7 @@
                         return;
                     }
 
+                    selectOnlyVariantForBulk(pricingVariantId);
                     loadVariantPricingForModal('single', pricingVariantId, pricingVariantLabel, [pricingVariantId]).then(function () {
                         if (pricingModal && pricingModal.modal) {
                             pricingModal.modal('show');
@@ -2483,7 +2511,7 @@
                     event.preventDefault();
                     var variantId = tagButton.getAttribute('data-variant-id') || '';
                     var label = tagButton.getAttribute('data-variant-label') || '';
-                    ensureVariantSelectedForBulk(variantId);
+                    selectOnlyVariantForBulk(variantId);
                     if (tagsModal) {
                         tagsModal.attr('data-tag-mode', 'single');
                         tagsModal.attr('data-variant-id', variantId);
@@ -3127,8 +3155,12 @@
                 }
 
                 if (mode === 'bulk') {
+                    var selectedIds = syncBulkSelectionInputs();
                     if (bulkTagsSelectedIdsInput) {
-                        bulkTagsSelectedIdsInput.value = variantId || '';
+                        bulkTagsSelectedIdsInput.value = selectedIds.join(',');
+                    }
+                    if (tagsModal) {
+                        tagsModal.attr('data-bulk-has-selection', selectedIds.length > 0 ? 'true' : 'false');
                     }
                     if (bulkTagLookupSelect && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
                         window.jQuery(bulkTagLookupSelect).val(null).trigger('change');
@@ -3868,6 +3900,10 @@
                     var pricingEnabled = (button.getAttribute('data-pricing-enabled') || 'true') !== 'false';
                     button.disabled = selectedCount === 0 || !pricingEnabled;
                 });
+
+                if (bulkMediaSubmitButton) {
+                    bulkMediaSubmitButton.disabled = selectedCount === 0;
+                }
 
                 if (bulkSelectionWarning) {
                     bulkSelectionWarning.classList.toggle('d-none', selectedCount > 0);
