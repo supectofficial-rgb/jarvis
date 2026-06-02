@@ -2624,6 +2624,18 @@ public sealed partial class InventoryManagementController
             return RedirectToAction(routeActionName);
         }
 
+        if (!isUpdate && (string.IsNullOrWhiteSpace(form.SellerRef) || !Guid.TryParse(form.SellerRef, out var parsedSellerRef) || parsedSellerRef == Guid.Empty))
+        {
+            var ownerSellerResult = await ResolveOwnerSellerAsync(token);
+            if (!ownerSellerResult.IsSuccess || ownerSellerResult.Data is null)
+            {
+                TempData["CatalogError"] = ownerSellerResult.ErrorMessage ?? "Seller Owner فعال در سیستم پیدا نشد.";
+                return RedirectToAction(routeActionName);
+            }
+
+            form.SellerRef = ownerSellerResult.Data.SellerBusinessKey.ToString("D");
+        }
+
         if (string.Equals(form.DocumentType, "Receipt", StringComparison.OrdinalIgnoreCase)
             || string.Equals(form.DocumentType, "Issue", StringComparison.OrdinalIgnoreCase))
         {
