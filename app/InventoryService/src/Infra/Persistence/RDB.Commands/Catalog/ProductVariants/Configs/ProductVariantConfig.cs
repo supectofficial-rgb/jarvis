@@ -22,10 +22,14 @@ public sealed class ProductVariantConfig : IEntityTypeConfiguration<ProductVaria
 
         builder.HasMany(x => x.Components)
             .WithOne()
+            .HasForeignKey(x => x.VariantRef)
+            .HasPrincipalKey(x => x.BusinessKey)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.AddOns)
             .WithOne()
+            .HasForeignKey(x => x.VariantRef)
+            .HasPrincipalKey(x => x.BusinessKey)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Images)

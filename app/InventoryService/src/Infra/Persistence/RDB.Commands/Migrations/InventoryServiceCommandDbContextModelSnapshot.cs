@@ -857,9 +857,6 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<long?>("ProductVariantId")
-                        .HasColumnType("bigint");
-
                     b.Property<Guid?>("TagId")
                         .HasColumnType("uuid");
 
@@ -873,8 +870,6 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationBusinessKey");
-
-                    b.HasIndex("ProductVariantId");
 
                     b.HasIndex("TenantId");
 
@@ -985,9 +980,6 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                     b.Property<string>("OrganizationBusinessKey")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
-
-                    b.Property<long?>("ProductVariantId")
-                        .HasColumnType("bigint");
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
@@ -3795,7 +3787,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                 {
                     b.HasOne("Insurance.InventoryService.AppCore.Domain.Catalog.Entities.ProductVariant", null)
                         .WithMany("AddOns")
-                        .HasForeignKey("ProductVariantId")
+                        .HasForeignKey("VariantRef")
+                        .HasPrincipalKey("BusinessKey")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
@@ -3811,7 +3804,8 @@ namespace Insurance.InventoryService.Infra.Persistence.RDB.Commands.Migrations
                 {
                     b.HasOne("Insurance.InventoryService.AppCore.Domain.Catalog.Entities.ProductVariant", null)
                         .WithMany("Components")
-                        .HasForeignKey("ProductVariantId")
+                        .HasForeignKey("VariantRef")
+                        .HasPrincipalKey("BusinessKey")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
