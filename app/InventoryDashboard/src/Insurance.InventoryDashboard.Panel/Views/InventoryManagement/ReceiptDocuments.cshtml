@@ -1734,6 +1734,11 @@
                 initializeReceiptInventoryChain(root);
             }
 
+            window.appUi = window.appUi || {};
+            window.appUi.initReceiptDocumentsModal = function (root) {
+                initModalWidgets(root || document);
+            };
+
             function initializeReceiptVariantSearch(root) {
                 if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
                     return;

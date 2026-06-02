@@ -308,3 +308,18 @@
         </div>
     }
 </div>
+
+<script data-ajax-reinit="receipt-document-details">
+    (function () {
+        if (!window.appUi || typeof window.appUi.initReceiptDocumentsModal !== 'function') {
+            return;
+        }
+
+        var modalBody = document.getElementById('receipt-document-details-modal-body');
+        if (!modalBody) {
+            return;
+        }
+
+        window.appUi.initReceiptDocumentsModal(modalBody);
+    })();
+</script>
