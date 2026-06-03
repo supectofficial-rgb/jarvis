@@ -73,8 +73,12 @@ public class PostInventoryDocumentCommandHandler
             idempotencyKey: document.IdempotencyKey,
             reasonCode: document.ReasonCode);
 
+        var receiptLotResolution = TryResolveReceiptLotBatchNo(document);
+        if (!receiptLotResolution.Success)
+            return Fail(receiptLotResolution.Error ?? "Unable to resolve receipt lot batch number.");
+
         var selectedSerialsByLine = BuildSelectedSerialsByLine(document);
-        var effects = BuildEffects(document, selectedSerialsByLine).ToList();
+        var effects = BuildEffects(document, selectedSerialsByLine, receiptLotResolution.ReceiptLotBatchNo).ToList();
         foreach (var effect in effects)
         {
             var line = effect.TransactionLine;
@@ -291,7 +295,8 @@ public class PostInventoryDocumentCommandHandler
 
     private static IEnumerable<InventoryDocumentPostingEffect> BuildEffects(
         InventoryDocument document,
-        IReadOnlyDictionary<Guid, PostLineSerialSelectionContext> selectedSerialsByLine)
+        IReadOnlyDictionary<Guid, PostLineSerialSelectionContext> selectedSerialsByLine,
+        string? receiptLotBatchNo)
     {
         foreach (var (line, index) in document.Lines.Select((line, index) => (line, index)))
         {
@@ -302,6 +307,7 @@ public class PostInventoryDocumentCommandHandler
                 .Select(x => (x.SerialRef, x.SerialNo))
                 .ToList();
             var serialRef = serialTuples.FirstOrDefault().SerialRef;
+            var lotBatchNo = ResolveDocumentLotBatchNo(document, line, receiptLotBatchNo);
 
             switch (document.DocumentType)
             {
@@ -319,7 +325,7 @@ public class PostInventoryDocumentCommandHandler
                               newQualityStatusRef: line.QualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
+                              lotBatchNo: lotBatchNo,
                               reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
@@ -340,7 +346,7 @@ public class PostInventoryDocumentCommandHandler
                               oldQualityStatusRef: line.QualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
+                              lotBatchNo: lotBatchNo,
                               reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
@@ -361,7 +367,7 @@ public class PostInventoryDocumentCommandHandler
                               oldQualityStatusRef: line.QualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
+                              lotBatchNo: lotBatchNo,
                               reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
@@ -379,7 +385,7 @@ public class PostInventoryDocumentCommandHandler
                               newQualityStatusRef: line.QualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
+                              lotBatchNo: lotBatchNo,
                               reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
@@ -399,13 +405,13 @@ public class PostInventoryDocumentCommandHandler
                             line.UomRef,
                             adjustmentDelta,
                             line.BaseUomRef,
-                            sourceLocationRef: adjustmentDelta < 0 ? line.SourceLocationRef ?? line.DestinationLocationRef : null,
+                              sourceLocationRef: adjustmentDelta < 0 ? line.SourceLocationRef ?? line.DestinationLocationRef : null,
                               destinationLocationRef: adjustmentDelta > 0 ? line.DestinationLocationRef ?? line.SourceLocationRef : null,
                               oldQualityStatusRef: adjustmentDelta < 0 ? line.QualityStatusRef : null,
                               newQualityStatusRef: adjustmentDelta > 0 ? line.QualityStatusRef : null,
                               serialRef: serialRef,
                               serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
+                              lotBatchNo: lotBatchNo,
                               reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
@@ -425,7 +431,7 @@ public class PostInventoryDocumentCommandHandler
                               oldQualityStatusRef: line.FromQualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
+                              lotBatchNo: lotBatchNo,
                               reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
@@ -443,7 +449,7 @@ public class PostInventoryDocumentCommandHandler
                               newQualityStatusRef: line.ToQualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
-                              lotBatchNo: line.LotBatchNo,
+                              lotBatchNo: lotBatchNo,
                               reasonCode: line.ReasonCode),
                         serials,
                         selectedSerials?.UseUniqueSerialItems ?? false,
@@ -465,7 +471,7 @@ public class PostInventoryDocumentCommandHandler
                                 oldQualityStatusRef: line.QualityStatusRef,
                                 serialRef: serialRef,
                                 serials: serialTuples,
-                                lotBatchNo: line.LotBatchNo,
+                                lotBatchNo: lotBatchNo,
                                 reasonCode: line.ReasonCode),
                             serials,
                             selectedSerials?.UseUniqueSerialItems ?? false,
@@ -486,7 +492,7 @@ public class PostInventoryDocumentCommandHandler
                                 newQualityStatusRef: line.QualityStatusRef,
                                 serialRef: serialRef,
                                 serials: serialTuples,
-                                lotBatchNo: line.LotBatchNo,
+                                lotBatchNo: lotBatchNo,
                                 reasonCode: line.ReasonCode),
                             serials,
                             selectedSerials?.UseUniqueSerialItems ?? false,
@@ -495,6 +501,42 @@ public class PostInventoryDocumentCommandHandler
                     break;
             }
         }
+    }
+
+    private static (bool Success, string? Error, string? ReceiptLotBatchNo) TryResolveReceiptLotBatchNo(InventoryDocument document)
+    {
+        if (document.DocumentType != InventoryDocumentType.Receipt)
+            return (true, null, null);
+
+        var lots = document.Lines
+            .Select(line => NormalizeLotBatchNo(line.LotBatchNo))
+            .Where(lot => !string.IsNullOrWhiteSpace(lot))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (lots.Count > 1)
+        {
+            return (
+                false,
+                $"Receipt '{document.DocumentNo}' contains multiple lot batch numbers. Use a single lot batch number for the whole receipt or leave them empty to auto-generate one.",
+                null);
+        }
+
+        if (lots.Count == 1)
+            return (true, null, lots[0]);
+
+        return (true, null, GenerateReceiptLotBatchNo(document));
+    }
+
+    private static string? ResolveDocumentLotBatchNo(
+        InventoryDocument document,
+        InventoryDocumentLine line,
+        string? receiptLotBatchNo)
+    {
+        if (document.DocumentType == InventoryDocumentType.Receipt)
+            return NormalizeLotBatchNo(line.LotBatchNo) ?? receiptLotBatchNo ?? GenerateReceiptLotBatchNo(document);
+
+        return NormalizeLotBatchNo(line.LotBatchNo) ?? receiptLotBatchNo;
     }
 
     private static InventoryDocumentPostingEffect CreateEffect(
@@ -694,6 +736,15 @@ public class PostInventoryDocumentCommandHandler
         return candidate;
     }
 
+    private static string GenerateReceiptLotBatchNo(InventoryDocument document)
+    {
+        var documentPart = NormalizeSerialSegment(string.IsNullOrWhiteSpace(document.DocumentNo)
+            ? document.BusinessKey.Value.ToString("N")
+            : document.DocumentNo);
+
+        return $"LOT-{documentPart}";
+    }
+
     private static string NormalizeSerialSegment(string value)
     {
         var normalized = value.Trim();
@@ -707,6 +758,9 @@ public class PostInventoryDocumentCommandHandler
         normalized = normalized.Replace('.', '-');
         return normalized;
     }
+
+    private static string? NormalizeLotBatchNo(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private async Task<Guid> ResolveDocumentWarehouseRefAsync(InventoryDocument document)
     {

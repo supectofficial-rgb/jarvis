@@ -126,6 +126,7 @@
      class="modal-body issue-document-details-modal"
      data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(issueLocationOptions))'
      data-default-source-location-id="@Model.LineForm.SourceLocationRef"
+     data-default-lot-batch-no="@Model.LineForm.LotBatchNo"
      data-default-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LineForm.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
@@ -198,6 +199,14 @@
                             </div>
                             <div class="form-group col-md-2 d-flex align-items-end">
                                 <button class="btn btn-primary btn-block js-issue-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.action.addItem"] : UiText["inventory.documents.action.saveChanges"])</button>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>@UiText["inventory.documents.line.lotBatch"]</label>
+                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-issue-line-lot" data-placeholder="@UiText["inventory.documents.line.lotBatch"]">
+                                    <option value="">@UiText["inventory.documents.line.lotBatch"]</option>
+                                </select>
                             </div>
                         </div>
                     </form>

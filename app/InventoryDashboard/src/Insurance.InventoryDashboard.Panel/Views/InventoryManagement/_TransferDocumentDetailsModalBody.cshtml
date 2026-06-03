@@ -135,6 +135,7 @@
       data-default-source-location-id="@Model.LineForm.SourceLocationRef"
       data-default-destination-location-id="@Model.LineForm.DestinationLocationRef"
       data-default-warehouse-id="@Model.LineForm.WarehouseRef"
+      data-default-lot-batch-no="@Model.LineForm.LotBatchNo"
       data-default-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LineForm.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
@@ -230,6 +231,14 @@
                                         <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
                                     }
                                 </select>
+                        </div>
+                    </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>Ù„Ø§Øª/Ø¨Ú†</label>
+                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-transfer-line-lot" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ù„Ø§Øª/Ø¨Ú†">
+                                    <option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ù„Ø§Øª/Ø¨Ú†</option>
+                                </select>
                             </div>
                         </div>
                         <div class="form-row">
@@ -319,6 +328,24 @@
                                             {
                                                 <span> | لات/بچ: @line.LotBatchNo</span>
                                             }
+                                        </td>
+                                    </tr>
+                                }
+                                @if (line.Serials.Count > 0)
+                                {
+                                    <tr>
+                                        <td colspan="7" class="small">
+                                            <div class="d-flex flex-wrap align-items-start">
+                                                <span class="text-muted mr-2">سریال‌های این ردیف:</span>
+                                                <div class="d-flex flex-wrap">
+                                                    @foreach (var serial in line.Serials.OrderBy(x => x.SerialNo))
+                                                    {
+                                                        <span class="badge badge-light border mr-1 mb-1">
+                                                            @(string.IsNullOrWhiteSpace(serial.SerialNo) ? serial.SerialItemBusinessKey : serial.SerialNo)
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 }

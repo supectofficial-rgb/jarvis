@@ -255,7 +255,7 @@
                                 </div>
                                 <div class="form-group col-md-4">
                                     <label>@returnReferenceLabelText</label>
-                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@returnReferencePlaceholderText" data-ajax-url="/InventoryManagement/Documents/Return/ReferenceSearch" data-ajax-extra-params='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { referenceDocumentType = returnReferenceDocumentType }))' data-ajax-result-mode="document" data-ajax-local-init="true" data-return-reference-document-type="@returnReferenceDocumentType">
+                                    <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@returnReferencePlaceholderText" data-ajax-url="/InventoryManagement/Documents/Return/ReferenceSearch" data-ajax-extra-params='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { referenceDocumentType = returnReferenceDocumentType }))' data-ajax-result-mode="document" data-return-reference-document-type="@returnReferenceDocumentType">
                                         <option value="">@returnReferencePlaceholderText</option>
                                     </select>
                                     <div class="mt-2 d-none" id="return-reference-selected">
@@ -1050,7 +1050,7 @@
 
             function initializeReturnReferenceLookupSelect(root) {
                 root = root || document;
-                if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2 || !returnReferenceSelect) {
+                if (!returnReferenceSelect) {
                     return;
                 }
 
@@ -1058,89 +1058,112 @@
                     return;
                 }
 
-                if (returnReferenceSelect.dataset.select2Initialized === 'true') {
-                    return;
-                }
+                var $select = window.jQuery && window.jQuery.fn ? window.jQuery(returnReferenceSelect) : null;
+                var shouldInitializeSelect2 = returnReferenceSelect.dataset.select2Initialized !== 'true';
 
-                var ajaxUrl = returnReferenceSelect.getAttribute('data-ajax-url') || '';
-                if (!ajaxUrl) {
-                    return;
-                }
+                if (shouldInitializeSelect2 && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    var ajaxUrl = returnReferenceSelect.getAttribute('data-ajax-url') || '';
+                    if (ajaxUrl) {
+                        if ($select.data('select2')) {
+                            $select.select2('destroy');
+                        }
 
-                var $select = window.jQuery(returnReferenceSelect);
-                if ($select.data('select2')) {
-                    $select.select2('destroy');
-                }
+                        $select.select2({
+                            theme: 'bootstrap',
+                            dir: document.documentElement.getAttribute('dir') || 'rtl',
+                            width: returnReferenceSelect.getAttribute('data-width') || '100%',
+                            placeholder: returnReferenceSelect.getAttribute('data-placeholder') || '',
+                            allowClear: true,
+                            minimumInputLength: Number(returnReferenceSelect.getAttribute('data-minimum-input-length') || '1'),
+                            ajax: {
+                                url: ajaxUrl,
+                                dataType: 'json',
+                                delay: 250,
+                                data: function (params) {
+                                    var payload = {
+                                        term: params.term || ''
+                                    };
 
-                $select.select2({
-                    theme: 'bootstrap',
-                    dir: document.documentElement.getAttribute('dir') || 'rtl',
-                    width: returnReferenceSelect.getAttribute('data-width') || '100%',
-                    placeholder: returnReferenceSelect.getAttribute('data-placeholder') || '',
-                    allowClear: true,
-                    minimumInputLength: Number(returnReferenceSelect.getAttribute('data-minimum-input-length') || '1'),
-                    ajax: {
-                        url: ajaxUrl,
-                        dataType: 'json',
-                        delay: 250,
-                        data: function (params) {
-                            var payload = {
-                                term: params.term || ''
-                            };
-
-                            var extraParamsJson = returnReferenceSelect.getAttribute('data-ajax-extra-params') || '';
-                            if (extraParamsJson) {
-                                try {
-                                    var extraParams = JSON.parse(extraParamsJson);
-                                    if (extraParams && typeof extraParams === 'object') {
-                                        Object.keys(extraParams).forEach(function (key) {
-                                            var value = extraParams[key];
-                                            if (value !== null && value !== undefined && String(value).trim() !== '') {
-                                                payload[key] = String(value);
+                                    var extraParamsJson = returnReferenceSelect.getAttribute('data-ajax-extra-params') || '';
+                                    if (extraParamsJson) {
+                                        try {
+                                            var extraParams = JSON.parse(extraParamsJson);
+                                            if (extraParams && typeof extraParams === 'object') {
+                                                Object.keys(extraParams).forEach(function (key) {
+                                                    var value = extraParams[key];
+                                                    if (value !== null && value !== undefined && String(value).trim() !== '') {
+                                                        payload[key] = String(value);
+                                                    }
+                                                });
                                             }
-                                        });
+                                        } catch (error) {
+                                            console.warn('Failed to parse data-ajax-extra-params for return reference select2.', error);
+                                        }
                                     }
-                                } catch (error) {
-                                    console.warn('Failed to parse data-ajax-extra-params for return reference select2.', error);
+
+                                    return payload;
+                                },
+                                processResults: function (data) {
+                                    var items = data && (data.items || data.documents) ? (data.items || data.documents) : [];
+                                    return {
+                                        results: items.map(function (item) {
+                                            var documentBusinessKey = item.documentBusinessKey || item.id || item.documentId || '';
+                                            return {
+                                                id: documentBusinessKey,
+                                                text: item.text || item.documentNo || documentBusinessKey || '',
+                                                document: item
+                                            };
+                                        })
+                                    };
                                 }
                             }
+                        });
 
-                            return payload;
-                        },
-                        processResults: function (data) {
-                            var items = data && (data.items || data.documents) ? (data.items || data.documents) : [];
-                            return {
-                                results: items.map(function (item) {
-                                    var documentBusinessKey = item.documentBusinessKey || item.id || item.documentId || '';
-                                    return {
-                                        id: documentBusinessKey,
-                                        text: item.text || item.documentNo || documentBusinessKey || '',
-                                        document: item
-                                    };
-                                })
-                            };
+                        returnReferenceSelect.dataset.select2Initialized = 'true';
+                    }
+                }
+
+                if (returnReferenceSelect.dataset.returnReferenceHandlersBound === 'true') {
+                    return;
+                }
+
+                if ($select) {
+                    $select.off('select2:select.returnReferenceLookup').on('select2:select.returnReferenceLookup', function (event) {
+                        var data = event.params && event.params.data ? event.params.data : null;
+                        if (!data || !data.document) {
+                            return;
                         }
-                    }
-                });
 
-                $select.off('select2:select.returnReferenceLookup').on('select2:select.returnReferenceLookup', function (event) {
-                    var data = event.params && event.params.data ? event.params.data : null;
-                    if (!data || !data.document) {
-                        return;
-                    }
+                        var referenceDocument = data.document;
+                        var option = returnReferenceSelect.querySelector('option[value="' + String(referenceDocument.documentBusinessKey || data.id || '').replace(/"/g, '\\"') + '"]');
+                        if (!option) {
+                            option = document.createElement('option');
+                            option.value = String(referenceDocument.documentBusinessKey || data.id || '');
+                            option.textContent = buildReturnReferenceDocumentText(referenceDocument);
+                            option.selected = true;
+                            returnReferenceSelect.appendChild(option);
+                        }
+                    });
+                }
 
-                    var referenceDocument = data.document;
-                    var option = returnReferenceSelect.querySelector('option[value="' + String(referenceDocument.documentBusinessKey || data.id || '').replace(/"/g, '\\"') + '"]');
-                    if (!option) {
-                        option = document.createElement('option');
-                        option.value = String(referenceDocument.documentBusinessKey || data.id || '');
-                        option.textContent = buildReturnReferenceDocumentText(referenceDocument);
-                        option.selected = true;
-                        returnReferenceSelect.appendChild(option);
-                    }
-                });
+                if ($select) {
+                    $select.off('select2:clear.returnReferenceLookup').on('select2:clear.returnReferenceLookup', function () {
+                        if (returnReferenceTypeInput) {
+                            returnReferenceTypeInput.value = returnReferenceDocumentType;
+                        }
+                        if (returnReferenceIdInput) {
+                            returnReferenceIdInput.value = '';
+                        }
+                        if (returnReferenceSelectedLabel) {
+                            returnReferenceSelectedLabel.textContent = '-';
+                        }
+                        if (returnReferenceSelected) {
+                            returnReferenceSelected.classList.add('d-none');
+                        }
+                    });
+                }
 
-                returnReferenceSelect.dataset.select2Initialized = 'true';
+                returnReferenceSelect.dataset.returnReferenceHandlersBound = 'true';
             }
 
             function initializeReturnVariantLookupSelects(root) {

@@ -313,9 +313,18 @@ else
                                 @if (line.Serials.Count > 0)
                                 {
                                     <tr>
-                                        <td colspan="7" class="text-muted small">
-                                            شناسه‌ها:
-                                            @string.Join(" ، ", line.Serials.Select(x => x.SerialNo))
+                                        <td colspan="7" class="small">
+                                            <div class="d-flex flex-wrap align-items-start">
+                                                <span class="text-muted mr-2">سریال‌های این ردیف:</span>
+                                                <div class="d-flex flex-wrap">
+                                                    @foreach (var serial in line.Serials.OrderBy(x => x.SerialNo))
+                                                    {
+                                                        <span class="badge badge-light border mr-1 mb-1">
+                                                            @(string.IsNullOrWhiteSpace(serial.SerialNo) ? serial.SerialItemBusinessKey : serial.SerialNo)
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 }

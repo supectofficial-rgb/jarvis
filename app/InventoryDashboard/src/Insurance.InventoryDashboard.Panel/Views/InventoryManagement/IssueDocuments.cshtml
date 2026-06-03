@@ -169,6 +169,19 @@
         _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
     };
 
+    var issueLocationOptions = Model.LocationLookup.Select(x =>
+    {
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(w => string.Equals(w.WarehouseBusinessKey, x.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+        var warehouseLabel = warehouse is null ? x.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+        var locationLabel = string.IsNullOrWhiteSpace(x.LocationType) ? x.LocationCode : $"{x.LocationCode} ({x.LocationType})";
+        return new
+        {
+            id = x.LocationBusinessKey,
+            warehouseId = x.WarehouseRef,
+            text = string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}"
+        };
+    }).ToList();
+
     var hasListContext = !string.IsNullOrWhiteSpace(Model.SelectedDocumentId)
         || !string.IsNullOrWhiteSpace(Model.DocumentNoFilter)
         || !string.IsNullOrWhiteSpace(Model.DocumentStatusFilter)
@@ -183,7 +196,7 @@
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
 }
 
-<main id="documents-page-root" class="catalog-page">
+<main id="documents-page-root" class="catalog-page" data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(issueLocationOptions))' data-default-lot-batch-no="@Model.LineForm.LotBatchNo">
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
@@ -491,7 +504,17 @@
                                             }
                                             <div class="form-group col-md-2">
                                                 <label>Ù„Ø§Øª/Ø¨Ú†</label>
-                                                <input asp-for="LineForm.LotBatchNo" class="form-control" />
+                                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-issue-line-lot" data-placeholder="Ù„Ø§Øª/Ø¨Ú†">
+                                                    <option value="">Ù„Ø§Øª/Ø¨Ú†</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group col-12 line-serials d-none">
+                                                <label>@UiText["inventory.documents.issue.serial.title"]</label>
+                                                <div class="text-muted small js-issue-line-serial-summary mb-2" data-select-prompt="@UiText["inventory.documents.issue.serial.selectLocationPrompt"]" data-no-available="@UiText["inventory.documents.issue.serial.noAvailable"]" data-select-available="@UiText["inventory.documents.issue.serial.selectPrompt"]">@UiText["inventory.documents.issue.serial.selectLocationPrompt"]</div>
+                                                <div class="list-group js-issue-line-serial-container" style="max-height: 240px; overflow:auto;"></div>
+                                                <div class="js-issue-line-serial-hidden d-none"></div>
                                             </div>
                                             @if (showQualityColumn)
                                             {
@@ -1569,7 +1592,9 @@
                 root = root || document;
                 return {
                     variantSelect: root.querySelector('select[name="LineForm.VariantId"]'),
-                    sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]')
+                    sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]'),
+                    qualitySelect: root.querySelector('select[name="LineForm.QualityStatusRef"]'),
+                    lotSelect: root.querySelector('select[name="LineForm.LotBatchNo"]')
                 };
             }
 
@@ -1683,8 +1708,13 @@
                 }
 
                 var selectedCount = collectIssueSelectedSerialIds(root).length;
-                qtyInput.value = String(selectedCount > 0 ? selectedCount : 0);
-                qtyInput.setAttribute('readonly', 'readonly');
+                if (selectedCount > 0) {
+                    qtyInput.value = String(selectedCount);
+                    qtyInput.setAttribute('readonly', 'readonly');
+                } else {
+                    qtyInput.removeAttribute('readonly');
+                }
+                qtyInput.disabled = false;
             }
 
             function renderIssueSerialOptions(root, serials, selectedSerialIds, sourceSelected) {
@@ -1717,12 +1747,14 @@
                 syncIssueLineQtyFromSerialSelection(root, true);
 
                 if (!items.length) {
-                    controls.summary.textContent = 'Ø³Ø±ÛŒØ§Ù„ÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ø¯Ø± Ù„ÙˆÚ©ÛŒØ´Ù† Ø§Ù†ØªØ®Ø§Ø¨â€ŒØ´Ø¯Ù‡ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.';
-                    controls.container.innerHTML = '<div class="text-muted small">Ù…ÙˆØ±Ø¯ÛŒ Ø¨Ø±Ø§ÛŒ Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ¬ÙˆØ¯ Ù†Ø¯Ø§Ø±Ø¯.</div>';
+                    controls.section.classList.remove('d-none');
+                    controls.summary.textContent = controls.summary.dataset.noAvailable || '@UiText["inventory.documents.issue.serial.noAvailable"]';
+                    controls.container.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.issue.serial.noAvailable"]</div>';
+                    syncIssueLineQtyFromSerialSelection(root, false);
                     return;
                 }
 
-                controls.summary.textContent = 'Ø³Ø±ÛŒØ§Ù„â€ŒÙ‡Ø§ÛŒ Ù…ÙˆØ¬ÙˆØ¯ Ø±Ø§ Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯.';
+                controls.summary.textContent = controls.summary.dataset.selectAvailable || '@UiText["inventory.documents.issue.serial.selectPrompt"]';
 
                 items.forEach(function (serial) {
                     var serialId = String(serial.serialItemBusinessKey || '');
@@ -1730,6 +1762,7 @@
                     var warehouseLabel = serial.warehouseRef || '';
                     var locationLabel = serial.locationRef || '';
                     var qualityLabel = serial.qualityStatusRef || '';
+                    var lotLabel = serial.lotBatchNo || '';
 
                     var wrapper = document.createElement('label');
                     wrapper.className = 'd-flex align-items-start mb-1 small border rounded px-2 py-1 bg-white';
@@ -1756,7 +1789,7 @@
                     var meta = document.createElement('span');
                     meta.className = 'd-block text-muted';
                     meta.style.fontSize = '11px';
-                    meta.textContent = [warehouseLabel, locationLabel, qualityLabel, serial.status || ''].filter(Boolean).join(' / ');
+                    meta.textContent = [warehouseLabel, locationLabel, qualityLabel, lotLabel, serial.status || ''].filter(Boolean).join(' / ');
 
                     content.appendChild(title);
                     content.appendChild(meta);
@@ -1809,6 +1842,11 @@
                 items.forEach(function (serial) {
                     var serialId = String(serial.serialItemBusinessKey || '');
                     var serialNo = String(serial.serialNo || serialId || '-');
+                    var warehouseLabel = String(serial.warehouseRef || '').trim();
+                    var locationLabel = String(serial.locationRef || '').trim();
+                    var qualityLabel = String(serial.qualityStatusRef || '').trim();
+                    var lotLabel = String(serial.lotBatchNo || '').trim();
+                    var statusLabel = String(serial.status || '').trim();
 
                     var wrapper = document.createElement('label');
                     wrapper.className = 'list-group-item list-group-item-action d-flex align-items-start mb-0 px-3 py-2 border-0 border-bottom rounded-0';
@@ -1832,7 +1870,12 @@
                     title.className = 'd-block font-weight-bold text-truncate';
                     title.textContent = serialNo;
 
+                    var meta = document.createElement('span');
+                    meta.className = 'd-block text-muted small';
+                    meta.textContent = [warehouseLabel, locationLabel, qualityLabel, lotLabel, statusLabel].filter(Boolean).join(' / ');
+
                     content.appendChild(title);
+                    content.appendChild(meta);
                     wrapper.appendChild(checkbox);
                     wrapper.appendChild(content);
                     controls.container.appendChild(wrapper);
@@ -1905,7 +1948,78 @@
                 }
             }
 
-            async function loadIssueVariantInventory(root, variantId, selectedLocationId, selectedSerialIds) {
+            function renderIssueLotOptions(root, selectedLotBatchNo, buckets, selectedLocationId, selectedQualityId) {
+                var controls = getIssueLineControls(root);
+                if (!controls.lotSelect) {
+                    return;
+                }
+
+                var hasVariant = !!(controls.variantSelect && controls.variantSelect.value);
+                var hasSource = !!(selectedLocationId || (controls.sourceSelect && controls.sourceSelect.value));
+                if (!hasVariant || !hasSource) {
+                    setSelectOptions(
+                        controls.lotSelect,
+                        [],
+                        controls.variantSelect && controls.variantSelect.value
+                            ? '@UiText["inventory.documents.line.lotBatch"]'
+                            : '@UiText["inventory.documents.action.selectVariantAndLocation"]',
+                        'id',
+                        'text',
+                        '');
+                    controls.lotSelect.disabled = true;
+                    if (window.jQuery) {
+                        window.jQuery(controls.lotSelect).trigger('change.select2');
+                    }
+                    return;
+                }
+
+                var locationKey = String(selectedLocationId || (controls.sourceSelect && controls.sourceSelect.value) || '').toLowerCase();
+                var qualityKey = String(selectedQualityId || (controls.qualitySelect && controls.qualitySelect.value) || '').toLowerCase();
+                var items = (Array.isArray(buckets) ? buckets : [])
+                    .filter(function (bucket) {
+                        var bucketLocation = String(bucket && (bucket.locationRef || bucket.LocationRef || '')).toLowerCase();
+                        if (locationKey && bucketLocation !== locationKey) {
+                            return false;
+                        }
+
+                        if (qualityKey) {
+                            var bucketQuality = String(bucket && (bucket.qualityStatusRef || bucket.QualityStatusRef || '')).toLowerCase();
+                            if (bucketQuality !== qualityKey) {
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    })
+                    .map(function (bucket) {
+                        var lotBatchNo = String(bucket && (bucket.lotBatchNo || bucket.LotBatchNo || '') || '');
+                        var quantityOnHand = bucket && (bucket.quantityOnHand ?? bucket.QuantityOnHand);
+                        var text = lotBatchNo || '@UiText["inventory.documents.line.lotBatch"]';
+                        if (quantityOnHand !== undefined && quantityOnHand !== null) {
+                            text += ' (' + quantityOnHand + ')';
+                        }
+
+                        return {
+                            id: lotBatchNo,
+                            text: text
+                        };
+                    });
+
+                setSelectOptions(
+                    controls.lotSelect,
+                    items,
+                    items.length ? '@UiText["inventory.documents.line.lotBatch"]' : 'Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† ÙˆØ§Ø±ÛŒØ§Ù†Øª Ù„Ø§ØªÛŒ ÛŒØ§ÙØª Ù†Ø´Ø¯',
+                    'id',
+                    'text',
+                    selectedLotBatchNo || (controls.lotSelect.value || ''));
+
+                controls.lotSelect.disabled = items.length === 0;
+                if (window.jQuery) {
+                    window.jQuery(controls.lotSelect).trigger('change.select2');
+                }
+            }
+
+            async function loadIssueVariantInventory(root, variantId, selectedLocationId, selectedSerialIds, selectedLotBatchNo) {
                 root = root || document;
                 var controls = getIssueLineControls(root);
                 if (!controls.variantSelect || !controls.sourceSelect) {
@@ -1916,6 +2030,7 @@
 
                 if (!variantId) {
                     renderIssueLocationOptions(root, selectedLocationId || controls.sourceSelect.value || '', []);
+                    renderIssueLotOptions(root, '', [], selectedLocationId || controls.sourceSelect.value || '', controls.qualitySelect ? controls.qualitySelect.value || '' : '');
                     return;
                 }
 
@@ -1935,6 +2050,12 @@
                 }
 
                 renderIssueLocationOptions(root, selectedLocationId || '', payload.allowedLocationIds || []);
+                renderIssueLotOptions(
+                    root,
+                    selectedLotBatchNo || (controls.lotSelect ? controls.lotSelect.value || '' : ''),
+                    payload.buckets || [],
+                    selectedLocationId || controls.sourceSelect.value || '',
+                    controls.qualitySelect ? controls.qualitySelect.value || '' : '');
                 if (controls.sourceSelect && controls.sourceSelect.value) {
                     await loadIssueVariantSerials(root, variantId, controls.sourceSelect.value, selectedSerialIds || []);
                 } else {
@@ -1957,6 +2078,12 @@
                 var url = new URL(variantSerialLookupUrl, window.location.origin);
                 url.searchParams.set('variantId', variantId);
                 url.searchParams.set('sourceLocationId', sourceLocationId);
+                if (controls.qualitySelect && controls.qualitySelect.value) {
+                    url.searchParams.set('qualityStatusId', controls.qualitySelect.value);
+                }
+                if (controls.lotSelect && controls.lotSelect.value) {
+                    url.searchParams.set('lotBatchNo', controls.lotSelect.value);
+                }
 
                 var response = await fetch(url.toString(), {
                     headers: {
@@ -1977,6 +2104,7 @@
                 root = root || document;
                 var controls = getIssueLineControls(root);
                 var defaultSourceLocationId = root.dataset ? (root.dataset.defaultSourceLocationId || '') : '';
+                var defaultLotBatchNo = root.dataset ? (root.dataset.defaultLotBatchNo || '') : '';
                 if (!controls.variantSelect || !controls.sourceSelect) {
                     return;
                 }
@@ -1986,7 +2114,7 @@
                 }
 
                 var onVariantChange = function () {
-                    loadIssueVariantInventory(root, controls.variantSelect.value || '', controls.sourceSelect.value || '', []).catch(function (error) {
+                    loadIssueVariantInventory(root, controls.variantSelect.value || '', controls.sourceSelect.value || '', [], controls.lotSelect ? (controls.lotSelect.value || defaultLotBatchNo) : defaultLotBatchNo).catch(function (error) {
                         console.error(error);
                     });
                 };
@@ -1994,6 +2122,21 @@
                 var onSourceChange = function () {
                     if (!controls.variantSelect.value) {
                         renderIssueSerialOptionsV2(root, [], [], false);
+                        return;
+                    }
+
+                    loadIssueVariantInventory(
+                        root,
+                        controls.variantSelect.value || '',
+                        controls.sourceSelect.value || '',
+                        collectIssueSelectedSerialIds(root),
+                        controls.lotSelect ? (controls.lotSelect.value || defaultLotBatchNo) : defaultLotBatchNo).catch(function (error) {
+                            console.error(error);
+                        });
+                };
+
+                var onLotChange = function () {
+                    if (!controls.variantSelect.value || !controls.sourceSelect.value) {
                         return;
                     }
 
@@ -2008,21 +2151,29 @@
 
                 controls.variantSelect.addEventListener('change', onVariantChange);
                 controls.sourceSelect.addEventListener('change', onSourceChange);
+                if (controls.lotSelect) {
+                    controls.lotSelect.addEventListener('change', onLotChange);
+                }
                 if (window.jQuery) {
                     window.jQuery(controls.variantSelect).on('select2:select', onVariantChange);
                     window.jQuery(controls.sourceSelect).on('select2:select', onSourceChange);
+                    if (controls.lotSelect) {
+                        window.jQuery(controls.lotSelect).on('select2:select', onLotChange);
+                    }
                 }
 
                 controls.variantSelect.dataset.issueInventoryBound = 'true';
                 hydrateIssueInventoryOptions(root);
                 renderIssueLocationOptions(root, defaultSourceLocationId, []);
+                renderIssueLotOptions(root, defaultLotBatchNo, [], defaultSourceLocationId, '');
                 renderIssueSerialOptionsV2(root, [], [], !!defaultSourceLocationId);
                 if (controls.variantSelect.value) {
                     loadIssueVariantInventory(
                         root,
                         controls.variantSelect.value,
                         defaultSourceLocationId,
-                        parseSerialSelectionJson(root.dataset ? root.dataset.defaultSerialsJson : '')).catch(function (error) {
+                        parseSerialSelectionJson(root.dataset ? root.dataset.defaultSerialsJson : ''),
+                        defaultLotBatchNo).catch(function (error) {
                             console.error(error);
                         });
                 }
@@ -2243,6 +2394,7 @@
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
                 var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
+                var lotSelect = modal.querySelector('select[name="LineForm.LotBatchNo"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
                 var submitButton = modal.querySelector('.js-issue-line-submit');
                 var cancelButton = modal.querySelector('.js-issue-line-cancel');
@@ -2325,6 +2477,13 @@
                     qualitySelect.value = '';
                     if (window.jQuery) {
                         window.jQuery(qualitySelect).trigger('change.select2');
+                    }
+                }
+                if (lotSelect) {
+                    lotSelect.value = '';
+                    lotSelect.disabled = true;
+                    if (window.jQuery) {
+                        window.jQuery(lotSelect).trigger('change.select2');
                     }
                 }
                 var serialControls = getIssueLineSerialControls(modal);
@@ -2425,6 +2584,15 @@
                 modalElement.addEventListener('hidden.bs.modal', function () {
                     resetIssueLineForm();
                 });
+            }
+
+            var issuePageEditorRoot = document.querySelector('#documents-page-root');
+            if (issuePageEditorRoot) {
+                if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
+                    window.appUi.initSearchableSelects(issuePageEditorRoot);
+                }
+
+                initializeIssueInventoryChain(issuePageEditorRoot);
             }
 
             var safeActionModalSelector = (typeof actionModalSelector === 'string' && actionModalSelector) ? actionModalSelector : '#issue-document-action-modal';
