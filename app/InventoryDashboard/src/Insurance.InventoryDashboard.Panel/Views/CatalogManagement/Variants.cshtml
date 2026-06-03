@@ -1466,7 +1466,10 @@
                         var serials = Array.isArray(location.serials) ? location.serials : [];
                         var serialBadges = serials.length
                             ? '<div class="mt-1">' + serials.map(function (serial) {
-                            return '<span class="badge badge-light border mr-1 mb-1">' + escapeHtml(serial.serialNo || serial.serialItemBusinessKey || '-') + '</span>';
+                            return '<span class="badge badge-light border mr-1 mb-1 text-left">' +
+                                '<span class="font-weight-bold">' + escapeHtml(serial.serialNo || serial.serialItemBusinessKey || '-') + '</span>' +
+                                '<span class="badge badge-pill badge-secondary ml-1">' + escapeHtml(serial.status || '-') + '</span>' +
+                                '</span>';
                             }).join('') + '</div>'
                             : '<div class="text-muted small mt-1">' + noSerialsText + '</div>';
 

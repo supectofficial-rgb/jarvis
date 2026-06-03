@@ -278,6 +278,24 @@
                                         </td>
                                     </tr>
                                 }
+                                @if (line.Serials.Count > 0)
+                                {
+                                    <tr>
+                                        <td colspan="6" class="small">
+                                            <div class="d-flex flex-wrap align-items-start">
+                                                <span class="text-muted mr-2">سریال‌های این ردیف:</span>
+                                                <div class="d-flex flex-wrap">
+                                                    @foreach (var serial in line.Serials.OrderBy(x => x.SerialNo))
+                                                    {
+                                                        <span class="badge badge-light border mr-1 mb-1">
+                                                            @(string.IsNullOrWhiteSpace(serial.SerialNo) ? serial.SerialItemBusinessKey : serial.SerialNo)
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
                             }
                         </tbody>
                     </table>
@@ -286,3 +304,12 @@
         </div>
     }
 </div>
+
+<script data-ajax-reinit="issue-document-details-body">
+    (function () {
+        var root = document.getElementById('issue-document-details-modal-body');
+        if (window.appUi && typeof window.appUi.initIssueDocumentDetailsModal === 'function') {
+            window.appUi.initIssueDocumentDetailsModal(root);
+        }
+    })();
+</script>

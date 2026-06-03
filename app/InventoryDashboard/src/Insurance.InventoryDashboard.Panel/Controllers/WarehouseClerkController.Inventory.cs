@@ -27,7 +27,7 @@ public sealed partial class WarehouseClerkController
         var selectedLocationIds = await LoadMatchingLocationIdsAsync(token, normalizedWarehouseId, structureSelectionsJson, cancellationToken);
         var hasStructureFilters = !string.IsNullOrWhiteSpace(normalizedWarehouseId) && !string.IsNullOrWhiteSpace(structureSelectionsJson);
 
-        var serialResult = await _apiService.GetAvailableSerialItemsAsync(token, variantRef.ToString("D"), normalizedWarehouseId);
+        var serialResult = await _apiService.SearchSerialItemsAsync(token, variantRef.ToString("D"), normalizedWarehouseId);
         var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
         var qualityStatusLookupResult = await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true);
@@ -340,7 +340,7 @@ public sealed partial class WarehouseClerkController
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var result = await _apiService.GetAvailableSerialItemsAsync(token, variantId, warehouseId);
+            var result = await _apiService.SearchSerialItemsAsync(token, variantId, warehouseId);
             if (!result.IsSuccess)
             {
                 return (VariantId: variantId, Count: 0);

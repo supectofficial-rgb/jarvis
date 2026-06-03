@@ -1351,14 +1351,18 @@ public sealed partial class InventoryManagementController
         }
 
         var warehouseId = locationResult.Data.WarehouseId;
-        var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, parsedVariantId.ToString("D"), warehouseId);
+        var serialsResult = await _apiService.SearchSerialItemsAsync(
+            token,
+            parsedVariantId.ToString("D"),
+            warehouseId: warehouseId,
+            status: "Issued");
         if (!serialsResult.IsSuccess)
         {
             return Json(new { isSuccess = false, errorMessage = serialsResult.ErrorMessage });
         }
 
         var serials = (serialsResult.Data ?? new List<SerialItemLookupModel>())
-            .Where(x => !string.Equals(x.LocationRef, locationId, StringComparison.OrdinalIgnoreCase))
+            .Where(x => string.Equals(x.LocationRef, locationId, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         return Json(new
@@ -2320,23 +2324,26 @@ public sealed partial class InventoryManagementController
             });
         }
 
+        var documents = (searchResult.Data?.Items ?? new List<InventoryDocumentListItemModel>())
+            .Select(document => new
+            {
+                documentBusinessKey = document.DocumentBusinessKey,
+                documentType = document.DocumentType,
+                documentNo = document.DocumentNo,
+                status = document.Status,
+                warehouseRef = document.WarehouseRef,
+                sellerRef = document.SellerRef,
+                occurredAt = document.OccurredAt,
+                referenceType = document.ReferenceType,
+                referenceBusinessId = document.ReferenceBusinessId
+            })
+            .ToList();
+
         return Json(new
         {
             isSuccess = true,
-            documents = (searchResult.Data?.Items ?? new List<InventoryDocumentListItemModel>())
-                .Select(document => new
-                {
-                    documentBusinessKey = document.DocumentBusinessKey,
-                    documentType = document.DocumentType,
-                    documentNo = document.DocumentNo,
-                    status = document.Status,
-                    warehouseRef = document.WarehouseRef,
-                    sellerRef = document.SellerRef,
-                    occurredAt = document.OccurredAt,
-                    referenceType = document.ReferenceType,
-                    referenceBusinessId = document.ReferenceBusinessId
-                })
-                .ToList()
+            items = documents,
+            documents = documents
         });
     }
 

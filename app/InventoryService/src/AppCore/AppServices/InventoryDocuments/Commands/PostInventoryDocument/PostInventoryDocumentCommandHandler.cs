@@ -124,7 +124,7 @@ public class PostInventoryDocumentCommandHandler
             stockDetail.ApplyQuantity(line.BaseQtyDelta, document.OccurredAt);
             line.LinkStockDetail(stockDetail.BusinessKey);
 
-            var serialResult = await HandleSerialItemsAsync(document, effect, stockDetail, effectWarehouseRef);
+            var serialResult = await HandleSerialItemsAsync(document, effect, stockDetail, effectWarehouseRef, transaction.BusinessKey);
             if (!serialResult.Success)
                 return Fail($"{effectLabel}: {serialResult.Error ?? "Serial item processing failed."}");
         }
@@ -516,7 +516,8 @@ public class PostInventoryDocumentCommandHandler
         InventoryDocument document,
         InventoryDocumentPostingEffect effect,
         StockDetail stockDetail,
-        Guid warehouseRef)
+        Guid warehouseRef,
+        BusinessKey transactionBusinessKey)
     {
         var shouldGenerateSerials = document.DocumentType == InventoryDocumentType.Receipt
             || (document.DocumentType == InventoryDocumentType.Conversion && effect.DocumentLine.BaseQty > 0);
@@ -533,6 +534,14 @@ public class PostInventoryDocumentCommandHandler
                     return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) references serial item '{selectedSerial.SerialRef.Value:D}' which was not found.");
 
                 serialItem.LinkStockDetail(stockDetail.BusinessKey);
+                var serialTransitionResult = ApplySerialPostingTransition(
+                    document,
+                    effect,
+                    serialItem,
+                    stockDetail,
+                    transactionBusinessKey);
+                if (!serialTransitionResult.Success)
+                    return serialTransitionResult;
             }
 
             return (true, null);
@@ -561,6 +570,14 @@ public class PostInventoryDocumentCommandHandler
                     return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) references serial item '{selectedSerial.SerialRef.Value:D}' which was not found.");
 
                 serialItem.LinkStockDetail(stockDetail.BusinessKey);
+                var serialTransitionResult = ApplySerialPostingTransition(
+                    document,
+                    effect,
+                    serialItem,
+                    stockDetail,
+                    transactionBusinessKey);
+                if (!serialTransitionResult.Success)
+                    return serialTransitionResult;
                 createdOrLinkedSerialCount++;
                 continue;
             }
@@ -609,6 +626,53 @@ public class PostInventoryDocumentCommandHandler
             await _serialRepository.InsertAsync(serialItem);
             serialItem.LinkStockDetail(stockDetail.BusinessKey);
             effect.TransactionLine.AddSerial(serialItem.BusinessKey.Value, serialNo);
+        }
+
+        return (true, null);
+    }
+
+    private static (bool Success, string? Error) ApplySerialPostingTransition(
+        InventoryDocument document,
+        InventoryDocumentPostingEffect effect,
+        SerialItem serialItem,
+        StockDetail stockDetail,
+        BusinessKey transactionBusinessKey)
+    {
+        try
+        {
+            switch (document.DocumentType)
+            {
+                case InventoryDocumentType.Receipt:
+                case InventoryDocumentType.ReturnFromSell:
+                    serialItem.ReturnToAvailable(
+                        stockDetail.WarehouseRef,
+                        stockDetail.LocationRef,
+                        stockDetail.QualityStatusRef,
+                        stockDetail.LotBatchNo);
+                    break;
+
+                case InventoryDocumentType.Issue:
+                case InventoryDocumentType.ReturnFromBuy:
+                    if (effect.TransactionLine.BaseQtyDelta < 0)
+                        serialItem.Issue(transactionBusinessKey);
+                    break;
+
+                case InventoryDocumentType.Transfer:
+                case InventoryDocumentType.ReturnFromTransfer:
+                    if (effect.TransactionLine.BaseQtyDelta > 0)
+                    {
+                        serialItem.Move(
+                            stockDetail.WarehouseRef,
+                            stockDetail.LocationRef,
+                            stockDetail.QualityStatusRef,
+                            stockDetail.LotBatchNo);
+                    }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
         }
 
         return (true, null);

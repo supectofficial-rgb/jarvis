@@ -171,6 +171,31 @@
 
     var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
+
+    string ResolveReturnReferenceDocumentType(string documentType) => documentType switch
+    {
+        "ReturnFromBuy" => "Receipt",
+        "ReturnFromTransfer" => "Transfer",
+        _ => "Issue"
+    };
+
+    string ReturnReferenceLabelText(string referenceDocumentType) => referenceDocumentType switch
+    {
+        "Receipt" => "سند رسید مبنا",
+        "Transfer" => "سند انتقال مبنا",
+        _ => "سند حواله مبنا"
+    };
+
+    string ReturnReferencePlaceholderText(string referenceDocumentType) => referenceDocumentType switch
+    {
+        "Receipt" => "شماره سند رسید را وارد کنید",
+        "Transfer" => "شماره سند انتقال را وارد کنید",
+        _ => "شماره سند حواله را وارد کنید"
+    };
+
+    var returnReferenceDocumentType = ResolveReturnReferenceDocumentType(currentDocumentType);
+    var returnReferenceLabelText = ReturnReferenceLabelText(returnReferenceDocumentType);
+    var returnReferencePlaceholderText = ReturnReferencePlaceholderText(returnReferenceDocumentType);
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
     var isReturnDocument = string.Equals(currentDocumentType, "ReturnFromSell", StringComparison.OrdinalIgnoreCase)
@@ -259,15 +284,17 @@
                                 @if (isReturnDocument)
                                 {
                                     <div class="form-group col-md-4">
-                                        <label>@UiText["inventory.documents.return.referenceLabel"]</label>
+                                        <label>@returnReferenceLabelText</label>
                                         <select id="document-return-reference-select"
                                                 class="form-control js-search-select"
-                                                data-placeholder="@UiText["inventory.documents.return.referencePlaceholder"]"
+                                                data-placeholder="@returnReferencePlaceholderText"
                                                 data-ajax-url='@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")'
-                                                data-ajax-local-init="true">
-                                            <option value="">@UiText["inventory.documents.return.referencePlaceholder"]</option>
+                                                data-ajax-extra-params='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { referenceDocumentType = returnReferenceDocumentType }))'
+                                                data-ajax-local-init="true"
+                                                data-return-reference-document-type="@returnReferenceDocumentType">
+                                            <option value="">@returnReferencePlaceholderText</option>
                                         </select>
-                                        <input type="hidden" asp-for="CreateForm.ReferenceType" id="document-return-reference-type-input" value="Issue" />
+                                        <input type="hidden" asp-for="CreateForm.ReferenceType" id="document-return-reference-type-input" value="@returnReferenceDocumentType" />
                                         <input type="hidden" asp-for="CreateForm.ReferenceBusinessId" id="document-return-reference-id-input" />
                                         <div class="mt-2 d-none" id="document-return-reference-selected">
                                             <div class="alert alert-light border mb-0 py-2">
@@ -1122,6 +1149,7 @@
             var returnReferenceSelectedLabel = document.getElementById('document-return-reference-selected-label');
             var returnReferenceTypeInput = document.getElementById('document-return-reference-type-input');
             var returnReferenceIdInput = document.getElementById('document-return-reference-id-input');
+            var returnReferenceDocumentType = '@returnReferenceDocumentType';
             var returnReferenceSearchUrl = '@Url.Action("SearchReturnReferenceDocuments", "InventoryManagement")';
             var returnReferenceDocumentUrl = '@Url.Action("GetReturnReferenceDocument", "InventoryManagement")';
 
@@ -1334,7 +1362,7 @@
 
             function setReturnReferenceSelection(document) {
                 if (returnReferenceTypeInput) {
-                    returnReferenceTypeInput.value = 'Issue';
+                    returnReferenceTypeInput.value = returnReferenceDocumentType;
                 }
 
                 if (returnReferenceIdInput) {
@@ -1414,7 +1442,8 @@
                         delay: 300,
                         data: function (params) {
                             return {
-                                term: params.term || ''
+                                term: params.term || '',
+                                referenceDocumentType: returnReferenceDocumentType
                             };
                         },
                         processResults: function (payload) {

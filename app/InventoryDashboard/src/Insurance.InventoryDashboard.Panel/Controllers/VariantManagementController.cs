@@ -371,7 +371,7 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         var result = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: variantRef);
-        var serialsResult = await _inventoryApiService.GetAvailableSerialItemsAsync(token, variantId: variantRef.ToString("D"));
+        var serialsResult = await _inventoryApiService.SearchSerialItemsAsync(token, variantId: variantRef.ToString("D"));
         var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
         var qualityStatusLookupResult = await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true);
@@ -401,7 +401,7 @@ public sealed class VariantManagementController : CatalogManagementController
             .ToDictionary(x => x.QualityStatusBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
         var serialLookup = (serialsResult.Data ?? new List<SerialItemLookupModel>())
             .Where(x => !string.IsNullOrWhiteSpace(x.WarehouseRef) && !string.IsNullOrWhiteSpace(x.LocationRef))
-            .GroupBy(x => $"{x.WarehouseRef}|{x.LocationRef}", StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => BuildSerialBucketKey(x.WarehouseRef, x.LocationRef, x.QualityStatusRef, x.LotBatchNo), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 group => group.Key,
                 group => group
@@ -444,7 +444,7 @@ public sealed class VariantManagementController : CatalogManagementController
                     ? x.QualityStatusRef.ToString("D")
                     : $"{qualityStatus.Code} - {qualityStatus.Name}";
 
-                serialLookup.TryGetValue($"{x.WarehouseRef:D}|{x.LocationRef:D}", out var serialsForLocation);
+                serialLookup.TryGetValue(BuildSerialBucketKey(x.WarehouseRef.ToString("D"), x.LocationRef.ToString("D"), x.QualityStatusRef.ToString("D"), x.LotBatchNo), out var serialsForLocation);
 
                 return new
                 {
@@ -517,6 +517,14 @@ public sealed class VariantManagementController : CatalogManagementController
         public DateTime DateScannedIn { get; set; }
         public DateTime LastUpdatedAt { get; set; }
     }
+
+    private static string BuildSerialBucketKey(string warehouseRef, string locationRef, string qualityStatusRef, string? lotBatchNo)
+        => string.Join(
+            "|",
+            warehouseRef.Trim(),
+            locationRef.Trim(),
+            qualityStatusRef.Trim(),
+            string.IsNullOrWhiteSpace(lotBatchNo) ? string.Empty : lotBatchNo.Trim());
 
     [HttpGet]
     public async Task<IActionResult> VariantPrices(string variantId)

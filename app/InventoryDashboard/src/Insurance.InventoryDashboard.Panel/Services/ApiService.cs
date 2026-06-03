@@ -1857,23 +1857,65 @@ public sealed class ApiService : IApiService
         {
             IsSuccess = true,
             Data = (result.Data?.Items ?? new List<SerialItemLookupItemDto>())
-                .Select(x => new SerialItemLookupModel
-                {
-                    SerialItemBusinessKey = x.SerialItemBusinessKey.ToString("D"),
-                    SerialNo = x.SerialNo,
-                    VariantRef = x.VariantRef.ToString("D"),
-                    SellerRef = x.SellerRef.ToString("D"),
-                    WarehouseRef = x.WarehouseRef.ToString("D"),
-                    LocationRef = x.LocationRef.ToString("D"),
-                    StockDetailRef = x.StockDetailRef?.ToString("D"),
-                    QualityStatusRef = x.QualityStatusRef.ToString("D"),
-                    LotBatchNo = x.LotBatchNo,
-                    Status = x.Status,
-                    DateScannedIn = x.DateScannedIn,
-                    LastTransactionRef = x.LastTransactionRef?.ToString("D"),
-                    LastUpdatedAt = x.LastUpdatedAt
-                })
+                .Select(MapSerialItemLookupModel)
                 .ToList()
+        };
+    }
+
+    public async Task<ApiResponse<List<SerialItemLookupModel>>> SearchSerialItemsAsync(
+        string token,
+        string? variantId = null,
+        string? warehouseId = null,
+        string? locationId = null,
+        string? sellerId = null,
+        string? qualityStatusId = null,
+        string? status = null)
+    {
+        var items = new List<SerialItemLookupModel>();
+        var page = 1;
+        const int pageSize = 200;
+
+        while (true)
+        {
+            var route = BuildRouteWithQuery(
+                $"{InventoryApiPrefix}/SerialItem/search",
+                ("variantRef", variantId),
+                ("warehouseRef", warehouseId),
+                ("locationRef", locationId),
+                ("sellerRef", sellerId),
+                ("qualityStatusRef", qualityStatusId),
+                ("status", status),
+                ("page", page.ToString()),
+                ("pageSize", pageSize.ToString()));
+
+            var result = await GetQueryAsync<SearchSerialItemsQueryResultDto>(route, token, "Loading serial items failed.");
+            if (!result.IsSuccess)
+            {
+                return new ApiResponse<List<SerialItemLookupModel>>
+                {
+                    IsSuccess = false,
+                    ErrorMessage = result.ErrorMessage,
+                    Data = items
+                };
+            }
+
+            var pageItems = result.Data?.Items ?? new List<SerialItemLookupItemDto>();
+            items.AddRange(pageItems.Select(MapSerialItemLookupModel));
+
+            var returnedPageSize = result.Data?.PageSize ?? pageSize;
+            var totalPages = CalculateTotalPages(result.Data?.TotalCount ?? items.Count, returnedPageSize);
+            if (page >= totalPages || pageItems.Count < returnedPageSize)
+            {
+                break;
+            }
+
+            page++;
+        }
+
+        return new ApiResponse<List<SerialItemLookupModel>>
+        {
+            IsSuccess = true,
+            Data = items
         };
     }
 
@@ -1898,22 +1940,7 @@ public sealed class ApiService : IApiService
             IsSuccess = true,
             Data = result.Data is null
                 ? null
-                : new SerialItemLookupModel
-                {
-                    SerialItemBusinessKey = result.Data.Item.SerialItemBusinessKey.ToString("D"),
-                    SerialNo = result.Data.Item.SerialNo,
-                    VariantRef = result.Data.Item.VariantRef.ToString("D"),
-                    SellerRef = result.Data.Item.SellerRef.ToString("D"),
-                    WarehouseRef = result.Data.Item.WarehouseRef.ToString("D"),
-                    LocationRef = result.Data.Item.LocationRef.ToString("D"),
-                    StockDetailRef = result.Data.Item.StockDetailRef?.ToString("D"),
-                    QualityStatusRef = result.Data.Item.QualityStatusRef.ToString("D"),
-                    LotBatchNo = result.Data.Item.LotBatchNo,
-                    Status = result.Data.Item.Status,
-                    DateScannedIn = result.Data.Item.DateScannedIn,
-                    LastTransactionRef = result.Data.Item.LastTransactionRef?.ToString("D"),
-                    LastUpdatedAt = result.Data.Item.LastUpdatedAt
-                }
+                : MapSerialItemLookupModel(result.Data.Item)
         };
     }
 
@@ -3206,6 +3233,14 @@ public sealed class ApiService : IApiService
         public List<SerialItemLookupItemDto> Items { get; set; } = new();
     }
 
+    private sealed class SearchSerialItemsQueryResultDto
+    {
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public List<SerialItemLookupItemDto> Items { get; set; } = new();
+    }
+
     private sealed class GetSerialItemBySerialNoQueryResultDto
     {
         public SerialItemLookupItemDto Item { get; set; } = new();
@@ -3227,6 +3262,27 @@ public sealed class ApiService : IApiService
         public Guid? LastTransactionRef { get; set; }
         public DateTime LastUpdatedAt { get; set; }
     }
+
+    private static SerialItemLookupModel MapSerialItemLookupModel(SerialItemLookupItemDto x)
+        => new()
+        {
+            SerialItemBusinessKey = x.SerialItemBusinessKey.ToString("D"),
+            SerialNo = x.SerialNo,
+            VariantRef = x.VariantRef.ToString("D"),
+            SellerRef = x.SellerRef.ToString("D"),
+            WarehouseRef = x.WarehouseRef.ToString("D"),
+            LocationRef = x.LocationRef.ToString("D"),
+            StockDetailRef = x.StockDetailRef?.ToString("D"),
+            QualityStatusRef = x.QualityStatusRef.ToString("D"),
+            LotBatchNo = x.LotBatchNo,
+            Status = x.Status,
+            DateScannedIn = x.DateScannedIn,
+            LastTransactionRef = x.LastTransactionRef?.ToString("D"),
+            LastUpdatedAt = x.LastUpdatedAt
+        };
+
+    private static int CalculateTotalPages(int totalCount, int pageSize)
+        => Math.Max(1, (int)Math.Ceiling(totalCount / (double)Math.Max(pageSize, 1)));
 
     private sealed class VariantListItemDto
     {

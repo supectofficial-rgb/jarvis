@@ -1542,6 +1542,9 @@
                 initializeIssueInventoryChain(root);
             }
 
+            window.appUi = window.appUi || {};
+            window.appUi.initIssueDocumentDetailsModal = initModalWidgets;
+
             function getAntiForgeryToken() {
                 var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
                 return tokenInput ? tokenInput.value : '';
@@ -2046,6 +2049,32 @@
             function showActionModal() {
                 if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
                     window.jQuery(safeActionModalSelector).modal('show');
+                    return;
+                }
+
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var modalElement = document.querySelector(safeActionModalSelector);
+                    if (modalElement) {
+                        var modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+                        modalInstance.show();
+                    }
+                }
+            }
+
+            function hideActionModal() {
+                var modalElement = document.querySelector(safeActionModalSelector);
+                if (!modalElement) {
+                    return;
+                }
+
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var modalInstance = bootstrap.Modal.getInstance(modalElement) || bootstrap.Modal.getOrCreateInstance(modalElement);
+                    modalInstance.hide();
+                    return;
+                }
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalElement).modal('hide');
                 }
             }
 
@@ -2184,15 +2213,22 @@
                     body: payload.toString()
                 });
 
-                var result = await response.json();
+                var responseText = await response.text();
+                var result = null;
+                if (responseText) {
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Failed to parse change document status response.', parseError, responseText);
+                    }
+                }
+
                 if (!response.ok || !result || result.isSuccess !== true) {
                     setActionError((result && result.errorMessage) || 'تغییر وضعیت سند انجام نشد.');
                     return;
                 }
 
-                if (window.jQuery) {
-                    window.jQuery(actionModalSelector).modal('hide');
-                }
+                hideActionModal();
 
                 await refreshIssueDocumentList();
             }

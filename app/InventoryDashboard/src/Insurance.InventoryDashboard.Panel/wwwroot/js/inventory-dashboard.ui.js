@@ -259,20 +259,23 @@
                             return payload;
                         },
                         processResults: function (data) {
-                            var items = data && data.items ? data.items : [];
+                            var items = data && (data.items || data.documents) ? (data.items || data.documents) : [];
                             var resultMode = (select.getAttribute("data-ajax-result-mode") || "").toLowerCase();
                             return {
                                 results: items.map(function (item) {
+                                    var isDocumentResult = resultMode === "document";
                                     var result = {
-                                        id: item.id,
-                                        text: item.text || item.name || item.sku || "",
+                                        id: isDocumentResult ? (item.documentBusinessKey || item.id || item.documentId || "") : item.id,
+                                        text: isDocumentResult
+                                            ? (item.text || item.documentNo || item.documentBusinessKey || item.documentId || item.name || item.sku || "")
+                                            : (item.text || item.name || item.sku || ""),
                                         sku: item.sku || "",
                                         name: item.name || "",
                                         barcode: item.barcode || "",
                                         productId: item.productId || "",
                                         baseUomRef: item.baseUomRef || ""
                                     };
-                                    if (resultMode === "document") {
+                                    if (isDocumentResult) {
                                         result.document = item;
                                     }
                                     return result;

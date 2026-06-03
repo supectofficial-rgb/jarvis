@@ -1420,7 +1420,7 @@ for (var i = 0; i < lines.length; i++) {
                         decreaseTarget.innerHTML = '<div class="text-muted small">برای مشاهده سریال‌های موجود، واریانت و لوکیشن مبدأ را انتخاب کنید.</div>';
                     }
                     if (increaseTarget) {
-                        increaseTarget.innerHTML = '<div class="text-muted small">برای مشاهده سریال‌های قابل افزایش، واریانت و لوکیشن مقصد را انتخاب کنید.</div>';
+                        increaseTarget.innerHTML = '<div class="text-muted small">برای مشاهده سریال‌های صادرشده این لوکیشن، واریانت و لوکیشن مقصد را انتخاب کنید.</div>';
                     }
                     return;
                 }
@@ -1459,7 +1459,7 @@ for (var i = 0; i < lines.length; i++) {
                 if (direction === 'Increase') {
                     if (!destinationField || !destinationField.value || !increaseTarget) {
                         if (increaseTarget) {
-                            increaseTarget.innerHTML = '<div class="text-muted small">برای مشاهده سریال‌های قابل افزایش، واریانت و لوکیشن مقصد را انتخاب کنید.</div>';
+                            increaseTarget.innerHTML = '<div class="text-muted small">برای مشاهده سریال‌های صادرشده این لوکیشن، واریانت و لوکیشن مقصد را انتخاب کنید.</div>';
                         }
                         return;
                     }
