@@ -36,15 +36,16 @@ public class StockDetailQueryRepository : QueryRepository<InventoryServiceQueryD
 
     public async Task<StockDetailListItem?> GetByBucketKeyAsync(Guid variantRef, Guid sellerRef, Guid warehouseRef, Guid locationRef, Guid qualityStatusRef, string? lotBatchNo)
     {
-        var normalizedLot = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
         var item = await _dbContext.Set<StockDetailReadModel>()
-            .FirstOrDefaultAsync(x =>
+            .Where(x =>
                 x.VariantRef == variantRef &&
-                x.SellerRef == sellerRef &&
                 x.WarehouseRef == warehouseRef &&
                 x.LocationRef == locationRef &&
-                x.QualityStatusRef == qualityStatusRef &&
-                x.LotBatchNo == normalizedLot);
+                x.QualityStatusRef == qualityStatusRef)
+            .OrderByDescending(x => x.QuantityOnHand)
+            .ThenByDescending(x => x.LastUpdatedAt)
+            .ThenBy(x => x.Id)
+            .FirstOrDefaultAsync();
 
         return item is null ? null : ToListItem(item);
     }

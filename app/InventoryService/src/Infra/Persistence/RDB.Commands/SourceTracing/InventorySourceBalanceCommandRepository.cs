@@ -28,8 +28,6 @@ public class InventorySourceBalanceCommandRepository
         Guid? qualityStatusRef = null,
         string? lotBatchNo = null)
     {
-        var normalizedLotBatchNo = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
-
         IQueryable<InventorySourceBalance> query = _dbContext.InventorySourceBalances
             .Include(x => x.Allocations)
             .Include(x => x.Consumptions)
@@ -40,8 +38,6 @@ public class InventorySourceBalanceCommandRepository
 
         if (qualityStatusRef.HasValue)
             query = query.Where(x => x.QualityStatusRef == qualityStatusRef.Value);
-
-        query = query.Where(x => x.LotBatchNo == normalizedLotBatchNo);
 
         return query
             .OrderBy(x => x.OpenedAt)

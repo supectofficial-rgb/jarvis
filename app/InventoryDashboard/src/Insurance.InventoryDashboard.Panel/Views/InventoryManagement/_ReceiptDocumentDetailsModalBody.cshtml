@@ -200,6 +200,13 @@
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                         <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label>@UiText["inventory.documents.line.lotBatch"]</label>
+                                <input asp-for="LineForm.LotBatchNo" class="form-control" maxlength="120" placeholder="اختیاری" />
+                                <small class="form-text text-muted">اگر خالی بماند، هنگام ثبت سند توسط سیستم ساخته می‌شود.</small>
+                            </div>
+                        </div>
+                        <div class="form-row">
                             <div class="form-group col-md-4">
                                 <label>واریانت</label>
                                 <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchVariantLookup", "InventoryManagement")' required>

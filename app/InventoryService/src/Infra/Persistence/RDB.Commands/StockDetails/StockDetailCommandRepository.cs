@@ -37,12 +37,15 @@ public class StockDetailCommandRepository
         Guid qualityStatusRef,
         string? lotBatchNo)
     {
-        return _dbContext.StockDetails.FirstOrDefaultAsync(x =>
-            x.VariantRef == variantRef &&
-            x.SellerRef == sellerRef &&
-            x.WarehouseRef == warehouseRef &&
-            x.LocationRef == locationRef &&
-            x.QualityStatusRef == qualityStatusRef &&
-            x.LotBatchNo == lotBatchNo);
+        return _dbContext.StockDetails
+            .Where(x =>
+                x.VariantRef == variantRef &&
+                x.WarehouseRef == warehouseRef &&
+                x.LocationRef == locationRef &&
+                x.QualityStatusRef == qualityStatusRef)
+            .OrderByDescending(x => x.QuantityOnHand)
+            .ThenByDescending(x => x.LastUpdatedAt)
+            .ThenBy(x => x.Id)
+            .FirstOrDefaultAsync();
     }
 }
