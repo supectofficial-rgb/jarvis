@@ -58,11 +58,13 @@
     </div>
     <div class="form-group col-md-2">
         <label>@UiText["common.fromDate"]</label>
-        <input name="occurredFrom" type="text" value="@Model.OccurredFromFilter" class="form-control datepicker" autocomplete="off" data-date-format="yyyy/mm/dd" data-date-language="fa" />
+        <input type="hidden" name="occurredFrom" id="document-search-occurred-from" value="@Model.OccurredFromFilter" />
+        <input type="text" value="@Model.OccurredFromFilter" class="form-control datepicker" autocomplete="off" data-date-picker-target="#document-search-occurred-from" data-date-format="yyyy/mm/dd" data-date-language="fa" />
     </div>
     <div class="form-group col-md-2">
         <label>@UiText["common.toDate"]</label>
-        <input name="occurredTo" type="text" value="@Model.OccurredToFilter" class="form-control datepicker" autocomplete="off" data-date-format="yyyy/mm/dd" data-date-language="fa" />
+        <input type="hidden" name="occurredTo" id="document-search-occurred-to" value="@Model.OccurredToFilter" />
+        <input type="text" value="@Model.OccurredToFilter" class="form-control datepicker" autocomplete="off" data-date-picker-target="#document-search-occurred-to" data-date-format="yyyy/mm/dd" data-date-language="fa" />
     </div>
     <div class="form-group col-md-2">
         <label>@UiText["inventory.documents.list.pageSize"]</label>

@@ -414,16 +414,13 @@
 
     function initDatePickers(root) {
         root = getScope(root);
-        if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.datepicker) {
+        if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.persianDatepicker || !window.persianDate) {
             return;
         }
 
         var $ = window.jQuery;
-        var htmlLang = (document.documentElement.getAttribute("lang") || "").toLowerCase();
-        var defaultLanguage = htmlLang.indexOf("fa") === 0 ? "fa" : "en";
-        var defaultRtl = (document.documentElement.getAttribute("dir") || "").toLowerCase() === "rtl";
 
-        function parseDateValue(value) {
+        function parseGregorianDateValue(value) {
             if (typeof value !== "string") {
                 return null;
             }
@@ -447,10 +444,10 @@
             return String(value).padStart(2, "0");
         }
 
-        function formatDateTimeValue(date, timeSource) {
+        function formatGregorianDateTimeValue(date, timeSource) {
             var time = timeSource instanceof Date && !Number.isNaN(timeSource.getTime())
                 ? timeSource
-                : parseDateValue(String(timeSource || ""));
+                : parseGregorianDateValue(String(timeSource || ""));
             var hours = time ? time.getHours() : 0;
             var minutes = time ? time.getMinutes() : 0;
             var year = date.getFullYear();
@@ -460,64 +457,129 @@
             return year + "-" + month + "-" + day + "T" + pad(hours) + ":" + pad(minutes);
         }
 
-        function initSingleDatePicker(input) {
+        function formatPersianDateValue(gregorianValue, withTime) {
+            var gregorianDate = parseGregorianDateValue(gregorianValue);
+            if (!gregorianDate) {
+                return "";
+            }
+
+            var persian = new window.persianDate(gregorianDate).toCalendar("persian").toLocale("fa");
+            return persian.format(withTime ? "YYYY/MM/DD HH:mm" : "YYYY/MM/DD");
+        }
+
+        function syncHiddenValue(target, unix, withTime) {
+            if (!(target instanceof HTMLInputElement) || typeof unix !== "number") {
+                return;
+            }
+
+            var selected = new Date(unix);
+            if (Number.isNaN(selected.getTime())) {
+                return;
+            }
+
+            if (!withTime) {
+                var previousValue = parseGregorianDateValue(target.value);
+                if (previousValue) {
+                    selected.setHours(previousValue.getHours(), previousValue.getMinutes(), previousValue.getSeconds(), 0);
+                } else {
+                    selected.setHours(0, 0, 0, 0);
+                }
+            }
+
+            target.value = formatGregorianDateTimeValue(selected, selected);
+            target.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+
+        function initSingleDatePicker(input, withTime) {
             if (!(input instanceof HTMLInputElement)) {
                 return;
             }
 
-            var dateFormat = input.getAttribute("data-date-format") || "yyyy/mm/dd";
-            var language = (input.getAttribute("data-date-language") || defaultLanguage || "en").toLowerCase();
-            language = language.indexOf("fa") === 0 ? "fa" : "en";
-            var options = {
-                autoclose: true,
-                rtl: defaultRtl,
-                language: language,
-                format: dateFormat,
-                templates: {
-                    leftArrow: '<i class="simple-icon-arrow-left"></i>',
-                    rightArrow: '<i class="simple-icon-arrow-right"></i>'
-                }
-            };
-            var isInitialized = input.dataset.datePickerInitialized === "true";
             var targetSelector = input.getAttribute("data-date-picker-target") || "";
             var target = targetSelector ? (root.querySelector(targetSelector) || document.querySelector(targetSelector)) : null;
-
-            if (!isInitialized) {
-                $(input).datepicker(options);
-                input.dataset.datePickerInitialized = "true";
-            }
-
-            if (!target || !(target instanceof HTMLInputElement)) {
+            if (targetSelector && !(target instanceof HTMLInputElement)) {
                 return;
             }
 
-            if (input.dataset.datePickerSyncBound !== "true") {
-                var updateTarget = function (date) {
-                    if (!date) {
-                        target.value = "";
+            var hasInitialValue = Boolean((target && target.value) || input.value);
+            var displayFormat = withTime ? "YYYY/MM/DD HH:mm" : "YYYY/MM/DD";
+            var options = {
+                calendarType: "persian",
+                calendar: {
+                    persian: {
+                        locale: "fa",
+                        showHint: false
+                    },
+                    gregorian: {
+                        locale: "en",
+                        showHint: false
+                    }
+                },
+                responsive: true,
+                inline: false,
+                initialValue: hasInitialValue,
+                initialValueType: "persian",
+                persianDigit: true,
+                viewMode: "day",
+                format: displayFormat,
+                observer: true,
+                autoClose: true,
+                position: "auto",
+                timePicker: {
+                    enabled: withTime,
+                    step: 1,
+                    hour: {
+                        enabled: true,
+                        step: null
+                    },
+                    minute: {
+                        enabled: true,
+                        step: null
+                    },
+                    second: {
+                        enabled: false,
+                        step: null
+                    },
+                    meridian: {
+                        enabled: false
+                    }
+                },
+                toolbox: {
+                    enabled: false
+                },
+                onSet: function (unix) {
+                    syncHiddenValue(target, unix, withTime);
+                }
+            };
+
+            var isInitialized = input.dataset.datePickerInitialized === "true";
+
+            if (!isInitialized) {
+                $(input).persianDatepicker(options);
+                input.dataset.datePickerInitialized = "true";
+            }
+
+            if (target && target.value) {
+                input.value = formatPersianDateValue(target.value, withTime);
+            } else if (input.value && !hasInitialValue) {
+                input.value = "";
+            }
+
+            if (!target) {
+                return;
+            }
+
+            if (!input.dataset.datePickerSyncBound) {
+                input.dataset.datePickerSyncBound = "true";
+                input.addEventListener("change", function () {
+                    if (!target.value) {
                         return;
                     }
 
-                    var previousValue = parseDateValue(target.value);
-                    target.value = formatDateTimeValue(date, previousValue || new Date());
-                };
-
-                $(input).on("changeDate", function (event) {
-                    updateTarget(event.date || $(input).datepicker("getDate"));
+                    if (!input.value) {
+                        target.value = "";
+                    }
                 });
-
-                $(input).on("change blur", function () {
-                    var currentDate = $(input).datepicker("getDate") || parseDateValue(input.value);
-                    updateTarget(currentDate);
-                });
-
-                input.dataset.datePickerSyncBound = "true";
-            }
-
-            var initialValue = target.value || input.value;
-            var initialDate = parseDateValue(initialValue);
-            if (initialDate) {
-                $(input).datepicker("setDate", initialDate);
             }
         }
 
@@ -536,28 +598,29 @@
             display.type = "text";
             display.className = "form-control datepicker";
             display.setAttribute("data-date-picker-target", "#" + targetId);
-            display.setAttribute("data-date-format", input.getAttribute("data-date-format") || "yyyy/mm/dd");
+            display.setAttribute("data-date-time-picker", "true");
             display.setAttribute("autocomplete", "off");
-            display.value = (() => {
-                var parsed = parseDateValue(input.value || "");
-                if (!parsed) {
-                    return "";
-                }
-
-                return [
-                    parsed.getFullYear(),
-                    pad(parsed.getMonth() + 1),
-                    pad(parsed.getDate())
-                ].join("/");
-            })();
+            display.value = formatPersianDateValue(input.value || "", true);
 
             input.type = "hidden";
             input.dataset.datePickerUpgraded = "true";
             input.parentNode.insertBefore(display, input.nextSibling);
-            initSingleDatePicker(display);
+            initSingleDatePicker(display, true);
         });
 
-        root.querySelectorAll("input.datepicker").forEach(initSingleDatePicker);
+        root.querySelectorAll("input.datepicker").forEach(function (input) {
+            if (!(input instanceof HTMLInputElement)) {
+                return;
+            }
+
+            var targetSelector = input.getAttribute("data-date-picker-target") || "";
+            var target = targetSelector ? (root.querySelector(targetSelector) || document.querySelector(targetSelector)) : null;
+            var withTime = input.getAttribute("data-date-time-picker") === "true";
+            initSingleDatePicker(input, withTime);
+            if (target && target.value && !input.value) {
+                input.value = formatPersianDateValue(target.value, withTime);
+            }
+        });
     }
 
     function initAutoSubmit(root) {
