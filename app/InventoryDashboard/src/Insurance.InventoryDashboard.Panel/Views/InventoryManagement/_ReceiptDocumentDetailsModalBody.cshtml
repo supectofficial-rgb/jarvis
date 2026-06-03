@@ -119,6 +119,13 @@
         return Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase))?.WarehouseRef ?? string.Empty;
     }
 
+    var receiptLotBatchNoCandidates = document?.Lines
+        .Select(x => x.LotBatchNo?.Trim())
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase) ?? Enumerable.Empty<string>();
+
+    var receiptLotBatchNo = receiptLotBatchNoCandidates.FirstOrDefault() ?? string.Empty;
+    var hasMultipleReceiptLots = receiptLotBatchNoCandidates.Skip(1).Any();
 }
 
 <div id="receipt-document-details-modal-body"
@@ -155,6 +162,29 @@
                 <div>@(string.IsNullOrWhiteSpace(document.ExternalReferenceNo) ? "-" : document.ExternalReferenceNo)</div>
             </div>
         </div>
+
+        @if (string.Equals(currentDocumentType, "Receipt", StringComparison.OrdinalIgnoreCase))
+        {
+            <div class="card border-light mb-3">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap">
+                        <div class="mr-3">
+                            <div class="text-muted small">لات/بچ رسید</div>
+                            <div class="font-weight-bold">
+                                @(string.IsNullOrWhiteSpace(receiptLotBatchNo) ? "هنوز تعیین نشده" : receiptLotBatchNo)
+                            </div>
+                        </div>
+                        @if (hasMultipleReceiptLots)
+                        {
+                            <span class="badge badge-warning align-self-start">چند لات متفاوت</span>
+                        }
+                    </div>
+                    <div class="text-muted small mt-2">
+                        در رسید، لات نهایی روی همه ردیف‌ها یکسان ثبت می‌شود و اگر خالی باشد هنگام ثبت توسط سیستم ساخته می‌شود.
+                    </div>
+                </div>
+            </div>
+        }
 
         @if (canEditLines)
         {
@@ -257,6 +287,12 @@
                             @foreach (var line in document.Lines)
                             {
                                 var useUniqueSerialItems = line.Serials.Count > 0;
+                                var lineLotBatchNo = line.LotBatchNo?.Trim();
+                                var shouldShowLineLot = !string.IsNullOrWhiteSpace(lineLotBatchNo) &&
+                                    (!string.Equals(currentDocumentType, "Receipt", StringComparison.OrdinalIgnoreCase) ||
+                                     hasMultipleReceiptLots ||
+                                     string.IsNullOrWhiteSpace(receiptLotBatchNo) ||
+                                     !string.Equals(lineLotBatchNo, receiptLotBatchNo, StringComparison.OrdinalIgnoreCase));
                                 <tr>
                                     <td>@VariantName(line.VariantRef)</td>
                                     <td>@line.Qty.ToString("0.####")</td>
@@ -288,14 +324,14 @@
                                         }
                                     </td>
                                 </tr>
-                                @if (line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase) || !string.IsNullOrWhiteSpace(line.LotBatchNo))
+                                @if (line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase) || shouldShowLineLot)
                                 {
                                     <tr>
                                         <td colspan="5" class="text-muted small">
                                             Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
-                                            @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
+                                            @if (shouldShowLineLot)
                                             {
-                                                <span> | لات/بچ: @line.LotBatchNo</span>
+                                                <span> | لات/بچ ردیف: @line.LotBatchNo</span>
                                             }
                                         </td>
                                     </tr>

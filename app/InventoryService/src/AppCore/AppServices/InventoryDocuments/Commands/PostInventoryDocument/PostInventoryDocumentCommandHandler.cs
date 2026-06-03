@@ -77,6 +77,11 @@ public class PostInventoryDocumentCommandHandler
         if (!receiptLotResolution.Success)
             return Fail(receiptLotResolution.Error ?? "Unable to resolve receipt lot batch number.");
 
+        if (document.DocumentType == InventoryDocumentType.Receipt)
+        {
+            document.ApplyReceiptLotBatchNo(receiptLotResolution.ReceiptLotBatchNo);
+        }
+
         var selectedSerialsByLine = BuildSelectedSerialsByLine(document);
         var effects = BuildEffects(document, selectedSerialsByLine, receiptLotResolution.ReceiptLotBatchNo).ToList();
         foreach (var effect in effects)
@@ -630,7 +635,7 @@ public class PostInventoryDocumentCommandHandler
                 warehouseRef,
                 stockDetail.LocationRef,
                 stockDetail.QualityStatusRef,
-                documentLine.LotBatchNo);
+                stockDetail.LotBatchNo);
 
             await _serialRepository.InsertAsync(generatedSerialItem);
             generatedSerialItem.LinkStockDetail(stockDetail.BusinessKey);
@@ -659,7 +664,7 @@ public class PostInventoryDocumentCommandHandler
                 warehouseRef,
                 stockDetail.LocationRef,
                 stockDetail.QualityStatusRef,
-                documentLine.LotBatchNo);
+                stockDetail.LotBatchNo);
 
             await _serialRepository.InsertAsync(serialItem);
             serialItem.LinkStockDetail(stockDetail.BusinessKey);

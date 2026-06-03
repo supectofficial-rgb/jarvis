@@ -249,6 +249,17 @@ public sealed class InventoryDocument : AggregateRoot
         ChangeStatus(InventoryDocumentStatus.Posted, ReasonCode);
     }
 
+    public void ApplyReceiptLotBatchNo(string? lotBatchNo)
+    {
+        if (DocumentType != InventoryDocumentType.Receipt)
+            throw new AggregateStateExceptions("Receipt lot batch number can only be applied to receipt documents.", nameof(DocumentType));
+
+        foreach (var line in Lines)
+        {
+            line.SetLotBatchNo(lotBatchNo);
+        }
+    }
+
     private void ChangeStatus(InventoryDocumentStatus next, string? reasonCode)
     {
         var previous = Status;

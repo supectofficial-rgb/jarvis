@@ -111,6 +111,11 @@ public sealed class InventoryDocumentLine : Aggregate
         _serials.Clear();
     }
 
+    public void SetLotBatchNo(string? lotBatchNo)
+    {
+        LotBatchNo = Normalize(lotBatchNo);
+    }
+
     public void Update(
         Guid variantRef,
         decimal qty,
