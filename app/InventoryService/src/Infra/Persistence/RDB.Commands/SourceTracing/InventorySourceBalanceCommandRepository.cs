@@ -22,29 +22,28 @@ public class InventorySourceBalanceCommandRepository
             .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(sourceBalanceBusinessKey));
     }
 
-    public Task<List<InventorySourceBalance>> GetOpenByBucketAsync(
+    public Task<List<InventorySourceBalance>> GetOpenByPoolAsync(
         Guid variantRef,
-        Guid sellerRef,
         Guid warehouseRef,
-        Guid locationRef,
-        Guid qualityStatusRef,
-        string? lotBatchNo,
-        Guid? serialRef)
+        Guid? qualityStatusRef = null,
+        string? lotBatchNo = null)
     {
         var normalizedLotBatchNo = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
 
-        return _dbContext.InventorySourceBalances
+        IQueryable<InventorySourceBalance> query = _dbContext.InventorySourceBalances
             .Include(x => x.Allocations)
             .Include(x => x.Consumptions)
             .Where(x =>
                 x.Status == InventorySourceBalanceStatus.Open &&
                 x.VariantRef == variantRef &&
-                x.SellerRef == sellerRef &&
-                x.WarehouseRef == warehouseRef &&
-                x.LocationRef == locationRef &&
-                x.QualityStatusRef == qualityStatusRef &&
-                x.LotBatchNo == normalizedLotBatchNo &&
-                x.SerialRef == serialRef)
+                x.WarehouseRef == warehouseRef);
+
+        if (qualityStatusRef.HasValue)
+            query = query.Where(x => x.QualityStatusRef == qualityStatusRef.Value);
+
+        query = query.Where(x => x.LotBatchNo == normalizedLotBatchNo);
+
+        return query
             .OrderBy(x => x.OpenedAt)
             .ThenBy(x => x.Id)
             .ToListAsync();

@@ -200,7 +200,7 @@ public class PostInventoryDocumentCommandHandler
                     effect.DocumentLine.BusinessKey.Value,
                     transaction.BusinessKey.Value,
                     line.BusinessKey.Value,
-                    line.SerialRef);
+                    serialRef: null);
 
                 await _sourceBalanceRepository.InsertAsync(sourceBalance);
                 continue;
@@ -211,20 +211,16 @@ public class PostInventoryDocumentCommandHandler
                 if (!ShouldConsumeSource(document.DocumentType))
                     continue;
 
-                var locationRef = line.SourceLocationRef;
                 var qualityStatusRef = line.OldQualityStatusRef;
-                if (locationRef is null || qualityStatusRef is null)
-                    return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) requires source location and quality status to consume a source balance.");
+                if (qualityStatusRef is null)
+                    return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) requires quality status to consume a source balance.");
 
                 var remainingToConsume = Math.Abs(line.BaseQtyDelta);
-                var sourceBalances = await _sourceBalanceRepository.GetOpenByBucketAsync(
+                var sourceBalances = await _sourceBalanceRepository.GetOpenByPoolAsync(
                     line.VariantRef,
-                    document.SellerRef,
                     effectWarehouseRef,
-                    locationRef.Value,
                     qualityStatusRef.Value,
-                    line.LotBatchNo,
-                    line.SerialRef);
+                    line.LotBatchNo);
 
                 foreach (var sourceBalance in sourceBalances)
                 {

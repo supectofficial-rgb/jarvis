@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
 using System.Text;
@@ -25,6 +26,7 @@ internal sealed class QueryResultWrapper<T>
 public sealed class ApiService : IApiService
 {
     private const string InventoryApiPrefix = "/api/InventoryService";
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> TokenRefreshLocks = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -2659,48 +2661,73 @@ public sealed class ApiService : IApiService
             return null;
         }
 
-        var refreshToken = session.GetString("RefreshToken");
-        if (string.IsNullOrWhiteSpace(refreshToken))
-        {
-            return null;
-        }
-
+        var refreshLock = TokenRefreshLocks.GetOrAdd(session.Id, _ => new SemaphoreSlim(1, 1));
+        await refreshLock.WaitAsync();
         try
         {
-            var payload = new
+            var latestToken = session.GetString("Token");
+            if (!string.IsNullOrWhiteSpace(latestToken) && !ShouldAttemptTokenRefresh(latestToken))
             {
-                AccessToken = currentAccessToken,
-                RefreshToken = refreshToken
-            };
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/UserService/Auth/refresh-token")
-            {
-                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
-            };
-
-            using var response = await _httpClient.SendAsync(request);
-            var body = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("POST {Route} failed while refreshing token: {StatusCode} / {Body}", "/api/UserService/Auth/refresh-token", response.StatusCode, body);
-                return null;
+                return latestToken;
             }
 
-            var result = JsonSerializer.Deserialize<RefreshTokenResponseDto>(body, JsonOptions);
-            if (result is null || string.IsNullOrWhiteSpace(result.Token) || string.IsNullOrWhiteSpace(result.RefreshToken))
+            var refreshToken = session.GetString("RefreshToken");
+            if (string.IsNullOrWhiteSpace(refreshToken))
             {
                 return null;
             }
 
-            session.SetString("Token", result.Token);
-            session.SetString("RefreshToken", result.RefreshToken);
-            session.SetString("TokenExpiration", result.TokenExpiration.ToString("O"));
-            return result.Token;
+            var tokenToRefresh = !string.IsNullOrWhiteSpace(latestToken) ? latestToken : currentAccessToken;
+            if (string.IsNullOrWhiteSpace(tokenToRefresh))
+            {
+                return null;
+            }
+
+            try
+            {
+                var payload = new
+                {
+                    AccessToken = tokenToRefresh,
+                    RefreshToken = refreshToken
+                };
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, "/api/UserService/Auth/refresh-token")
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+                };
+
+                using var response = await _httpClient.SendAsync(request);
+                var body = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("POST {Route} failed while refreshing token: {StatusCode} / {Body}", "/api/UserService/Auth/refresh-token", response.StatusCode, body);
+                    if (response.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        session.Clear();
+                    }
+                    return null;
+                }
+
+                var result = JsonSerializer.Deserialize<RefreshTokenResponseDto>(body, JsonOptions);
+                if (result is null || string.IsNullOrWhiteSpace(result.Token) || string.IsNullOrWhiteSpace(result.RefreshToken))
+                {
+                    return null;
+                }
+
+                session.SetString("Token", result.Token);
+                session.SetString("RefreshToken", result.RefreshToken);
+                session.SetString("TokenExpiration", result.TokenExpiration.ToString("O"));
+                return result.Token;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while refreshing access token");
+                return null;
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Unexpected error while refreshing access token");
-            return null;
+            refreshLock.Release();
         }
     }
 
