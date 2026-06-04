@@ -6,6 +6,7 @@ using OysterFx.AppCore.Shared.Commands;
 public interface IInventorySourceBalanceCommandRepository : ICommandRepository<InventorySourceBalance, long>
 {
     Task<InventorySourceBalance?> GetByBusinessKeyAsync(Guid sourceBalanceBusinessKey);
+    Task<List<InventorySourceBalance>> GetByReservationRefAsync(Guid reservationRef);
     Task<List<InventorySourceBalance>> GetOpenByPoolAsync(
         Guid variantRef,
         Guid warehouseRef,

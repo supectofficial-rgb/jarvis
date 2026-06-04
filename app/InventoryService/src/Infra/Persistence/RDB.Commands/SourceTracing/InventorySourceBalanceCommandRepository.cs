@@ -22,6 +22,17 @@ public class InventorySourceBalanceCommandRepository
             .FirstOrDefaultAsync(x => x.BusinessKey == BusinessKey.FromGuid(sourceBalanceBusinessKey));
     }
 
+    public Task<List<InventorySourceBalance>> GetByReservationRefAsync(Guid reservationRef)
+    {
+        return _dbContext.InventorySourceBalances
+            .Include(x => x.Allocations)
+            .Include(x => x.Consumptions)
+            .Where(x => x.Allocations.Any(a => a.ReservationRef == reservationRef))
+            .OrderBy(x => x.OpenedAt)
+            .ThenBy(x => x.Id)
+            .ToListAsync();
+    }
+
     public Task<List<InventorySourceBalance>> GetOpenByPoolAsync(
         Guid variantRef,
         Guid warehouseRef,

@@ -2,6 +2,9 @@ namespace Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Comm
 
 using Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Commands.Common;
 using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
+using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Queries;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.AddInventoryDocumentLine;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using OysterFx.AppCore.AppServices.Commands;
@@ -10,10 +13,20 @@ using OysterFx.AppCore.Shared.Commands.Common;
 public sealed class AddInventoryDocumentLineCommandHandler : CommandHandler<AddInventoryDocumentLineCommand, Guid>
 {
     private readonly IInventoryDocumentCommandRepository _repository;
+    private readonly IInventorySourceBalanceCommandRepository _sourceBalanceRepository;
+    private readonly ISerialItemCommandRepository _serialItemCommandRepository;
+    private readonly ISerialItemQueryRepository _serialItemQueryRepository;
 
-    public AddInventoryDocumentLineCommandHandler(IInventoryDocumentCommandRepository repository)
+    public AddInventoryDocumentLineCommandHandler(
+        IInventoryDocumentCommandRepository repository,
+        IInventorySourceBalanceCommandRepository sourceBalanceRepository,
+        ISerialItemCommandRepository serialItemCommandRepository,
+        ISerialItemQueryRepository serialItemQueryRepository)
     {
         _repository = repository;
+        _sourceBalanceRepository = sourceBalanceRepository;
+        _serialItemCommandRepository = serialItemCommandRepository;
+        _serialItemQueryRepository = serialItemQueryRepository;
     }
 
     public override async Task<CommandResult<Guid>> Handle(AddInventoryDocumentLineCommand command)
@@ -50,6 +63,22 @@ public sealed class AddInventoryDocumentLineCommandHandler : CommandHandler<AddI
             }
 
             document.AddLine(line);
+
+            if (InventoryDocumentLineSerialStatusHelper.ShouldReserveSerials(document.DocumentType))
+            {
+                var serialItems = await InventoryDocumentLineSerialStatusHelper.ResolveSerialItemsAsync(
+                    command.Line.Serials.Select(serial => (serial.SerialRef, serial.SerialNo)),
+                    command.Line.VariantRef,
+                    _serialItemCommandRepository,
+                    _serialItemQueryRepository);
+
+                InventoryDocumentLineSerialStatusHelper.ReserveSerialItems(serialItems);
+            }
+
+            if (InventoryDocumentLineSourceAllocationHelper.ShouldReserveSourceBalances(document.DocumentType))
+            {
+                await InventoryDocumentLineSourceAllocationHelper.AllocateSourceBalancesAsync(document, line, _sourceBalanceRepository);
+            }
         }
         catch (Exception ex)
         {

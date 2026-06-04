@@ -1032,6 +1032,17 @@ public sealed partial class InventoryManagementController
             return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", serialSelectionModel);
         }
 
+        if (resolvedSerialSelections.Count == 0)
+        {
+            if (!TryAutoAllocateSerialsForLine(variant, availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
+            {
+                var autoAllocateModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+                autoAllocateModel.ErrorMessage = autoAllocateError ?? "امکان تخصیص خودکار سریال وجود نداشت.";
+                autoAllocateModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", autoAllocateModel);
+            }
+        }
+
         if (resolvedSerialSelections.Count > 0)
         {
             var selectedGroups = resolvedSerialSelections
@@ -1801,6 +1812,17 @@ public sealed partial class InventoryManagementController
             serialSelectionModel.ErrorMessage = selectedSerialError ?? "انتخاب سریال‌ها معتبر نیست.";
             serialSelectionModel.LineForm = form;
             return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", serialSelectionModel);
+        }
+
+        if (resolvedSerialSelections.Count == 0)
+        {
+            if (!TryAutoAllocateSerialsForLine(variant, availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
+            {
+                var autoAllocateModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+                autoAllocateModel.ErrorMessage = autoAllocateError ?? "امکان تخصیص خودکار سریال وجود نداشت.";
+                autoAllocateModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", autoAllocateModel);
+            }
         }
 
         if (resolvedSerialSelections.Count > 0)
@@ -5052,6 +5074,64 @@ public sealed partial class InventoryManagementController
 
             resolvedSerials.Add(new ResolvedSelectedSerialItem(selectedSerial, availableSerial));
         }
+
+        return true;
+    }
+
+    private static bool TryAutoAllocateSerialsForLine(
+        ProductVariantSummaryModel variant,
+        IReadOnlyCollection<SerialItemLookupModel> availableSerials,
+        decimal requestedQty,
+        out List<ResolvedSelectedSerialItem> resolvedSerials,
+        out string? errorMessage)
+    {
+        resolvedSerials = new List<ResolvedSelectedSerialItem>();
+        errorMessage = null;
+
+        if (!string.Equals(variant.TrackingPolicy, "Serial", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (requestedQty <= 0)
+        {
+            errorMessage = "مقدار باید بزرگ‌تر از صفر باشد.";
+            return false;
+        }
+
+        if (requestedQty != decimal.Truncate(requestedQty))
+        {
+            errorMessage = "برای کالاهای سریالی، مقدار باید عدد صحیح باشد.";
+            return false;
+        }
+
+        var requestedSerialCount = (int)requestedQty;
+        if (availableSerials.Count == 0)
+        {
+            errorMessage = "برای این کالا در محدوده انتخاب‌شده، سریال قابل انتخابی پیدا نشد.";
+            return false;
+        }
+
+        if (availableSerials.Count < requestedSerialCount)
+        {
+            errorMessage = $"فقط {availableSerials.Count} سریال قابل انتخاب موجود است.";
+            return false;
+        }
+
+        resolvedSerials = availableSerials
+            .OrderBy(x => x.DateScannedIn)
+            .ThenBy(x => x.LastUpdatedAt)
+            .ThenBy(x => x.SerialNo, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.SerialItemBusinessKey, StringComparer.OrdinalIgnoreCase)
+            .Take(requestedSerialCount)
+            .Select(item => new ResolvedSelectedSerialItem(
+                new InventoryDocumentLineSerialModel
+                {
+                    SerialItemBusinessKey = item.SerialItemBusinessKey,
+                    SerialNo = item.SerialNo
+                },
+                item))
+            .ToList();
 
         return true;
     }
