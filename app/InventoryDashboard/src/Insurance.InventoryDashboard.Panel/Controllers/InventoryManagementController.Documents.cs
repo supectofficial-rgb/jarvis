@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using Insurance.InventoryDashboard.Panel.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -985,14 +985,6 @@ public sealed partial class InventoryManagementController
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
 
-        if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
-        {
-            var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
-            invalidLocationModel.ErrorMessage = "برای سند انتقال، لوکیشن مبدا الزامی است.";
-            invalidLocationModel.LineForm = form;
-            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidLocationModel);
-        }
-
         if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
         {
             var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
@@ -1034,12 +1026,69 @@ public sealed partial class InventoryManagementController
 
         if (resolvedSerialSelections.Count == 0)
         {
-            if (!TryAutoAllocateSerialsForLine(availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
+            var autoAllocationResult = await TryAutoAllocateSourceAllocationsAsync(token, document, variant, form);
+            if (!autoAllocationResult.Success)
             {
-                var autoAllocateModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
-                autoAllocateModel.ErrorMessage = autoAllocateError ?? "امکان تخصیص خودکار سریال وجود نداشت.";
+                var autoAllocateModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+                autoAllocateModel.ErrorMessage = autoAllocationResult.ErrorMessage ?? "امکان تخصیص خودکار منبع وجود نداشت.";
                 autoAllocateModel.LineForm = form;
-                return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", autoAllocateModel);
+                return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", autoAllocateModel);
+            }
+
+            if (autoAllocationResult.Allocations.Count > 0)
+            {
+                if (!string.IsNullOrWhiteSpace(form.LineId) && autoAllocationResult.Allocations.Count > 1)
+                {
+                    var splitLineErrorModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+                    splitLineErrorModel.ErrorMessage = "برای ویرایش آیتم، تخصیص خودکار از چند منبع پشتیبانی نمی‌شود. لطفاً مورد را حذف و دوباره اضافه کنید.";
+                    splitLineErrorModel.LineForm = form;
+                    return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", splitLineErrorModel);
+                }
+
+                if (autoAllocationResult.Allocations.Count > 1 && string.IsNullOrWhiteSpace(form.LineId))
+                {
+                    foreach (var allocation in autoAllocationResult.Allocations)
+                    {
+                        var splitForm = CloneInventoryDocumentLineForm(form);
+                        splitForm.LineId = string.Empty;
+                        splitForm.Qty = allocation.BaseQty;
+                        splitForm.SourceLocationRef = allocation.Bucket.LocationRef.ToString("D");
+                        splitForm.QualityStatusRef = allocation.Bucket.QualityStatusRef.ToString("D");
+                        splitForm.LotBatchNo = allocation.Bucket.LotBatchNo;
+                        splitForm.Serials = allocation.Serials
+                            .Select(item => new InventoryDocumentLineSerialModel
+                            {
+                                SerialItemBusinessKey = item.SerialItemBusinessKey,
+                                SerialNo = item.SerialNo
+                            })
+                            .ToList();
+
+                        var splitResult = await _apiService.AddInventoryDocumentLineAsync(splitForm.DocumentId, splitForm, token);
+                        if (!splitResult.IsSuccess)
+                        {
+                            var splitFailureModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token, cancellationToken);
+                            splitFailureModel.ErrorMessage = splitResult.ErrorMessage ?? "ذخیره آیتم سند انجام نشد.";
+                            splitFailureModel.LineForm = form;
+                            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", splitFailureModel);
+                        }
+                    }
+
+                    var refreshedSplitModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token, cancellationToken);
+                    return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", refreshedSplitModel);
+                }
+
+                var resolvedAllocation = autoAllocationResult.Allocations[0];
+                form.SourceLocationRef = resolvedAllocation.Bucket.LocationRef.ToString("D");
+                form.QualityStatusRef = resolvedAllocation.Bucket.QualityStatusRef.ToString("D");
+                form.LotBatchNo = resolvedAllocation.Bucket.LotBatchNo;
+                form.Qty = resolvedAllocation.BaseQty;
+                form.Serials = resolvedAllocation.Serials
+                    .Select(item => new InventoryDocumentLineSerialModel
+                    {
+                        SerialItemBusinessKey = item.SerialItemBusinessKey,
+                        SerialNo = item.SerialNo
+                    })
+                    .ToList();
             }
         }
 
@@ -1048,6 +1097,7 @@ public sealed partial class InventoryManagementController
             var selectedGroups = resolvedSerialSelections
                 .GroupBy(x => new
                 {
+                    LocationRef = NormalizeLookupKey(x.AvailableSerial.LocationRef),
                     LotBatchNo = NormalizeLookupKey(NormalizeLotBatchNo(x.AvailableSerial.LotBatchNo)),
                     QualityStatusRef = NormalizeLookupKey(x.AvailableSerial.QualityStatusRef)
                 })
@@ -1076,6 +1126,7 @@ public sealed partial class InventoryManagementController
                     var splitForm = CloneInventoryDocumentLineForm(form);
                     splitForm.LineId = string.Empty;
                     splitForm.Qty = group.Count();
+                    splitForm.SourceLocationRef = string.IsNullOrWhiteSpace(group.Key.LocationRef) ? null : group.Key.LocationRef;
                     splitForm.LotBatchNo = string.IsNullOrWhiteSpace(group.Key.LotBatchNo) ? null : NormalizeLotBatchNo(group.Key.LotBatchNo);
                     splitForm.QualityStatusRef = string.IsNullOrWhiteSpace(group.Key.QualityStatusRef) ? null : group.Key.QualityStatusRef;
                     splitForm.Serials = group
@@ -1101,6 +1152,14 @@ public sealed partial class InventoryManagementController
             }
 
             var resolvedSerialGroup = selectedGroups[0];
+            if (!string.IsNullOrWhiteSpace(form.SourceLocationRef) && !string.Equals(NormalizeLookupKey(form.SourceLocationRef), resolvedSerialGroup.Key.LocationRef, StringComparison.OrdinalIgnoreCase))
+            {
+                var locationMismatchModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+                locationMismatchModel.ErrorMessage = "انتخاب لوکیشن با سریال‌های انتخاب شده هم‌خوانی ندارد.";
+                locationMismatchModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", locationMismatchModel);
+            }
+
             var resolvedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo) ?? NormalizeLotBatchNo(resolvedSerialGroup.Key.LotBatchNo);
             if (!string.IsNullOrWhiteSpace(form.LotBatchNo) && !string.Equals(NormalizeLookupKey(form.LotBatchNo), resolvedSerialGroup.Key.LotBatchNo, StringComparison.OrdinalIgnoreCase))
             {
@@ -1118,6 +1177,7 @@ public sealed partial class InventoryManagementController
                 return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", qualityMismatchModel);
             }
 
+            form.SourceLocationRef = string.IsNullOrWhiteSpace(resolvedSerialGroup.Key.LocationRef) ? null : resolvedSerialGroup.Key.LocationRef;
             form.LotBatchNo = resolvedLotBatchNo;
             var resolvedQualityStatusRef = string.IsNullOrWhiteSpace(form.QualityStatusRef)
                 ? resolvedSerialGroup.Key.QualityStatusRef
@@ -1783,14 +1843,6 @@ public sealed partial class InventoryManagementController
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
 
-        if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
-        {
-            var invalidLocationModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
-            invalidLocationModel.ErrorMessage = "برای سند حواله، لوکیشن مبدأ الزامی است.";
-            invalidLocationModel.LineForm = form;
-            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidLocationModel);
-        }
-
         var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, variant.Id);
         if (!serialsResult.IsSuccess)
         {
@@ -1816,20 +1868,76 @@ public sealed partial class InventoryManagementController
 
         if (resolvedSerialSelections.Count == 0)
         {
-            if (!TryAutoAllocateSerialsForLine(availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
+            var autoAllocationResult = await TryAutoAllocateSourceAllocationsAsync(token, document, variant, form);
+            if (!autoAllocationResult.Success)
             {
-                var autoAllocateModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
-                autoAllocateModel.ErrorMessage = autoAllocateError ?? "امکان تخصیص خودکار سریال وجود نداشت.";
+                var autoAllocateModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+                autoAllocateModel.ErrorMessage = autoAllocationResult.ErrorMessage ?? "امکان تخصیص خودکار منبع وجود نداشت.";
                 autoAllocateModel.LineForm = form;
-                return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", autoAllocateModel);
+                return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", autoAllocateModel);
             }
-        }
 
-        if (resolvedSerialSelections.Count > 0)
+            if (autoAllocationResult.Allocations.Count > 0)
+            {
+                if (!string.IsNullOrWhiteSpace(form.LineId) && autoAllocationResult.Allocations.Count > 1)
+                {
+                    var splitLineErrorModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+                    splitLineErrorModel.ErrorMessage = "برای ویرایش آیتم، تخصیص خودکار از چند منبع پشتیبانی نمی‌شود. لطفاً مورد را حذف و دوباره اضافه کنید.";
+                    splitLineErrorModel.LineForm = form;
+                    return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", splitLineErrorModel);
+                }
+
+                if (autoAllocationResult.Allocations.Count > 1 && string.IsNullOrWhiteSpace(form.LineId))
+                {
+                    foreach (var allocation in autoAllocationResult.Allocations)
+                    {
+                        var splitForm = CloneInventoryDocumentLineForm(form);
+                        splitForm.LineId = string.Empty;
+                        splitForm.Qty = allocation.BaseQty;
+                        splitForm.SourceLocationRef = allocation.Bucket.LocationRef.ToString("D");
+                        splitForm.QualityStatusRef = allocation.Bucket.QualityStatusRef.ToString("D");
+                        splitForm.LotBatchNo = allocation.Bucket.LotBatchNo;
+                        splitForm.Serials = allocation.Serials
+                            .Select(item => new InventoryDocumentLineSerialModel
+                            {
+                                SerialItemBusinessKey = item.SerialItemBusinessKey,
+                                SerialNo = item.SerialNo
+                            })
+                            .ToList();
+
+                        var splitResult = await _apiService.AddInventoryDocumentLineAsync(splitForm.DocumentId, splitForm, token);
+                        if (!splitResult.IsSuccess)
+                        {
+                            var splitFailureModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token, cancellationToken);
+                            splitFailureModel.ErrorMessage = splitResult.ErrorMessage ?? "ذخیره آیتم سند انجام نشد.";
+                            splitFailureModel.LineForm = form;
+                            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", splitFailureModel);
+                        }
+                    }
+
+                    var refreshedSplitModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token, cancellationToken);
+                    return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", refreshedSplitModel);
+                }
+
+                var resolvedAllocation = autoAllocationResult.Allocations[0];
+                form.SourceLocationRef = resolvedAllocation.Bucket.LocationRef.ToString("D");
+                form.QualityStatusRef = resolvedAllocation.Bucket.QualityStatusRef.ToString("D");
+                form.LotBatchNo = resolvedAllocation.Bucket.LotBatchNo;
+                form.Qty = resolvedAllocation.BaseQty;
+                form.Serials = resolvedAllocation.Serials
+                    .Select(item => new InventoryDocumentLineSerialModel
+                    {
+                        SerialItemBusinessKey = item.SerialItemBusinessKey,
+                        SerialNo = item.SerialNo
+                    })
+                    .ToList();
+            }
+        }        if (resolvedSerialSelections.Count > 0)
         {
             var selectedGroups = resolvedSerialSelections
                 .GroupBy(x => new
                 {
+                    LocationRef = NormalizeLookupKey(x.AvailableSerial.LocationRef),
                     LotBatchNo = NormalizeLookupKey(NormalizeLotBatchNo(x.AvailableSerial.LotBatchNo)),
                     QualityStatusRef = NormalizeLookupKey(x.AvailableSerial.QualityStatusRef)
                 })
@@ -1858,6 +1966,7 @@ public sealed partial class InventoryManagementController
                     var splitForm = CloneInventoryDocumentLineForm(form);
                     splitForm.LineId = string.Empty;
                     splitForm.Qty = group.Count();
+                    splitForm.SourceLocationRef = string.IsNullOrWhiteSpace(group.Key.LocationRef) ? null : group.Key.LocationRef;
                     splitForm.LotBatchNo = string.IsNullOrWhiteSpace(group.Key.LotBatchNo) ? null : NormalizeLotBatchNo(group.Key.LotBatchNo);
                     splitForm.QualityStatusRef = string.IsNullOrWhiteSpace(group.Key.QualityStatusRef) ? null : group.Key.QualityStatusRef;
                     splitForm.Serials = group
@@ -1883,6 +1992,14 @@ public sealed partial class InventoryManagementController
             }
 
             var resolvedSerialGroup = selectedGroups[0];
+            if (!string.IsNullOrWhiteSpace(form.SourceLocationRef) && !string.Equals(NormalizeLookupKey(form.SourceLocationRef), resolvedSerialGroup.Key.LocationRef, StringComparison.OrdinalIgnoreCase))
+            {
+                var locationMismatchModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+                locationMismatchModel.ErrorMessage = "انتخاب لوکیشن با سریال‌های انتخاب شده هم‌خوانی ندارد.";
+                locationMismatchModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", locationMismatchModel);
+            }
+
             var resolvedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo) ?? NormalizeLotBatchNo(resolvedSerialGroup.Key.LotBatchNo);
             var resolvedQualityStatusRef = string.IsNullOrWhiteSpace(form.QualityStatusRef)
                 ? resolvedSerialGroup.Key.QualityStatusRef
@@ -1903,6 +2020,7 @@ public sealed partial class InventoryManagementController
                 return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", qualityMismatchModel);
             }
 
+            form.SourceLocationRef = string.IsNullOrWhiteSpace(resolvedSerialGroup.Key.LocationRef) ? null : resolvedSerialGroup.Key.LocationRef;
             form.LotBatchNo = resolvedLotBatchNo;
             form.QualityStatusRef = string.IsNullOrWhiteSpace(resolvedQualityStatusRef) ? null : resolvedQualityStatusRef;
             form.Qty = resolvedSerialSelections.Count;
@@ -2166,10 +2284,38 @@ public sealed partial class InventoryManagementController
             return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
         }
 
-        if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(form.DocumentId, token);
+        if (!documentResult.IsSuccess || documentResult.Data is null)
         {
             var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
-            invalidModel.ErrorMessage = "Ø¨Ø±Ø§ÛŒ Ø³Ù†Ø¯ Ø¨Ø§Ø±Ú¯Ø´ØªØŒ Ù„ÙˆÚÚÛŒØ´Ù† Ù…Ù‚ØµØ¯ Ø§Ù„Ø²Ø§Ù…ÛŒ Ø§Ø³Øª.";
+            invalidModel.ErrorMessage = documentResult.ErrorMessage ?? "سند برگشت یافت نشد.";
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var document = documentResult.Data;
+        if (!IsReturnDocumentType(document.DocumentType))
+        {
+            var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
+            invalidModel.ErrorMessage = "این سند از نوع برگشتی نیست.";
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var sourceResolutionResult = await TryResolveReturnSourceSelectionAsync(token, document, form, cancellationToken);
+        if (!sourceResolutionResult.Success)
+        {
+            var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
+            invalidModel.ErrorMessage = sourceResolutionResult.ErrorMessage ?? "امکان تعیین منبع برگشت وجود نداشت.";
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
+        var locationValidationError = ValidateReturnLineLocations(document.DocumentType, form);
+        if (!string.IsNullOrWhiteSpace(locationValidationError))
+        {
+            var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
+            invalidModel.ErrorMessage = locationValidationError;
             invalidModel.LineForm = form;
             return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
         }
@@ -5129,6 +5275,383 @@ public sealed partial class InventoryManagementController
         return true;
     }
 
+    private async Task<AutoAllocationSourceResult> TryAutoAllocateSourceAllocationsAsync(
+        string token,
+        InventoryDocumentDetailsModel document,
+        ProductVariantSummaryModel variant,
+        InventoryDocumentLineForm form)
+    {
+        var result = new AutoAllocationSourceResult();
+
+        if (!Guid.TryParse(variant.Id, out var parsedVariantId))
+        {
+            result.ErrorMessage = "واریانت انتخاب شده معتبر نیست.";
+            return result;
+        }
+
+        if (!Guid.TryParse(document.WarehouseRef, out var parsedWarehouseRef))
+        {
+            result.ErrorMessage = "انبار سند معتبر نیست.";
+            return result;
+        }
+
+        if (form.Qty <= 0)
+        {
+            result.ErrorMessage = "مقدار باید بزرگ‌تر از صفر باشد.";
+            return result;
+        }
+
+        var bucketsResult = await _apiService.GetAvailableStockBucketsAsync(token, parsedVariantId);
+        if (!bucketsResult.IsSuccess)
+        {
+            result.ErrorMessage = bucketsResult.ErrorMessage ?? "بارگذاری بالانس‌های قابل تخصیص انجام نشد.";
+            return result;
+        }
+
+        var requestedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo);
+        var sourceLocationKey = NormalizeLookupKey(form.SourceLocationRef);
+        var qualityStatusKey = NormalizeLookupKey(form.QualityStatusRef);
+
+        var candidateBuckets = (bucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+            .Where(bucket => bucket.WarehouseRef == parsedWarehouseRef)
+            .Where(bucket => BucketMatchesScope(bucket, sourceLocationKey, qualityStatusKey, requestedLotBatchNo))
+            .ToList();
+
+        if (candidateBuckets.Count == 0)
+        {
+            result.ErrorMessage = "هیچ منبعی برای تخصیص خودکار در محدوده انتخاب شده پیدا نشد.";
+            return result;
+        }
+
+        var totalAvailable = candidateBuckets.Sum(x => x.QuantityOnHand);
+        if (totalAvailable < form.Qty)
+        {
+            result.ErrorMessage = $"فقط {totalAvailable} واحد در محدوده انتخاب‌شده قابل تخصیص است.";
+            return result;
+        }
+
+        var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, variant.Id, document.WarehouseRef);
+        if (!serialsResult.IsSuccess)
+        {
+            result.ErrorMessage = serialsResult.ErrorMessage ?? "بارگذاری سریال‌های قابل تخصیص انجام نشد.";
+            return result;
+        }
+
+        var availableSerials = FilterAvailableSerialsForLine(
+                serialsResult.Data ?? new List<SerialItemLookupModel>(),
+                form.SourceLocationRef,
+                form.QualityStatusRef,
+                form.LotBatchNo)
+            .OrderBy(x => x.DateScannedIn)
+            .ThenBy(x => x.LastUpdatedAt)
+            .ThenBy(x => x.SerialNo, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.SerialItemBusinessKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var allocations = new List<AutoAllocationSourceChunk>();
+        var remainingQty = form.Qty;
+
+        foreach (var bucket in candidateBuckets)
+        {
+            if (remainingQty <= 0)
+            {
+                break;
+            }
+
+            var bucketQty = Math.Min(bucket.QuantityOnHand, remainingQty);
+            if (bucketQty <= 0)
+            {
+                continue;
+            }
+
+            var bucketSerials = availableSerials
+                .Where(serial => SerialMatchesBucket(serial, bucket))
+                .ToList();
+
+            if (bucketSerials.Count > 0)
+            {
+                if (bucketQty != decimal.Truncate(bucketQty))
+                {
+                    result.ErrorMessage = $"منبع سریال‌دار '{bucket.LotBatchNo ?? bucket.StockDetailBusinessKey.ToString("D")}' فقط با تعداد صحیح قابل تخصیص است.";
+                    return result;
+                }
+
+                var requiredSerialCount = (int)bucketQty;
+                if (bucketSerials.Count < requiredSerialCount)
+                {
+                    result.ErrorMessage = $"برای منبع '{bucket.LotBatchNo ?? bucket.StockDetailBusinessKey.ToString("D")}' فقط {bucketSerials.Count} سریال قابل انتخاب موجود است.";
+                    return result;
+                }
+
+                allocations.Add(new AutoAllocationSourceChunk(bucket, bucketQty, bucketSerials.Take(requiredSerialCount).ToList()));
+            }
+            else
+            {
+                allocations.Add(new AutoAllocationSourceChunk(bucket, bucketQty, new List<SerialItemLookupModel>()));
+            }
+
+            remainingQty -= bucketQty;
+        }
+
+        if (remainingQty > 0)
+        {
+            result.ErrorMessage = $"فقط {totalAvailable} واحد در محدوده انتخاب‌شده قابل تخصیص است.";
+            return result;
+        }
+
+        result.Success = true;
+        result.Allocations = allocations;
+        return result;
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> TryResolveReturnSourceSelectionAsync(
+        string token,
+        InventoryDocumentDetailsModel document,
+        InventoryDocumentLineForm form,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(document.ReferenceBusinessId))
+        {
+            return (false, "برای سند برگشت، سند مرجع باید انتخاب شود.");
+        }
+
+        var referenceResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(document.ReferenceBusinessId, token);
+        if (!referenceResult.IsSuccess || referenceResult.Data is null)
+        {
+            return (false, referenceResult.ErrorMessage ?? "سند مرجع یافت نشد.");
+        }
+
+        var referenceDocument = referenceResult.Data;
+        var referenceLines = referenceDocument.Lines
+            .Where(line => string.Equals(line.VariantRef, form.VariantId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (referenceLines.Count == 0)
+        {
+            return (false, $"سند مرجع برای واریانت انتخاب‌شده '{form.VariantId}' منبعی ندارد.");
+        }
+
+        var availableSerials = BuildReturnReferenceSerialCandidates(referenceDocument, referenceLines, document.DocumentType);
+        if (!TryResolveSelectedSerials(form.Serials, availableSerials, out var resolvedSerialSelections, out var selectedSerialError))
+        {
+            return (false, selectedSerialError ?? "انتخاب سریال‌های سند برگشت معتبر نیست.");
+        }
+
+        if (resolvedSerialSelections.Count == 0 && availableSerials.Count > 0)
+        {
+            if (!TryAutoAllocateSerialsForLine(availableSerials, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
+            {
+                return (false, autoAllocateError ?? "امکان تخصیص خودکار سریال‌های سند برگشت وجود نداشت.");
+            }
+        }
+
+        if (resolvedSerialSelections.Count > 0)
+        {
+            if (form.Qty != decimal.Truncate(form.Qty) || resolvedSerialSelections.Count != (int)form.Qty)
+            {
+                return (false, "برای ردیف‌های سریال‌دار، تعداد سریال‌های انتخاب‌شده باید با مقدار ردیف برابر باشد.");
+            }
+
+            var selectedLots = resolvedSerialSelections
+                .Select(x => NormalizeLotBatchNo(x.AvailableSerial.LotBatchNo))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (selectedLots.Count > 1)
+            {
+                return (false, "سریال‌های انتخاب‌شده به بیش از یک لات تعلق دارند. برای هر لات یک ردیف جدا ثبت کنید.");
+            }
+        }
+
+        var sourceLine = ResolveReturnSourceLine(referenceLines, resolvedSerialSelections);
+        ApplyReturnSourceResolution(document.DocumentType, sourceLine, resolvedSerialSelections, form);
+        return (true, null);
+    }
+
+    private static InventoryDocumentLineDetailsModel ResolveReturnSourceLine(
+        IReadOnlyList<InventoryDocumentLineDetailsModel> referenceLines,
+        IReadOnlyList<ResolvedSelectedSerialItem> resolvedSerialSelections)
+    {
+        if (resolvedSerialSelections.Count > 0)
+        {
+            var selectedSerial = resolvedSerialSelections[0].AvailableSerial;
+            var selectedLine = referenceLines.FirstOrDefault(line => line.Serials.Any(serial =>
+                string.Equals(serial.SerialItemBusinessKey, selectedSerial.SerialItemBusinessKey, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(serial.SerialNo, selectedSerial.SerialNo, StringComparison.OrdinalIgnoreCase)));
+
+            if (selectedLine is not null)
+            {
+                return selectedLine;
+            }
+        }
+
+        return referenceLines[0];
+    }
+
+    private static IReadOnlyList<SerialItemLookupModel> BuildReturnReferenceSerialCandidates(
+        InventoryDocumentDetailsModel referenceDocument,
+        IReadOnlyList<InventoryDocumentLineDetailsModel> referenceLines,
+        string returnDocumentType)
+    {
+        var serials = new List<SerialItemLookupModel>();
+
+        foreach (var (line, lineIndex) in referenceLines.Select((line, index) => (line, index)))
+        {
+            var lineLocationRef = ResolveReturnReferenceLocationRef(returnDocumentType, line);
+            var lineQualityStatusRef = ResolveReturnReferenceQualityStatusRef(line);
+
+            foreach (var (serial, serialIndex) in line.Serials.Select((serial, index) => (serial, index)))
+            {
+                if (string.IsNullOrWhiteSpace(serial.SerialItemBusinessKey) && string.IsNullOrWhiteSpace(serial.SerialNo))
+                {
+                    continue;
+                }
+
+                serials.Add(new SerialItemLookupModel
+                {
+                    SerialItemBusinessKey = serial.SerialItemBusinessKey ?? string.Empty,
+                    SerialNo = serial.SerialNo ?? string.Empty,
+                    VariantRef = line.VariantRef,
+                    SellerRef = referenceDocument.SellerRef,
+                    WarehouseRef = referenceDocument.WarehouseRef,
+                    LocationRef = lineLocationRef ?? string.Empty,
+                    QualityStatusRef = lineQualityStatusRef ?? string.Empty,
+                    LotBatchNo = NormalizeLotBatchNo(line.LotBatchNo),
+                    Status = "Available",
+                    DateScannedIn = referenceDocument.OccurredAt.AddTicks((lineIndex * 1000L) + serialIndex),
+                    LastUpdatedAt = referenceDocument.OccurredAt.AddTicks((lineIndex * 1000L) + serialIndex)
+                });
+            }
+        }
+
+        return serials;
+    }
+
+    private static string? ResolveReturnReferenceLocationRef(string returnDocumentType, InventoryDocumentLineDetailsModel line)
+    {
+        return returnDocumentType switch
+        {
+            "ReturnFromBuy" => line.DestinationLocationRef ?? line.SourceLocationRef,
+            "ReturnFromTransfer" => line.DestinationLocationRef ?? line.SourceLocationRef,
+            "ReturnFromSell" => line.SourceLocationRef ?? line.DestinationLocationRef,
+            _ => line.DestinationLocationRef ?? line.SourceLocationRef
+        };
+    }
+
+    private static string? ResolveReturnReferenceQualityStatusRef(InventoryDocumentLineDetailsModel line)
+        => line.QualityStatusRef ?? line.FromQualityStatusRef ?? line.ToQualityStatusRef;
+
+    private static void ApplyReturnSourceResolution(
+        string returnDocumentType,
+        InventoryDocumentLineDetailsModel sourceLine,
+        IReadOnlyList<ResolvedSelectedSerialItem> resolvedSerialSelections,
+        InventoryDocumentLineForm form)
+    {
+        form.Serials = resolvedSerialSelections
+            .Select(x => x.RequestedSerial)
+            .ToList();
+
+        if (string.IsNullOrWhiteSpace(form.LotBatchNo))
+        {
+            form.LotBatchNo = NormalizeLotBatchNo(sourceLine.LotBatchNo);
+        }
+
+        if (string.IsNullOrWhiteSpace(form.QualityStatusRef))
+        {
+            form.QualityStatusRef = ResolveReturnReferenceQualityStatusRef(sourceLine);
+        }
+
+        switch (returnDocumentType)
+        {
+            case "ReturnFromBuy":
+                if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
+                {
+                    form.SourceLocationRef = sourceLine.DestinationLocationRef ?? sourceLine.SourceLocationRef;
+                }
+                break;
+            case "ReturnFromSell":
+                if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
+                {
+                    form.DestinationLocationRef = sourceLine.SourceLocationRef ?? sourceLine.DestinationLocationRef;
+                }
+                break;
+            case "ReturnFromTransfer":
+                if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
+                {
+                    form.SourceLocationRef = sourceLine.DestinationLocationRef ?? sourceLine.SourceLocationRef;
+                }
+
+                if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
+                {
+                    form.DestinationLocationRef = sourceLine.SourceLocationRef ?? sourceLine.DestinationLocationRef;
+                }
+                break;
+        }
+    }
+
+    private static string? ValidateReturnLineLocations(string returnDocumentType, InventoryDocumentLineForm form)
+    {
+        return returnDocumentType switch
+        {
+            "ReturnFromBuy" when string.IsNullOrWhiteSpace(form.SourceLocationRef)
+                => "برای سند برگشت از خرید، لوکیشن مبدأ الزامی است.",
+            "ReturnFromSell" when string.IsNullOrWhiteSpace(form.DestinationLocationRef)
+                => "برای سند برگشت از فروش، لوکیشن مقصد الزامی است.",
+            "ReturnFromTransfer" when string.IsNullOrWhiteSpace(form.SourceLocationRef) || string.IsNullOrWhiteSpace(form.DestinationLocationRef)
+                => "برای سند برگشت از انتقال، لوکیشن مبدأ و مقصد الزامی هستند.",
+            _ => null
+        };
+    }
+
+    private static bool BucketMatchesScope(
+        StockDetailBucketModel bucket,
+        string? sourceLocationKey,
+        string? qualityStatusKey,
+        string? lotBatchNo)
+    {
+        if (!string.IsNullOrWhiteSpace(sourceLocationKey) && !string.Equals(NormalizeLookupKey(bucket.LocationRef.ToString("D")), sourceLocationKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(qualityStatusKey) && !string.Equals(NormalizeLookupKey(bucket.QualityStatusRef.ToString("D")), qualityStatusKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(lotBatchNo) && !string.Equals(NormalizeLotBatchNo(bucket.LotBatchNo), lotBatchNo, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool SerialMatchesBucket(SerialItemLookupModel serial, StockDetailBucketModel bucket)
+    {
+        if (Guid.TryParse(serial.StockDetailRef, out var serialBucketRef))
+        {
+            return serialBucketRef == bucket.StockDetailBusinessKey;
+        }
+
+        return string.Equals(NormalizeLookupKey(serial.LocationRef), NormalizeLookupKey(bucket.LocationRef.ToString("D")), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(NormalizeLookupKey(serial.QualityStatusRef), NormalizeLookupKey(bucket.QualityStatusRef.ToString("D")), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(NormalizeLotBatchNo(serial.LotBatchNo), NormalizeLotBatchNo(bucket.LotBatchNo), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class AutoAllocationSourceResult
+    {
+        public bool Success { get; set; }
+        public string? ErrorMessage { get; set; }
+        public List<AutoAllocationSourceChunk> Allocations { get; set; } = new();
+    }
+
+    private sealed record AutoAllocationSourceChunk(
+        StockDetailBucketModel Bucket,
+        decimal BaseQty,
+        List<SerialItemLookupModel> Serials);
+
     private static InventoryDocumentLineForm CloneInventoryDocumentLineForm(InventoryDocumentLineForm source)
     {
         return new InventoryDocumentLineForm
@@ -5173,3 +5696,4 @@ public sealed partial class InventoryManagementController
         return locationResult.Data?.Items.FirstOrDefault()?.LocationBusinessKey;
     }
 }
+

@@ -179,22 +179,8 @@
     var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
     var returnReferenceDocumentType = ViewBag.ReturnReferenceDocumentType as string ?? "Issue";
-    string ReturnReferenceLabelText(string referenceDocumentType) => referenceDocumentType switch
-    {
-        "Receipt" => "سند رسید مبنا",
-        "Transfer" => "سند انتقال مبنا",
-        _ => "سند حواله مبنا"
-    };
-
-    string ReturnReferencePlaceholderText(string referenceDocumentType) => referenceDocumentType switch
-    {
-        "Receipt" => "شماره سند رسید را وارد کنید",
-        "Transfer" => "شماره سند انتقال را وارد کنید",
-        _ => "شماره سند حواله را وارد کنید"
-    };
-
-    var returnReferenceLabelText = ReturnReferenceLabelText(returnReferenceDocumentType);
-    var returnReferencePlaceholderText = ReturnReferencePlaceholderText(returnReferenceDocumentType);
+    var returnReferenceLabelText = UiText["inventory.documents.return.referenceLabel"];
+    var returnReferencePlaceholderText = UiText["inventory.documents.return.referencePlaceholder"];
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
@@ -269,6 +255,7 @@
                                     <select id="return-reference-select" class="form-control js-search-select" data-placeholder="@returnReferencePlaceholderText" data-ajax-url="/InventoryManagement/Documents/Return/ReferenceSearch" data-ajax-extra-params='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { referenceDocumentType = returnReferenceDocumentType }))' data-ajax-result-mode="document" data-return-reference-document-type="@returnReferenceDocumentType">
                                         <option value="">@returnReferencePlaceholderText</option>
                                     </select>
+                                    <div class="text-muted small mt-1">@UiText["inventory.documents.return.referenceHint"]</div>
                                     <div class="mt-2 d-none" id="return-reference-selected">
                                         <div class="alert alert-light border mb-2 py-2">
                                             <strong>@UiText["inventory.documents.return.referenceSelected"]</strong>
