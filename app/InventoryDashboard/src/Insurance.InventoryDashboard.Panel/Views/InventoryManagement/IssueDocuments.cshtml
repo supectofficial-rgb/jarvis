@@ -1737,7 +1737,6 @@
 
                 var variantControls = getIssueLineControls(root);
                 var hasVariant = !!(variantControls.variantSelect && variantControls.variantSelect.value);
-                var hasSource = !!sourceSelected;
                 var items = Array.isArray(serials) ? serials : [];
                 var selectedLookup = {};
                 (selectedSerialIds || []).forEach(function (serialId) {
@@ -1747,7 +1746,7 @@
                 controls.container.innerHTML = '';
                 controls.hidden.innerHTML = '';
 
-                if (!hasVariant || !hasSource) {
+                if (!hasVariant) {
                     controls.section.classList.add('d-none');
                     controls.summary.textContent = controls.summary.dataset.selectPrompt || '@UiText["inventory.documents.issue.serial.selectLocationPrompt"]';
                     syncIssueLineQtyFromSerialSelection(root, false);
@@ -1757,6 +1756,7 @@
                 controls.section.classList.remove('d-none');
                 syncIssueLineQtyFromSerialSelection(root, true);
 
+                controls.summary.textContent = controls.summary.dataset.selectAvailable || '@UiText["inventory.documents.issue.serial.selectPrompt"]';
                 if (!items.length) {
                     controls.section.classList.remove('d-none');
                     controls.summary.textContent = controls.summary.dataset.noAvailable || '@UiText["inventory.documents.issue.serial.noAvailable"]';
@@ -1764,8 +1764,6 @@
                     syncIssueLineQtyFromSerialSelection(root, false);
                     return;
                 }
-
-                controls.summary.textContent = controls.summary.dataset.selectAvailable || '@UiText["inventory.documents.issue.serial.selectPrompt"]';
 
                 items.forEach(function (serial) {
                     var serialId = String(serial.serialItemBusinessKey || '');
@@ -1822,7 +1820,6 @@
 
                 var variantControls = getIssueLineControls(root);
                 var hasVariant = !!(variantControls.variantSelect && variantControls.variantSelect.value);
-                var hasSource = !!sourceSelected;
                 var items = Array.isArray(serials) ? serials : [];
                 var selectedLookup = {};
                 (selectedSerialIds || []).forEach(function (serialId) {
@@ -1832,7 +1829,7 @@
                 controls.container.innerHTML = '';
                 controls.hidden.innerHTML = '';
 
-                if (!hasVariant || !hasSource) {
+                if (!hasVariant) {
                     controls.section.classList.add('d-none');
                     controls.summary.textContent = controls.summary.dataset.selectPrompt || '@UiText["inventory.documents.issue.serial.selectLocationPrompt"]';
                     syncIssueLineQtyFromSerialSelection(root, false);
@@ -1966,8 +1963,7 @@
                 }
 
                 var hasVariant = !!(controls.variantSelect && controls.variantSelect.value);
-                var hasSource = !!(selectedLocationId || (controls.sourceSelect && controls.sourceSelect.value));
-                if (!hasVariant || !hasSource) {
+                if (!hasVariant) {
                     setSelectOptions(
                         controls.lotSelect,
                         [],
@@ -2070,11 +2066,7 @@
                     payload.buckets || [],
                     selectedLocationId || controls.sourceSelect.value || '',
                     controls.qualitySelect ? controls.qualitySelect.value || '' : '');
-                if (controls.sourceSelect && controls.sourceSelect.value) {
-                    await loadIssueVariantSerials(root, variantId, controls.sourceSelect.value, selectedSerialIds || []);
-                } else {
-                    renderIssueSerialOptionsV2(root, [], [], false);
-                }
+                await loadIssueVariantSerials(root, variantId, controls.sourceSelect ? (controls.sourceSelect.value || '') : '', selectedSerialIds || []);
             }
 
             async function loadIssueVariantSerials(root, variantId, sourceLocationId, selectedSerialIds) {
@@ -2084,7 +2076,7 @@
                     return;
                 }
 
-                if (!variantId || !sourceLocationId) {
+                if (!variantId) {
                     renderIssueSerialOptionsV2(root, [], selectedSerialIds || [], false);
                     return;
                 }
@@ -2150,14 +2142,14 @@
                 };
 
                 var onLotChange = function () {
-                    if (!controls.variantSelect.value || !controls.sourceSelect.value) {
+                    if (!controls.variantSelect.value) {
                         return;
                     }
 
                     loadIssueVariantSerials(
                         root,
                         controls.variantSelect.value || '',
-                        controls.sourceSelect.value || '',
+                        controls.sourceSelect ? (controls.sourceSelect.value || '') : '',
                         collectIssueSelectedSerialIds(root)).catch(function (error) {
                             console.error(error);
                         });
@@ -2213,7 +2205,7 @@
                 hydrateIssueInventoryOptions(root);
                 renderIssueLocationOptions(root, defaultSourceLocationId, []);
                 renderIssueLotOptions(root, defaultLotBatchNo, [], defaultSourceLocationId, '');
-                renderIssueSerialOptionsV2(root, [], [], !!defaultSourceLocationId);
+                renderIssueSerialOptionsV2(root, [], [], !!controls.variantSelect.value);
                 if (controls.variantSelect.value) {
                     loadIssueVariantInventory(
                         root,

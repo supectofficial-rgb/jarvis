@@ -1436,7 +1436,6 @@ for (var i = 0; i < lines.length; i++) {
 
                 var variantControls = getTransferLineControls(root);
                 var hasVariant = !!(variantControls.variantSelect && variantControls.variantSelect.value);
-                var hasSource = !!sourceSelected;
                 var items = Array.isArray(serials) ? serials : [];
                 var selectedLookup = {};
                 (selectedSerialIds || []).forEach(function (serialId) {
@@ -1446,7 +1445,7 @@ for (var i = 0; i < lines.length; i++) {
                 controls.container.innerHTML = '';
                 controls.hidden.innerHTML = '';
 
-                if (!hasVariant || !hasSource) {
+                if (!hasVariant) {
                     controls.section.classList.add('d-none');
                     controls.summary.textContent = '@UiText["inventory.documents.action.selectVariantAndLocation"]';
                     syncTransferLineQtyFromSerialSelection(root, false);
@@ -1525,7 +1524,6 @@ for (var i = 0; i < lines.length; i++) {
 
                 var variantControls = getTransferLineControls(root);
                 var hasVariant = !!(variantControls.variantSelect && variantControls.variantSelect.value);
-                var hasSource = !!sourceSelected;
                 var items = Array.isArray(serials) ? serials : [];
                 var selectedLookup = {};
                 (selectedSerialIds || []).forEach(function (serialId) {
@@ -1535,7 +1533,7 @@ for (var i = 0; i < lines.length; i++) {
                 controls.container.innerHTML = '';
                 controls.hidden.innerHTML = '';
 
-                if (!hasVariant || !hasSource) {
+                if (!hasVariant) {
                     controls.section.classList.add('d-none');
                     controls.summary.textContent = controls.summary.dataset.selectPrompt || '@UiText["inventory.documents.action.selectVariantAndLocation"]';
                     syncTransferLineQtyFromSerialSelection(root, false);
@@ -1642,8 +1640,7 @@ for (var i = 0; i < lines.length; i++) {
                 }
 
                 var hasVariant = !!(controls.variantSelect && controls.variantSelect.value);
-                var hasSource = !!(selectedLocationId || (controls.sourceSelect && controls.sourceSelect.value));
-                if (!hasVariant || !hasSource) {
+                if (!hasVariant) {
                     setSelectOptions(
                         controls.lotSelect,
                         [],
@@ -1747,7 +1744,7 @@ for (var i = 0; i < lines.length; i++) {
                     return;
                 }
 
-                if (!variantId || !sourceLocationId) {
+                if (!variantId) {
                     renderTransferSerialOptionsV2(root, [], selectedSerialIds || [], false);
                     return;
                 }
@@ -1831,15 +1828,11 @@ for (var i = 0; i < lines.length; i++) {
                     selectedSourceLocationId || controls.sourceSelect.value || '',
                     controls.qualitySelect ? controls.qualitySelect.value || '' : '');
 
-                if (controls.sourceSelect && controls.sourceSelect.value) {
-                    await loadTransferVariantSerials(
-                        root,
-                        variantId,
-                        controls.sourceSelect.value,
-                        selectedSerialIds || []);
-                } else {
-                    renderTransferSerialOptionsV2(root, [], selectedSerialIds || [], false);
-                }
+                await loadTransferVariantSerials(
+                    root,
+                    variantId,
+                    controls.sourceSelect ? controls.sourceSelect.value || '' : '',
+                    selectedSerialIds || []);
             }
 
             function initializeTransferInventoryChain(root) {
@@ -1887,14 +1880,14 @@ for (var i = 0; i < lines.length; i++) {
                 };
 
                 var onLotChange = function () {
-                    if (!controls.variantSelect.value || !controls.sourceSelect.value) {
+                    if (!controls.variantSelect.value) {
                         return;
                     }
 
                     loadTransferVariantSerials(
                         root,
                         controls.variantSelect.value || '',
-                        controls.sourceSelect.value || '',
+                        controls.sourceSelect ? (controls.sourceSelect.value || '') : '',
                         collectTransferSelectedSerialIds(root)).catch(function (error) {
                             console.error(error);
                         });
