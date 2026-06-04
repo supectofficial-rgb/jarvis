@@ -1034,7 +1034,7 @@ public sealed partial class InventoryManagementController
 
         if (resolvedSerialSelections.Count == 0)
         {
-            if (!TryAutoAllocateSerialsForLine(variant, availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
+            if (!TryAutoAllocateSerialsForLine(availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
             {
                 var autoAllocateModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
                 autoAllocateModel.ErrorMessage = autoAllocateError ?? "امکان تخصیص خودکار سریال وجود نداشت.";
@@ -1816,7 +1816,7 @@ public sealed partial class InventoryManagementController
 
         if (resolvedSerialSelections.Count == 0)
         {
-            if (!TryAutoAllocateSerialsForLine(variant, availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
+            if (!TryAutoAllocateSerialsForLine(availableSerialsForSource, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
             {
                 var autoAllocateModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
                 autoAllocateModel.ErrorMessage = autoAllocateError ?? "امکان تخصیص خودکار سریال وجود نداشت.";
@@ -5079,7 +5079,6 @@ public sealed partial class InventoryManagementController
     }
 
     private static bool TryAutoAllocateSerialsForLine(
-        ProductVariantSummaryModel variant,
         IReadOnlyCollection<SerialItemLookupModel> availableSerials,
         decimal requestedQty,
         out List<ResolvedSelectedSerialItem> resolvedSerials,
@@ -5087,11 +5086,6 @@ public sealed partial class InventoryManagementController
     {
         resolvedSerials = new List<ResolvedSelectedSerialItem>();
         errorMessage = null;
-
-        if (!string.Equals(variant.TrackingPolicy, "Serial", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
 
         if (requestedQty <= 0)
         {
@@ -5108,8 +5102,7 @@ public sealed partial class InventoryManagementController
         var requestedSerialCount = (int)requestedQty;
         if (availableSerials.Count == 0)
         {
-            errorMessage = "برای این کالا در محدوده انتخاب‌شده، سریال قابل انتخابی پیدا نشد.";
-            return false;
+            return true;
         }
 
         if (availableSerials.Count < requestedSerialCount)
