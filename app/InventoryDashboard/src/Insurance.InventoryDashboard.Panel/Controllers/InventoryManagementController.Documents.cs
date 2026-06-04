@@ -4550,14 +4550,22 @@ public sealed partial class InventoryManagementController
 
     private static string BuildVariantLookupLabel(ProductVariantSummaryModel variant)
     {
-        if (!string.IsNullOrWhiteSpace(variant.Name))
+        var name = (variant.Name ?? string.Empty).Trim();
+        var sku = (variant.Sku ?? string.Empty).Trim();
+
+        if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(sku) && !string.Equals(name, sku, StringComparison.OrdinalIgnoreCase))
         {
-            return variant.Name.Trim();
+            return $"{name} ({sku})";
         }
 
-        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        if (!string.IsNullOrWhiteSpace(name))
         {
-            return variant.Sku.Trim();
+            return name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sku))
+        {
+            return sku;
         }
 
         if (!string.IsNullOrWhiteSpace(variant.Barcode))

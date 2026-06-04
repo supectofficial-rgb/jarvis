@@ -55,14 +55,25 @@
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
         var variantName = (variant.Name ?? string.Empty).Trim();
+        var variantSku = (variant.Sku ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(variantName) && !string.IsNullOrWhiteSpace(variantSku) && !string.Equals(variantName, variantSku, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{variantName} ({variantSku})";
+        }
+
         if (!string.IsNullOrWhiteSpace(variantName))
         {
             return variantName;
         }
 
-        if (!string.IsNullOrWhiteSpace(variant.Sku))
+        if (!string.IsNullOrWhiteSpace(variantSku))
         {
-            return variant.Sku;
+            return variantSku;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Barcode))
+        {
+            return variant.Barcode.Trim();
         }
 
         return variant.Id;
