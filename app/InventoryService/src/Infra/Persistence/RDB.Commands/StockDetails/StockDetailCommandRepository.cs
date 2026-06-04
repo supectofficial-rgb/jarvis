@@ -37,14 +37,55 @@ public class StockDetailCommandRepository
         Guid qualityStatusRef,
         string? lotBatchNo)
     {
-        return _dbContext.StockDetails
+        IQueryable<StockDetail> query = _dbContext.StockDetails
             .Where(x =>
                 x.VariantRef == variantRef &&
                 x.WarehouseRef == warehouseRef &&
                 x.LocationRef == locationRef &&
-                x.QualityStatusRef == qualityStatusRef)
-            .OrderByDescending(x => x.QuantityOnHand)
-            .ThenByDescending(x => x.LastUpdatedAt)
+                x.QualityStatusRef == qualityStatusRef);
+
+        var normalizedLotBatchNo = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedLotBatchNo))
+        {
+            query = query.Where(x => x.LotBatchNo == normalizedLotBatchNo);
+        }
+
+        return query
+            .OrderBy(x => x.FirstReceivedAt)
+            .ThenBy(x => x.LastUpdatedAt)
+            .ThenBy(x => x.Id)
+            .FirstOrDefaultAsync();
+    }
+
+    public Task<StockDetail?> FindExactByBucketAsync(
+        Guid variantRef,
+        Guid sellerRef,
+        Guid warehouseRef,
+        Guid locationRef,
+        Guid qualityStatusRef,
+        string? lotBatchNo)
+    {
+        IQueryable<StockDetail> query = _dbContext.StockDetails
+            .Where(x =>
+                x.VariantRef == variantRef &&
+                x.SellerRef == sellerRef &&
+                x.WarehouseRef == warehouseRef &&
+                x.LocationRef == locationRef &&
+                x.QualityStatusRef == qualityStatusRef);
+
+        var normalizedLotBatchNo = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedLotBatchNo))
+        {
+            query = query.Where(x => x.LotBatchNo == normalizedLotBatchNo);
+        }
+        else
+        {
+            query = query.Where(x => x.LotBatchNo == null);
+        }
+
+        return query
+            .OrderBy(x => x.FirstReceivedAt)
+            .ThenBy(x => x.LastUpdatedAt)
             .ThenBy(x => x.Id)
             .FirstOrDefaultAsync();
     }

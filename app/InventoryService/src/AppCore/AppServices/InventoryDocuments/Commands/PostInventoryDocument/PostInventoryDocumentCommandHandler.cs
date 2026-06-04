@@ -7,6 +7,12 @@ using Insurance.InventoryService.AppCore.Domain.StockDetails.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.PostInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
+using Insurance.InventoryService.AppCore.Shared.StockDetails.Queries.Common;
+using Insurance.InventoryService.AppCore.Shared.StockDetails.Queries.GetAvailableStockBuckets;
+using Insurance.InventoryService.AppCore.Shared.StockDetails.Queries;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Queries;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Queries.Common;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Queries.SearchSerialItems;
 using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryTransactions.Commands;
 using Insurance.InventoryService.AppCore.Shared.StockDetails.Commands;
@@ -21,23 +27,29 @@ public class PostInventoryDocumentCommandHandler
     private readonly IInventoryDocumentCommandRepository _documentRepository;
     private readonly IInventoryTransactionCommandRepository _transactionRepository;
     private readonly IStockDetailCommandRepository _stockDetailRepository;
+    private readonly IStockDetailQueryRepository _stockDetailQueryRepository;
     private readonly IInventorySourceBalanceCommandRepository _sourceBalanceRepository;
     private readonly ISerialItemCommandRepository _serialRepository;
+    private readonly ISerialItemQueryRepository _serialQueryRepository;
     private readonly ILocationQueryRepository _locationRepository;
 
     public PostInventoryDocumentCommandHandler(
         IInventoryDocumentCommandRepository documentRepository,
         IInventoryTransactionCommandRepository transactionRepository,
         IStockDetailCommandRepository stockDetailRepository,
+        IStockDetailQueryRepository stockDetailQueryRepository,
         IInventorySourceBalanceCommandRepository sourceBalanceRepository,
         ISerialItemCommandRepository serialRepository,
+        ISerialItemQueryRepository serialQueryRepository,
         ILocationQueryRepository locationRepository)
     {
         _documentRepository = documentRepository;
         _transactionRepository = transactionRepository;
         _stockDetailRepository = stockDetailRepository;
+        _stockDetailQueryRepository = stockDetailQueryRepository;
         _sourceBalanceRepository = sourceBalanceRepository;
         _serialRepository = serialRepository;
+        _serialQueryRepository = serialQueryRepository;
         _locationRepository = locationRepository;
     }
 
@@ -81,6 +93,10 @@ public class PostInventoryDocumentCommandHandler
         {
             document.ApplyReceiptLotBatchNo(receiptLotResolution.ReceiptLotBatchNo);
         }
+
+        var autoAllocationResult = await EnsureAutoAllocatedSerialsAsync(document);
+        if (!autoAllocationResult.Success)
+            return Fail(autoAllocationResult.Error ?? "Unable to auto-allocate serial items.");
 
         var selectedSerialsByLine = BuildSelectedSerialsByLine(document);
         var effects = BuildEffects(document, selectedSerialsByLine, receiptLotResolution.ReceiptLotBatchNo).ToList();
@@ -258,6 +274,262 @@ public class PostInventoryDocumentCommandHandler
 
         return (true, null);
     }
+
+    private async Task<(bool Success, string? Error)> EnsureAutoAllocatedSerialsAsync(InventoryDocument document)
+    {
+        if (!ShouldAutoAllocateSerials(document.DocumentType))
+            return (true, null);
+
+        var originalLines = document.Lines.ToList();
+        foreach (var (line, lineIndex) in originalLines.Select((line, index) => (line, index + 1)))
+        {
+            if (line.Serials.Count > 0)
+                continue;
+
+            if (!line.SourceLocationRef.HasValue)
+                continue;
+
+            if (line.BaseQty <= 0 || line.BaseQty != decimal.Truncate(line.BaseQty))
+                continue;
+
+            var lineWarehouseRef = await ResolveLineWarehouseRefAsync(line);
+            if (lineWarehouseRef == Guid.Empty)
+                continue;
+
+            var allocationResult = await BuildAutoAllocationPlanAsync(document.DocumentNo, line, lineIndex, lineWarehouseRef);
+            if (!allocationResult.Success)
+                return (false, allocationResult.Error);
+
+            if (allocationResult.Allocations.Count == 0)
+                continue;
+
+            ApplyAutoAllocatedSerials(document, line, allocationResult.Allocations);
+        }
+
+        return (true, null);
+    }
+
+    private async Task<(bool Success, string? Error, IReadOnlyList<AutoAllocatedBucketChunk> Allocations)> BuildAutoAllocationPlanAsync(
+        string documentNo,
+        InventoryDocumentLine line,
+        int lineNo,
+        Guid warehouseRef)
+    {
+        var normalizedLotBatchNo = NormalizeLotBatchNo(line.LotBatchNo);
+        var availableBuckets = await LoadAvailableBucketsForAutoAllocationAsync(line, warehouseRef);
+        if (normalizedLotBatchNo is not null)
+        {
+            availableBuckets = availableBuckets
+                .Where(x => string.Equals(NormalizeLotBatchNo(x.LotBatchNo), normalizedLotBatchNo, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        if (availableBuckets.Count == 0)
+        {
+            return (
+                false,
+                $"document '{documentNo}' line {lineNo} ({line.BusinessKey.Value:D}) does not have enough available source buckets to auto-allocate {line.BaseQty} base units.",
+                Array.Empty<AutoAllocatedBucketChunk>());
+        }
+
+        var remainingBaseQty = line.BaseQty;
+        var allocations = new List<AutoAllocatedBucketChunk>();
+        foreach (var bucket in availableBuckets)
+        {
+            if (remainingBaseQty <= 0)
+                break;
+
+            var bucketQtyToConsume = Math.Min(bucket.QuantityOnHand, remainingBaseQty);
+            if (bucketQtyToConsume <= 0)
+                continue;
+
+            var availableSerials = await LoadAvailableSerialsForBucketAsync(bucket.StockDetailBusinessKey);
+            if (availableSerials.Count == 0)
+            {
+                allocations.Add(new AutoAllocatedBucketChunk(bucket, bucketQtyToConsume, Array.Empty<SerialItemListItem>()));
+                remainingBaseQty -= bucketQtyToConsume;
+                continue;
+            }
+
+            var serialQtyToConsume = (int)Math.Min(bucketQtyToConsume, availableSerials.Count);
+            if (serialQtyToConsume > 0)
+            {
+                allocations.Add(new AutoAllocatedBucketChunk(
+                    bucket,
+                    serialQtyToConsume,
+                    availableSerials.Take(serialQtyToConsume).ToList()));
+                remainingBaseQty -= serialQtyToConsume;
+                bucketQtyToConsume -= serialQtyToConsume;
+            }
+
+            if (bucketQtyToConsume > 0)
+            {
+                allocations.Add(new AutoAllocatedBucketChunk(bucket, bucketQtyToConsume, Array.Empty<SerialItemListItem>()));
+                remainingBaseQty -= bucketQtyToConsume;
+            }
+        }
+
+        if (remainingBaseQty > 0)
+        {
+            return (
+                false,
+                $"document '{documentNo}' line {lineNo} ({line.BusinessKey.Value:D}) does not have enough available source buckets to auto-allocate {line.BaseQty} base units.",
+                Array.Empty<AutoAllocatedBucketChunk>());
+        }
+
+        return (true, null, allocations);
+    }
+
+    private static bool ShouldAutoAllocateSerials(InventoryDocumentType documentType)
+        => documentType is InventoryDocumentType.Issue
+            or InventoryDocumentType.Transfer
+            or InventoryDocumentType.ReturnFromBuy
+            or InventoryDocumentType.ReturnFromTransfer;
+
+    private async Task<IReadOnlyList<StockDetailListItem>> LoadAvailableBucketsForAutoAllocationAsync(
+        InventoryDocumentLine line,
+        Guid warehouseRef)
+    {
+        var query = new GetAvailableStockBucketsQuery
+        {
+            VariantRef = line.VariantRef,
+            WarehouseRef = warehouseRef,
+            LocationRef = line.SourceLocationRef,
+            QualityStatusRef = line.QualityStatusRef
+        };
+
+        var buckets = await _stockDetailQueryRepository.GetAvailableBucketsAsync(query);
+
+        if (buckets.Count == 0 && line.QualityStatusRef.HasValue)
+        {
+            query.QualityStatusRef = null;
+            buckets = await _stockDetailQueryRepository.GetAvailableBucketsAsync(query);
+        }
+
+        return buckets
+            .OrderBy(x => x.FirstReceivedAt)
+            .ThenBy(x => x.LastUpdatedAt)
+            .ThenBy(x => x.StockDetailBusinessKey)
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<SerialItemListItem>> LoadAvailableSerialsForBucketAsync(Guid stockDetailBusinessKey)
+    {
+        var items = new List<SerialItemListItem>();
+        var page = 1;
+
+        while (true)
+        {
+            var result = await _serialQueryRepository.SearchAsync(new SearchSerialItemsQuery
+            {
+                StockDetailRef = stockDetailBusinessKey,
+                Status = SerialItemStatus.Available.ToString(),
+                Page = page,
+                PageSize = 200
+            });
+
+            var pageItems = result.Items ?? new List<SerialItemListItem>();
+            if (pageItems.Count == 0)
+                break;
+
+            items.AddRange(pageItems);
+
+            var returnedPageSize = result.PageSize <= 0 ? 200 : result.PageSize;
+            if (items.Count >= result.TotalCount || pageItems.Count < returnedPageSize)
+                break;
+
+            page++;
+        }
+
+        return items
+            .OrderBy(x => x.DateScannedIn)
+            .ThenBy(x => x.LastUpdatedAt)
+            .ThenBy(x => x.SerialNo, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.SerialItemBusinessKey)
+            .ToList();
+    }
+
+    private static void ApplyAutoAllocatedSerials(
+        InventoryDocument document,
+        InventoryDocumentLine line,
+        IReadOnlyList<AutoAllocatedBucketChunk> allocations)
+    {
+        if (allocations.Count == 0)
+            return;
+
+        var groupedAllocations = allocations
+            .GroupBy(x => NormalizeLotBatchNo(x.Bucket.LotBatchNo) ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (groupedAllocations.Count <= 1)
+        {
+            var selectedAllocation = groupedAllocations[0].First();
+            var selectedLotBatchNo = NormalizeLotBatchNo(selectedAllocation.Bucket.LotBatchNo);
+            line.Update(
+                line.VariantRef,
+                line.Qty,
+                line.UomRef,
+                line.BaseQty,
+                line.BaseUomRef,
+                line.SourceLocationRef,
+                line.DestinationLocationRef,
+                selectedAllocation.Bucket.QualityStatusRef,
+                line.FromQualityStatusRef,
+                line.ToQualityStatusRef,
+                string.IsNullOrWhiteSpace(line.LotBatchNo) ? selectedLotBatchNo : line.LotBatchNo,
+                line.ReasonCode,
+                line.AdjustmentDirection);
+
+            foreach (var allocation in allocations)
+            {
+                foreach (var selectedSerial in allocation.Serials)
+                {
+                    line.AddSerial(selectedSerial.SerialItemBusinessKey, selectedSerial.SerialNo);
+                }
+            }
+
+            return;
+        }
+
+        document.RemoveLine(line.BusinessKey.Value);
+
+        var qtyPerBaseUnit = line.Qty / line.BaseQty;
+        foreach (var group in groupedAllocations)
+        {
+            var groupBaseQty = group.Sum(x => x.BaseQty);
+            var firstAllocation = group.First();
+            var groupLotBatchNo = NormalizeLotBatchNo(group.Key);
+            var splitLine = InventoryDocumentLine.Create(
+                line.VariantRef,
+                decimal.Round(qtyPerBaseUnit * groupBaseQty, 6, MidpointRounding.AwayFromZero),
+                line.UomRef,
+                groupBaseQty,
+                line.BaseUomRef,
+                line.SourceLocationRef,
+                line.DestinationLocationRef,
+                firstAllocation.Bucket.QualityStatusRef,
+                line.FromQualityStatusRef,
+                line.ToQualityStatusRef,
+                groupLotBatchNo,
+                line.ReasonCode,
+                line.AdjustmentDirection);
+
+            foreach (var allocation in group)
+            {
+                foreach (var selectedSerial in allocation.Serials)
+                {
+                    splitLine.AddSerial(selectedSerial.SerialItemBusinessKey, selectedSerial.SerialNo);
+                }
+            }
+
+            document.AddLine(splitLine);
+        }
+    }
+
+    private sealed record AutoAllocatedBucketChunk(
+        StockDetailListItem Bucket,
+        decimal BaseQty,
+        IReadOnlyList<SerialItemListItem> Serials);
 
     private static InventorySourceType? ResolveSourceType(InventoryDocumentType documentType, decimal baseQtyDelta)
     {

@@ -465,6 +465,45 @@
                                         <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
                                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                                         <div class="form-row">
+                                            @if (showQualityColumn)
+                                            {
+                                                @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <div class="form-group col-md-2 line-from-quality">
+                                                        <label>کیفیت مبدأ</label>
+                                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
+                                                            <option value="">انتخاب کیفیت</option>
+                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                            {
+                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group col-md-2 line-to-quality">
+                                                        <label>کیفیت مقصد</label>
+                                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
+                                                            <option value="">انتخاب کیفیت</option>
+                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                            {
+                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="form-group col-md-2 line-quality">
+                                                        <label>کیفیت</label>
+                                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
+                                                            <option value="">انتخاب کیفیت</option>
+                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                            {
+                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                            }
                                             <div class="form-group col-md-4">
                                                 <label>ÙˆØ§Ø±ÛŒØ§Ù†Øª</label>
                                                 <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="Ø¬Ø³ØªØ¬Ùˆ Ø¨Ø§ Ú©Ø¯ ÛŒØ§ Ù†Ø§Ù… ÙˆØ§Ø±ÛŒØ§Ù†Øª" required>
@@ -516,45 +555,6 @@
                                                 <div class="list-group js-issue-line-serial-container" style="max-height: 240px; overflow:auto;"></div>
                                                 <div class="js-issue-line-serial-hidden d-none"></div>
                                             </div>
-                                            @if (showQualityColumn)
-                                            {
-                                                @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
-                                                {
-                                                    <div class="form-group col-md-2 line-from-quality">
-                                                        <label>Ú©ÛŒÙÛŒØª Ù…Ø¨Ø¯Ø£</label>
-                                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ú©ÛŒÙÛŒØª">
-                                                            <option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ú©ÛŒÙÛŒØª</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                    <div class="form-group col-md-2 line-to-quality">
-                                                        <label>Ú©ÛŒÙÛŒØª Ù…Ù‚ØµØ¯</label>
-                                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ú©ÛŒÙÛŒØª">
-                                                            <option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ú©ÛŒÙÛŒØª</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                }
-                                                else
-                                                {
-                                                    <div class="form-group col-md-2 line-quality">
-                                                        <label>Ú©ÛŒÙÛŒØª</label>
-                                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ú©ÛŒÙÛŒØª">
-                                                            <option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ú©ÛŒÙÛŒØª</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                }
-                                            }
                                             <div class="form-group col-md-2 line-adjustment">
                                                 <label>Ø¬Ù‡Øª ØªØ¹Ø¯ÛŒÙ„</label>
                                                 <select asp-for="LineForm.AdjustmentDirection" class="form-control">
@@ -2036,6 +2036,9 @@
 
                 var url = new URL(variantInventoryLookupUrl, window.location.origin);
                 url.searchParams.set('variantId', variantId);
+                if (controls.qualitySelect && controls.qualitySelect.value) {
+                    url.searchParams.set('qualityStatusId', controls.qualitySelect.value);
+                }
 
                 var response = await fetch(url.toString(), {
                     headers: {
@@ -2149,16 +2152,49 @@
                         });
                 };
 
+                var onQualityChange = function () {
+                    if (controls.lotSelect) {
+                        controls.lotSelect.value = '';
+                        if (window.jQuery) {
+                            window.jQuery(controls.lotSelect).trigger('change.select2');
+                        }
+                    }
+
+                    if (!controls.variantSelect.value) {
+                        renderIssueLocationOptions(root, controls.sourceSelect.value || defaultSourceLocationId || '', []);
+                        renderIssueLotOptions(root, '', [], controls.sourceSelect.value || defaultSourceLocationId || '', controls.qualitySelect ? controls.qualitySelect.value || '' : '');
+                        renderIssueSerialOptionsV2(root, [], [], false);
+                        return;
+                    }
+
+                    loadIssueVariantInventory(
+                        root,
+                        controls.variantSelect.value || '',
+                        controls.sourceSelect.value || defaultSourceLocationId || '',
+                        [],
+                        '').catch(function (error) {
+                            console.error(error);
+                        });
+                };
+
                 controls.variantSelect.addEventListener('change', onVariantChange);
                 controls.sourceSelect.addEventListener('change', onSourceChange);
                 if (controls.lotSelect) {
                     controls.lotSelect.addEventListener('change', onLotChange);
+                }
+                if (controls.qualitySelect) {
+                    controls.qualitySelect.addEventListener('change', onQualityChange);
                 }
                 if (window.jQuery) {
                     window.jQuery(controls.variantSelect).on('select2:select', onVariantChange);
                     window.jQuery(controls.sourceSelect).on('select2:select', onSourceChange);
                     if (controls.lotSelect) {
                         window.jQuery(controls.lotSelect).on('select2:select', onLotChange);
+                    }
+                    if (controls.qualitySelect) {
+                        window.jQuery(controls.qualitySelect).on('select2:select.issueChain select2:clear.issueChain', function () {
+                            window.setTimeout(onQualityChange, 0);
+                        });
                     }
                 }
 
@@ -2453,6 +2489,7 @@
                 var variantSelect = modal.querySelector('select[name="LineForm.VariantId"]');
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
                 var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
+                var lotSelect = modal.querySelector('select[name="LineForm.LotBatchNo"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
                 var submitButton = modal.querySelector('.js-issue-line-submit');
                 var cancelButton = modal.querySelector('.js-issue-line-cancel');

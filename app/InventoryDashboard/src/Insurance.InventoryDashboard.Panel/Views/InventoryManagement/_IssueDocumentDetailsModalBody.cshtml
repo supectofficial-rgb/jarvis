@@ -162,6 +162,16 @@
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                         <div class="form-row">
                             <div class="form-group col-md-4">
+                                <label>وضعیت کیفیت</label>
+                                <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت">
+                                    <option value="">انتخاب کیفیت</option>
+                                    @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
                                 <label>واریانت</label>
                                 <select asp-for="LineForm.VariantId" class="form-control js-search-select js-issue-line-variant" data-placeholder="جستجو با کد یا نام واریانت" data-ajax-url='@Url.Action("SearchVariantLookup", "InventoryManagement")' required>
                                     <option value="">انتخاب واریانت</option>
@@ -175,14 +185,6 @@
                                 <label>لوکیشن مبدأ</label>
                                 <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select js-issue-line-source" data-placeholder="انتخاب لوکیشن" disabled required>
                                     <option value="">ابتدا واریانت را انتخاب کنید</option>
-                                </select>
-                                <label class="mt-2">وضعیت کیفیت</label>
-                                <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
-                                    <option value="">انتخاب کیفیت</option>
-                                    @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                    {
-                                        <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                    }
                                 </select>
                             </div>
                             <div class="form-group col-12 col-lg-4 line-serials d-none">

@@ -36,14 +36,22 @@ public class StockDetailQueryRepository : QueryRepository<InventoryServiceQueryD
 
     public async Task<StockDetailListItem?> GetByBucketKeyAsync(Guid variantRef, Guid sellerRef, Guid warehouseRef, Guid locationRef, Guid qualityStatusRef, string? lotBatchNo)
     {
-        var item = await _dbContext.Set<StockDetailReadModel>()
+        IQueryable<StockDetailReadModel> query = _dbContext.Set<StockDetailReadModel>()
             .Where(x =>
                 x.VariantRef == variantRef &&
                 x.WarehouseRef == warehouseRef &&
                 x.LocationRef == locationRef &&
-                x.QualityStatusRef == qualityStatusRef)
-            .OrderByDescending(x => x.QuantityOnHand)
-            .ThenByDescending(x => x.LastUpdatedAt)
+                x.QualityStatusRef == qualityStatusRef);
+
+        var normalizedLotBatchNo = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedLotBatchNo))
+        {
+            query = query.Where(x => x.LotBatchNo == normalizedLotBatchNo);
+        }
+
+        var item = await query
+            .OrderBy(x => x.FirstReceivedAt)
+            .ThenBy(x => x.LastUpdatedAt)
             .ThenBy(x => x.Id)
             .FirstOrDefaultAsync();
 
@@ -182,7 +190,9 @@ public class StockDetailQueryRepository : QueryRepository<InventoryServiceQueryD
             dbQuery = dbQuery.Where(x => x.QuantityOnHand >= query.MinQuantity.Value);
 
         var items = await dbQuery
-            .OrderByDescending(x => x.LastUpdatedAt)
+            .OrderBy(x => x.FirstReceivedAt)
+            .ThenBy(x => x.LastUpdatedAt)
+            .ThenBy(x => x.Id)
             .ToListAsync();
 
         return items.Select(ToListItem).ToList();

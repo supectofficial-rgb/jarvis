@@ -15,4 +15,12 @@ public interface IStockDetailCommandRepository : ICommandRepository<StockDetail,
         Guid locationRef,
         Guid qualityStatusRef,
         string? lotBatchNo);
+
+    Task<StockDetail?> FindExactByBucketAsync(
+        Guid variantRef,
+        Guid sellerRef,
+        Guid warehouseRef,
+        Guid locationRef,
+        Guid qualityStatusRef,
+        string? lotBatchNo);
 }

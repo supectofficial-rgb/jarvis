@@ -5,6 +5,8 @@
     var document = Model.SelectedDocumentDetails;
     var currentDocumentType = document?.DocumentType ?? "Transfer";
     var canEditLines = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+    var showQualityColumn = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
 
     string TypeLabel(string? type) => type switch
     {
@@ -182,6 +184,48 @@
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
 
+                        @if (showQualityColumn)
+                        {
+                            <div class="form-row mb-3">
+                                @if (string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <div class="form-group col-md-3 line-from-quality">
+                                        <label>@UiText["inventory.documents.line.fromQuality"]</label>
+                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3 line-to-quality">
+                                        <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="form-group col-md-3 line-quality">
+                                        <label>@UiText["inventory.documents.line.quality"]</label>
+                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                            </div>
+                        }
+
                         <div class="form-row">
                             <div class="col-lg-6">
                                 <div class="form-row">
@@ -220,16 +264,6 @@
                                         <label>لوکیشن مقصد</label>
                                         <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select js-transfer-line-destination" data-placeholder="انتخاب لوکیشن" disabled required>
                                             <option value="">ابتدا انبار مقصد را انتخاب کنید</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-4">
-                                        <label>وضعیت کیفیت</label>
-                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
-                                            <option value="">انتخاب کیفیت</option>
-                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                            {
-                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                            }
                                         </select>
                                     </div>
                                     <div class="form-group col-md-4">

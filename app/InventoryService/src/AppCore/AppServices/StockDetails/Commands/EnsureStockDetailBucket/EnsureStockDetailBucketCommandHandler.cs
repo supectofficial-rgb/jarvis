@@ -26,7 +26,7 @@ public class EnsureStockDetailBucketCommandHandler : CommandHandler<EnsureStockD
         if (command.OpeningQuantityOnCreate < 0)
             return Fail("OpeningQuantityOnCreate cannot be negative.");
 
-        var existing = await _repository.FindByBucketAsync(
+        var exactExisting = await _repository.FindExactByBucketAsync(
             command.VariantRef,
             command.SellerRef,
             command.WarehouseRef,
@@ -34,13 +34,13 @@ public class EnsureStockDetailBucketCommandHandler : CommandHandler<EnsureStockD
             command.QualityStatusRef,
             string.IsNullOrWhiteSpace(command.LotBatchNo) ? null : command.LotBatchNo.Trim());
 
-        if (existing is not null)
+        if (exactExisting is not null)
         {
             return Ok(new EnsureStockDetailBucketCommandResult
             {
-                StockDetailBusinessKey = existing.BusinessKey.Value,
+                StockDetailBusinessKey = exactExisting.BusinessKey.Value,
                 Created = false,
-                QuantityOnHand = existing.QuantityOnHand
+                QuantityOnHand = exactExisting.QuantityOnHand
             });
         }
 

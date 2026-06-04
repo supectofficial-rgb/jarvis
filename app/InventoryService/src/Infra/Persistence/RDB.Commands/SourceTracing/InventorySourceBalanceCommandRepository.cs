@@ -39,6 +39,10 @@ public class InventorySourceBalanceCommandRepository
         if (qualityStatusRef.HasValue)
             query = query.Where(x => x.QualityStatusRef == qualityStatusRef.Value);
 
+        var normalizedLotBatchNo = string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedLotBatchNo))
+            query = query.Where(x => x.LotBatchNo == normalizedLotBatchNo);
+
         return query
             .OrderBy(x => x.OpenedAt)
             .ThenBy(x => x.Id)

@@ -411,6 +411,45 @@
                                         <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
                                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                                         <div class="form-row">
+                                            @if (showQualityColumn)
+                                            {
+                                                @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <div class="form-group col-md-2 line-from-quality">
+                                                        <label>@UiText["inventory.documents.line.fromQuality"]</label>
+                                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                            {
+                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group col-md-2 line-to-quality">
+                                                        <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                            {
+                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="form-group col-md-2 line-quality">
+                                                        <label>@UiText["inventory.documents.line.quality"]</label>
+                                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                            {
+                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                }
+                                            }
                                             <div class="form-group col-md-4">
                                                 <label>@UiText["inventory.documents.line.variant"]</label>
                                                 <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectVariant"]' required>
@@ -457,45 +496,6 @@
                                                 <div class="list-group js-transfer-line-serial-container" style="max-height: 240px; overflow:auto;"></div>
                                                 <div class="js-transfer-line-serial-hidden d-none"></div>
                                             </div>
-                                            @if (showQualityColumn)
-                                            {
-                                                @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
-                                                {
-                                                    <div class="form-group col-md-2 line-from-quality">
-                                                        <label>@UiText["inventory.documents.line.fromQuality"]</label>
-                                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
-                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                    <div class="form-group col-md-2 line-to-quality">
-                                                        <label>@UiText["inventory.documents.line.toQuality"]</label>
-                                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
-                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                }
-                                                else
-                                                {
-                                                    <div class="form-group col-md-2 line-quality">
-                                                        <label>@UiText["inventory.documents.line.quality"]</label>
-                                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
-                                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
-                                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                                            {
-                                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                                            }
-                                                        </select>
-                                                    </div>
-                                                }
-                                            }
                                             <div class="form-group col-md-2 line-adjustment">
                                                 <label>@UiText["inventory.documents.line.adjustmentDirection"]</label>
                                                 <select asp-for="LineForm.AdjustmentDirection" class="form-control">
@@ -1785,6 +1785,9 @@ for (var i = 0; i < lines.length; i++) {
 
                 var url = new URL(variantInventoryLookupUrl, window.location.origin);
                 url.searchParams.set('variantId', variantId);
+                if (controls.qualitySelect && controls.qualitySelect.value) {
+                    url.searchParams.set('qualityStatusId', controls.qualitySelect.value);
+                }
 
                 var response = await fetch(url.toString(), {
                     headers: {
@@ -1886,6 +1889,37 @@ for (var i = 0; i < lines.length; i++) {
                         });
                 };
 
+                var onQualityChange = function () {
+                    if (controls.lotSelect) {
+                        controls.lotSelect.value = '';
+                        if (window.jQuery) {
+                            window.jQuery(controls.lotSelect).trigger('change.select2');
+                        }
+                    }
+
+                    if (!controls.variantSelect.value) {
+                        renderTransferSourceLocationOptions(root, controls.sourceSelect.value || '', []);
+                        renderTransferDestinationLocationOptions(
+                            root,
+                            controls.warehouseSelect ? (controls.warehouseSelect.value || '') : '',
+                            controls.destinationSelect.value || '');
+                        renderTransferLotOptions(root, '', [], controls.sourceSelect.value || '', controls.qualitySelect ? controls.qualitySelect.value || '' : '');
+                        renderTransferSerialOptionsV2(root, [], [], false);
+                        return;
+                    }
+
+                    loadTransferVariantInventory(
+                        root,
+                        controls.variantSelect.value || '',
+                        controls.sourceSelect.value || '',
+                        controls.warehouseSelect ? (controls.warehouseSelect.value || '') : '',
+                        controls.destinationSelect.value || '',
+                        [],
+                        '').catch(function (error) {
+                            console.error(error);
+                        });
+                };
+
                 controls.variantSelect.addEventListener('change', onVariantChange);
 
                 if (controls.sourceSelect) {
@@ -1905,6 +1939,15 @@ for (var i = 0; i < lines.length; i++) {
                     if (window.jQuery) {
                         window.jQuery(controls.lotSelect).on('select2:select.transferChain select2:clear.transferChain', function () {
                             window.setTimeout(onLotChange, 0);
+                        });
+                    }
+                }
+
+                if (controls.qualitySelect) {
+                    controls.qualitySelect.addEventListener('change', onQualityChange);
+                    if (window.jQuery) {
+                        window.jQuery(controls.qualitySelect).on('select2:select.transferChain select2:clear.transferChain', function () {
+                            window.setTimeout(onQualityChange, 0);
                         });
                     }
                 }

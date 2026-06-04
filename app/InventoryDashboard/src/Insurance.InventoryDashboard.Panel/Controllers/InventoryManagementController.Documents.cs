@@ -657,7 +657,7 @@ public sealed partial class InventoryManagementController
     }
 
     [HttpGet("/InventoryManagement/Documents/Transfer/VariantInventoryLookup")]
-    public async Task<IActionResult> SearchTransferVariantInventoryLookup(string variantId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> SearchTransferVariantInventoryLookup(string variantId, string? qualityStatusId, CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
         {
@@ -699,6 +699,15 @@ public sealed partial class InventoryManagementController
             });
         }
 
+        var stockBuckets = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>()).ToList();
+        if (Guid.TryParse(qualityStatusId, out var parsedQualityStatusId))
+        {
+            var qualityKey = parsedQualityStatusId.ToString("D");
+            stockBuckets = stockBuckets
+                .Where(x => string.Equals(x.QualityStatusRef.ToString("D"), qualityKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
 
@@ -718,7 +727,6 @@ public sealed partial class InventoryManagementController
         var locationLookup = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
             .ToDictionary(x => x.LocationBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
 
-        var stockBuckets = stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>();
         var allowedLocationIds = stockBuckets
             .Select(x => x.LocationRef.ToString("D"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -763,7 +771,9 @@ public sealed partial class InventoryManagementController
         return Json(new
         {
             isSuccess = true,
-            locations
+            allowedLocationIds,
+            locations,
+            buckets
         });
     }
 
@@ -975,14 +985,6 @@ public sealed partial class InventoryManagementController
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
 
-        if (string.IsNullOrWhiteSpace(form.QualityStatusRef))
-        {
-            var invalidQualityModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
-            invalidQualityModel.ErrorMessage = "برای سند انتقال، وضعیت کیفیت الزامی است.";
-            invalidQualityModel.LineForm = form;
-            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidQualityModel);
-        }
-
         if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
         {
             var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
@@ -1033,7 +1035,11 @@ public sealed partial class InventoryManagementController
         if (resolvedSerialSelections.Count > 0)
         {
             var selectedGroups = resolvedSerialSelections
-                .GroupBy(x => NormalizeLotBatchNo(x.AvailableSerial.LotBatchNo) ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(x => new
+                {
+                    LotBatchNo = NormalizeLookupKey(NormalizeLotBatchNo(x.AvailableSerial.LotBatchNo)),
+                    QualityStatusRef = NormalizeLookupKey(x.AvailableSerial.QualityStatusRef)
+                })
                 .ToList();
 
             if (!string.IsNullOrWhiteSpace(form.LineId) && selectedGroups.Count > 1)
@@ -1059,7 +1065,8 @@ public sealed partial class InventoryManagementController
                     var splitForm = CloneInventoryDocumentLineForm(form);
                     splitForm.LineId = string.Empty;
                     splitForm.Qty = group.Count();
-                    splitForm.LotBatchNo = NormalizeLotBatchNo(group.Key);
+                    splitForm.LotBatchNo = string.IsNullOrWhiteSpace(group.Key.LotBatchNo) ? null : NormalizeLotBatchNo(group.Key.LotBatchNo);
+                    splitForm.QualityStatusRef = string.IsNullOrWhiteSpace(group.Key.QualityStatusRef) ? null : group.Key.QualityStatusRef;
                     splitForm.Serials = group
                         .Select(item => new InventoryDocumentLineSerialModel
                         {
@@ -1083,8 +1090,8 @@ public sealed partial class InventoryManagementController
             }
 
             var resolvedSerialGroup = selectedGroups[0];
-            var resolvedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo) ?? NormalizeLotBatchNo(resolvedSerialGroup.Key);
-            if (!string.IsNullOrWhiteSpace(form.LotBatchNo) && !string.Equals(NormalizeLotBatchNo(form.LotBatchNo), NormalizeLotBatchNo(resolvedSerialGroup.Key), StringComparison.OrdinalIgnoreCase))
+            var resolvedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo) ?? NormalizeLotBatchNo(resolvedSerialGroup.Key.LotBatchNo);
+            if (!string.IsNullOrWhiteSpace(form.LotBatchNo) && !string.Equals(NormalizeLookupKey(form.LotBatchNo), resolvedSerialGroup.Key.LotBatchNo, StringComparison.OrdinalIgnoreCase))
             {
                 var lotMismatchModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
                 lotMismatchModel.ErrorMessage = "انتخاب لات با سریال‌های انتخاب شده هم‌خوانی ندارد.";
@@ -1092,7 +1099,19 @@ public sealed partial class InventoryManagementController
                 return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", lotMismatchModel);
             }
 
+            if (!string.IsNullOrWhiteSpace(form.QualityStatusRef) && !string.Equals(NormalizeLookupKey(form.QualityStatusRef), resolvedSerialGroup.Key.QualityStatusRef, StringComparison.OrdinalIgnoreCase))
+            {
+                var qualityMismatchModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+                qualityMismatchModel.ErrorMessage = "انتخاب کیفیت با سریال‌های انتخاب شده هم‌خوانی ندارد.";
+                qualityMismatchModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", qualityMismatchModel);
+            }
+
             form.LotBatchNo = resolvedLotBatchNo;
+            var resolvedQualityStatusRef = string.IsNullOrWhiteSpace(form.QualityStatusRef)
+                ? resolvedSerialGroup.Key.QualityStatusRef
+                : form.QualityStatusRef;
+            form.QualityStatusRef = string.IsNullOrWhiteSpace(resolvedQualityStatusRef) ? null : resolvedQualityStatusRef;
             form.Qty = resolvedSerialSelections.Count;
             form.Serials = resolvedSerialGroup
                 .Select(item => new InventoryDocumentLineSerialModel
@@ -1549,7 +1568,7 @@ public sealed partial class InventoryManagementController
     }
 
     [HttpGet("/InventoryManagement/Documents/Issue/VariantInventoryLookup")]
-    public async Task<IActionResult> SearchIssueVariantInventoryLookup(string variantId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> SearchIssueVariantInventoryLookup(string variantId, string? qualityStatusId, CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
         {
@@ -1588,12 +1607,21 @@ public sealed partial class InventoryManagementController
             });
         }
 
-        var allowedLocationIds = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+        var stockBuckets = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>()).ToList();
+        if (Guid.TryParse(qualityStatusId, out var parsedQualityStatusId))
+        {
+            var qualityKey = parsedQualityStatusId.ToString("D");
+            stockBuckets = stockBuckets
+                .Where(x => string.Equals(x.QualityStatusRef.ToString("D"), qualityKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        var allowedLocationIds = stockBuckets
             .Select(x => x.LocationRef.ToString("D"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var buckets = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+        var buckets = stockBuckets
             .Select(bucket => new
             {
                 warehouseRef = bucket.WarehouseRef.ToString("D"),
@@ -1744,14 +1772,6 @@ public sealed partial class InventoryManagementController
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
 
-        if (string.IsNullOrWhiteSpace(form.QualityStatusRef))
-        {
-            var invalidQualityModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
-            invalidQualityModel.ErrorMessage = "برای سند حواله، وضعیت کیفیت الزامی است.";
-            invalidQualityModel.LineForm = form;
-            return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", invalidQualityModel);
-        }
-
         if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
         {
             var invalidLocationModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
@@ -1786,7 +1806,11 @@ public sealed partial class InventoryManagementController
         if (resolvedSerialSelections.Count > 0)
         {
             var selectedGroups = resolvedSerialSelections
-                .GroupBy(x => NormalizeLotBatchNo(x.AvailableSerial.LotBatchNo) ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(x => new
+                {
+                    LotBatchNo = NormalizeLookupKey(NormalizeLotBatchNo(x.AvailableSerial.LotBatchNo)),
+                    QualityStatusRef = NormalizeLookupKey(x.AvailableSerial.QualityStatusRef)
+                })
                 .ToList();
 
             if (!string.IsNullOrWhiteSpace(form.LineId) && selectedGroups.Count > 1)
@@ -1812,7 +1836,8 @@ public sealed partial class InventoryManagementController
                     var splitForm = CloneInventoryDocumentLineForm(form);
                     splitForm.LineId = string.Empty;
                     splitForm.Qty = group.Count();
-                    splitForm.LotBatchNo = NormalizeLotBatchNo(group.Key);
+                    splitForm.LotBatchNo = string.IsNullOrWhiteSpace(group.Key.LotBatchNo) ? null : NormalizeLotBatchNo(group.Key.LotBatchNo);
+                    splitForm.QualityStatusRef = string.IsNullOrWhiteSpace(group.Key.QualityStatusRef) ? null : group.Key.QualityStatusRef;
                     splitForm.Serials = group
                         .Select(item => new InventoryDocumentLineSerialModel
                         {
@@ -1836,8 +1861,11 @@ public sealed partial class InventoryManagementController
             }
 
             var resolvedSerialGroup = selectedGroups[0];
-            var resolvedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo) ?? NormalizeLotBatchNo(resolvedSerialGroup.Key);
-            if (!string.IsNullOrWhiteSpace(form.LotBatchNo) && !string.Equals(NormalizeLotBatchNo(form.LotBatchNo), NormalizeLotBatchNo(resolvedSerialGroup.Key), StringComparison.OrdinalIgnoreCase))
+            var resolvedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo) ?? NormalizeLotBatchNo(resolvedSerialGroup.Key.LotBatchNo);
+            var resolvedQualityStatusRef = string.IsNullOrWhiteSpace(form.QualityStatusRef)
+                ? resolvedSerialGroup.Key.QualityStatusRef
+                : form.QualityStatusRef;
+            if (!string.IsNullOrWhiteSpace(form.LotBatchNo) && !string.Equals(NormalizeLookupKey(form.LotBatchNo), resolvedSerialGroup.Key.LotBatchNo, StringComparison.OrdinalIgnoreCase))
             {
                 var lotMismatchModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
                 lotMismatchModel.ErrorMessage = "انتخاب لات با سریال‌های انتخاب شده هم‌خوانی ندارد.";
@@ -1845,7 +1873,16 @@ public sealed partial class InventoryManagementController
                 return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", lotMismatchModel);
             }
 
+            if (!string.IsNullOrWhiteSpace(form.QualityStatusRef) && !string.Equals(NormalizeLookupKey(form.QualityStatusRef), resolvedSerialGroup.Key.QualityStatusRef, StringComparison.OrdinalIgnoreCase))
+            {
+                var qualityMismatchModel = await BuildIssueDocumentDetailsModalModelAsync(form.DocumentId, token);
+                qualityMismatchModel.ErrorMessage = "انتخاب کیفیت با سریال‌های انتخاب شده هم‌خوانی ندارد.";
+                qualityMismatchModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_IssueDocumentDetailsModalBody.cshtml", qualityMismatchModel);
+            }
+
             form.LotBatchNo = resolvedLotBatchNo;
+            form.QualityStatusRef = string.IsNullOrWhiteSpace(resolvedQualityStatusRef) ? null : resolvedQualityStatusRef;
             form.Qty = resolvedSerialSelections.Count;
             form.Serials = resolvedSerialGroup
                 .Select(item => new InventoryDocumentLineSerialModel
@@ -4908,6 +4945,9 @@ public sealed partial class InventoryManagementController
 
     private static string? NormalizeLotBatchNo(string? lotBatchNo)
         => string.IsNullOrWhiteSpace(lotBatchNo) ? null : lotBatchNo.Trim();
+
+    private static string NormalizeLookupKey(string? value)
+        => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
 
     private static IReadOnlyList<SerialItemLookupModel> FilterAvailableSerialsForLine(
         IEnumerable<SerialItemLookupModel> serials,
