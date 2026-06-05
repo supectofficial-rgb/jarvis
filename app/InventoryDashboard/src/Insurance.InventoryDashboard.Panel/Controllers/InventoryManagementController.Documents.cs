@@ -3600,19 +3600,16 @@ public sealed partial class InventoryManagementController
                     break;
 
                 case "Issue":
-                    if (string.IsNullOrWhiteSpace(line.SourceLocationRef))
-                    {
-                        return "برای سند حواله، لوکیشن مبدا الزامی است.";
-                    }
                     break;
 
                 case "Transfer":
-                    if (string.IsNullOrWhiteSpace(line.SourceLocationRef) || string.IsNullOrWhiteSpace(line.DestinationLocationRef))
+                    if (string.IsNullOrWhiteSpace(line.DestinationLocationRef))
                     {
-                        return "برای سند انتقال، لوکیشن مبدا و مقصد الزامی است.";
+                        return "برای سند انتقال، لوکیشن مقصد الزامی است.";
                     }
 
-                    if (string.Equals(line.SourceLocationRef, line.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrWhiteSpace(line.SourceLocationRef) &&
+                        string.Equals(line.SourceLocationRef, line.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
                     {
                         return "برای سند انتقال، لوکیشن مبدا و مقصد باید متفاوت باشند.";
                     }

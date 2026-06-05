@@ -918,7 +918,7 @@
                     line.querySelectorAll('.line-from-quality, .line-to-quality').forEach(function (el) { el.style.display = config.qualityChange ? '' : 'none'; });
                     line.querySelectorAll('.line-reason').forEach(function (el) { el.style.display = config.lineReason ? '' : 'none'; });
 
-                    setRequired(['.source-location-select'], config.source && !config.exclusiveFlow, line);
+                    setRequired(['.source-location-select'], false, line);
                     setRequired(['.destination-location-select'], config.destination && !config.exclusiveFlow, line);
                     setRequired(['.line-adjustment select'], config.adjustment, line);
                     setRequired(['.line-reason input'], config.lineReason, line);
@@ -1076,11 +1076,6 @@ for (var i = 0; i < lines.length; i++) {
 
                     if (!qty || Number(qty.value) <= 0) {
                         showValidation(lineTitle + ': @UiText["inventory.documents.validation.qtyPositive"]', qty);
-                        return false;
-                    }
-
-                    if (config.source && !config.exclusiveFlow && (!source || !source.value)) {
-                        showValidation(lineTitle + ': @UiText["inventory.documents.action.noLocationSelected"]', source);
                         return false;
                     }
 
