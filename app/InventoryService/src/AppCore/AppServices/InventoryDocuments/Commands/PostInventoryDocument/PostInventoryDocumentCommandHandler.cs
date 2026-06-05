@@ -95,6 +95,7 @@ public class PostInventoryDocumentCommandHandler
 
         var selectedSerialsByLine = BuildSelectedSerialsByLine(document);
         var effects = BuildEffects(document, selectedSerialsByLine).ToList();
+        var stockDetailsByBucket = new Dictionary<StockDetailBucketKey, StockDetail>();
         _logger.LogInformation(
             "Posting inventory document {DocumentNo} ({DocumentBusinessKey}) type {DocumentType} with {LineCount} effects.",
             document.DocumentNo,
@@ -135,13 +136,25 @@ public class PostInventoryDocumentCommandHandler
             if (locationRef is null || qualityStatusRef is null)
                 return Fail($"Posting failed for {effectLabel}: location and quality status must be resolved before posting.");
 
-            var stockDetail = await _stockDetailRepository.FindByBucketAsync(
+            var stockDetailBucketKey = new StockDetailBucketKey(
                 line.VariantRef,
                 document.SellerRef,
                 effectWarehouseRef,
                 locationRef.Value,
                 qualityStatusRef.Value,
-                line.LotBatchNo);
+                NormalizeLotBatchNo(line.LotBatchNo));
+
+            stockDetailsByBucket.TryGetValue(stockDetailBucketKey, out var stockDetail);
+            if (stockDetail is null)
+            {
+                stockDetail = await _stockDetailRepository.FindByBucketAsync(
+                    line.VariantRef,
+                    document.SellerRef,
+                    effectWarehouseRef,
+                    locationRef.Value,
+                    qualityStatusRef.Value,
+                    line.LotBatchNo);
+            }
 
             if (stockDetail is null)
             {
@@ -161,6 +174,7 @@ public class PostInventoryDocumentCommandHandler
                 await _stockDetailRepository.InsertAsync(stockDetail);
             }
 
+            stockDetailsByBucket[stockDetailBucketKey] = stockDetail;
             stockDetail.ApplyQuantity(line.BaseQtyDelta, document.OccurredAt);
             line.LinkStockDetail(stockDetail.BusinessKey);
 
@@ -1109,6 +1123,14 @@ public class PostInventoryDocumentCommandHandler
         IReadOnlyList<PostInventoryDocumentLineSerialItem> Serials,
         bool UseUniqueSerialItems,
         int LineNo);
+
+    private sealed record StockDetailBucketKey(
+        Guid VariantRef,
+        Guid SellerRef,
+        Guid WarehouseRef,
+        Guid LocationRef,
+        Guid QualityStatusRef,
+        string? LotBatchNo);
 
     private sealed record PostLineSerialSelectionContext(
         bool UseUniqueSerialItems,
