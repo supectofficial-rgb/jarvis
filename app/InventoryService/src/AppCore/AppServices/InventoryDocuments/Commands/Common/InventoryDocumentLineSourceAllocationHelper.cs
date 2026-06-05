@@ -58,7 +58,7 @@ internal static class InventoryDocumentLineSourceAllocationHelper
         var requestedLotBatchNo = NormalizeLotBatchNo(line.LotBatchNo);
         var requestedQualityStatusRef = line.QualityStatusRef;
 
-        logger?.LogInformation(
+        logger?.LogWarning(
             "Allocating source balances for document {DocumentNo} ({DocumentBusinessKey}) line {LineBusinessKey} variant {VariantRef} qty {BaseQty} sourceLocation {SourceLocationRef} lot {LotBatchNo} quality {QualityStatusRef} serialCount {SerialCount}.",
             document.DocumentNo,
             document.BusinessKey.Value,
@@ -69,6 +69,14 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             requestedLotBatchNo,
             requestedQualityStatusRef,
             selectedSerialRefs.Count);
+
+        if (selectedSerialRefs.Count > 0)
+        {
+            logger?.LogWarning(
+                "Selected serial refs for line {LineBusinessKey}: {SerialRefs}.",
+                line.BusinessKey.Value,
+                string.Join(", ", selectedSerialRefs.Select(x => x.ToString("D"))));
+        }
 
         var sourceBalances = await repository.GetOpenByPoolAsync(
             line.VariantRef,
@@ -83,7 +91,7 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             .ThenBy(x => x.Id)
             .ToList();
 
-        logger?.LogInformation(
+        logger?.LogWarning(
             "Source allocation candidate count for line {LineBusinessKey}: totalOpen={TotalOpen}, scopedCandidates={ScopedCandidates}, selectedSerials={SelectedSerials}.",
             line.BusinessKey.Value,
             sourceBalances.Count,
@@ -92,7 +100,7 @@ internal static class InventoryDocumentLineSourceAllocationHelper
 
         foreach (var candidate in orderedSourceBalances.Take(10))
         {
-            logger?.LogInformation(
+            logger?.LogWarning(
                 "Source allocation candidate for line {LineBusinessKey}: sourceBalance {SourceBalanceBusinessKey} location {LocationRef} lot {LotBatchNo} quality {QualityStatusRef} serial {SerialRef} available {AvailableQty} openedAt {OpenedAt}.",
                 line.BusinessKey.Value,
                 candidate.BusinessKey.Value,
@@ -124,11 +132,16 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             var quantityToAllocate = Math.Min(sourceBalance.AvailableQty, remaining);
             if (quantityToAllocate <= 0)
             {
+                logger?.LogWarning(
+                    "Skipping sourceBalance {SourceBalanceBusinessKey} for line {LineBusinessKey} because available qty is {AvailableQty}.",
+                    sourceBalance.BusinessKey.Value,
+                    line.BusinessKey.Value,
+                    sourceBalance.AvailableQty);
                 continue;
             }
 
             sourceBalance.Allocate(line.BusinessKey.Value, sourceBalance.BusinessKey.Value, quantityToAllocate);
-            logger?.LogInformation(
+            logger?.LogWarning(
                 "Allocated {QuantityToAllocate} from sourceBalance {SourceBalanceBusinessKey} to line {LineBusinessKey}; remaining {Remaining}.",
                 quantityToAllocate,
                 sourceBalance.BusinessKey.Value,
@@ -150,7 +163,7 @@ internal static class InventoryDocumentLineSourceAllocationHelper
                 nameof(line.BaseQty));
         }
 
-        logger?.LogInformation(
+        logger?.LogWarning(
             "Source allocation completed for line {LineBusinessKey} on document {DocumentNo}.",
             line.BusinessKey.Value,
             document.DocumentNo);
