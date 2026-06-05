@@ -2254,14 +2254,15 @@
                     return;
                 }
 
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalElement).modal('hide');
+                    return;
+                }
+
                 if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                     var modalInstance = bootstrap.Modal.getInstance(modalElement) || bootstrap.Modal.getOrCreateInstance(modalElement);
                     modalInstance.hide();
                     return;
-                }
-
-                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
-                    window.jQuery(modalElement).modal('hide');
                 }
             }
 
@@ -2348,6 +2349,17 @@
 
                 setActionError('');
                 updateIssueActionDependentSections();
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(modalSelector).modal('hide');
+                } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var detailsModalElement = document.querySelector(modalSelector);
+                    if (detailsModalElement) {
+                        var detailsModalInstance = bootstrap.Modal.getInstance(detailsModalElement) || bootstrap.Modal.getOrCreateInstance(detailsModalElement);
+                        detailsModalInstance.hide();
+                    }
+                }
+
                 showActionModal();
             }
 

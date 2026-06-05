@@ -5441,13 +5441,6 @@ public sealed partial class InventoryManagementController
             return result;
         }
 
-        var totalAvailable = candidateBuckets.Sum(x => x.QuantityOnHand);
-        if (totalAvailable < form.Qty)
-        {
-            result.ErrorMessage = $"فقط {totalAvailable} واحد در محدوده انتخاب‌شده قابل تخصیص است.";
-            return result;
-        }
-
         var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, variant.Id, document.WarehouseRef);
         if (!serialsResult.IsSuccess)
         {
@@ -5466,46 +5459,72 @@ public sealed partial class InventoryManagementController
             .ThenBy(x => x.SerialItemBusinessKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var bucketCandidates = candidateBuckets
+            .Select(bucket =>
+            {
+                var bucketSerialCount = availableSerials.Count(serial => SerialMatchesBucket(serial, bucket));
+                var allocatableQty = bucketSerialCount > 0
+                    ? Math.Min(bucket.QuantityOnHand, bucketSerialCount)
+                    : bucket.QuantityOnHand;
+
+                return new AutoAllocationBucketCandidate(bucket, allocatableQty);
+            })
+            .ToList();
+
+        var totalAvailable = bucketCandidates.Sum(x => x.AllocatableQty);
+        if (totalAvailable < form.Qty)
+        {
+            result.ErrorMessage = $"فقط {totalAvailable} واحد در محدوده انتخاب‌شده قابل تخصیص است.";
+            return result;
+        }
+
         var allocations = new List<AutoAllocationSourceChunk>();
         var remainingQty = form.Qty;
+        var remainingSerialPool = availableSerials.ToList();
 
-        foreach (var bucket in candidateBuckets)
+        foreach (var candidate in bucketCandidates)
         {
             if (remainingQty <= 0)
             {
                 break;
             }
 
-            var bucketQty = Math.Min(bucket.QuantityOnHand, remainingQty);
+            var bucketQty = Math.Min(candidate.AllocatableQty, remainingQty);
             if (bucketQty <= 0)
             {
                 continue;
             }
 
-            var bucketSerials = availableSerials
-                .Where(serial => SerialMatchesBucket(serial, bucket))
+            var bucketSerials = remainingSerialPool
+                .Where(serial => SerialMatchesBucket(serial, candidate.Bucket))
                 .ToList();
 
             if (bucketSerials.Count > 0)
             {
                 if (bucketQty != decimal.Truncate(bucketQty))
                 {
-                    result.ErrorMessage = $"منبع سریال‌دار '{bucket.LotBatchNo ?? bucket.StockDetailBusinessKey.ToString("D")}' فقط با تعداد صحیح قابل تخصیص است.";
+                    result.ErrorMessage = $"منبع سریال‌دار '{candidate.Bucket.LotBatchNo ?? candidate.Bucket.StockDetailBusinessKey.ToString("D")}' فقط با تعداد صحیح قابل تخصیص است.";
                     return result;
                 }
 
                 var requiredSerialCount = (int)bucketQty;
                 if (bucketSerials.Count < requiredSerialCount)
                 {
-                    result.ErrorMessage = $"برای منبع '{bucket.LotBatchNo ?? bucket.StockDetailBusinessKey.ToString("D")}' فقط {bucketSerials.Count} سریال قابل انتخاب موجود است.";
+                    result.ErrorMessage = $"برای منبع '{candidate.Bucket.LotBatchNo ?? candidate.Bucket.StockDetailBusinessKey.ToString("D")}' فقط {bucketSerials.Count} سریال قابل انتخاب موجود است.";
                     return result;
                 }
 
-                allocations.Add(new AutoAllocationSourceChunk(bucket, bucketQty, bucketSerials.Take(requiredSerialCount).ToList()));
+                var allocatedSerials = bucketSerials.Take(requiredSerialCount).ToList();
+                allocations.Add(new AutoAllocationSourceChunk(candidate.Bucket, bucketQty, allocatedSerials));
+
+                foreach (var allocatedSerial in allocatedSerials)
+                {
+                    remainingSerialPool.Remove(allocatedSerial);
+                }
             }
             else
             {
-                allocations.Add(new AutoAllocationSourceChunk(bucket, bucketQty, new List<SerialItemLookupModel>()));
+                allocations.Add(new AutoAllocationSourceChunk(candidate.Bucket, bucketQty, new List<SerialItemLookupModel>()));
             }
 
             remainingQty -= bucketQty;
@@ -5518,7 +5537,7 @@ public sealed partial class InventoryManagementController
         }
 
         result.Success = true;
-        result.Allocations = allocations;
+        result.Allocations = MergeAutoAllocationSourceChunks(allocations);
         return result;
     }
 
@@ -5843,10 +5862,53 @@ public sealed partial class InventoryManagementController
         public List<AutoAllocationSourceChunk> Allocations { get; set; } = new();
     }
 
+    private sealed record AutoAllocationBucketCandidate(
+        StockDetailBucketModel Bucket,
+        decimal AllocatableQty);
+
     private sealed record AutoAllocationSourceChunk(
         StockDetailBucketModel Bucket,
         decimal BaseQty,
         List<SerialItemLookupModel> Serials);
+
+    private static List<AutoAllocationSourceChunk> MergeAutoAllocationSourceChunks(IEnumerable<AutoAllocationSourceChunk> allocations)
+    {
+        var merged = new List<AutoAllocationSourceChunk>();
+        var indexByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var allocation in allocations)
+        {
+            var key = string.Join("|",
+                NormalizeLookupKey(allocation.Bucket.LocationRef.ToString("D")) ?? string.Empty,
+                NormalizeLookupKey(allocation.Bucket.QualityStatusRef.ToString("D")) ?? string.Empty,
+                NormalizeLotBatchNo(allocation.Bucket.LotBatchNo) ?? string.Empty,
+                allocation.Serials.Count > 0 ? "serial" : "qty");
+
+            if (!indexByKey.TryGetValue(key, out var index))
+            {
+                indexByKey[key] = merged.Count;
+                merged.Add(new AutoAllocationSourceChunk(
+                    allocation.Bucket,
+                    allocation.BaseQty,
+                    allocation.Serials.ToList()));
+                continue;
+            }
+
+            var current = merged[index];
+            merged[index] = new AutoAllocationSourceChunk(
+                current.Bucket,
+                current.BaseQty + allocation.BaseQty,
+                current.Serials
+                    .Concat(allocation.Serials)
+                    .GroupBy(x => string.IsNullOrWhiteSpace(x.SerialItemBusinessKey)
+                        ? $"no:{x.SerialNo}"
+                        : $"id:{x.SerialItemBusinessKey}", StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .ToList());
+        }
+
+        return merged;
+    }
 
     private static InventoryDocumentLineForm CloneInventoryDocumentLineForm(InventoryDocumentLineForm source)
     {

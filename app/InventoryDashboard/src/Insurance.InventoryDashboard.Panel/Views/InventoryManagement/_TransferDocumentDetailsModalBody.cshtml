@@ -411,3 +411,18 @@
         </div>
     }
 </div>
+
+<script data-ajax-reinit="transfer-document-details-body">
+    (function () {
+        if (!window.appUi || typeof window.appUi.initTransferDocumentsModal !== 'function') {
+            return;
+        }
+
+        var root = document.getElementById('transfer-document-details-modal-body');
+        if (!root) {
+            return;
+        }
+
+        window.appUi.initTransferDocumentsModal(root);
+    })();
+</script>
