@@ -889,6 +889,8 @@
             var changeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
             var issueDetailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.details.title"]));
             var issueDocumentTypeText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.type.issue"]));
+            var deleteDocumentConfirmText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.confirm.deleteDocumentWithLines"]));
+            var deleteLineConfirmText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.confirm.deleteLine"]));
             var safeIssueDetailsTitleText = (typeof issueDetailsTitleText === 'string' && issueDetailsTitleText) ? issueDetailsTitleText : @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.details.title"]));
             var safeIssueDocumentTypeText = (typeof issueDocumentTypeText === 'string' && issueDocumentTypeText) ? issueDocumentTypeText : @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.type.issue"]));
             var typeGuidance = document.getElementById('document-type-guidance');
@@ -1502,7 +1504,10 @@
                     return;
                 }
 
-                if (!window.confirm('Ø§ÛŒÙ† Ø³Ù†Ø¯ ' + (documentNo ? '(' + documentNo + ')' : '') + ' Ùˆ Ù‡Ù…Ù‡ Ø¢ÛŒØªÙ…â€ŒÙ‡Ø§ÛŒ Ø¢Ù† Ø­Ø°Ù Ø´ÙˆÙ†Ø¯ØŸ')) {
+                var confirmText = (typeof deleteDocumentConfirmText === 'string' && deleteDocumentConfirmText)
+                    ? deleteDocumentConfirmText
+                    : 'Delete this document and all its items?';
+                if (!window.confirm(confirmText + (documentNo ? ' (' + documentNo + ')' : ''))) {
                     return;
                 }
 
@@ -1517,21 +1522,21 @@
                 payload.append('occurredFrom', getIssueListValue('occurredFrom'));
                 payload.append('occurredTo', getIssueListValue('occurredTo'));
 
-                var form = document.createElement('form');
-                form.method = 'post';
-                form.action = deleteDocumentUrl;
-                form.style.display = 'none';
-
-                payload.forEach(function (value, key) {
-                    var input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = value;
-                    form.appendChild(input);
+                var response = await fetch(deleteDocumentUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'text/html'
+                    },
+                    body: payload.toString()
                 });
 
-                document.body.appendChild(form);
-                form.submit();
+                if (!response.ok) {
+                    throw new Error('Delete issue document request failed.');
+                }
+
+                await refreshIssueDocumentList();
             }
 
             async function deleteIssueDocumentLine(documentId, lineId, documentNo) {
@@ -1539,7 +1544,10 @@
                     return;
                 }
 
-                if (!window.confirm('Ø§ÛŒÙ† Ø¢ÛŒØªÙ… Ø­Ø°Ù Ø´ÙˆØ¯ØŸ')) {
+                var confirmText = (typeof deleteLineConfirmText === 'string' && deleteLineConfirmText)
+                    ? deleteLineConfirmText
+                    : 'Delete this item?';
+                if (!window.confirm(confirmText)) {
                     return;
                 }
 

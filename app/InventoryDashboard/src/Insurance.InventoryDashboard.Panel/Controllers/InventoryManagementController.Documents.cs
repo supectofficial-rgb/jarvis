@@ -1060,6 +1060,7 @@ public sealed partial class InventoryManagementController
                             .Select(item => new InventoryDocumentLineSerialModel
                             {
                                 SerialItemBusinessKey = item.SerialItemBusinessKey,
+                                SerialRef = item.SerialItemBusinessKey,
                                 SerialNo = item.SerialNo
                             })
                             .ToList();
@@ -1087,6 +1088,7 @@ public sealed partial class InventoryManagementController
                     .Select(item => new InventoryDocumentLineSerialModel
                     {
                         SerialItemBusinessKey = item.SerialItemBusinessKey,
+                        SerialRef = item.SerialItemBusinessKey,
                         SerialNo = item.SerialNo
                     })
                     .ToList();
@@ -1134,6 +1136,7 @@ public sealed partial class InventoryManagementController
                         .Select(item => new InventoryDocumentLineSerialModel
                         {
                             SerialItemBusinessKey = item.AvailableSerial.SerialItemBusinessKey,
+                            SerialRef = item.AvailableSerial.SerialItemBusinessKey,
                             SerialNo = item.AvailableSerial.SerialNo
                         })
                         .ToList();
@@ -1189,6 +1192,7 @@ public sealed partial class InventoryManagementController
                 .Select(item => new InventoryDocumentLineSerialModel
                 {
                     SerialItemBusinessKey = item.AvailableSerial.SerialItemBusinessKey,
+                    SerialRef = item.AvailableSerial.SerialItemBusinessKey,
                     SerialNo = item.AvailableSerial.SerialNo
                 })
                 .ToList();

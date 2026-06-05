@@ -55,9 +55,15 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             line.QualityStatusRef,
             line.LotBatchNo);
 
+        var selectedSerialRefs = line.Serials
+            .Where(x => x.SerialRef.HasValue)
+            .Select(x => x.SerialRef!.Value)
+            .ToHashSet();
+
         sourceBalances = sourceBalances
             .Where(x => x.LocationRef == line.SourceLocationRef.Value)
-            .OrderBy(x => x.OpenedAt)
+            .OrderByDescending(x => selectedSerialRefs.Count > 0 && x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
+            .ThenBy(x => x.OpenedAt)
             .ThenBy(x => x.Id)
             .ToList();
 
