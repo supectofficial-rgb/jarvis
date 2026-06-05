@@ -40,6 +40,7 @@ public class StockDetailCommandRepository
         IQueryable<StockDetail> query = _dbContext.StockDetails
             .Where(x =>
                 x.VariantRef == variantRef &&
+                x.SellerRef == sellerRef &&
                 x.WarehouseRef == warehouseRef &&
                 x.LocationRef == locationRef &&
                 x.QualityStatusRef == qualityStatusRef);
