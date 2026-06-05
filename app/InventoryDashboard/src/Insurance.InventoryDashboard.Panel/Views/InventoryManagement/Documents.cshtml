@@ -1177,7 +1177,7 @@
                 },
                 Issue: {
                     title: 'حواله انبار',
-                    text: 'برای خروج کالا از انبار استفاده می‌شود. در هر ردیف، لوکیشن مبدا الزامی است.',
+                    text: 'برای خروج کالا از انبار استفاده می‌شود. لوکیشن مبدا اختیاری است و در صورت انتخاب، نتایج را محدود می‌کند.',
                     source: true,
                     destination: false,
                     quality: false,
@@ -1187,7 +1187,7 @@
                 },
                 Transfer: {
                     title: 'انتقال بین لوکیشن‌ها',
-                    text: 'برای جابه‌جایی داخلی کالا استفاده می‌شود. مبدا و مقصد هر ردیف الزامی و باید متفاوت باشند.',
+                    text: 'برای جابه‌جایی داخلی کالا استفاده می‌شود. لوکیشن مبدا اختیاری است و لوکیشن مقصد برای ثبت انتقال استفاده می‌شود.',
                     source: true,
                     destination: true,
                     quality: false,
@@ -1593,11 +1593,6 @@
 
                     if (!qty || Number(qty.value) <= 0) {
                         showValidation(lineTitle + ': تعداد باید بزرگ‌تر از صفر باشد.', qty);
-                        return false;
-                    }
-
-                    if (config.source && !config.exclusiveFlow && (!source || !source.value)) {
-                        showValidation(lineTitle + ': لوکیشن مبدا الزامی است.', source);
                         return false;
                     }
 

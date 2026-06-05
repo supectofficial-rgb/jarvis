@@ -194,11 +194,19 @@
                             </div>
                             <div class="form-group col-md-4">
                                 <label>لوکیشن مبدأ</label>
-                                <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select js-issue-line-source" data-placeholder="انتخاب لوکیشن" disabled required>
+                                <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select js-issue-line-source" data-placeholder="انتخاب لوکیشن" disabled>
                                     <option value="">ابتدا واریانت را انتخاب کنید</option>
                                 </select>
                             </div>
-                            <div class="form-group col-12 col-lg-4 line-serials d-none">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>@UiText["inventory.documents.line.lotBatch"]</label>
+                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-issue-line-lot" data-placeholder="@UiText["inventory.documents.line.lotBatch"]">
+                                    <option value="">@UiText["inventory.documents.line.lotBatch"]</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-12 col-lg-8 line-serials d-none">
                                 <label>@UiText["inventory.documents.issue.serial.title"]</label>
                                 <div class="text-muted small js-issue-line-serial-summary mb-2" data-select-prompt="@UiText["inventory.documents.issue.serial.selectLocationPrompt"]" data-no-available="@UiText["inventory.documents.issue.serial.noAvailable"]" data-select-available="@UiText["inventory.documents.issue.serial.selectPrompt"]">@UiText["inventory.documents.issue.serial.selectLocationPrompt"]</div>
                                 <div class="list-group js-issue-line-serial-container" style="max-height: 240px; overflow:auto;"></div>
@@ -212,14 +220,6 @@
                             </div>
                             <div class="form-group col-md-2 d-flex align-items-end">
                                 <button class="btn btn-primary btn-block js-issue-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.action.addItem"] : UiText["inventory.documents.action.saveChanges"])</button>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group col-md-4">
-                                <label>@UiText["inventory.documents.line.lotBatch"]</label>
-                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-issue-line-lot" data-placeholder="@UiText["inventory.documents.line.lotBatch"]">
-                                    <option value="">@UiText["inventory.documents.line.lotBatch"]</option>
-                                </select>
                             </div>
                         </div>
                     </form>
