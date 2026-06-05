@@ -1517,21 +1517,21 @@
                 payload.append('occurredFrom', getIssueListValue('occurredFrom'));
                 payload.append('occurredTo', getIssueListValue('occurredTo'));
 
-                var response = await fetch(deleteDocumentUrl, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'Accept': 'text/html'
-                    },
-                    body: payload.toString()
+                var form = document.createElement('form');
+                form.method = 'post';
+                form.action = deleteDocumentUrl;
+                form.style.display = 'none';
+
+                payload.forEach(function (value, key) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
                 });
 
-                if (!response.ok) {
-                    throw new Error('Delete document request failed.');
-                }
-
-                await refreshIssueDocumentList();
+                document.body.appendChild(form);
+                form.submit();
             }
 
             async function deleteIssueDocumentLine(documentId, lineId, documentNo) {

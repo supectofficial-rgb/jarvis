@@ -232,8 +232,9 @@ public class PostInventoryDocumentCommandHandler
                     return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) requires quality status to consume a source balance.");
 
                 var remainingToConsume = Math.Abs(line.BaseQtyDelta);
+                var reservationRef = effect.DocumentLine.BusinessKey.Value;
 
-                var allocatedSourceBalances = await _sourceBalanceRepository.GetByReservationRefAsync(line.BusinessKey.Value);
+                var allocatedSourceBalances = await _sourceBalanceRepository.GetByReservationRefAsync(reservationRef);
                 foreach (var sourceBalance in allocatedSourceBalances
                              .OrderBy(x => x.OpenedAt)
                              .ThenBy(x => x.Id))
@@ -242,7 +243,7 @@ public class PostInventoryDocumentCommandHandler
                         break;
 
                     var allocations = sourceBalance.Allocations
-                        .Where(x => x.ReservationRef == line.BusinessKey.Value && x.ActiveAllocatedQty > 0)
+                        .Where(x => x.ReservationRef == reservationRef && x.ActiveAllocatedQty > 0)
                         .OrderBy(x => x.CreatedAt)
                         .ThenBy(x => x.Id)
                         .ToList();
@@ -260,7 +261,7 @@ public class PostInventoryDocumentCommandHandler
                             allocation.BusinessKey.Value,
                             consumedQty,
                             transaction.BusinessKey.Value,
-                            line.BusinessKey.Value,
+                            effect.DocumentLine.BusinessKey.Value,
                             line.ReasonCode ?? document.ReasonCode);
 
                         remainingToConsume -= consumedQty;
