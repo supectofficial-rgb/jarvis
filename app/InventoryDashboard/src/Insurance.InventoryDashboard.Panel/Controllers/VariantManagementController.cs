@@ -371,7 +371,10 @@ public sealed class VariantManagementController : CatalogManagementController
         }
 
         var result = await _apiService.GetAvailableStockBucketsAsync(token, variantRef: variantRef);
-        var serialsResult = await _inventoryApiService.SearchSerialItemsAsync(token, variantId: variantRef.ToString("D"));
+        var serialsResult = await _inventoryApiService.SearchSerialItemsAsync(
+            token,
+            variantId: variantRef.ToString("D"),
+            status: "Available");
         var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
         var qualityStatusLookupResult = await _apiService.GetQualityStatusLookupAsync(token, includeInactive: true);

@@ -1497,6 +1497,14 @@
                             option.selected = true;
                             returnReferenceSelect.appendChild(option);
                         }
+
+                        if (returnReferenceIdInput) {
+                            returnReferenceIdInput.value = String(referenceDocument.documentBusinessKey || data.id || '');
+                        }
+
+                        if (returnReferenceTypeInput) {
+                            returnReferenceTypeInput.value = returnReferenceDocumentType;
+                        }
                     });
                 }
 
@@ -2048,6 +2056,11 @@
                 var isReturnDocument = ['Return', 'ReturnFromSell', 'ReturnFromBuy', 'ReturnFromTransfer'].indexOf(documentTypeSelect ? documentTypeSelect.value : 'Receipt') > -1;
                 if (isReturnDocument) {
                     syncReturnReferenceInputsFromSelect();
+                }
+                if (isReturnDocument && (!returnReferenceIdInput || !returnReferenceIdInput.value) && returnSourceDocument && returnSourceDocument.documentBusinessKey) {
+                    if (returnReferenceIdInput) {
+                        returnReferenceIdInput.value = String(returnSourceDocument.documentBusinessKey || '');
+                    }
                 }
                 if (isReturnDocument && (!returnReferenceIdInput || !returnReferenceIdInput.value)) {
                     showValidation('@returnReferenceLabelText', returnReferenceSelect || createForm);

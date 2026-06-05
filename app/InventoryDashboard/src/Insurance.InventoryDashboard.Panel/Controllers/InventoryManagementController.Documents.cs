@@ -823,13 +823,6 @@ public sealed partial class InventoryManagementController
         }
 
         var filteredSerials = serialsResult.Data ?? new List<SerialItemLookupModel>();
-        if (Guid.TryParse(sourceLocationId, out var parsedSourceLocationId))
-        {
-            var sourceLocationKey = parsedSourceLocationId.ToString("D");
-            filteredSerials = filteredSerials
-                .Where(x => string.Equals(x.LocationRef, sourceLocationKey, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
 
         if (Guid.TryParse(qualityStatusId, out var parsedQualityStatusId))
         {
@@ -3140,6 +3133,7 @@ public sealed partial class InventoryManagementController
             {
                 "Receipt" => "برای سند مرجوعی از خرید، انتخاب سند رسید مبنا الزامی است.",
                 "Transfer" => "برای سند مرجوعی از انتقال، انتخاب سند انتقال مبنا الزامی است.",
+                "Issue" => "برای سند مرجوعی از فروش، انتخاب سند خروج مبنا الزامی است.",
                 _ => "برای سند مرجوعی، انتخاب سند حواله مبنا الزامی است."
             };
             return RedirectToAction(routeActionName);

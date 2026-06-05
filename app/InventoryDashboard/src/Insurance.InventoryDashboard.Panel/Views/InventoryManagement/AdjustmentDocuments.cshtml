@@ -246,23 +246,16 @@
                                         شماره سند هنگام ثبت توسط سیستم ایجاد می‌شود.
                                     </div>
                                 </div>
-                                @if (isAdjustmentDocument)
-                                {
-                                    <input type="hidden" asp-for="CreateForm.WarehouseRef" />
-                                }
-                                else
-                                {
-                                    <div class="form-group col-md-3">
-                                        <label>@UiText["common.warehouse"]</label>
-                                        <select asp-for="CreateForm.WarehouseRef" class="form-control js-search-select" id="create-warehouse-select" data-placeholder='@UiText["common.select"]' required>
-                                            <option value="">@UiText["common.select"]</option>
-                                            @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                            {
-                                                <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.CreateForm.WarehouseRef ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-                                }
+                                <div class="form-group col-md-3">
+                                    <label>@UiText["common.warehouse"]</label>
+                                    <select asp-for="CreateForm.WarehouseRef" class="form-control js-search-select" id="create-warehouse-select" data-placeholder='@UiText["common.select"]' required>
+                                        <option value="">@UiText["common.select"]</option>
+                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@warehouse.WarehouseBusinessKey" selected="@(warehouse.WarehouseBusinessKey == Model.CreateForm.WarehouseRef ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
+                                        }
+                                    </select>
+                                </div>
                                 @await Html.PartialAsync("_DocumentReferenceLookup", Model, new ViewDataDictionary(ViewData) { ["ReferenceLookupPrefix"] = "adjustment-reference" })
                                 <div class="form-group col-md-3">
                                     <label>@UiText["inventory.documents.occurredAt"]</label>
@@ -277,7 +270,7 @@
                             @if (isAdjustmentDocument)
                             {
                                 <div class="alert alert-light border small mb-3">
-                                    انبار در سند تعدیل از روی لاین‌ها و لوکیشن‌ها تعیین می‌شود و در سربرگ نمایش داده نمی‌شود.
+                                    انبار سند تعدیل باید در سربرگ انتخاب شود و لوکیشن‌های لاین‌ها بر اساس آن فیلتر می‌شوند.
                                 </div>
                             }
 
@@ -1007,7 +1000,7 @@
                 }
 
                 var warehouseField = document.getElementById('create-warehouse-select');
-                if (!isAdjustmentDocument && warehouseField && !warehouseField.value) {
+                if (warehouseField && !warehouseField.value) {
                     showValidation('@UiText["inventory.documents.action.noWarehouseSelected"]', warehouseField);
                     return false;
                 }
