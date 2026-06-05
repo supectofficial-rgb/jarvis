@@ -60,20 +60,41 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             .Select(x => x.SerialRef!.Value)
             .ToHashSet();
 
-        sourceBalances = sourceBalances
+        var orderedSourceBalances = sourceBalances
             .Where(x => x.LocationRef == line.SourceLocationRef.Value)
             .OrderByDescending(x => selectedSerialRefs.Count > 0 && x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
             .ThenBy(x => x.OpenedAt)
             .ThenBy(x => x.Id)
             .ToList();
 
-        if (sourceBalances.Count == 0)
+        if (selectedSerialRefs.Count > 0)
+        {
+            var allOpenBalances = await repository.GetOpenByPoolAsync(
+                line.VariantRef,
+                document.WarehouseRef);
+
+            var exactSerialBalances = allOpenBalances
+                .Where(x => x.LocationRef == line.SourceLocationRef.Value)
+                .Where(x => x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
+                .ToList();
+
+            orderedSourceBalances = exactSerialBalances
+                .Concat(orderedSourceBalances)
+                .GroupBy(x => x.BusinessKey.Value)
+                .Select(group => group.First())
+                .OrderByDescending(x => x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
+                .ThenBy(x => x.OpenedAt)
+                .ThenBy(x => x.Id)
+                .ToList();
+        }
+
+        if (orderedSourceBalances.Count == 0)
         {
             throw new AggregateStateExceptions("No open source balance found for the selected line.", nameof(line.VariantRef));
         }
 
         var remaining = line.BaseQty;
-        foreach (var sourceBalance in sourceBalances)
+        foreach (var sourceBalance in orderedSourceBalances)
         {
             if (remaining <= 0)
             {
