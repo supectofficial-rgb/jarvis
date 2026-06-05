@@ -1229,6 +1229,27 @@ for (var i = 0; i < lines.length; i++) {
                     .replace(/'/g, '&#39;');
             }
 
+            function getDocumentTypeLabel(type) {
+                switch ((type || '').toLowerCase()) {
+                    case 'receipt':
+                        return '@UiText["inventory.documents.type.receipt"]';
+                    case 'issue':
+                        return '@UiText["inventory.documents.type.issue"]';
+                    case 'transfer':
+                        return '@UiText["inventory.documents.type.transfer"]';
+                    case 'adjustment':
+                        return '@UiText["inventory.documents.type.adjustment"]';
+                    case 'return':
+                        return '@UiText["inventory.documents.type.return"]';
+                    case 'qualitychange':
+                        return '@UiText["inventory.documents.type.qualityChange"]';
+                    case 'conversion':
+                        return '@UiText["inventory.documents.type.conversion"]';
+                    default:
+                        return type || '-';
+                }
+            }
+
             function hydrateTransferInventoryOptions(root) {
                 root = root || document;
                 var locationJson = root.dataset ? root.dataset.locationOptions : '';
@@ -2397,10 +2418,7 @@ for (var i = 0; i < lines.length; i++) {
 
                 await refreshTransferDocumentList();
 
-                var detailsModal = document.querySelector('#transfer-document-details-modal');
-                if (detailsModal && detailsModal.classList.contains('show')) {
-                    await loadTransferDetails(documentId, documentNo);
-                }
+                await loadTransferDetails(documentId, documentNo);
             }
 
             function getTransferListForm() {
