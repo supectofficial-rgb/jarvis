@@ -347,7 +347,13 @@
                                                 </div>
                                                 <div class="form-group col-md-2">
                                                     <label>@UiText["inventory.documents.line.lotBatch"]</label>
-                                                    <input name="CreateForm.Lines[@i].LotBatchNo" value="@Model.CreateForm.Lines[i].LotBatchNo" class="form-control" />
+                                                    <select name="CreateForm.Lines[@i].LotBatchNo" class="form-control document-lot-select js-search-select" data-placeholder="@UiText["inventory.documents.line.lotBatch"]">
+                                                        <option value="">@UiText["inventory.documents.line.lotBatch"]</option>
+                                                        @if (!string.IsNullOrWhiteSpace(Model.CreateForm.Lines[i].LotBatchNo))
+                                                        {
+                                                            <option value="@Model.CreateForm.Lines[i].LotBatchNo" selected="selected">@Model.CreateForm.Lines[i].LotBatchNo</option>
+                                                        }
+                                                    </select>
                                                 </div>
                                                 @if (showQualityChangeFields)
                                                 {
@@ -584,6 +590,203 @@
             var returnSourceDocument = null;
             var returnAllowedVariantIds = [];
             var returnVariantSerialLookup = {};
+            var returnVariantReferenceLineLookup = {};
+            var returnLocationMetadataLookup = {};
+
+            function normalizeReturnLookupKey(value) {
+                return String(value || '').trim().toLowerCase();
+            }
+
+            function normalizeReturnLotKey(value) {
+                return String(value || '').trim().toLowerCase();
+            }
+
+            function buildReturnLocationMetadataLookup() {
+                var lookup = {};
+                document.querySelectorAll('.document-location-select option[value]').forEach(function (option) {
+                    var locationRef = String(option.value || '').trim();
+                    if (!locationRef) {
+                        return;
+                    }
+
+                    var key = normalizeReturnLookupKey(locationRef);
+                    if (!lookup[key]) {
+                        lookup[key] = {
+                            value: locationRef,
+                            text: option.textContent ? option.textContent.trim() : locationRef,
+                            warehouseRef: option.getAttribute('data-warehouse-ref') || ''
+                        };
+                    }
+                });
+
+                return lookup;
+            }
+
+            function returnLocationLabel(locationRef) {
+                var key = normalizeReturnLookupKey(locationRef);
+                if (!key) {
+                    return '';
+                }
+
+                var metadata = returnLocationMetadataLookup[key];
+                return metadata && metadata.text ? metadata.text : String(locationRef || '').trim();
+            }
+
+            function resolveReturnClientSourceLocationRef(returnDocumentType, line) {
+                switch (returnDocumentType) {
+                    case 'ReturnFromBuy':
+                    case 'ReturnFromTransfer':
+                        return line.destinationLocationRef || line.sourceLocationRef || '';
+                    default:
+                        return '';
+                }
+            }
+
+            function resolveReturnClientDestinationLocationRef(returnDocumentType, line) {
+                switch (returnDocumentType) {
+                    case 'ReturnFromSell':
+                    case 'ReturnFromTransfer':
+                        return line.sourceLocationRef || line.destinationLocationRef || '';
+                    default:
+                        return '';
+                }
+            }
+
+            function currentReturnDocumentType() {
+                return documentTypeSelect && documentTypeSelect.value
+                    ? String(documentTypeSelect.value || '').trim()
+                    : '@currentDocumentType';
+            }
+
+            function getReturnVariantReferenceLines(variantId) {
+                if (!variantId || !returnVariantReferenceLineLookup) {
+                    return [];
+                }
+
+                return returnVariantReferenceLineLookup[normalizeReturnLookupKey(variantId)] || [];
+            }
+
+            function createReturnReferenceLineEntry(line) {
+                var documentType = currentReturnDocumentType();
+                var variantId = String(line && line.variantRef || '').trim();
+                var lotBatchNo = String(line && line.lotBatchNo || '').trim();
+                var sourceLocationRef = resolveReturnClientSourceLocationRef(documentType, line || {});
+                var destinationLocationRef = resolveReturnClientDestinationLocationRef(documentType, line || {});
+                var qualityStatusRef = String(line && (line.qualityStatusRef || line.fromQualityStatusRef || line.toQualityStatusRef) || '').trim();
+                var serials = Array.isArray(line && line.serials) ? line.serials.map(function (serial) {
+                    return {
+                        serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
+                        serialRef: String(serial.serialRef || ''),
+                        serialNo: String(serial.serialNo || ''),
+                        warehouseRef: String(returnSourceDocument && returnSourceDocument.warehouseRef || ''),
+                        sourceLocationRef: sourceLocationRef,
+                        destinationLocationRef: destinationLocationRef,
+                        locationRef: sourceLocationRef || destinationLocationRef,
+                        qualityStatusRef: qualityStatusRef,
+                        lotBatchNo: lotBatchNo,
+                        status: String(serial.status || 'Available')
+                    };
+                }) : [];
+
+                return {
+                    lineBusinessKey: String(line && line.lineBusinessKey || ''),
+                    variantId: variantId,
+                    sourceLocationRef: sourceLocationRef,
+                    destinationLocationRef: destinationLocationRef,
+                    qualityStatusRef: qualityStatusRef,
+                    lotBatchNo: lotBatchNo,
+                    serials: serials
+                };
+            }
+
+            function rebuildReturnReferenceLookups(payload) {
+                returnAllowedVariantIds = [];
+                returnVariantSerialLookup = {};
+                returnVariantReferenceLineLookup = {};
+
+                var lineGroups = Array.isArray(payload && payload.referenceLinesByVariant)
+                    ? payload.referenceLinesByVariant
+                    : [];
+
+                if (!lineGroups.length) {
+                    var documentLines = payload && payload.document && Array.isArray(payload.document.lines)
+                        ? payload.document.lines
+                        : [];
+
+                    lineGroups = documentLines
+                        .filter(function (line) { return line && line.variantRef; })
+                        .reduce(function (groups, line) {
+                            var variantId = String(line.variantRef || '').trim();
+                            if (!variantId) {
+                                return groups;
+                            }
+
+                            var key = normalizeReturnLookupKey(variantId);
+                            if (!groups[key]) {
+                                groups[key] = {
+                                    variantId: variantId,
+                                    lines: []
+                                };
+                            }
+
+                            groups[key].lines.push(createReturnReferenceLineEntry(line));
+                            return groups;
+                        }, {});
+
+                    lineGroups = Object.keys(lineGroups).map(function (key) { return lineGroups[key]; });
+                }
+
+                lineGroups.forEach(function (group) {
+                    var variantId = String(group && group.variantId || '').trim();
+                    if (!variantId) {
+                        return;
+                    }
+
+                    if (returnAllowedVariantIds.indexOf(variantId) === -1) {
+                        returnAllowedVariantIds.push(variantId);
+                    }
+
+                    var key = normalizeReturnLookupKey(variantId);
+                    if (!returnVariantReferenceLineLookup[key]) {
+                        returnVariantReferenceLineLookup[key] = [];
+                    }
+                    if (!returnVariantSerialLookup[key]) {
+                        returnVariantSerialLookup[key] = [];
+                    }
+
+                    (group.lines || []).forEach(function (line) {
+                        var lineEntry = {
+                            lineBusinessKey: String(line.lineBusinessKey || ''),
+                            variantId: variantId,
+                            sourceLocationRef: String(line.sourceLocationRef || ''),
+                            destinationLocationRef: String(line.destinationLocationRef || ''),
+                            qualityStatusRef: String(line.qualityStatusRef || ''),
+                            lotBatchNo: String(line.lotBatchNo || ''),
+                            serials: []
+                        };
+
+                        (line.serials || []).forEach(function (serial) {
+                            var serialEntry = {
+                                serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
+                                serialRef: String(serial.serialRef || ''),
+                                serialNo: String(serial.serialNo || ''),
+                                warehouseRef: String(serial.warehouseRef || (returnSourceDocument && returnSourceDocument.warehouseRef) || ''),
+                                sourceLocationRef: String(serial.sourceLocationRef || lineEntry.sourceLocationRef || ''),
+                                destinationLocationRef: String(serial.destinationLocationRef || lineEntry.destinationLocationRef || ''),
+                                locationRef: String(serial.locationRef || serial.sourceLocationRef || lineEntry.sourceLocationRef || serial.destinationLocationRef || lineEntry.destinationLocationRef || ''),
+                                qualityStatusRef: String(serial.qualityStatusRef || lineEntry.qualityStatusRef || ''),
+                                lotBatchNo: String(serial.lotBatchNo || lineEntry.lotBatchNo || ''),
+                                status: String(serial.status || 'Available')
+                            };
+
+                            lineEntry.serials.push(serialEntry);
+                            returnVariantSerialLookup[key].push(serialEntry);
+                        });
+
+                        returnVariantReferenceLineLookup[key].push(lineEntry);
+                    });
+                });
+            }
 
             var documentTypeConfig = {
                 Receipt: {
@@ -963,7 +1166,12 @@
 
                     var meta = document.createElement('div');
                     meta.className = 'small text-muted';
-                    meta.textContent = [serial.warehouseRef, serial.locationRef, serial.qualityStatusRef, serial.status || ''].filter(Boolean).join(' / ');
+                    meta.textContent = [
+                        returnLocationLabel(serial.locationRef || serial.sourceLocationRef || serial.destinationLocationRef),
+                        serial.lotBatchNo || '',
+                        serial.qualityStatusRef,
+                        serial.status || ''
+                    ].filter(Boolean).join(' / ');
 
                     body.appendChild(title);
                     body.appendChild(meta);
@@ -975,12 +1183,157 @@
                 syncReturnLineSerialHiddenInputs(line);
             }
 
-            function getReturnVariantSerials(variantId) {
-                if (!variantId || !returnVariantSerialLookup) {
+            function getReturnScopedReferenceLines(line, includeLotFilter) {
+                var variantSelect = line.querySelector('.document-variant-select');
+                if (!variantSelect || !variantSelect.value) {
                     return [];
                 }
 
-                return returnVariantSerialLookup[String(variantId).toLowerCase()] || [];
+                var sourceSelect = line.querySelector('.source-location-select');
+                var destinationSelect = line.querySelector('.destination-location-select');
+                var lotSelect = line.querySelector('.document-lot-select');
+
+                var sourceLocationKey = normalizeReturnLookupKey(sourceSelect && sourceSelect.value);
+                var destinationLocationKey = normalizeReturnLookupKey(destinationSelect && destinationSelect.value);
+                var lotBatchKey = includeLotFilter === false ? '' : normalizeReturnLotKey(lotSelect && lotSelect.value);
+
+                return getReturnVariantReferenceLines(variantSelect.value)
+                    .filter(function (referenceLine) {
+                        if (sourceLocationKey && normalizeReturnLookupKey(referenceLine.sourceLocationRef) !== sourceLocationKey) {
+                            return false;
+                        }
+
+                        if (destinationLocationKey && normalizeReturnLookupKey(referenceLine.destinationLocationRef) !== destinationLocationKey) {
+                            return false;
+                        }
+
+                        if (lotBatchKey && normalizeReturnLotKey(referenceLine.lotBatchNo) !== lotBatchKey) {
+                            return false;
+                        }
+
+                        return true;
+                    });
+            }
+
+            function buildReturnLocationOptions(referenceLines, propertyName) {
+                var seen = {};
+                return (referenceLines || []).reduce(function (items, referenceLine) {
+                    var locationRef = String(referenceLine && referenceLine[propertyName] || '').trim();
+                    var locationKey = normalizeReturnLookupKey(locationRef);
+                    if (!locationKey || seen[locationKey]) {
+                        return items;
+                    }
+
+                    seen[locationKey] = true;
+                    var metadata = returnLocationMetadataLookup[locationKey];
+                    items.push({
+                        value: locationRef,
+                        text: metadata && metadata.text ? metadata.text : locationRef,
+                        warehouseRef: metadata && metadata.warehouseRef ? metadata.warehouseRef : ''
+                    });
+                    return items;
+                }, []);
+            }
+
+            function buildReturnLotOptions(referenceLines) {
+                var seen = {};
+                return (referenceLines || []).reduce(function (items, referenceLine) {
+                    var lotBatchNo = String(referenceLine && referenceLine.lotBatchNo || '').trim();
+                    var lotKey = normalizeReturnLotKey(lotBatchNo);
+                    if (!lotKey || seen[lotKey]) {
+                        return items;
+                    }
+
+                    seen[lotKey] = true;
+                    items.push({
+                        value: lotBatchNo,
+                        text: lotBatchNo
+                    });
+                    return items;
+                }, []);
+            }
+
+            function replaceReturnSelectOptions(select, items, placeholderText) {
+                if (!select) {
+                    return;
+                }
+
+                var selectedValue = String(select.value || '').trim();
+                var html = ['<option value="">' + placeholderText + '</option>'];
+                var isSelectedStillAvailable = false;
+
+                (items || []).forEach(function (item) {
+                    var optionValue = String(item && item.value || '').trim();
+                    if (!optionValue) {
+                        return;
+                    }
+
+                    var isSelected = selectedValue && optionValue.toLowerCase() === selectedValue.toLowerCase();
+                    if (isSelected) {
+                        isSelectedStillAvailable = true;
+                    }
+
+                    var warehouseAttribute = item && item.warehouseRef
+                        ? ' data-warehouse-ref="' + String(item.warehouseRef).replace(/"/g, '&quot;') + '"'
+                        : '';
+                    html.push('<option value="' + optionValue.replace(/"/g, '&quot;') + '"' + warehouseAttribute + (isSelected ? ' selected="selected"' : '') + '>' + String(item.text || optionValue) + '</option>');
+                });
+
+                select.innerHTML = html.join('');
+                if (selectedValue && !isSelectedStillAvailable) {
+                    select.value = '';
+                }
+
+                if (window.jQuery) {
+                    window.jQuery(select).trigger('change.select2');
+                }
+            }
+
+            function refreshReturnLineReferenceOptions(line) {
+                if (!line) {
+                    return;
+                }
+
+                var variantSelect = line.querySelector('.document-variant-select');
+                if (!variantSelect) {
+                    return;
+                }
+
+                var variantReferenceLines = getReturnVariantReferenceLines(variantSelect.value);
+                var sourceSelect = line.querySelector('.source-location-select');
+                var destinationSelect = line.querySelector('.destination-location-select');
+                var lotSelect = line.querySelector('.document-lot-select');
+
+                replaceReturnSelectOptions(sourceSelect, buildReturnLocationOptions(variantReferenceLines, 'sourceLocationRef'), '@UiText["inventory.documents.line.selectLocation"]');
+                replaceReturnSelectOptions(destinationSelect, buildReturnLocationOptions(variantReferenceLines, 'destinationLocationRef'), '@UiText["inventory.documents.line.selectLocation"]');
+                replaceReturnSelectOptions(lotSelect, buildReturnLotOptions(getReturnScopedReferenceLines(line, false)), '@UiText["inventory.documents.line.lotBatch"]');
+
+                syncLocationsToWarehouse();
+                updateReturnLineSerials(line);
+            }
+
+            function getReturnVariantSerials(line) {
+                if (!line || !returnVariantSerialLookup) {
+                    return [];
+                }
+
+                var scopedReferenceLines = getReturnScopedReferenceLines(line, true);
+                var serialLookup = {};
+                var serials = [];
+
+                scopedReferenceLines.forEach(function (referenceLine) {
+                    (referenceLine.serials || []).forEach(function (serial) {
+                        var serialKey = normalizeReturnLookupKey(serial.serialItemBusinessKey || serial.serialNo);
+                        if (!serialKey || serialLookup[serialKey]) {
+                            return;
+                        }
+
+                        serialLookup[serialKey] = true;
+                        serials.push(serial);
+                    });
+                });
+
+                return serials;
             }
 
             function refreshReturnVariantOptions() {
@@ -1003,6 +1356,7 @@
                         if (controls.hidden) {
                             controls.hidden.innerHTML = '';
                         }
+                        refreshReturnLineReferenceOptions(line);
                     });
                     return;
                 }
@@ -1043,6 +1397,8 @@
                     if (window.jQuery) {
                         window.jQuery(variantSelect).trigger('change.select2');
                     }
+
+                    refreshReturnLineReferenceOptions(line);
                 });
             }
 
@@ -1302,7 +1658,7 @@
                 toggleTypeFields();
                 syncLocationsToWarehouse();
                 refreshReturnVariantOptions();
-                updateReturnLineSerials(firstLine);
+                refreshReturnLineReferenceOptions(firstLine);
             }
 
             if (returnReferenceTypeInput) {
@@ -1336,9 +1692,8 @@
                     return;
                 }
 
-                var variantId = variantSelect.value || '';
                 var selectedSerialIds = collectReturnSelectedSerialIds(line);
-                var serials = getReturnVariantSerials(variantId);
+                var serials = getReturnVariantSerials(line);
                 renderReturnLineSerialOptions(line, serials, selectedSerialIds);
             }
 
@@ -1349,6 +1704,7 @@
 
                 var url = new URL(returnReferenceDocumentUrl, window.location.origin);
                 url.searchParams.set('documentId', documentId);
+                url.searchParams.set('returnDocumentType', currentReturnDocumentType());
 
                 var response = await fetch(url.toString(), {
                     headers: {
@@ -1476,76 +1832,7 @@
                 var shouldResetDraftLines = !!previousReferenceKey && previousReferenceKey !== nextReferenceKey;
 
                 returnSourceDocument = document;
-                returnAllowedVariantIds = [];
-                returnVariantSerialLookup = {};
-
-                var allowedVariantIds = Array.isArray(payload.allowedVariantIds) ? payload.allowedVariantIds : [];
-                var serialGroups = Array.isArray(payload.serialsByVariant) ? payload.serialsByVariant : [];
-
-                if (allowedVariantIds.length > 0) {
-                    allowedVariantIds.forEach(function (variantId) {
-                        var normalized = String(variantId || '').trim();
-                        if (normalized) {
-                            returnAllowedVariantIds.push(normalized);
-                        }
-                    });
-                }
-
-                if (serialGroups.length > 0) {
-                    serialGroups.forEach(function (group) {
-                        var variantId = String(group.variantId || '').trim();
-                        if (!variantId) {
-                            return;
-                        }
-
-                        if (returnAllowedVariantIds.indexOf(variantId) === -1) {
-                            returnAllowedVariantIds.push(variantId);
-                        }
-
-                        var key = variantId.toLowerCase();
-                        if (!returnVariantSerialLookup[key]) {
-                            returnVariantSerialLookup[key] = [];
-                        }
-
-                        (group.serials || []).forEach(function (serial) {
-                            returnVariantSerialLookup[key].push({
-                                serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
-                                serialNo: String(serial.serialNo || ''),
-                                warehouseRef: String(document.warehouseRef || ''),
-                                locationRef: String(serial.locationRef || ''),
-                                qualityStatusRef: String(serial.qualityStatusRef || ''),
-                                status: String(serial.status || 'Available')
-                            });
-                        });
-                    });
-                } else {
-                    (document.lines || []).forEach(function (line) {
-                        var variantId = String(line.variantRef || '');
-                        if (!variantId) {
-                            return;
-                        }
-
-                        if (returnAllowedVariantIds.indexOf(variantId) === -1) {
-                            returnAllowedVariantIds.push(variantId);
-                        }
-
-                        var key = variantId.toLowerCase();
-                        if (!returnVariantSerialLookup[key]) {
-                            returnVariantSerialLookup[key] = [];
-                        }
-
-                        (line.serials || []).forEach(function (serial) {
-                            returnVariantSerialLookup[key].push({
-                                serialItemBusinessKey: String(serial.serialItemBusinessKey || ''),
-                                serialNo: String(serial.serialNo || ''),
-                                warehouseRef: String(document.warehouseRef || ''),
-                                locationRef: String(line.destinationLocationRef || line.sourceLocationRef || ''),
-                                qualityStatusRef: String(line.qualityStatusRef || ''),
-                                status: String(serial.status || 'Available')
-                            });
-                        });
-                    });
-                }
+                rebuildReturnReferenceLookups(payload);
 
                 if (returnReferenceTypeInput) {
                     returnReferenceTypeInput.value = returnReferenceDocumentType;
@@ -1586,7 +1873,7 @@
 
                 refreshReturnVariantOptions();
                 lineContainer.querySelectorAll('.document-line').forEach(function (line) {
-                    updateReturnLineSerials(line);
+                    refreshReturnLineReferenceOptions(line);
                 });
             }
 
@@ -1625,6 +1912,7 @@
                                 select.value = '';
                             });
                             syncVariantUom(line);
+                            refreshReturnLineReferenceOptions(line);
                             return;
                         }
 
@@ -1639,19 +1927,36 @@
                 if (variantSelect) {
                     variantSelect.addEventListener('change', function () {
                         syncVariantUom(line);
-                        updateReturnLineSerials(line);
+                        refreshReturnLineReferenceOptions(line);
                     });
                     syncVariantUom(line);
                     if (returnSourceDocument) {
-                        updateReturnLineSerials(line);
+                        refreshReturnLineReferenceOptions(line);
                     }
                 }
+
+                ['.source-location-select', '.destination-location-select', '.document-lot-select'].forEach(function (selector) {
+                    var field = line.querySelector(selector);
+                    if (!field) {
+                        return;
+                    }
+
+                    field.addEventListener('change', function () {
+                        if (selector === '.document-lot-select') {
+                            updateReturnLineSerials(line);
+                            return;
+                        }
+
+                        refreshReturnLineReferenceOptions(line);
+                    });
+                });
 
                 if (line.querySelector('.line-serials')) {
                     updateReturnLineSerials(line);
                 }
             }
 
+            returnLocationMetadataLookup = buildReturnLocationMetadataLookup();
             initializeReturnReferenceLookupSelect(document);
 
             if (returnReferenceSelect && window.jQuery) {
@@ -1677,6 +1982,7 @@
                     returnSourceDocument = null;
                     returnAllowedVariantIds = [];
                     returnVariantSerialLookup = {};
+                    returnVariantReferenceLineLookup = {};
                     if (returnReferenceTypeInput) {
                         returnReferenceTypeInput.value = returnReferenceDocumentType;
                     }

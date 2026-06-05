@@ -2771,6 +2771,7 @@ public sealed partial class InventoryManagementController
     [HttpGet("/InventoryManagement/Documents/Return/ReferenceDocument")]
     public async Task<IActionResult> GetReturnReferenceDocument(
         string documentId,
+        string? returnDocumentType = null,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
@@ -2810,30 +2811,82 @@ public sealed partial class InventoryManagementController
             });
         }
 
+        var resolvedReturnDocumentType = ResolveReturnSelectionDocumentType(returnDocumentType, documentResult.Data.DocumentType);
         var allowedVariantIds = new List<string>();
         var serialsByVariant = new List<object>();
-        foreach (var line in documentResult.Data.Lines)
-        {
-            var variantId = line.VariantRef?.Trim();
-            if (string.IsNullOrWhiteSpace(variantId))
-            {
-                continue;
-            }
+        var referenceLinesByVariant = new List<object>();
 
+        foreach (var variantGroup in documentResult.Data.Lines
+                     .Where(line => !string.IsNullOrWhiteSpace(line.VariantRef))
+                     .GroupBy(line => line.VariantRef.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            var variantId = variantGroup.Key;
             if (!allowedVariantIds.Any(x => string.Equals(x, variantId, StringComparison.OrdinalIgnoreCase)))
             {
                 allowedVariantIds.Add(variantId);
             }
 
+            var referenceLines = variantGroup
+                .Select((line, lineIndex) =>
+                {
+                    var sourceLocationRef = ResolveReturnReferenceSourceLocationRef(resolvedReturnDocumentType, line);
+                    var destinationLocationRef = ResolveReturnReferenceDestinationLocationRef(resolvedReturnDocumentType, line);
+                    var qualityStatusRef = ResolveReturnReferenceQualityStatusRef(line);
+                    var normalizedLotBatchNo = NormalizeLotBatchNo(line.LotBatchNo);
+
+                    var lineSerials = line.Serials
+                        .Select((serial, serialIndex) => new
+                        {
+                            serialItemBusinessKey = serial.SerialItemBusinessKey,
+                            serialRef = serial.SerialRef,
+                            serialNo = serial.SerialNo,
+                            sourceLocationRef,
+                            destinationLocationRef,
+                            locationRef = sourceLocationRef ?? destinationLocationRef,
+                            qualityStatusRef,
+                            lotBatchNo = normalizedLotBatchNo,
+                            status = "Available",
+                            sequence = (lineIndex * 1000) + serialIndex
+                        })
+                        .ToList();
+
+                    return new
+                    {
+                        lineBusinessKey = line.LineBusinessKey,
+                        sourceLocationRef,
+                        destinationLocationRef,
+                        qualityStatusRef,
+                        lotBatchNo = normalizedLotBatchNo,
+                        serials = lineSerials
+                    };
+                })
+                .ToList();
+
+            referenceLinesByVariant.Add(new
+            {
+                variantId,
+                lines = referenceLines
+            });
+
             serialsByVariant.Add(new
             {
                 variantId,
-                serials = line.Serials.Select(serial => new
-                {
-                    serialItemBusinessKey = serial.SerialItemBusinessKey,
-                    serialRef = serial.SerialRef,
-                    serialNo = serial.SerialNo
-                }).ToList()
+                serials = referenceLines
+                    .SelectMany(line => line.serials)
+                    .OrderBy(serial => serial.sequence)
+                    .Select(serial => new
+                    {
+                        serial.serialItemBusinessKey,
+                        serial.serialRef,
+                        serial.serialNo,
+                        serial.sourceLocationRef,
+                        serial.destinationLocationRef,
+                        serial.locationRef,
+                        serial.qualityStatusRef,
+                        serial.lotBatchNo,
+                        serial.status
+                    })
+                    .ToList()
             });
         }
 
@@ -2842,7 +2895,8 @@ public sealed partial class InventoryManagementController
             isSuccess = true,
             document = documentResult.Data,
             allowedVariantIds,
-            serialsByVariant
+            serialsByVariant,
+            referenceLinesByVariant
         });
     }
 
@@ -3113,6 +3167,73 @@ public sealed partial class InventoryManagementController
 
                     line.UomRef = variant.BaseUomRef;
                     line.BaseUomRef = variant.BaseUomRef;
+                }
+
+                if (isReturnDocument)
+                {
+                    var draftReturnDocument = new InventoryDocumentDetailsModel
+                    {
+                        DocumentType = form.DocumentType,
+                        ReferenceBusinessId = form.ReferenceBusinessId
+                    };
+
+                    foreach (var line in form.Lines)
+                    {
+                        var lineResolutionForm = new InventoryDocumentLineForm
+                        {
+                            DocumentId = form.DocumentId ?? string.Empty,
+                            DocumentType = form.DocumentType,
+                            VariantId = line.VariantId,
+                            Qty = line.Qty,
+                            UomRef = line.UomRef,
+                            BaseUomRef = line.BaseUomRef,
+                            SourceLocationRef = line.SourceLocationRef,
+                            DestinationLocationRef = line.DestinationLocationRef,
+                            QualityStatusRef = line.QualityStatusRef,
+                            FromQualityStatusRef = line.FromQualityStatusRef,
+                            ToQualityStatusRef = line.ToQualityStatusRef,
+                            LotBatchNo = line.LotBatchNo,
+                            ReasonCode = line.ReasonCode,
+                            AdjustmentDirection = line.AdjustmentDirection,
+                            Serials = line.Serials
+                                .Select(serial => new InventoryDocumentLineSerialModel
+                                {
+                                    SerialItemBusinessKey = serial.SerialItemBusinessKey,
+                                    SerialRef = serial.SerialRef,
+                                    SerialNo = serial.SerialNo
+                                })
+                                .ToList()
+                        };
+
+                        var lineResolutionResult = await TryResolveReturnSourceSelectionAsync(token, draftReturnDocument, lineResolutionForm);
+                        if (!lineResolutionResult.Success)
+                        {
+                            TempData["CatalogError"] = lineResolutionResult.ErrorMessage ?? "امکان تعیین منبع ردیف برگشت وجود نداشت.";
+                            return RedirectToAction(routeActionName);
+                        }
+
+                        var returnLocationValidationError = ValidateReturnLineLocations(form.DocumentType, lineResolutionForm);
+                        if (!string.IsNullOrWhiteSpace(returnLocationValidationError))
+                        {
+                            TempData["CatalogError"] = returnLocationValidationError;
+                            return RedirectToAction(routeActionName);
+                        }
+
+                        line.SourceLocationRef = lineResolutionForm.SourceLocationRef;
+                        line.DestinationLocationRef = lineResolutionForm.DestinationLocationRef;
+                        line.QualityStatusRef = lineResolutionForm.QualityStatusRef;
+                        line.FromQualityStatusRef = lineResolutionForm.FromQualityStatusRef;
+                        line.ToQualityStatusRef = lineResolutionForm.ToQualityStatusRef;
+                        line.LotBatchNo = lineResolutionForm.LotBatchNo;
+                        line.Serials = lineResolutionForm.Serials
+                            .Select(serial => new InventoryDocumentLineSerialModel
+                            {
+                                SerialItemBusinessKey = serial.SerialItemBusinessKey,
+                                SerialRef = serial.SerialRef,
+                                SerialNo = serial.SerialNo
+                            })
+                            .ToList();
+                    }
                 }
             }
 
@@ -5428,20 +5549,31 @@ public sealed partial class InventoryManagementController
             return (false, $"سند مرجع برای واریانت انتخاب‌شده '{form.VariantId}' منبعی ندارد.");
         }
 
-        var availableSerials = BuildReturnReferenceSerialCandidates(referenceDocument, referenceLines, document.DocumentType);
+        var requestedSourceLocationRef = NormalizeLookupKey(form.SourceLocationRef);
+        var requestedDestinationLocationRef = NormalizeLookupKey(form.DestinationLocationRef);
+        var requestedLotBatchNo = NormalizeLotBatchNo(form.LotBatchNo);
+
+        var scopedReferenceLines = referenceLines
+            .Where(line => ReturnReferenceLineMatchesScope(
+                document.DocumentType,
+                line,
+                requestedSourceLocationRef,
+                requestedDestinationLocationRef,
+                requestedLotBatchNo))
+            .ToList();
+
+        if (scopedReferenceLines.Count == 0)
+        {
+            return (false, "در سند مرجع، منبعی مطابق واریانت و فیلترهای انتخاب‌شده پیدا نشد.");
+        }
+
+        var availableSerials = BuildReturnReferenceSerialCandidates(referenceDocument, scopedReferenceLines, document.DocumentType);
         if (!TryResolveSelectedSerials(form.Serials, availableSerials, out var resolvedSerialSelections, out var selectedSerialError))
         {
             return (false, selectedSerialError ?? "انتخاب سریال‌های سند برگشت معتبر نیست.");
         }
 
-        if (resolvedSerialSelections.Count == 0 && availableSerials.Count > 0)
-        {
-            if (!TryAutoAllocateSerialsForLine(availableSerials, form.Qty, out resolvedSerialSelections, out var autoAllocateError))
-            {
-                return (false, autoAllocateError ?? "امکان تخصیص خودکار سریال‌های سند برگشت وجود نداشت.");
-            }
-        }
-
+        InventoryDocumentLineDetailsModel sourceLine;
         if (resolvedSerialSelections.Count > 0)
         {
             if (form.Qty != decimal.Truncate(form.Qty) || resolvedSerialSelections.Count != (int)form.Qty)
@@ -5459,9 +5591,19 @@ public sealed partial class InventoryManagementController
             {
                 return (false, "سریال‌های انتخاب‌شده به بیش از یک لات تعلق دارند. برای هر لات یک ردیف جدا ثبت کنید.");
             }
+
+            sourceLine = ResolveReturnSourceLine(scopedReferenceLines, resolvedSerialSelections);
+        }
+        else
+        {
+            sourceLine = scopedReferenceLines[0];
+            var fifoSourceLineSerials = BuildReturnReferenceSerialCandidates(referenceDocument, new[] { sourceLine }, document.DocumentType);
+            if (fifoSourceLineSerials.Count > 0)
+            {
+                return (false, "برای منبع سریال‌دار انتخاب‌شده، انتخاب سریال الزامی است.");
+            }
         }
 
-        var sourceLine = ResolveReturnSourceLine(referenceLines, resolvedSerialSelections);
         ApplyReturnSourceResolution(document.DocumentType, sourceLine, resolvedSerialSelections, form);
         return (true, null);
     }
@@ -5495,7 +5637,8 @@ public sealed partial class InventoryManagementController
 
         foreach (var (line, lineIndex) in referenceLines.Select((line, index) => (line, index)))
         {
-            var lineLocationRef = ResolveReturnReferenceLocationRef(returnDocumentType, line);
+            var lineLocationRef = ResolveReturnReferenceSourceLocationRef(returnDocumentType, line)
+                ?? ResolveReturnReferenceDestinationLocationRef(returnDocumentType, line);
             var lineQualityStatusRef = ResolveReturnReferenceQualityStatusRef(line);
 
             foreach (var (serial, serialIndex) in line.Serials.Select((serial, index) => (serial, index)))
@@ -5525,19 +5668,75 @@ public sealed partial class InventoryManagementController
         return serials;
     }
 
-    private static string? ResolveReturnReferenceLocationRef(string returnDocumentType, InventoryDocumentLineDetailsModel line)
+    private static string ResolveReturnSelectionDocumentType(string? returnDocumentType, string? referenceDocumentType)
+    {
+        var normalizedReturnDocumentType = NormalizeDocumentType(returnDocumentType);
+        if (IsReturnDocumentType(normalizedReturnDocumentType))
+        {
+            return normalizedReturnDocumentType;
+        }
+
+        return NormalizeDocumentType(referenceDocumentType) switch
+        {
+            "Receipt" => "ReturnFromBuy",
+            "Transfer" => "ReturnFromTransfer",
+            _ => "ReturnFromSell"
+        };
+    }
+
+    private static string? ResolveReturnReferenceSourceLocationRef(string returnDocumentType, InventoryDocumentLineDetailsModel line)
     {
         return returnDocumentType switch
         {
             "ReturnFromBuy" => line.DestinationLocationRef ?? line.SourceLocationRef,
             "ReturnFromTransfer" => line.DestinationLocationRef ?? line.SourceLocationRef,
+            _ => null
+        };
+    }
+
+    private static string? ResolveReturnReferenceDestinationLocationRef(string returnDocumentType, InventoryDocumentLineDetailsModel line)
+    {
+        return returnDocumentType switch
+        {
             "ReturnFromSell" => line.SourceLocationRef ?? line.DestinationLocationRef,
-            _ => line.DestinationLocationRef ?? line.SourceLocationRef
+            "ReturnFromTransfer" => line.SourceLocationRef ?? line.DestinationLocationRef,
+            _ => null
         };
     }
 
     private static string? ResolveReturnReferenceQualityStatusRef(InventoryDocumentLineDetailsModel line)
         => line.QualityStatusRef ?? line.FromQualityStatusRef ?? line.ToQualityStatusRef;
+
+    private static bool ReturnReferenceLineMatchesScope(
+        string returnDocumentType,
+        InventoryDocumentLineDetailsModel line,
+        string? sourceLocationRef,
+        string? destinationLocationRef,
+        string? lotBatchNo)
+    {
+        var lineSourceLocationRef = NormalizeLookupKey(ResolveReturnReferenceSourceLocationRef(returnDocumentType, line));
+        var lineDestinationLocationRef = NormalizeLookupKey(ResolveReturnReferenceDestinationLocationRef(returnDocumentType, line));
+
+        if (!string.IsNullOrWhiteSpace(sourceLocationRef)
+            && !string.Equals(lineSourceLocationRef, sourceLocationRef, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(destinationLocationRef)
+            && !string.Equals(lineDestinationLocationRef, destinationLocationRef, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(lotBatchNo)
+            && !string.Equals(NormalizeLotBatchNo(line.LotBatchNo), lotBatchNo, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
 
     private static void ApplyReturnSourceResolution(
         string returnDocumentType,
@@ -5564,24 +5763,24 @@ public sealed partial class InventoryManagementController
             case "ReturnFromBuy":
                 if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
                 {
-                    form.SourceLocationRef = sourceLine.DestinationLocationRef ?? sourceLine.SourceLocationRef;
+                    form.SourceLocationRef = ResolveReturnReferenceSourceLocationRef(returnDocumentType, sourceLine);
                 }
                 break;
             case "ReturnFromSell":
                 if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
                 {
-                    form.DestinationLocationRef = sourceLine.SourceLocationRef ?? sourceLine.DestinationLocationRef;
+                    form.DestinationLocationRef = ResolveReturnReferenceDestinationLocationRef(returnDocumentType, sourceLine);
                 }
                 break;
             case "ReturnFromTransfer":
                 if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
                 {
-                    form.SourceLocationRef = sourceLine.DestinationLocationRef ?? sourceLine.SourceLocationRef;
+                    form.SourceLocationRef = ResolveReturnReferenceSourceLocationRef(returnDocumentType, sourceLine);
                 }
 
                 if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
                 {
-                    form.DestinationLocationRef = sourceLine.SourceLocationRef ?? sourceLine.DestinationLocationRef;
+                    form.DestinationLocationRef = ResolveReturnReferenceDestinationLocationRef(returnDocumentType, sourceLine);
                 }
                 break;
         }
