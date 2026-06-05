@@ -241,6 +241,11 @@ public class PostInventoryDocumentCommandHandler
 
                 var locationRef = line.DestinationLocationRef;
                 var qualityStatusRef = line.NewQualityStatusRef;
+                var serialRef = line.Serials
+                    .Where(x => x.SerialRef.HasValue)
+                    .Select(x => x.SerialRef)
+                    .FirstOrDefault();
+
                 if (locationRef is null || qualityStatusRef is null)
                     return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) requires destination location and quality status to open a source balance.");
 
@@ -258,7 +263,7 @@ public class PostInventoryDocumentCommandHandler
                     effect.DocumentLine.BusinessKey.Value,
                     transaction.BusinessKey.Value,
                     line.BusinessKey.Value,
-                    serialRef: null);
+                    serialRef: serialRef);
 
                 await _sourceBalanceRepository.InsertAsync(sourceBalance);
                 continue;
