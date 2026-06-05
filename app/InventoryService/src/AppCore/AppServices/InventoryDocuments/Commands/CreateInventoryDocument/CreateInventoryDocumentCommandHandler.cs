@@ -1,8 +1,10 @@
 namespace Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Commands.CreateInventoryDocument;
 
+using Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Commands.Common;
 using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateInventoryDocument;
+using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
 
@@ -10,10 +12,14 @@ public class CreateInventoryDocumentCommandHandler
     : CommandHandler<CreateInventoryDocumentCommand, CreateInventoryDocumentCommandResult>
 {
     private readonly IInventoryDocumentCommandRepository _documentRepository;
+    private readonly IInventorySourceBalanceCommandRepository _sourceBalanceRepository;
 
-    public CreateInventoryDocumentCommandHandler(IInventoryDocumentCommandRepository documentRepository)
+    public CreateInventoryDocumentCommandHandler(
+        IInventoryDocumentCommandRepository documentRepository,
+        IInventorySourceBalanceCommandRepository sourceBalanceRepository)
     {
         _documentRepository = documentRepository;
+        _sourceBalanceRepository = sourceBalanceRepository;
     }
 
     public override async Task<CommandResult<CreateInventoryDocumentCommandResult>> Handle(CreateInventoryDocumentCommand command)
@@ -48,7 +54,7 @@ public class CreateInventoryDocumentCommandHandler
         {
             Enum.TryParse<InventoryAdjustmentDirection>(line.AdjustmentDirection, true, out var adjustmentDirection);
 
-            document.AddLine(InventoryDocumentLine.Create(
+            var documentLine = InventoryDocumentLine.Create(
                 line.VariantRef,
                 line.Qty,
                 line.UomRef,
@@ -61,7 +67,19 @@ public class CreateInventoryDocumentCommandHandler
                 line.ToQualityStatusRef,
                 line.LotBatchNo,
                 line.ReasonCode,
-                line.AdjustmentDirection is null ? null : adjustmentDirection));
+                line.AdjustmentDirection is null ? null : adjustmentDirection);
+
+            document.AddLine(documentLine);
+
+            if (document.DocumentType == InventoryDocumentType.Receipt)
+            {
+                InventoryDocumentReceiptLotHelper.ApplyReceiptLotBatchNo(document);
+            }
+
+            if (InventoryDocumentLineSourceAllocationHelper.ShouldReserveSourceBalances(document.DocumentType))
+            {
+                await InventoryDocumentLineSourceAllocationHelper.AllocateSourceBalancesAsync(document, documentLine, _sourceBalanceRepository);
+            }
         }
 
         await _documentRepository.InsertAsync(document);

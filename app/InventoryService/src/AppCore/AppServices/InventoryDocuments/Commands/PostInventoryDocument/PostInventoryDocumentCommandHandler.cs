@@ -550,6 +550,7 @@ public class PostInventoryDocumentCommandHandler
 
     private static bool ShouldConsumeSource(InventoryDocumentType documentType)
         => documentType is InventoryDocumentType.Issue
+            or InventoryDocumentType.Transfer
             or InventoryDocumentType.Adjustment
             or InventoryDocumentType.Conversion
             or InventoryDocumentType.ReturnFromBuy;

@@ -4,6 +4,9 @@ using Insurance.InventoryService.AppCore.AppServices.InventoryDocuments.Commands
 using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateQualityChangeDocument;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
+using Insurance.InventoryService.AppCore.Shared.SerialItems.Queries;
+using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
 
@@ -11,9 +14,13 @@ public class CreateQualityChangeDocumentCommandHandler : CommandHandler<CreateQu
 {
     private readonly InventoryDocumentCreationService _creationService;
 
-    public CreateQualityChangeDocumentCommandHandler(IInventoryDocumentCommandRepository repository)
+    public CreateQualityChangeDocumentCommandHandler(
+        IInventoryDocumentCommandRepository repository,
+        IInventorySourceBalanceCommandRepository sourceBalanceRepository,
+        ISerialItemCommandRepository serialItemCommandRepository,
+        ISerialItemQueryRepository serialItemQueryRepository)
     {
-        _creationService = new InventoryDocumentCreationService(repository);
+        _creationService = new InventoryDocumentCreationService(repository, sourceBalanceRepository, serialItemCommandRepository, serialItemQueryRepository);
     }
 
     public override async Task<CommandResult<Guid>> Handle(CreateQualityChangeDocumentCommand command)
