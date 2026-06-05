@@ -70,6 +70,11 @@ public sealed class UpdateInventoryDocumentLineCommandHandler : CommandHandler<U
                 command.Line.AdjustmentDirection is null ? null : adjustmentDirection,
                 serials);
 
+            if (document.DocumentType == InventoryDocumentType.Receipt)
+            {
+                InventoryDocumentReceiptLotHelper.ApplyReceiptLotBatchNo(document);
+            }
+
             if (InventoryDocumentLineSerialStatusHelper.ShouldReserveSerials(document.DocumentType))
             {
                 var previousSerialItems = await InventoryDocumentLineSerialStatusHelper.ResolveSerialItemsAsync(

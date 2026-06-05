@@ -908,6 +908,7 @@ public sealed partial class InventoryManagementController
 
         form.UomRef = variant.BaseUomRef;
         form.BaseUomRef = variant.BaseUomRef;
+        form.LotBatchNo = NormalizeLotBatchNo(form.LotBatchNo) ?? ResolveReceiptDocumentLotBatchNo(document);
         var receiptSerialError = PrepareReceiptLineSerials(document, form);
         if (receiptSerialError is not null)
         {
@@ -4365,6 +4366,9 @@ public sealed partial class InventoryManagementController
                 DocumentId = selectedDocumentId ?? string.Empty,
                 DocumentType = documentType,
                 UseUniqueSerialItems = false,
+                LotBatchNo = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase)
+                    ? ResolveReceiptDocumentLotBatchNo(document)
+                    : null,
                 Qty = 1m
             };
         }
@@ -4384,7 +4388,9 @@ public sealed partial class InventoryManagementController
             QualityStatusRef = line.QualityStatusRef,
             FromQualityStatusRef = line.FromQualityStatusRef,
             ToQualityStatusRef = line.ToQualityStatusRef,
-            LotBatchNo = line.LotBatchNo,
+            LotBatchNo = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase)
+                ? NormalizeLotBatchNo(line.LotBatchNo) ?? ResolveReceiptDocumentLotBatchNo(document)
+                : line.LotBatchNo,
             ReasonCode = line.ReasonCode,
             AdjustmentDirection = line.AdjustmentDirection,
             UseUniqueSerialItems = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase) && line.Serials.Count > 0,
@@ -4395,6 +4401,23 @@ public sealed partial class InventoryManagementController
                 SerialNo = serial.SerialNo
             }).ToList()
         };
+    }
+
+    private static string? ResolveReceiptDocumentLotBatchNo(InventoryDocumentDetailsModel? document)
+    {
+        if (document is null)
+        {
+            return null;
+        }
+
+        var lots = document.Lines
+            .Select(x => NormalizeLotBatchNo(x.LotBatchNo))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return lots.Count == 1 ? lots[0] : null;
     }
 
     private static string? PrepareReceiptLineSerials(InventoryDocumentDetailsModel document, InventoryDocumentLineForm form)

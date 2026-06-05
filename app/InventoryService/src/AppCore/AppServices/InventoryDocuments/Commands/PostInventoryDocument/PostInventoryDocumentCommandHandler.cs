@@ -85,21 +85,12 @@ public class PostInventoryDocumentCommandHandler
             idempotencyKey: document.IdempotencyKey,
             reasonCode: document.ReasonCode);
 
-        var receiptLotResolution = TryResolveReceiptLotBatchNo(document);
-        if (!receiptLotResolution.Success)
-            return Fail(receiptLotResolution.Error ?? "Unable to resolve receipt lot batch number.");
-
-        if (document.DocumentType == InventoryDocumentType.Receipt)
-        {
-            document.ApplyReceiptLotBatchNo(receiptLotResolution.ReceiptLotBatchNo);
-        }
-
-        var autoAllocationResult = await EnsureAutoAllocatedSerialsAsync(document);
-        if (!autoAllocationResult.Success)
-            return Fail(autoAllocationResult.Error ?? "Unable to auto-allocate serial items.");
+        var receiptLotValidation = ValidateReceiptLotBatchNumbers(document);
+        if (!receiptLotValidation.Success)
+            return Fail(receiptLotValidation.Error ?? "Unable to validate receipt lot batch number.");
 
         var selectedSerialsByLine = BuildSelectedSerialsByLine(document);
-        var effects = BuildEffects(document, selectedSerialsByLine, receiptLotResolution.ReceiptLotBatchNo).ToList();
+        var effects = BuildEffects(document, selectedSerialsByLine).ToList();
         foreach (var effect in effects)
         {
             var line = effect.TransactionLine;
@@ -241,28 +232,39 @@ public class PostInventoryDocumentCommandHandler
                     return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) requires quality status to consume a source balance.");
 
                 var remainingToConsume = Math.Abs(line.BaseQtyDelta);
-                var sourceBalances = await _sourceBalanceRepository.GetOpenByPoolAsync(
-                    line.VariantRef,
-                    effectWarehouseRef,
-                    qualityStatusRef.Value,
-                    line.LotBatchNo);
 
-                foreach (var sourceBalance in sourceBalances)
+                var allocatedSourceBalances = await _sourceBalanceRepository.GetByReservationRefAsync(line.BusinessKey.Value);
+                foreach (var sourceBalance in allocatedSourceBalances
+                             .OrderBy(x => x.OpenedAt)
+                             .ThenBy(x => x.Id))
                 {
                     if (remainingToConsume <= 0)
                         break;
 
-                    var consumedQty = Math.Min(sourceBalance.AvailableQty, remainingToConsume);
-                    if (consumedQty <= 0)
-                        continue;
+                    var allocations = sourceBalance.Allocations
+                        .Where(x => x.ReservationRef == line.BusinessKey.Value && x.ActiveAllocatedQty > 0)
+                        .OrderBy(x => x.CreatedAt)
+                        .ThenBy(x => x.Id)
+                        .ToList();
 
-                    sourceBalance.Consume(
-                        consumedQty,
-                        transaction.BusinessKey.Value,
-                        line.BusinessKey.Value,
-                        line.ReasonCode ?? document.ReasonCode);
+                    foreach (var allocation in allocations)
+                    {
+                        if (remainingToConsume <= 0)
+                            break;
 
-                    remainingToConsume -= consumedQty;
+                        var consumedQty = Math.Min(allocation.ActiveAllocatedQty, remainingToConsume);
+                        if (consumedQty <= 0)
+                            continue;
+
+                        sourceBalance.ConsumeAllocated(
+                            allocation.BusinessKey.Value,
+                            consumedQty,
+                            transaction.BusinessKey.Value,
+                            line.BusinessKey.Value,
+                            line.ReasonCode ?? document.ReasonCode);
+
+                        remainingToConsume -= consumedQty;
+                    }
                 }
 
                 if (remainingToConsume > 0)
@@ -572,8 +574,7 @@ public class PostInventoryDocumentCommandHandler
 
     private static IEnumerable<InventoryDocumentPostingEffect> BuildEffects(
         InventoryDocument document,
-        IReadOnlyDictionary<Guid, PostLineSerialSelectionContext> selectedSerialsByLine,
-        string? receiptLotBatchNo)
+        IReadOnlyDictionary<Guid, PostLineSerialSelectionContext> selectedSerialsByLine)
     {
         foreach (var (line, index) in document.Lines.Select((line, index) => (line, index)))
         {
@@ -584,7 +585,7 @@ public class PostInventoryDocumentCommandHandler
                 .Select(x => (x.SerialRef, x.SerialNo))
                 .ToList();
             var serialRef = serialTuples.FirstOrDefault().SerialRef;
-            var lotBatchNo = ResolveDocumentLotBatchNo(document, line, receiptLotBatchNo);
+            var lotBatchNo = NormalizeLotBatchNo(line.LotBatchNo);
 
             switch (document.DocumentType)
             {
@@ -780,10 +781,10 @@ public class PostInventoryDocumentCommandHandler
         }
     }
 
-    private static (bool Success, string? Error, string? ReceiptLotBatchNo) TryResolveReceiptLotBatchNo(InventoryDocument document)
+    private static (bool Success, string? Error) ValidateReceiptLotBatchNumbers(InventoryDocument document)
     {
         if (document.DocumentType != InventoryDocumentType.Receipt)
-            return (true, null, null);
+            return (true, null);
 
         var lots = document.Lines
             .Select(line => NormalizeLotBatchNo(line.LotBatchNo))
@@ -791,29 +792,19 @@ public class PostInventoryDocumentCommandHandler
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (lots.Count > 1)
+        if (lots.Count == 1 && document.Lines.All(line => string.Equals(NormalizeLotBatchNo(line.LotBatchNo), lots[0], StringComparison.OrdinalIgnoreCase)))
+            return (true, null);
+
+        if (lots.Count == 0)
         {
             return (
                 false,
-                $"Receipt '{document.DocumentNo}' contains multiple lot batch numbers. Use a single lot batch number for the whole receipt or leave them empty to auto-generate one.",
-                null);
+                $"Receipt '{document.DocumentNo}' must have a lot batch number on its lines before posting.");
         }
 
-        if (lots.Count == 1)
-            return (true, null, lots[0]);
-
-        return (true, null, GenerateReceiptLotBatchNo(document));
-    }
-
-    private static string? ResolveDocumentLotBatchNo(
-        InventoryDocument document,
-        InventoryDocumentLine line,
-        string? receiptLotBatchNo)
-    {
-        if (document.DocumentType == InventoryDocumentType.Receipt)
-            return NormalizeLotBatchNo(line.LotBatchNo) ?? receiptLotBatchNo ?? GenerateReceiptLotBatchNo(document);
-
-        return NormalizeLotBatchNo(line.LotBatchNo) ?? receiptLotBatchNo;
+        return (
+            false,
+            $"Receipt '{document.DocumentNo}' contains multiple lot batch numbers. Use a single lot batch number for the whole receipt.");
     }
 
     private static InventoryDocumentPostingEffect CreateEffect(
@@ -1011,15 +1002,6 @@ public class PostInventoryDocumentCommandHandler
         }
 
         return candidate;
-    }
-
-    private static string GenerateReceiptLotBatchNo(InventoryDocument document)
-    {
-        var documentPart = NormalizeSerialSegment(string.IsNullOrWhiteSpace(document.DocumentNo)
-            ? document.BusinessKey.Value.ToString("N")
-            : document.DocumentNo);
-
-        return $"LOT-{documentPart}";
     }
 
     private static string NormalizeSerialSegment(string value)

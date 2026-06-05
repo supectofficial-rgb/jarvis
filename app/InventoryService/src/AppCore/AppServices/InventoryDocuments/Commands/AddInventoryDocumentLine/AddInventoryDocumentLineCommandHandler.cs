@@ -64,6 +64,11 @@ public sealed class AddInventoryDocumentLineCommandHandler : CommandHandler<AddI
 
             document.AddLine(line);
 
+            if (document.DocumentType == InventoryDocumentType.Receipt)
+            {
+                InventoryDocumentReceiptLotHelper.ApplyReceiptLotBatchNo(document);
+            }
+
             if (InventoryDocumentLineSerialStatusHelper.ShouldReserveSerials(document.DocumentType))
             {
                 var serialItems = await InventoryDocumentLineSerialStatusHelper.ResolveSerialItemsAsync(
