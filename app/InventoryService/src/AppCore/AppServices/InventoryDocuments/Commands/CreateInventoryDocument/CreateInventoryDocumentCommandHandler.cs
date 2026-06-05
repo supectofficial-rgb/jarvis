@@ -5,6 +5,7 @@ using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.CreateInventoryDocument;
 using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
+using Microsoft.Extensions.Logging;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
 
@@ -13,13 +14,16 @@ public class CreateInventoryDocumentCommandHandler
 {
     private readonly IInventoryDocumentCommandRepository _documentRepository;
     private readonly IInventorySourceBalanceCommandRepository _sourceBalanceRepository;
+    private readonly ILogger<CreateInventoryDocumentCommandHandler> _logger;
 
     public CreateInventoryDocumentCommandHandler(
         IInventoryDocumentCommandRepository documentRepository,
-        IInventorySourceBalanceCommandRepository sourceBalanceRepository)
+        IInventorySourceBalanceCommandRepository sourceBalanceRepository,
+        ILogger<CreateInventoryDocumentCommandHandler> logger)
     {
         _documentRepository = documentRepository;
         _sourceBalanceRepository = sourceBalanceRepository;
+        _logger = logger;
     }
 
     public override async Task<CommandResult<CreateInventoryDocumentCommandResult>> Handle(CreateInventoryDocumentCommand command)
@@ -78,7 +82,7 @@ public class CreateInventoryDocumentCommandHandler
 
             if (InventoryDocumentLineSourceAllocationHelper.ShouldReserveSourceBalances(document.DocumentType))
             {
-                await InventoryDocumentLineSourceAllocationHelper.AllocateSourceBalancesAsync(document, documentLine, _sourceBalanceRepository);
+                await InventoryDocumentLineSourceAllocationHelper.AllocateSourceBalancesAsync(document, documentLine, _sourceBalanceRepository, _logger);
             }
         }
 

@@ -4,6 +4,7 @@ using Insurance.InventoryService.AppCore.Domain.InventoryDocuments.Entities;
 using Insurance.InventoryService.AppCore.Domain.SourceTracing.Entities;
 using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
 using OysterFx.AppCore.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
 
 internal static class InventoryDocumentLineSourceAllocationHelper
 {
@@ -32,7 +33,8 @@ internal static class InventoryDocumentLineSourceAllocationHelper
     public static async Task AllocateSourceBalancesAsync(
         InventoryDocument document,
         InventoryDocumentLine line,
-        IInventorySourceBalanceCommandRepository repository)
+        IInventorySourceBalanceCommandRepository repository,
+        ILogger? logger = null)
     {
         if (!ShouldReserveSourceBalances(document.DocumentType))
         {
@@ -49,47 +51,65 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             return;
         }
 
-        var sourceBalances = await repository.GetOpenByPoolAsync(
-            line.VariantRef,
-            document.WarehouseRef,
-            line.QualityStatusRef,
-            line.LotBatchNo);
-
         var selectedSerialRefs = line.Serials
             .Where(x => x.SerialRef.HasValue)
             .Select(x => x.SerialRef!.Value)
             .ToHashSet();
+        var requestedLotBatchNo = NormalizeLotBatchNo(line.LotBatchNo);
+        var requestedQualityStatusRef = line.QualityStatusRef;
+
+        logger?.LogInformation(
+            "Allocating source balances for document {DocumentNo} ({DocumentBusinessKey}) line {LineBusinessKey} variant {VariantRef} qty {BaseQty} sourceLocation {SourceLocationRef} lot {LotBatchNo} quality {QualityStatusRef} serialCount {SerialCount}.",
+            document.DocumentNo,
+            document.BusinessKey.Value,
+            line.BusinessKey.Value,
+            line.VariantRef,
+            line.BaseQty,
+            line.SourceLocationRef,
+            requestedLotBatchNo,
+            requestedQualityStatusRef,
+            selectedSerialRefs.Count);
+
+        var sourceBalances = await repository.GetOpenByPoolAsync(
+            line.VariantRef,
+            document.WarehouseRef);
 
         var orderedSourceBalances = sourceBalances
             .Where(x => x.LocationRef == line.SourceLocationRef.Value)
             .OrderByDescending(x => selectedSerialRefs.Count > 0 && x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
+            .ThenByDescending(x => !string.IsNullOrWhiteSpace(requestedLotBatchNo) && string.Equals(NormalizeLotBatchNo(x.LotBatchNo), requestedLotBatchNo, StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(x => requestedQualityStatusRef.HasValue && x.QualityStatusRef == requestedQualityStatusRef.Value)
             .ThenBy(x => x.OpenedAt)
             .ThenBy(x => x.Id)
             .ToList();
 
-        if (selectedSerialRefs.Count > 0)
+        logger?.LogInformation(
+            "Source allocation candidate count for line {LineBusinessKey}: totalOpen={TotalOpen}, scopedCandidates={ScopedCandidates}, selectedSerials={SelectedSerials}.",
+            line.BusinessKey.Value,
+            sourceBalances.Count,
+            orderedSourceBalances.Count,
+            selectedSerialRefs.Count);
+
+        foreach (var candidate in orderedSourceBalances.Take(10))
         {
-            var allOpenBalances = await repository.GetOpenByPoolAsync(
-                line.VariantRef,
-                document.WarehouseRef);
-
-            var exactSerialBalances = allOpenBalances
-                .Where(x => x.LocationRef == line.SourceLocationRef.Value)
-                .Where(x => x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
-                .ToList();
-
-            orderedSourceBalances = exactSerialBalances
-                .Concat(orderedSourceBalances)
-                .GroupBy(x => x.BusinessKey.Value)
-                .Select(group => group.First())
-                .OrderByDescending(x => x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
-                .ThenBy(x => x.OpenedAt)
-                .ThenBy(x => x.Id)
-                .ToList();
+            logger?.LogInformation(
+                "Source allocation candidate for line {LineBusinessKey}: sourceBalance {SourceBalanceBusinessKey} location {LocationRef} lot {LotBatchNo} quality {QualityStatusRef} serial {SerialRef} available {AvailableQty} openedAt {OpenedAt}.",
+                line.BusinessKey.Value,
+                candidate.BusinessKey.Value,
+                candidate.LocationRef,
+                candidate.LotBatchNo,
+                candidate.QualityStatusRef,
+                candidate.SerialRef,
+                candidate.AvailableQty,
+                candidate.OpenedAt);
         }
 
         if (orderedSourceBalances.Count == 0)
         {
+            logger?.LogWarning(
+                "No open source balance found for line {LineBusinessKey} on document {DocumentNo}.",
+                line.BusinessKey.Value,
+                document.DocumentNo);
             throw new AggregateStateExceptions("No open source balance found for the selected line.", nameof(line.VariantRef));
         }
 
@@ -108,14 +128,34 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             }
 
             sourceBalance.Allocate(line.BusinessKey.Value, sourceBalance.BusinessKey.Value, quantityToAllocate);
+            logger?.LogInformation(
+                "Allocated {QuantityToAllocate} from sourceBalance {SourceBalanceBusinessKey} to line {LineBusinessKey}; remaining {Remaining}.",
+                quantityToAllocate,
+                sourceBalance.BusinessKey.Value,
+                line.BusinessKey.Value,
+                remaining - quantityToAllocate);
             remaining -= quantityToAllocate;
         }
 
         if (remaining > 0)
         {
+            logger?.LogWarning(
+                "Source allocation failed for line {LineBusinessKey} on document {DocumentNo}: requested {RequestedQty}, remaining {RemainingQty}.",
+                line.BusinessKey.Value,
+                document.DocumentNo,
+                line.BaseQty,
+                remaining);
             throw new AggregateStateExceptions(
                 $"document line '{line.BusinessKey.Value:D}' does not have enough open source balance to cover {line.BaseQty} base units.",
                 nameof(line.BaseQty));
         }
+
+        logger?.LogInformation(
+            "Source allocation completed for line {LineBusinessKey} on document {DocumentNo}.",
+            line.BusinessKey.Value,
+            document.DocumentNo);
     }
+
+    private static string? NormalizeLotBatchNo(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

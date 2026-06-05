@@ -17,6 +17,7 @@ using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
 using Insurance.InventoryService.AppCore.Shared.InventoryTransactions.Commands;
 using Insurance.InventoryService.AppCore.Shared.StockDetails.Commands;
 using Insurance.InventoryService.AppCore.Shared.Warehouse.Locations.Queries;
+using Microsoft.Extensions.Logging;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Domain.ValueObjects;
 using OysterFx.AppCore.Shared.Commands.Common;
@@ -32,6 +33,7 @@ public class PostInventoryDocumentCommandHandler
     private readonly ISerialItemCommandRepository _serialRepository;
     private readonly ISerialItemQueryRepository _serialQueryRepository;
     private readonly ILocationQueryRepository _locationRepository;
+    private readonly ILogger<PostInventoryDocumentCommandHandler> _logger;
 
     public PostInventoryDocumentCommandHandler(
         IInventoryDocumentCommandRepository documentRepository,
@@ -41,7 +43,8 @@ public class PostInventoryDocumentCommandHandler
         IInventorySourceBalanceCommandRepository sourceBalanceRepository,
         ISerialItemCommandRepository serialRepository,
         ISerialItemQueryRepository serialQueryRepository,
-        ILocationQueryRepository locationRepository)
+        ILocationQueryRepository locationRepository,
+        ILogger<PostInventoryDocumentCommandHandler> logger)
     {
         _documentRepository = documentRepository;
         _transactionRepository = transactionRepository;
@@ -51,6 +54,7 @@ public class PostInventoryDocumentCommandHandler
         _serialRepository = serialRepository;
         _serialQueryRepository = serialQueryRepository;
         _locationRepository = locationRepository;
+        _logger = logger;
     }
 
     public override async Task<CommandResult<PostInventoryDocumentCommandResult>> Handle(PostInventoryDocumentCommand command)
@@ -91,11 +95,31 @@ public class PostInventoryDocumentCommandHandler
 
         var selectedSerialsByLine = BuildSelectedSerialsByLine(document);
         var effects = BuildEffects(document, selectedSerialsByLine).ToList();
+        _logger.LogInformation(
+            "Posting inventory document {DocumentNo} ({DocumentBusinessKey}) type {DocumentType} with {LineCount} effects.",
+            document.DocumentNo,
+            document.BusinessKey.Value,
+            document.DocumentType,
+            effects.Count);
+
         foreach (var effect in effects)
         {
             var line = effect.TransactionLine;
             transaction.AddLine(line);
             var effectLabel = DescribeEffect(document, effect);
+            _logger.LogInformation(
+                "Processing effect {EffectLabel} for document {DocumentNo} line {LineNo} ({DocumentLineBusinessKey}) qtyDelta {BaseQtyDelta} sourceLocation {SourceLocationRef} destinationLocation {DestinationLocationRef} lot {LotBatchNo} quality {OldQualityStatusRef}->{NewQualityStatusRef}.",
+                effectLabel,
+                document.DocumentNo,
+                effect.LineNo,
+                effect.DocumentLine.BusinessKey.Value,
+                line.BaseQtyDelta,
+                line.SourceLocationRef,
+                line.DestinationLocationRef,
+                line.LotBatchNo,
+                line.OldQualityStatusRef,
+                line.NewQualityStatusRef);
+
             var effectWarehouseRef = await ResolveEffectWarehouseRefAsync(effect);
             if (effectWarehouseRef == Guid.Empty)
                 return Fail($"{effectLabel}: unable to resolve warehouse from document header or line locations.");
@@ -145,9 +169,27 @@ public class PostInventoryDocumentCommandHandler
                 return Fail($"{effectLabel}: {serialResult.Error ?? "Serial item processing failed."}");
         }
 
+        _logger.LogInformation(
+            "Applying source tracing for inventory document {DocumentNo} ({DocumentBusinessKey}) with {EffectCount} effects.",
+            document.DocumentNo,
+            document.BusinessKey.Value,
+            effects.Count);
+
         var sourceTracingResult = await ApplySourceTracingAsync(document, transaction, effects);
         if (!sourceTracingResult.Success)
+        {
+            _logger.LogWarning(
+                "Source tracing failed for inventory document {DocumentNo} ({DocumentBusinessKey}): {ErrorMessage}",
+                document.DocumentNo,
+                document.BusinessKey.Value,
+                sourceTracingResult.Error);
             return Fail($"Source tracing failed for inventory document '{document.DocumentNo}': {sourceTracingResult.Error ?? "Unknown source tracing error."}");
+        }
+
+        _logger.LogInformation(
+            "Source tracing completed for inventory document {DocumentNo} ({DocumentBusinessKey}).",
+            document.DocumentNo,
+            document.BusinessKey.Value);
 
         transaction.MarkPosted();
         await _transactionRepository.InsertAsync(transaction);

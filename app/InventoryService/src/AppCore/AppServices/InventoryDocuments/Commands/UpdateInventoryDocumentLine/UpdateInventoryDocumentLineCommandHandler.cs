@@ -7,6 +7,7 @@ using Insurance.InventoryService.AppCore.Shared.SourceTracing.Commands;
 using Insurance.InventoryService.AppCore.Shared.SerialItems.Commands;
 using Insurance.InventoryService.AppCore.Shared.SerialItems.Queries;
 using Insurance.InventoryService.AppCore.Shared.InventoryDocuments.Commands.UpdateInventoryDocumentLine;
+using Microsoft.Extensions.Logging;
 using OysterFx.AppCore.AppServices.Commands;
 using OysterFx.AppCore.Shared.Commands.Common;
 
@@ -16,17 +17,20 @@ public sealed class UpdateInventoryDocumentLineCommandHandler : CommandHandler<U
     private readonly IInventorySourceBalanceCommandRepository _sourceBalanceRepository;
     private readonly ISerialItemCommandRepository _serialItemCommandRepository;
     private readonly ISerialItemQueryRepository _serialItemQueryRepository;
+    private readonly ILogger<UpdateInventoryDocumentLineCommandHandler> _logger;
 
     public UpdateInventoryDocumentLineCommandHandler(
         IInventoryDocumentCommandRepository repository,
         IInventorySourceBalanceCommandRepository sourceBalanceRepository,
         ISerialItemCommandRepository serialItemCommandRepository,
-        ISerialItemQueryRepository serialItemQueryRepository)
+        ISerialItemQueryRepository serialItemQueryRepository,
+        ILogger<UpdateInventoryDocumentLineCommandHandler> logger)
     {
         _repository = repository;
         _sourceBalanceRepository = sourceBalanceRepository;
         _serialItemCommandRepository = serialItemCommandRepository;
         _serialItemQueryRepository = serialItemQueryRepository;
+        _logger = logger;
     }
 
     public override async Task<CommandResult<Guid>> Handle(UpdateInventoryDocumentLineCommand command)
@@ -95,7 +99,7 @@ public sealed class UpdateInventoryDocumentLineCommandHandler : CommandHandler<U
             if (InventoryDocumentLineSourceAllocationHelper.ShouldReserveSourceBalances(document.DocumentType))
             {
                 await InventoryDocumentLineSourceAllocationHelper.ReleaseSourceAllocationsAsync(existingLine.BusinessKey.Value, _sourceBalanceRepository);
-                await InventoryDocumentLineSourceAllocationHelper.AllocateSourceBalancesAsync(document, existingLine, _sourceBalanceRepository);
+                await InventoryDocumentLineSourceAllocationHelper.AllocateSourceBalancesAsync(document, existingLine, _sourceBalanceRepository, _logger);
             }
         }
         catch (Exception ex)
