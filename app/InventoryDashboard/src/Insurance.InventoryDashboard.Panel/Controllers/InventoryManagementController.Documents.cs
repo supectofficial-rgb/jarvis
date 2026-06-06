@@ -2405,6 +2405,21 @@ public sealed partial class InventoryManagementController
             return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
         }
 
+        var returnCapacityValidationError = await ValidateReturnLineCapacityAsync(token, document, form, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(returnCapacityValidationError))
+        {
+            _logger.LogWarning(
+                "SaveReturnDocumentLine capacity validation failed. DocumentId={DocumentId}, DocumentType={DocumentType}, Error={Error}, ReferenceLineBusinessKey={ReferenceLineBusinessKey}",
+                form.DocumentId,
+                document.DocumentType,
+                returnCapacityValidationError,
+                form.ReferenceLineBusinessKey);
+            var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
+            invalidModel.ErrorMessage = returnCapacityValidationError;
+            invalidModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
+        }
+
         var lineResult = string.IsNullOrWhiteSpace(form.LineId)
             ? await _apiService.AddInventoryDocumentLineAsync(form.DocumentId, form, token)
             : await _apiService.UpdateInventoryDocumentLineAsync(form.DocumentId, form.LineId!, form, token);
@@ -4683,6 +4698,7 @@ public sealed partial class InventoryManagementController
                 : line.LotBatchNo,
             ReasonCode = line.ReasonCode,
             AdjustmentDirection = line.AdjustmentDirection,
+            ReferenceLineBusinessKey = null,
             UseUniqueSerialItems = string.Equals(documentType, "Receipt", StringComparison.OrdinalIgnoreCase) && line.Serials.Count > 0,
             Serials = line.Serials.Select(serial => new InventoryDocumentLineSerialModel
             {
@@ -6128,6 +6144,133 @@ public sealed partial class InventoryManagementController
         };
     }
 
+    private async Task<string?> ValidateReturnLineCapacityAsync(
+        string token,
+        InventoryDocumentDetailsModel returnDocument,
+        InventoryDocumentLineForm form,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(returnDocument.ReferenceBusinessId))
+        {
+            return null;
+        }
+
+        var referenceDocumentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(returnDocument.ReferenceBusinessId, token);
+        if (!referenceDocumentResult.IsSuccess || referenceDocumentResult.Data is null)
+        {
+            return referenceDocumentResult.ErrorMessage ?? "سند مبنا برای کنترل ظرفیت یافت نشد.";
+        }
+
+        var referenceDocument = referenceDocumentResult.Data;
+        var resolvedReturnDocumentType = ResolveReturnSelectionDocumentType(returnDocument.DocumentType, referenceDocument.DocumentType);
+        var selectedSerialIds = (form.Serials ?? new List<InventoryDocumentLineSerialModel>())
+            .Select(x => NormalizeLineSerialKey(x.SerialItemBusinessKey, x.SerialRef, x.SerialNo))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var candidateReferenceLines = referenceDocument.Lines
+            .Where(line => string.Equals(line.VariantRef, form.VariantId, StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(NormalizeLotBatchNo(line.LotBatchNo), NormalizeLotBatchNo(form.LotBatchNo), StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(ResolveReturnReferenceSourceLocationRef(resolvedReturnDocumentType, line), form.SourceLocationRef, StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(ResolveReturnReferenceDestinationLocationRef(resolvedReturnDocumentType, line), form.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(ResolveReturnReferenceQualityStatusRef(line), form.QualityStatusRef, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        InventoryDocumentLineDetailsModel? referenceLine = null;
+        if (!string.IsNullOrWhiteSpace(form.ReferenceLineBusinessKey))
+        {
+            referenceLine = candidateReferenceLines.FirstOrDefault(line =>
+                string.Equals(line.LineBusinessKey, form.ReferenceLineBusinessKey, StringComparison.OrdinalIgnoreCase));
+        }
+
+        referenceLine ??= candidateReferenceLines.FirstOrDefault(line =>
+        {
+            if (selectedSerialIds.Count == 0)
+            {
+                return true;
+            }
+
+            var lineSerialIds = line.Serials
+                .Select(serial => NormalizeLineSerialKey(serial.SerialItemBusinessKey, serial.SerialRef, serial.SerialNo))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            return selectedSerialIds.All(lineSerialIds.Contains);
+        });
+
+        if (referenceLine is null)
+        {
+            return "لاین مبنا برای این برگشت پیدا نشد.";
+        }
+
+        var existingLines = returnDocument.Lines
+            .Where(line => !string.Equals(line.LineBusinessKey, form.LineId, StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(line.VariantRef, referenceLine.VariantRef, StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(NormalizeLotBatchNo(line.LotBatchNo), NormalizeLotBatchNo(referenceLine.LotBatchNo), StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(line.SourceLocationRef, form.SourceLocationRef, StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(line.DestinationLocationRef, form.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
+            .Where(line => string.Equals(line.QualityStatusRef, form.QualityStatusRef, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var referenceSerialIds = referenceLine.Serials
+            .Select(serial => NormalizeLineSerialKey(serial.SerialItemBusinessKey, serial.SerialRef, serial.SerialNo))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (referenceSerialIds.Count > 0)
+        {
+            if (selectedSerialIds.Count == 0)
+            {
+                return "برای این لاین، انتخاب شناسه یکتا الزامی است.";
+            }
+
+            if (selectedSerialIds.Any(serialId => !referenceSerialIds.Contains(serialId)))
+            {
+                return "برخی شناسه‌های انتخاب‌شده متعلق به لاین مبنا نیستند.";
+            }
+
+            var usedSerialIds = existingLines
+                .SelectMany(line => line.Serials)
+                .Select(serial => NormalizeLineSerialKey(serial.SerialItemBusinessKey, serial.SerialRef, serial.SerialNo))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (selectedSerialIds.Any(usedSerialIds.Contains))
+            {
+                return "بخشی از شناسه‌های انتخاب‌شده قبلاً برای این سند برگشت ثبت شده‌اند.";
+            }
+
+            if (form.Qty > (decimal)selectedSerialIds.Count)
+            {
+                return "تعداد برگشت نمی‌تواند از تعداد شناسه‌های انتخاب‌شده بیشتر باشد.";
+            }
+
+            return null;
+        }
+
+        var usedQty = existingLines.Sum(line => line.Qty);
+        var remainingQty = referenceLine.Qty - usedQty;
+        if (remainingQty <= 0)
+        {
+            return "ظرفیت این لاین مبنا برای برگشت کامل شده است.";
+        }
+
+        if (form.Qty > remainingQty)
+        {
+            return $"تعداد برگشت از ظرفیت باقی‌مانده این لاین بیشتر است. ظرفیت باقی‌مانده: {remainingQty:0.####}";
+        }
+
+        return null;
+    }
+
+    private static string NormalizeLineSerialKey(string? serialItemBusinessKey, string? serialRef, string? serialNo)
+        => !string.IsNullOrWhiteSpace(serialItemBusinessKey)
+            ? serialItemBusinessKey.Trim()
+            : !string.IsNullOrWhiteSpace(serialRef)
+                ? serialRef.Trim()
+                : (serialNo ?? string.Empty).Trim();
+
     private static bool BucketMatchesScope(
         StockDetailBucketModel bucket,
         string? sourceLocationKey,
@@ -6238,6 +6381,7 @@ public sealed partial class InventoryManagementController
             LotBatchNo = source.LotBatchNo,
             ReasonCode = source.ReasonCode,
             AdjustmentDirection = source.AdjustmentDirection,
+            ReferenceLineBusinessKey = source.ReferenceLineBusinessKey,
             Serials = source.Serials
                 .Select(serial => new InventoryDocumentLineSerialModel
                 {

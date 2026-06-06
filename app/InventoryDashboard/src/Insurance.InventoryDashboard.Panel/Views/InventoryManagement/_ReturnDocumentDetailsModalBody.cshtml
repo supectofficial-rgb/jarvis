@@ -257,13 +257,14 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <form action="/InventoryManagement/Documents/Return/SaveLine" method="post" class="mb-0" data-loading-form data-ajax-target="#return-document-details-modal-body" id="return-line-editor-form">
+                    <form action="/InventoryManagement/Documents/Return/SaveLine" method="post" class="mb-0" data-loading-form data-ajax-target="#return-document-details-modal-body" data-ajax-preserve-url="true" id="return-line-editor-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                         <input type="hidden" asp-for="LineForm.WarehouseRef" value="@document.WarehouseRef" />
                         <input type="hidden" asp-for="LineForm.VariantId" id="return-line-variant-input" value="@Model.LineForm.VariantId" />
+                        <input type="hidden" asp-for="LineForm.ReferenceLineBusinessKey" id="return-line-reference-line-input" value="@Model.LineForm.ReferenceLineBusinessKey" />
                         <input type="hidden" asp-for="LineForm.UomRef" id="return-line-uom-input" value="@Model.LineForm.UomRef" />
                         <input type="hidden" asp-for="LineForm.BaseUomRef" id="return-line-base-uom-input" value="@Model.LineForm.BaseUomRef" />
                         <input type="hidden" asp-for="LineForm.SourceLocationRef" id="return-line-source-location-input" value="@Model.LineForm.SourceLocationRef" />
@@ -373,11 +374,13 @@
                                                       method="post"
                                                       class="d-inline"
                                                       data-loading-form
-                                                      data-ajax-target="#return-document-details-modal-body">
+                                                      data-ajax-target="#return-document-details-modal-body"
+                                                      data-ajax-preserve-url="true">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
                                                     <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                    <button type="button" class="btn btn-outline-danger btn-xs js-return-line-delete">
+                                                    <button type="button"
+                                                            class="btn btn-outline-danger btn-xs js-return-line-delete">
                                                         @UiText["common.delete"]
                                                     </button>
                                                 </form>
@@ -448,6 +451,7 @@
         var noSerialMessage = root.querySelector('#return-no-serial-message');
         var qtyInput = root.querySelector('#return-line-qty-input');
         var variantInput = root.querySelector('#return-line-variant-input');
+        var referenceLineInput = root.querySelector('#return-line-reference-line-input');
         var uomInput = root.querySelector('#return-line-uom-input');
         var baseUomInput = root.querySelector('#return-line-base-uom-input');
         var warehouseInput = root.querySelector('input[name="LineForm.WarehouseRef"]');
@@ -706,6 +710,9 @@
 
             if (variantInput) {
                 variantInput.value = line.variantId || '';
+            }
+            if (referenceLineInput) {
+                referenceLineInput.value = line.lineBusinessKey || '';
             }
             if (uomInput) {
                 uomInput.value = line.uomRef || line.baseUomRef || '';

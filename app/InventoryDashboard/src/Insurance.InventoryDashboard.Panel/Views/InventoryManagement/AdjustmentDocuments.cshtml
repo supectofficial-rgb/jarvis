@@ -743,13 +743,6 @@
             var warehouseSelect = document.getElementById('create-warehouse-select');
             var createForm = document.getElementById('document-create-form');
             var variantInventoryLookupUrl = '@Url.Action("SearchAdjustmentVariantInventoryLookup", "InventoryManagement")';
-            var resolveAdjustmentVariantInventoryLookupUrl = function () {
-                if (typeof variantInventoryLookupUrl === 'string' && variantInventoryLookupUrl) {
-                    return variantInventoryLookupUrl;
-                }
-
-                return '@Url.Action("SearchAdjustmentVariantInventoryLookup", "InventoryManagement")';
-            };
             var linesPanel = document.getElementById('document-lines-panel');
             var toggleLinesButton = document.getElementById('toggle-document-lines');
             var typeGuidance = document.getElementById('document-type-guidance');
@@ -1796,7 +1789,10 @@ for (var i = 0; i < lines.length; i++) {
                     return;
                 }
 
-                var url = new URL(resolveAdjustmentVariantInventoryLookupUrl(), window.location.origin);
+                var inventoryLookupUrl = (typeof variantInventoryLookupUrl === 'string' && variantInventoryLookupUrl)
+                    ? variantInventoryLookupUrl
+                    : '@Url.Action("SearchAdjustmentVariantInventoryLookup", "InventoryManagement")';
+                var url = new URL(inventoryLookupUrl, window.location.origin);
                 url.searchParams.set('variantId', variantField.value);
                 if (qualityStatusId) {
                     url.searchParams.set('qualityStatusId', qualityStatusId);

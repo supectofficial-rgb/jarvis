@@ -310,6 +310,7 @@ public sealed class InventoryDocumentLineForm
     public string? ReasonCode { get; set; }
 
     public string? AdjustmentDirection { get; set; }
+    public string? ReferenceLineBusinessKey { get; set; }
     public bool UseUniqueSerialItems { get; set; }
     public List<InventoryDocumentLineSerialModel> Serials { get; set; } = new();
 }

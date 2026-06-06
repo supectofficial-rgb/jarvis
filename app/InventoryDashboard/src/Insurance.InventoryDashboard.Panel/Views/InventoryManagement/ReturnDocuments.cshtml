@@ -455,6 +455,7 @@
                                     {
                                         @foreach (var document in Model.Documents)
                                         {
+                                            var canActDocument = !string.Equals(document.Status, "Posted", StringComparison.OrdinalIgnoreCase);
                                             <tr>
                                                 <td><span class="text-monospace">@document.DocumentNo</span></td>
                                                 <td>@TypeLabel(document.DocumentType)</td>
@@ -467,21 +468,12 @@
                                                             class="btn btn-outline-primary btn-xs js-return-document-details"
                                                             data-document-id="@document.DocumentBusinessKey"
                                                             data-document-no="@document.DocumentNo">@UiText["inventory.documents.action.details"]</button>
-                                                    <a class="btn btn-outline-info btn-xs mr-1"
-                                                       asp-action="@documentAction"
-                                                       asp-controller="InventoryManagement"
-                                                       asp-route-documentId="@document.DocumentBusinessKey"
-                                                       asp-route-documentNo="@Model.DocumentNoFilter"
-                                                       asp-route-documentType="@Model.DocumentTypeFilter"
-                                                       asp-route-status="@Model.DocumentStatusFilter"
-                                                       asp-route-variantId="@Model.VariantFilter"
-                                                       asp-route-warehouseId="@Model.WarehouseFilter"
-                                                       asp-route-locationId="@Model.LocationFilter"
-                                                       asp-route-occurredFrom="@Model.OccurredFromFilter"
-                                                       asp-route-occurredTo="@Model.OccurredToFilter"
-                                                       asp-route-page="@Model.DocumentPage"
-                                                       asp-route-pageSize="@Model.DocumentPageSize"
-                                                       data-ajax-target="#documents-page-root">@UiText["inventory.documents.action.changeStatus"]</a>
+                                                    <button type="button"
+                                                            class="btn btn-outline-info btn-xs mr-1 js-return-document-action"
+                                                            data-document-id="@document.DocumentBusinessKey"
+                                                            data-document-no="@document.DocumentNo"
+                                                            data-document-status="@document.Status"
+                                                            @(canActDocument ? null : "disabled")>@UiText["inventory.documents.action.changeStatus"]</button>
                                                     @if (string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         <form asp-action="DeleteDocument"
@@ -561,6 +553,43 @@
     </div>
 </div>
 
+<div class="modal fade" id="return-document-action-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">@UiText["inventory.documents.action.changeStatus"]</h5>
+                    <div class="small text-muted" id="return-document-action-modal-subtitle"></div>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" aria-label="@UiText["common.close"]">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger d-none" id="return-document-action-error"></div>
+                <input type="hidden" id="return-document-action-id" />
+                <div class="form-group">
+                    <label>@UiText["inventory.documents.action.changeStatus"]</label>
+                    <select class="form-control" id="return-document-action-select">
+                        <option value="approve">@UiText["inventory.documents.status.approved"]</option>
+                        <option value="post">@UiText["inventory.documents.status.posted"]</option>
+                        <option value="reject">@UiText["inventory.documents.status.rejected"]</option>
+                        <option value="cancel">@UiText["inventory.documents.status.cancelled"]</option>
+                    </select>
+                </div>
+                <div class="form-group" id="return-document-action-reason-group">
+                    <label>@UiText["common.reason"]</label>
+                    <input type="text" class="form-control" id="return-document-action-reason" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">@UiText["common.close"]</button>
+                <button type="button" class="btn btn-primary" id="return-document-action-submit">@UiText["common.confirm"]</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script data-ajax-reinit="documents">
         (function () {
@@ -588,11 +617,26 @@
             var returnReferenceTypeLabel = document.querySelector('label[for="return-reference-select"]');
             var returnReferenceSearchUrl = '/InventoryManagement/Documents/Return/ReferenceSearch';
             var returnReferenceDocumentUrl = '@Url.Action("GetReturnReferenceDocument", "InventoryManagement")';
+            var returnDeleteConfirmText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.confirm.deleteLine"]));
+            var returnChangeStatusUrl = '@Url.Action("ChangeDocumentStatus", "InventoryManagement")';
+            var returnActionModalSelector = '#return-document-action-modal';
+            var returnActionIdSelector = '#return-document-action-id';
+            var returnActionSelectSelector = '#return-document-action-select';
+            var returnActionReasonSelector = '#return-document-action-reason';
+            var returnActionReasonGroupSelector = '#return-document-action-reason-group';
+            var returnActionSubtitleSelector = '#return-document-action-modal-subtitle';
+            var returnActionErrorSelector = '#return-document-action-error';
             var returnSourceDocument = null;
             var returnAllowedVariantIds = [];
             var returnVariantSerialLookup = {};
             var returnVariantReferenceLineLookup = {};
             var returnLocationMetadataLookup = {};
+            var returnActionLabelMap = {
+                approve: '@UiText["inventory.documents.status.approved"]',
+                post: '@UiText["inventory.documents.status.posted"]',
+                reject: '@UiText["inventory.documents.status.rejected"]',
+                cancel: '@UiText["inventory.documents.status.cancelled"]'
+            };
 
             function normalizeReturnLookupKey(value) {
                 return String(value || '').trim().toLowerCase();
@@ -1799,6 +1843,141 @@
             window.returnDocumentsShowDetailsModal = showReturnDetailsModal;
             window.returnDocumentsLoadDetails = loadReturnDetails;
 
+            function getAntiForgeryToken() {
+                var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+                return tokenInput ? tokenInput.value || '' : '';
+            }
+
+            function setReturnActionError(message) {
+                var errorElement = document.querySelector(returnActionErrorSelector);
+                if (!errorElement) {
+                    return;
+                }
+
+                errorElement.textContent = message || '';
+                errorElement.classList.toggle('d-none', !message);
+            }
+
+            function updateReturnActionDependentSections() {
+                var select = document.querySelector(returnActionSelectSelector);
+                var reasonGroup = document.querySelector(returnActionReasonGroupSelector);
+                if (!select || !reasonGroup) {
+                    return;
+                }
+
+                var action = String(select.value || '').toLowerCase();
+                var showReason = action === 'reject' || action === 'cancel';
+                reasonGroup.classList.toggle('d-none', !showReason);
+            }
+
+            function openReturnActionModal(trigger) {
+                var modal = document.querySelector(returnActionModalSelector);
+                if (!modal || !trigger) {
+                    return;
+                }
+
+                var idInput = modal.querySelector(returnActionIdSelector);
+                var select = modal.querySelector(returnActionSelectSelector);
+                var reasonInput = modal.querySelector(returnActionReasonSelector);
+                var subtitle = modal.querySelector(returnActionSubtitleSelector);
+
+                if (idInput) {
+                    idInput.value = trigger.getAttribute('data-document-id') || '';
+                }
+
+                if (select) {
+                    select.value = 'approve';
+                }
+
+                if (reasonInput) {
+                    reasonInput.value = '';
+                }
+
+                if (subtitle) {
+                    var documentNo = trigger.getAttribute('data-document-no') || '';
+                    var status = trigger.getAttribute('data-document-status') || '';
+                    subtitle.textContent = [documentNo, status].filter(Boolean).join(' - ');
+                }
+
+                setReturnActionError('');
+                updateReturnActionDependentSections();
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(returnActionModalSelector).modal('show');
+                } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var modalInstance = bootstrap.Modal.getInstance(modal) || bootstrap.Modal.getOrCreateInstance(modal);
+                    modalInstance.show();
+                }
+            }
+
+            async function submitReturnAction() {
+                var modal = document.querySelector(returnActionModalSelector);
+                if (!modal) {
+                    return;
+                }
+
+                var idInput = modal.querySelector(returnActionIdSelector);
+                var select = modal.querySelector(returnActionSelectSelector);
+                var reasonInput = modal.querySelector(returnActionReasonSelector);
+                if (!idInput || !select) {
+                    return;
+                }
+
+                var documentId = idInput.value || '';
+                var action = select.value || 'approve';
+                if (!documentId || !returnChangeStatusUrl) {
+                    return;
+                }
+
+                var actionLabel = returnActionLabelMap[action] || '@UiText["inventory.documents.action.changeStatus"]';
+                if (!window.confirm('آیا از ' + actionLabel + ' این سند اطمینان دارید؟')) {
+                    return;
+                }
+
+                setReturnActionError('');
+                var payload = new URLSearchParams();
+                payload.append('__RequestVerificationToken', getAntiForgeryToken());
+                payload.append('DocumentId', documentId);
+                payload.append('Action', action);
+                if (action === 'reject' || action === 'cancel') {
+                    payload.append('ReasonCode', reasonInput ? reasonInput.value || '' : '');
+                }
+
+                var response = await fetch(returnChangeStatusUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'Accept': 'application/json'
+                    },
+                    body: payload.toString()
+                });
+
+                var responseText = await response.text();
+                var result = null;
+                if (responseText) {
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Failed to parse return change document status response.', parseError, responseText);
+                    }
+                }
+
+                if (!response.ok || !result || result.isSuccess !== true) {
+                    setReturnActionError((result && result.errorMessage) || 'تغییر وضعیت سند انجام نشد.');
+                    return;
+                }
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(returnActionModalSelector).modal('hide');
+                } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    var modalInstance = bootstrap.Modal.getInstance(modal) || bootstrap.Modal.getOrCreateInstance(modal);
+                    modalInstance.hide();
+                }
+
+                window.location.reload();
+            }
+
             async function loadReturnDetails(documentId, documentNo, editingLineId) {
                 if (!documentId) {
                     return;
@@ -2351,25 +2530,48 @@ for (var i = 0; i < lines.length; i++) {
                 }
 
                 var deleteButton = event.target && event.target.closest ? event.target.closest('.js-return-line-delete') : null;
-                if (!(deleteButton instanceof HTMLElement)) {
+                if (deleteButton) {
+                    event.preventDefault();
+                    var form = deleteButton.closest('form');
+                    if (!(form instanceof HTMLFormElement)) {
+                        return;
+                    }
+
+                    if (!window.confirm(returnDeleteConfirmText)) {
+                        return;
+                    }
+
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        form.submit();
+                    }
                     return;
                 }
 
-                var form = deleteButton.closest('form');
-                if (!form) {
+                var actionButton = event.target && event.target.closest ? event.target.closest('.js-return-document-action') : null;
+                if (actionButton) {
+                    event.preventDefault();
+                    openReturnActionModal(actionButton);
                     return;
                 }
 
-                if (!window.confirm('@UiText["inventory.documents.confirm.deleteLine"]')) {
-                    return;
-                }
-
-                if (typeof form.requestSubmit === 'function') {
-                    form.requestSubmit();
-                } else {
-                    form.submit();
-                }
             });
+
+            var returnActionSelect = document.querySelector(returnActionSelectSelector);
+            if (returnActionSelect) {
+                returnActionSelect.addEventListener('change', updateReturnActionDependentSections);
+            }
+
+            var returnActionSubmitButton = document.querySelector('#return-document-action-submit');
+            if (returnActionSubmitButton) {
+                returnActionSubmitButton.addEventListener('click', function () {
+                    submitReturnAction().catch(function (error) {
+                        console.error(error);
+                        setReturnActionError(error && error.message ? error.message : 'تغییر وضعیت سند انجام نشد.');
+                    });
+                });
+            }
 
             lineContainer.querySelectorAll('.document-line').forEach(bindLine);
             renumberLines();
