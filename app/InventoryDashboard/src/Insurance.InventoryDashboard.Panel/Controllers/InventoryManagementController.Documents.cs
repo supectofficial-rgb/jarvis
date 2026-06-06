@@ -2870,7 +2870,7 @@ public sealed partial class InventoryManagementController
                 allowedVariantIds.Add(variantId);
             }
 
-            var referenceLines = variantGroup
+                    var referenceLines = variantGroup
                 .Select((line, lineIndex) =>
                 {
                     var sourceLocationRef = ResolveReturnReferenceSourceLocationRef(resolvedReturnDocumentType, line);
@@ -2897,6 +2897,10 @@ public sealed partial class InventoryManagementController
                     return new
                     {
                         lineBusinessKey = line.LineBusinessKey,
+                        qty = line.Qty,
+                        baseQty = line.BaseQty,
+                        uomRef = line.UomRef,
+                        baseUomRef = line.BaseUomRef,
                         sourceLocationRef,
                         destinationLocationRef,
                         qualityStatusRef,

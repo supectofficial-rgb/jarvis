@@ -768,6 +768,7 @@
   "inventory.warehouses.thisWarehouseLocations": "Locations of this warehouse",
   "inventory.warehouses.noLocationsForWarehouse": "No location has been registered for this warehouse.",
   "inventory.documents.title": "Inventory Documents",
+  "inventory.documents.titlePrefix": "Documents",
   "inventory.documents.description": "Create, track, and control the status of warehouse documents and inventory movements.",
   "inventory.documents.summary.documents": "Documents:",
   "inventory.documents.summary.selectedDocument": "Selected document:",

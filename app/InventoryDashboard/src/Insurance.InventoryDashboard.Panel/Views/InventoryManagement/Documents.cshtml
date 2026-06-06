@@ -4,7 +4,10 @@
 @using System.Text.Json
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
-    ViewData["Title"] = UiText["inventory.documents.title"];
+    string DecodeHtmlEntities(string? value) => WebUtility.HtmlDecode(value ?? string.Empty);
+    string DocumentPageTitle(string? type) => $"{DecodeHtmlEntities(UiText["inventory.documents.titlePrefix"])} {DecodeHtmlEntities(TypeLabel(type))}";
+
+    ViewData["Title"] = DocumentPageTitle(Model.DocumentTypeFilter ?? "Receipt");
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -23,8 +26,6 @@
 
         return names.Any(permissionSet.Contains);
     }
-
-    string DecodeHtmlEntities(string? value) => WebUtility.HtmlDecode(value ?? string.Empty);
 
     string WarehouseName(string? warehouseId)
     {
@@ -229,7 +230,7 @@
         <div class="row">
             <div class="col-12">
                 <div class="mb-4">
-                    <h1>@UiText["inventory.documents.title"]</h1>
+                    <h1>@DocumentPageTitle(currentDocumentType)</h1>
                     <div class="mb-2">
                         <span class="badge badge-pill badge-primary">@TypeLabel(currentDocumentType)</span>
                     </div>

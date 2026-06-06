@@ -779,6 +779,7 @@
   "inventory.warehouses.thisWarehouseLocations": "لوکیشن‌های این انبار",
   "inventory.warehouses.noLocationsForWarehouse": "لوکیشنی برای این انبار ثبت نشده است.",
   "inventory.documents.title": "اسناد موجودی",
+  "inventory.documents.titlePrefix": "اسناد",
   "inventory.documents.description": "ایجاد، پیگیری و کنترل وضعیت اسناد انبار و حرکات موجودی.",
   "inventory.documents.summary.documents": "اسناد:",
   "inventory.documents.summary.selectedDocument": "سند منتخب:",

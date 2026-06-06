@@ -2,20 +2,18 @@
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
-    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
-
-    bool Can(params string[] names)
-    {
-        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
-        {
-            return true;
-        }
-
-        return names.Any(permissionSet.Contains);
-    }
-
     var document = Model.SelectedDocumentDetails;
+    var selectedDocumentType = document?.DocumentType ?? "ReturnFromSell";
+    var isDraft = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+    var returnReferenceDocumentId = document?.ReferenceBusinessId ?? string.Empty;
+    var returnReferenceDocumentType = selectedDocumentType switch
+    {
+        "ReturnFromBuy" => "Receipt",
+        "ReturnFromTransfer" => "Transfer",
+        _ => "Issue"
+    };
+
+    string ToJson(object value) => System.Text.Json.JsonSerializer.Serialize(value).Replace("'", "\\u0027");
 
     string TypeLabel(string? type) => type switch
     {
@@ -23,10 +21,10 @@
         "Issue" => UiText["inventory.documents.type.issue"],
         "Transfer" => UiText["inventory.documents.type.transfer"],
         "Adjustment" => UiText["inventory.documents.type.adjustment"],
-        "ReturnFromSell" => "برگشت از فروش",
-        "ReturnFromBuy" => "برگشت از خرید",
-        "ReturnFromTransfer" => "برگشت از انتقال",
-        "Return" => "برگشت",
+        "ReturnFromSell" => UiText["inventory.documents.type.return"],
+        "ReturnFromBuy" => UiText["inventory.documents.type.return"],
+        "ReturnFromTransfer" => UiText["inventory.documents.type.return"],
+        "Return" => UiText["inventory.documents.type.return"],
         "QualityChange" => UiText["inventory.documents.type.qualityChange"],
         "Conversion" => UiText["inventory.documents.type.conversion"],
         _ => type ?? "-"
@@ -52,405 +50,697 @@
         _ => "badge-secondary"
     };
 
-    string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
+    var lookupData = new
     {
-        var variantName = (variant.Name ?? string.Empty).Trim();
-        var variantSku = (variant.Sku ?? string.Empty).Trim();
-        if (!string.IsNullOrWhiteSpace(variantName) && !string.IsNullOrWhiteSpace(variantSku) && !string.Equals(variantName, variantSku, StringComparison.OrdinalIgnoreCase))
+        warehouses = Model.WarehouseLookup.Select(x => new
         {
-            return $"{variantName} ({variantSku})";
-        }
-
-        if (!string.IsNullOrWhiteSpace(variantName))
+            id = x.WarehouseBusinessKey,
+            code = x.Code,
+            name = x.Name
+        }),
+        locations = Model.LocationLookup.Select(x => new
         {
-            return variantName;
-        }
-
-        if (!string.IsNullOrWhiteSpace(variantSku))
+            id = x.LocationBusinessKey,
+            warehouseId = x.WarehouseRef,
+            code = x.LocationCode,
+            type = x.LocationType
+        }),
+        qualities = Model.QualityStatusLookup.Select(x => new
         {
-            return variantSku;
-        }
-
-        if (!string.IsNullOrWhiteSpace(variant.Barcode))
+            id = x.QualityStatusBusinessKey,
+            code = x.Code,
+            name = x.Name
+        }),
+        uoms = Model.UnitOfMeasureLookup.Select(x => new
         {
-            return variant.Barcode.Trim();
-        }
-
-        return variant.Id;
-    }
-
-    string VariantName(string? variantId)
-    {
-        if (string.IsNullOrWhiteSpace(variantId))
+            id = x.Id,
+            code = x.Code,
+            name = x.Name
+        }),
+        variants = Model.VariantLookup.Select(x => new
         {
-            return "-";
-        }
-
-        var variant = Model.VariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase));
-        return variant is null ? variantId : VariantLabel(variant);
-    }
-
-    string UomName(string? uomId)
-    {
-        if (string.IsNullOrWhiteSpace(uomId))
-        {
-            return "-";
-        }
-
-        var uom = Model.UnitOfMeasureLookup.FirstOrDefault(x => string.Equals(x.Id, uomId, StringComparison.OrdinalIgnoreCase));
-        return uom is null ? uomId : $"{uom.Code} - {uom.Name}";
-    }
-
-    string QualityName(string? qualityId)
-    {
-        if (string.IsNullOrWhiteSpace(qualityId))
-        {
-            return "-";
-        }
-
-        var quality = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, qualityId, StringComparison.OrdinalIgnoreCase));
-        return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
-    }
-
-    string LocationName(string? locationId)
-    {
-        if (string.IsNullOrWhiteSpace(locationId))
-        {
-            return "-";
-        }
-
-        var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
-        return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
-    }
-
-    string WarehouseName(string? warehouseId)
-    {
-        if (string.IsNullOrWhiteSpace(warehouseId))
-        {
-            return "-";
-        }
-
-        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
-        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
-    }
-
-    string SellerName(string? sellerId)
-    {
-        if (string.IsNullOrWhiteSpace(sellerId))
-        {
-            return "-";
-        }
-
-        var seller = Model.SellerLookup.FirstOrDefault(x => string.Equals(x.SellerBusinessKey, sellerId, StringComparison.OrdinalIgnoreCase));
-        return seller is null ? sellerId : $"{seller.Code} - {seller.Name}";
-    }
-
-    string AdjustmentDirectionLabel(string? direction) => direction switch
-    {
-        "Increase" => UiText["inventory.documents.adjustment.increase"],
-        "Decrease" => UiText["inventory.documents.adjustment.decrease"],
-        _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
+            id = x.Id,
+            name = x.Name,
+            sku = x.Sku,
+            barcode = x.Barcode
+        })
     };
 
-    var selectedDocumentType = document?.DocumentType ?? "ReturnFromSell";
-    var showQualityColumn = string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(selectedDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
-    var canEditLines = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+    var defaultLine = new
+    {
+        lineId = Model.LineForm.LineId ?? string.Empty,
+        variantId = Model.LineForm.VariantId ?? string.Empty,
+        qty = Model.LineForm.Qty,
+        uomRef = Model.LineForm.UomRef ?? string.Empty,
+        baseUomRef = Model.LineForm.BaseUomRef ?? string.Empty,
+        sourceLocationRef = Model.LineForm.SourceLocationRef ?? string.Empty,
+        destinationLocationRef = Model.LineForm.DestinationLocationRef ?? string.Empty,
+        qualityStatusRef = Model.LineForm.QualityStatusRef ?? string.Empty,
+        lotBatchNo = Model.LineForm.LotBatchNo ?? string.Empty,
+        serials = Model.LineForm.Serials.Select(serial => new
+        {
+            serialItemBusinessKey = serial.SerialItemBusinessKey,
+            serialRef = serial.SerialRef,
+            serialNo = serial.SerialNo
+        })
+    };
 }
 
-<div class="card mb-4">
-    <div class="card-body">
-        <h5 class="card-title">@UiText["inventory.documents.details.title"]</h5>
-        @if (Model.SelectedDocumentDetails is null)
-        {
-            <div class="alert alert-light mb-0">@UiText["inventory.documents.details.noSelection"]</div>
-        }
-        else
-        {
-            <p class="mb-1"><strong>@UiText["inventory.documents.details.number"]:</strong> <span class="text-monospace">@document!.DocumentNo</span></p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.details.type"]:</strong> @TypeLabel(document.DocumentType)</p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.details.status"]:</strong> <span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span></p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.warehouse"]:</strong> @WarehouseName(document.WarehouseRef)</p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.seller"]:</strong> @SellerName(document.SellerRef)</p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.details.occurredAt"]:</strong> @document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.details.reference"]:</strong> @(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.externalReferenceNo"]:</strong> @(string.IsNullOrWhiteSpace(document.ExternalReferenceNo) ? "-" : document.ExternalReferenceNo)</p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.details.reason"]:</strong> @(string.IsNullOrWhiteSpace(document.ReasonCode) ? "-" : document.ReasonCode)</p>
-            <p class="mb-1"><strong>@UiText["inventory.documents.details.approvedAt"]:</strong> @(document.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
-            <p class="mb-3"><strong>@UiText["inventory.documents.details.postedAt"]:</strong> @(document.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+<div class="modal-return-shell"
+     data-return-document-type="@selectedDocumentType"
+     data-return-reference-document-id="@returnReferenceDocumentId"
+     data-return-reference-document-type="@returnReferenceDocumentType"
+     data-lookups-json='@Html.Raw(ToJson(lookupData))'
+     data-default-line-json='@Html.Raw(ToJson(defaultLine))'>
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning">@Model.ErrorMessage</div>
+    }
 
-            @if (canEditLines)
-            {
-                <div class="border-top pt-3 mt-3">
-                    <h6 class="mb-3">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.line.addTitle"] : UiText["inventory.documents.line.editTitle"])</h6>
-                    <form asp-action="SaveReturnDocumentLine" asp-controller="InventoryManagement" method="post" class="mb-0" data-loading-form data-ajax-target="#return-document-details-modal-body">
+    @if (document is null)
+    {
+        <div class="alert alert-light mb-0">@UiText["inventory.documents.details.noSelection"]</div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <div class="text-monospace h5 mb-1">@document.DocumentNo</div>
+                <div class="text-muted small">@TypeLabel(document.DocumentType)</div>
+            </div>
+            <span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">@UiText["inventory.documents.details.occurredAt"]</div>
+                <div>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">@UiText["inventory.documents.details.reference"]</div>
+                <div>@(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">@UiText["inventory.documents.warehouse"]</div>
+                <div>@document.WarehouseRef</div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="text-muted small">@UiText["inventory.documents.seller"]</div>
+                <div>@document.SellerRef</div>
+            </div>
+        </div>
+
+        <div class="alert alert-light border mb-3">
+            @UiText["inventory.documents.return.referenceHint"]
+        </div>
+
+        @if (isDraft)
+        {
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>@UiText["inventory.documents.line.addTitle"]</strong>
+                        <span class="text-muted small" id="return-selected-line-hint">@UiText["inventory.documents.action.selectVariantAndLocation"]</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form asp-action="SaveReturnDocumentLine" asp-controller="InventoryManagement" method="post" class="mb-0" data-loading-form data-ajax-target="#return-document-details-modal-body" id="return-line-editor-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
-                        <div class="form-row">
-                            <div class="form-group col-md-4">
-                                <label>@UiText["inventory.documents.line.variant"]</label>
-                                <select asp-for="LineForm.VariantId" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" required>
-                                    <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
-                                    @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
-                                    {
-                                        <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
-                                    }
-                                </select>
+                        <input type="hidden" asp-for="LineForm.WarehouseRef" value="@document.WarehouseRef" />
+                        <input type="hidden" asp-for="LineForm.VariantId" id="return-line-variant-input" value="@Model.LineForm.VariantId" />
+                        <input type="hidden" asp-for="LineForm.UomRef" id="return-line-uom-input" value="@Model.LineForm.UomRef" />
+                        <input type="hidden" asp-for="LineForm.BaseUomRef" id="return-line-base-uom-input" value="@Model.LineForm.BaseUomRef" />
+                        <input type="hidden" asp-for="LineForm.SourceLocationRef" id="return-line-source-location-input" value="@Model.LineForm.SourceLocationRef" />
+                        <input type="hidden" asp-for="LineForm.DestinationLocationRef" id="return-line-destination-location-input" value="@Model.LineForm.DestinationLocationRef" />
+                        <input type="hidden" asp-for="LineForm.QualityStatusRef" id="return-line-quality-input" value="@Model.LineForm.QualityStatusRef" />
+                        <input type="hidden" asp-for="LineForm.LotBatchNo" id="return-line-lot-input" value="@Model.LineForm.LotBatchNo" />
+
+                        <div class="row">
+                            <div class="col-lg-5 mb-3">
+                                <div class="border rounded p-3 h-100 bg-light">
+                                    <div class="small text-muted mb-1">@UiText["inventory.documents.line.variant"]</div>
+                                    <div class="font-weight-bold mb-2" id="return-selected-line-variant">-</div>
+
+                                    <div class="small text-muted mb-1">@UiText["common.quantity"]</div>
+                                    <input asp-for="LineForm.Qty" id="return-line-qty-input" type="number" step="0.0001" min="0.0001" class="form-control mb-2" required />
+
+                                    <div class="small text-muted mb-1">@UiText["inventory.documents.line.lotBatch"]</div>
+                                    <div id="return-selected-line-lot" class="font-weight-bold mb-2">-</div>
+
+                                    <div class="small text-muted mb-1">@UiText["common.quality"]</div>
+                                    <div id="return-selected-line-quality" class="font-weight-bold mb-2">-</div>
+
+                                    <div class="small text-muted mb-1">@UiText["inventory.documents.line.sourceLocation"] / @UiText["inventory.documents.line.destinationLocation"]</div>
+                                    <div id="return-selected-line-locations" class="font-weight-bold">-</div>
+                                </div>
                             </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.line.quantity"]</label>
-                                <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" />
-                            </div>
-                            <div class="form-group col-md-3 line-source">
-                                <label>@UiText["inventory.documents.line.sourceLocation"]</label>
-                                <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
-                                    <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
-                                    @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                    {
-                                        <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-3 line-destination">
-                                <label>@UiText["inventory.documents.line.destinationLocation"]</label>
-                                <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
-                                    <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
-                                    @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                                    {
-                                        <option value="@location.LocationBusinessKey" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="form-group col-md-2">
-                                <label>@UiText["inventory.documents.line.lotBatch"]</label>
-                                <input asp-for="LineForm.LotBatchNo" class="form-control" />
-                            </div>
-                            @if (showQualityColumn)
-                            {
-                                @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <div class="form-group col-md-2 line-from-quality">
-                                        <label>@UiText["inventory.documents.line.sourceLocation"]</label>
-                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
-                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
-                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                            {
-                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                            }
-                                        </select>
+
+                            <div class="col-lg-7 mb-3">
+                                <div class="border rounded p-3 h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>@UiText["inventory.documents.serial.title"]</strong>
+                                        <span class="text-muted small" id="return-serial-count">0</span>
                                     </div>
-                                    <div class="form-group col-md-2 line-to-quality">
-                                        <label>@UiText["inventory.documents.line.destinationLocation"]</label>
-                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
-                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
-                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                            {
-                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="form-group col-md-2 line-quality">
-                                        <label>@UiText["inventory.documents.line.quality"]</label>
-                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]">
-                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
-                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                                            {
-                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                                            }
-                                        </select>
-                                    </div>
-                                }
-                            }
-                            <div class="form-group col-md-2 line-adjustment">
-                                <label>@UiText["inventory.documents.line.adjustmentDirection"]</label>
-                                <select asp-for="LineForm.AdjustmentDirection" class="form-control">
-                                    <option value="">@UiText["inventory.documents.line.selectOption"]</option>
-                                    <option value="Increase" selected="@(Model.LineForm.AdjustmentDirection == "Increase" ? "selected" : null)">@UiText["inventory.documents.line.increase"]</option>
-                                    <option value="Decrease" selected="@(Model.LineForm.AdjustmentDirection == "Decrease" ? "selected" : null)">@UiText["inventory.documents.line.decrease"]</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-4 line-reason">
-                                <label>@UiText["inventory.documents.line.reason"]</label>
-                                <input asp-for="LineForm.ReasonCode" class="form-control" />
+                                    <div class="small text-muted mb-2" id="return-serial-hint">@UiText["inventory.documents.serial.requiredHint"]</div>
+                                    <div class="js-return-line-serial-container"></div>
+                                    <div class="js-return-line-serial-hidden d-none"></div>
+                                    <div class="text-muted small" id="return-no-serial-message">@UiText["inventory.documents.serial.notRequired"]</div>
+                                </div>
                             </div>
                         </div>
+
                         <div class="d-flex justify-content-end">
-                            <a class="btn btn-outline-secondary mr-2" asp-action="ReturnDocumentDetails" asp-controller="InventoryManagement" asp-route-documentId="@document.DocumentBusinessKey" data-ajax-target="#return-document-details-modal-body">@UiText["inventory.documents.line.cancelEdit"]</a>
-                            <button class="btn btn-primary" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.action.addItem"] : UiText["inventory.documents.action.saveChanges"])</button>
+                            <button class="btn btn-primary" type="submit">@UiText["inventory.documents.action.addItem"]</button>
                         </div>
                     </form>
                 </div>
-            }
-
-            <div class="border-top pt-3 mt-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">@UiText["inventory.documents.lines.title"]</h6>
-                    <span class="text-muted small">@document.Lines.Count @UiText["inventory.documents.list.countSuffix"]</span>
-                </div>
-                @if (document.Lines.Count == 0)
-                {
-                    <div class="alert alert-light mb-0">@UiText["inventory.documents.line.noLineFound"]</div>
-                }
-                else
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>@UiText["inventory.documents.line.variant"]</th>
-                                    <th>@UiText["inventory.documents.line.quantity"]</th>
-                                    <th>UOM</th>
-                                    <th>@UiText["inventory.documents.line.sourceLocation"]</th>
-                                    <th>@UiText["inventory.documents.line.destinationLocation"]</th>
-                                    @if (showQualityColumn)
-                                    {
-                                        <th>@UiText["inventory.documents.line.quality"]</th>
-                                    }
-                                    <th>@UiText["inventory.documents.line.reason"]</th>
-                                    @if (canEditLines)
-                                    {
-                                        <th class="text-right">@UiText["inventory.documents.list.actions"]</th>
-                                    }
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var line in document.Lines)
-                                {
-                                    var lineProductId = Model.VariantLookup.FirstOrDefault(x => string.Equals(x.Id, line.VariantRef, StringComparison.OrdinalIgnoreCase))?.ProductId;
-                                    <tr>
-                                        <td>
-                                            @if (!string.IsNullOrWhiteSpace(lineProductId))
-                                            {
-                                                <a asp-controller="VariantManagement"
-                                                   asp-action="Variants"
-                                                   asp-route-productId="@lineProductId"
-                                                   asp-route-variantId="@line.VariantRef">
-                                                    @VariantName(line.VariantRef)
-                                                </a>
-                                            }
-                                            else
-                                            {
-                                                <span>@VariantName(line.VariantRef)</span>
-                                            }
-                                        </td>
-                                        <td>@line.Qty.ToString("0.####")</td>
-                                        <td>@UomName(line.UomRef)</td>
-                                        <td>@LocationName(line.SourceLocationRef)</td>
-                                        <td>@LocationName(line.DestinationLocationRef)</td>
-                                        @if (showQualityColumn)
-                                        {
-                                            <td>
-                                                @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
-                                                {
-                                                    <span>@QualityName(line.FromQualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@QualityName(line.QualityStatusRef)</span>
-                                                }
-                                            </td>
-                                        }
-                                        <td>
-                                            @(string.IsNullOrWhiteSpace(line.ReasonCode) ? AdjustmentDirectionLabel(line.AdjustmentDirection) : line.ReasonCode)
-                                        </td>
-                                        @if (canEditLines)
-                                        {
-                                            <td class="text-right">
-                                                <a class="btn btn-outline-primary btn-xs" asp-action="ReturnDocumentDetails" asp-controller="InventoryManagement" asp-route-documentId="@document.DocumentBusinessKey" asp-route-editingLineId="@line.LineBusinessKey" data-ajax-target="#return-document-details-modal-body">@UiText["inventory.documents.action.editDocument"]</a>
-                                                <form asp-action="DeleteReturnDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#return-document-details-modal-body">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
-                                                    <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                    <button class="btn btn-outline-danger btn-xs js-return-line-delete" type="button">@UiText["inventory.documents.action.deleteDocument"]</button>
-                                                </form>
-                                            </td>
-                                        }
-                                    </tr>
-                                    @if (!string.IsNullOrWhiteSpace(line.LotBatchNo) || line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <tr>
-                                            <td colspan="@(showQualityColumn ? 8 : 7)" class="text-muted small">
-                                                Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
-                                                @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
-                                                {
-                                                    <span> | @UiText["inventory.documents.line.lotBatch"]: @line.LotBatchNo</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
-                                    @if (line.Serials.Count > 0)
-                                    {
-                                        <tr>
-                                            <td colspan="@(showQualityColumn ? 8 : 7)" class="small">
-                                                <div class="d-flex flex-wrap align-items-start">
-                                                    <span class="text-muted mr-2">سریال‌های این ردیف:</span>
-                                                    <div class="d-flex flex-wrap">
-                                                        @foreach (var serial in line.Serials.OrderBy(x => x.SerialNo))
-                                                        {
-                                                            <span class="badge badge-light border mr-1 mb-1">
-                                                                @(string.IsNullOrWhiteSpace(serial.SerialNo) ? serial.SerialItemBusinessKey : serial.SerialNo)
-                                                            </span>
-                                                        }
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </div>
-
-            var selectedStatus = document.Status;
-            var canApproveByStatus = string.Equals(selectedStatus, "Draft", StringComparison.OrdinalIgnoreCase);
-            var canRejectByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase);
-            var canCancelByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase);
-            var canPostByStatus = !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase);
-
-            <div class="border-top pt-3">
-                <div class="mb-2 text-muted small">@UiText["inventory.documents.action.changeStatus"]</div>
-                <div class="d-flex flex-wrap">
-                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
-                        <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>@UiText["inventory.documents.action.approve"]</button>
-                    </form>
-                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
-                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>@UiText["inventory.documents.action.post"]</button>
-                    </form>
-                </div>
-                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="DocumentId" value="@document.DocumentBusinessKey" />
-                    <div class="form-group mb-2">
-                        <label class="small">@UiText["common.reason"]</label>
-                        <input name="ReasonCode" class="form-control form-control-sm" />
-                    </div>
-                    <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>@UiText["inventory.documents.action.reject"]</button>
-                </form>
-                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="DocumentId" value="@document.DocumentBusinessKey" />
-                    <div class="form-group mb-2">
-                        <label class="small">@UiText["common.reason"]</label>
-                        <input name="ReasonCode" class="form-control form-control-sm" />
-                    </div>
-                    <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Document.Cancel", "InventoryDocument.Cancel", "Document.Cancel") && canCancelByStatus ? null : "disabled")>@UiText["inventory.documents.action.cancel"]</button>
-                </form>
             </div>
         }
-    </div>
+        else
+        {
+            <div class="alert alert-info">
+                @UiText["inventory.documents.action.documentNotEditable"]
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong>@UiText["inventory.documents.lines.title"]</strong>
+                <span class="text-muted small" id="return-reference-line-count">0 @UiText["common.line"]</span>
+            </div>
+            <div class="card-body">
+                <div id="return-reference-lines-list" class="row"></div>
+            </div>
+        </div>
+    }
 </div>
+
+<script data-ajax-reinit="return-document-details-body">
+    (function () {
+        var root = document.querySelector('.modal-return-shell');
+        if (!root) {
+            return;
+        }
+
+        var documentId = root.getAttribute('data-return-reference-document-id') || '';
+        var returnDocumentType = root.getAttribute('data-return-document-type') || 'ReturnFromSell';
+        var referenceDocumentType = root.getAttribute('data-return-reference-document-type') || 'Issue';
+        var rawLookups = root.getAttribute('data-lookups-json') || '{}';
+        var rawDefaultLine = root.getAttribute('data-default-line-json') || '{}';
+        var lookupData = {};
+        var defaultLineState = {};
+
+        try { lookupData = JSON.parse(rawLookups || '{}'); } catch (error) { lookupData = {}; }
+        try { defaultLineState = JSON.parse(rawDefaultLine || '{}'); } catch (error) { defaultLineState = {}; }
+
+        var linesList = root.querySelector('#return-reference-lines-list');
+        var selectedLineHint = root.querySelector('#return-selected-line-hint');
+        var serialContainer = root.querySelector('.js-return-line-serial-container');
+        var serialHidden = root.querySelector('.js-return-line-serial-hidden');
+        var serialCount = root.querySelector('#return-serial-count');
+        var serialHint = root.querySelector('#return-serial-hint');
+        var noSerialMessage = root.querySelector('#return-no-serial-message');
+        var qtyInput = root.querySelector('#return-line-qty-input');
+        var variantInput = root.querySelector('#return-line-variant-input');
+        var uomInput = root.querySelector('#return-line-uom-input');
+        var baseUomInput = root.querySelector('#return-line-base-uom-input');
+        var warehouseInput = root.querySelector('input[name="LineForm.WarehouseRef"]');
+        var sourceInput = root.querySelector('#return-line-source-location-input');
+        var destinationInput = root.querySelector('#return-line-destination-location-input');
+        var qualityInput = root.querySelector('#return-line-quality-input');
+        var lotInput = root.querySelector('#return-line-lot-input');
+        var variantSummary = root.querySelector('#return-selected-line-variant');
+        var lotSummary = root.querySelector('#return-selected-line-lot');
+        var qualitySummary = root.querySelector('#return-selected-line-quality');
+        var locationsSummary = root.querySelector('#return-selected-line-locations');
+        var lineCount = root.querySelector('#return-reference-line-count');
+        var selectedLine = null;
+        var selectedLineIndex = -1;
+        var referenceLines = [];
+
+        var warehouseLookup = {};
+        var locationLookup = {};
+        var qualityLookup = {};
+        var uomLookup = {};
+        var variantLookup = {};
+
+        function normalize(value) {
+            return String(value || '').trim();
+        }
+
+        function escapeHtml(value) {
+            return normalize(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function buildLookupMaps() {
+            (Array.isArray(lookupData.warehouses) ? lookupData.warehouses : []).forEach(function (item) {
+                warehouseLookup[normalize(item.id)] = item;
+            });
+            (Array.isArray(lookupData.locations) ? lookupData.locations : []).forEach(function (item) {
+                locationLookup[normalize(item.id)] = item;
+            });
+            (Array.isArray(lookupData.qualities) ? lookupData.qualities : []).forEach(function (item) {
+                qualityLookup[normalize(item.id)] = item;
+            });
+            (Array.isArray(lookupData.uoms) ? lookupData.uoms : []).forEach(function (item) {
+                uomLookup[normalize(item.id)] = item;
+            });
+            (Array.isArray(lookupData.variants) ? lookupData.variants : []).forEach(function (item) {
+                variantLookup[normalize(item.id)] = item;
+            });
+        }
+
+        function labelWarehouse(id) {
+            var item = warehouseLookup[normalize(id)];
+            if (!item) {
+                return normalize(id) || '-';
+            }
+
+            var code = normalize(item.code);
+            var name = normalize(item.name);
+            if (code && name) {
+                return code + ' - ' + name;
+            }
+
+            return code || name || normalize(id) || '-';
+        }
+
+        function labelLocation(id) {
+            var item = locationLookup[normalize(id)];
+            if (!item) {
+                return normalize(id) || '-';
+            }
+
+            var warehouseText = labelWarehouse(item.warehouseId);
+            var locationLabel = normalize(item.code) + (normalize(item.type) ? ' (' + normalize(item.type) + ')' : '');
+            return warehouseText ? (warehouseText + ' - ' + locationLabel) : locationLabel;
+        }
+
+        function labelQuality(id) {
+            var item = qualityLookup[normalize(id)];
+            if (!item) {
+                return normalize(id) || '-';
+            }
+
+            var code = normalize(item.code);
+            var name = normalize(item.name);
+            if (code && name) {
+                return code + ' - ' + name;
+            }
+
+            return code || name || normalize(id) || '-';
+        }
+
+        function labelUom(id) {
+            var item = uomLookup[normalize(id)];
+            if (!item) {
+                return normalize(id) || '-';
+            }
+
+            var code = normalize(item.code);
+            var name = normalize(item.name);
+            if (code && name) {
+                return code + ' - ' + name;
+            }
+
+            return code || name || normalize(id) || '-';
+        }
+
+        function labelVariant(id) {
+            var item = variantLookup[normalize(id)];
+            if (!item) {
+                return normalize(id) || '-';
+            }
+
+            var name = normalize(item.name);
+            var sku = normalize(item.sku);
+            var barcode = normalize(item.barcode);
+            if (name && sku && name.toLowerCase() !== sku.toLowerCase()) {
+                return name + ' (' + sku + ')';
+            }
+
+            return name || sku || barcode || normalize(id) || '-';
+        }
+
+        function defaultSerialSelections() {
+            return Array.isArray(defaultLineState.serials) ? defaultLineState.serials : [];
+        }
+
+        function buildSerialKey(serial) {
+            return normalize(serial && (serial.serialItemBusinessKey || serial.serialRef || serial.serialNo));
+        }
+
+        function getSerialsForLine(line) {
+            return Array.isArray(line && line.serials) ? line.serials : [];
+        }
+
+        function lineLocationText(line) {
+            var parts = [];
+            if (line.sourceLocationRef) {
+                parts.push('@UiText["inventory.documents.line.sourceLocation"]' + ': ' + labelLocation(line.sourceLocationRef));
+            }
+            if (line.destinationLocationRef) {
+                parts.push('@UiText["inventory.documents.line.destinationLocation"]' + ': ' + labelLocation(line.destinationLocationRef));
+            }
+            return parts.join(' | ') || '-';
+        }
+
+        function updateSerialHiddenInputs(selectedSerials) {
+            if (!serialHidden) {
+                return;
+            }
+
+            serialHidden.innerHTML = '';
+            selectedSerials.forEach(function (serial, index) {
+                serialHidden.insertAdjacentHTML(
+                    'beforeend',
+                    '<input type="hidden" name="LineForm.Serials[' + index + '].SerialItemBusinessKey" value="' + escapeHtml(serial.serialItemBusinessKey || '') + '" />'
+                    + '<input type="hidden" name="LineForm.Serials[' + index + '].SerialRef" value="' + escapeHtml(serial.serialRef || '') + '" />'
+                    + '<input type="hidden" name="LineForm.Serials[' + index + '].SerialNo" value="' + escapeHtml(serial.serialNo || '') + '" />');
+            });
+        }
+
+        function syncQtyFromSerials() {
+            if (!qtyInput || !selectedLine) {
+                return;
+            }
+
+            var selectedCount = serialContainer ? serialContainer.querySelectorAll('.js-return-line-serial-select:checked').length : 0;
+            if (getSerialsForLine(selectedLine).length > 0) {
+                qtyInput.value = String(selectedCount > 0 ? selectedCount : 0);
+                qtyInput.max = String(getSerialsForLine(selectedLine).length);
+                qtyInput.readOnly = true;
+            } else {
+                qtyInput.readOnly = false;
+                qtyInput.max = String(selectedLine.qty || selectedLine.baseQty || 0);
+            }
+        }
+
+        function renderSerials(line) {
+            if (!serialContainer || !serialHidden || !serialCount || !serialHint || !noSerialMessage) {
+                return;
+            }
+
+            var serials = getSerialsForLine(line);
+            var defaultSelections = defaultSerialSelections();
+            var defaultSelectionKeys = defaultSelections.map(buildSerialKey).filter(Boolean);
+            serialContainer.innerHTML = '';
+            serialHidden.innerHTML = '';
+
+            if (!serials.length) {
+                serialCount.textContent = '0';
+                serialHint.textContent = '@UiText["inventory.documents.serial.notRequired"]';
+                noSerialMessage.classList.remove('d-none');
+                syncQtyFromSerials();
+                return;
+            }
+
+            noSerialMessage.classList.add('d-none');
+            serialHint.textContent = '@UiText["inventory.documents.serial.selectAll"]';
+            serialCount.textContent = String(serials.length);
+
+            serials.forEach(function (serial) {
+                var serialId = buildSerialKey(serial);
+                var serialNo = normalize(serial.serialNo || serial.serialItemBusinessKey || '-');
+                var checked = defaultSelectionKeys.length ? defaultSelectionKeys.indexOf(serialId) >= 0 : true;
+                var wrapper = document.createElement('label');
+                wrapper.className = 'd-flex align-items-start border rounded p-2 mb-2 bg-white';
+                wrapper.innerHTML = ''
+                    + '<input type="checkbox" class="mr-2 mt-1 js-return-line-serial-select" data-serial-id="' + escapeHtml(serialId) + '" data-serial-no="' + escapeHtml(serialNo) + '" ' + (checked ? 'checked' : '') + ' />'
+                    + '<div class="flex-grow-1">'
+                    + '<div class="font-weight-bold">' + escapeHtml(serialNo) + '</div>'
+                    + '<div class="small text-muted">' + escapeHtml([labelLocation(serial.locationRef), labelQuality(serial.qualityStatusRef), normalize(serial.lotBatchNo), normalize(serial.status)].filter(Boolean).join(' / ')) + '</div>'
+                    + '</div>';
+                serialContainer.appendChild(wrapper);
+            });
+
+            serialContainer.querySelectorAll('.js-return-line-serial-select').forEach(function (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    var selected = [];
+                    serialContainer.querySelectorAll('.js-return-line-serial-select:checked').forEach(function (node) {
+                        selected.push({
+                            serialItemBusinessKey: node.getAttribute('data-serial-id') || '',
+                            serialRef: node.getAttribute('data-serial-id') || '',
+                            serialNo: node.getAttribute('data-serial-no') || ''
+                        });
+                    });
+                    updateSerialHiddenInputs(selected);
+                    syncQtyFromSerials();
+                });
+            });
+
+            var initialSelected = [];
+            serialContainer.querySelectorAll('.js-return-line-serial-select:checked').forEach(function (node) {
+                initialSelected.push({
+                    serialItemBusinessKey: node.getAttribute('data-serial-id') || '',
+                    serialRef: node.getAttribute('data-serial-id') || '',
+                    serialNo: node.getAttribute('data-serial-no') || ''
+                });
+            });
+            updateSerialHiddenInputs(initialSelected);
+            syncQtyFromSerials();
+        }
+
+        function applyLine(line, index) {
+            selectedLine = line;
+            selectedLineIndex = typeof index === 'number' ? index : -1;
+
+            if (!line) {
+                return;
+            }
+
+            if (selectedLineHint) {
+                selectedLineHint.textContent = '@UiText["inventory.documents.line.editTitle"]';
+            }
+
+            if (variantInput) {
+                variantInput.value = line.variantId || '';
+            }
+            if (uomInput) {
+                uomInput.value = line.uomRef || line.baseUomRef || '';
+            }
+            if (baseUomInput) {
+                baseUomInput.value = line.baseUomRef || line.uomRef || '';
+            }
+            if (warehouseInput) {
+                warehouseInput.value = line.warehouseRef || (document && document.warehouseRef) || '';
+            }
+            if (sourceInput) {
+                sourceInput.value = line.sourceLocationRef || '';
+            }
+            if (destinationInput) {
+                destinationInput.value = line.destinationLocationRef || '';
+            }
+            if (qualityInput) {
+                qualityInput.value = line.qualityStatusRef || '';
+            }
+            if (lotInput) {
+                lotInput.value = line.lotBatchNo || '';
+            }
+            if (variantSummary) {
+                variantSummary.textContent = labelVariant(line.variantId || '');
+            }
+            if (lotSummary) {
+                lotSummary.textContent = line.lotBatchNo ? line.lotBatchNo : '-';
+            }
+            if (qualitySummary) {
+                qualitySummary.textContent = labelQuality(line.qualityStatusRef || '');
+            }
+            if (locationsSummary) {
+                locationsSummary.textContent = lineLocationText(line);
+            }
+            if (qtyInput) {
+                qtyInput.value = String(line.qty || line.baseQty || 1);
+                qtyInput.max = String(line.qty || line.baseQty || 1);
+            }
+
+            renderSerials(line);
+
+            if (linesList) {
+                linesList.querySelectorAll('.js-return-reference-line').forEach(function (card) {
+                    card.classList.remove('border-primary', 'shadow-sm');
+                });
+                if (selectedLineIndex > -1) {
+                    var selectedCard = linesList.querySelector('.js-return-reference-line[data-line-index="' + selectedLineIndex + '"]');
+                    if (selectedCard) {
+                        selectedCard.classList.add('border-primary', 'shadow-sm');
+                    }
+                }
+            }
+        }
+
+        function normalizeLine(group, line) {
+            var serials = Array.isArray(line.serials) ? line.serials : [];
+            return {
+                variantId: normalize(group.variantId || line.variantId),
+                variantLabel: labelVariant(group.variantId || line.variantId),
+                lineBusinessKey: normalize(line.lineBusinessKey),
+                qty: Number(line.qty || line.baseQty || 0),
+                baseQty: Number(line.baseQty || line.qty || 0),
+                uomRef: normalize(line.uomRef),
+                baseUomRef: normalize(line.baseUomRef),
+                sourceLocationRef: normalize(line.sourceLocationRef),
+                destinationLocationRef: normalize(line.destinationLocationRef),
+                qualityStatusRef: normalize(line.qualityStatusRef),
+                lotBatchNo: normalize(line.lotBatchNo),
+                serials: serials.map(function (serial) {
+                    return {
+                        serialItemBusinessKey: normalize(serial.serialItemBusinessKey),
+                        serialRef: normalize(serial.serialRef),
+                        serialNo: normalize(serial.serialNo),
+                        locationRef: normalize(serial.locationRef),
+                        qualityStatusRef: normalize(serial.qualityStatusRef),
+                        lotBatchNo: normalize(serial.lotBatchNo),
+                        status: normalize(serial.status)
+                    };
+                })
+            };
+        }
+
+        function lineMatchesDefault(line) {
+            if (!line) {
+                return false;
+            }
+
+            var variantMatch = !normalize(defaultLineState.variantId) || normalize(defaultLineState.variantId).toLowerCase() === normalize(line.variantId).toLowerCase();
+            var lotMatch = !normalize(defaultLineState.lotBatchNo) || normalize(defaultLineState.lotBatchNo).toLowerCase() === normalize(line.lotBatchNo).toLowerCase();
+            var sourceMatch = !normalize(defaultLineState.sourceLocationRef) || normalize(defaultLineState.sourceLocationRef).toLowerCase() === normalize(line.sourceLocationRef).toLowerCase();
+            var destinationMatch = !normalize(defaultLineState.destinationLocationRef) || normalize(defaultLineState.destinationLocationRef).toLowerCase() === normalize(line.destinationLocationRef).toLowerCase();
+            var qualityMatch = !normalize(defaultLineState.qualityStatusRef) || normalize(defaultLineState.qualityStatusRef).toLowerCase() === normalize(line.qualityStatusRef).toLowerCase();
+
+            if (!(variantMatch && lotMatch && sourceMatch && destinationMatch && qualityMatch)) {
+                return false;
+            }
+
+            var defaultSerialIds = defaultSerialSelections().map(buildSerialKey).filter(Boolean);
+            if (!defaultSerialIds.length) {
+                return true;
+            }
+
+            var lineSerialKeys = getSerialsForLine(line).map(buildSerialKey).filter(Boolean);
+            return defaultSerialIds.every(function (serialId) {
+                return lineSerialKeys.indexOf(serialId) >= 0;
+            });
+        }
+
+        function renderReferenceLines(payload) {
+            if (!linesList) {
+                return;
+            }
+
+            var groups = Array.isArray(payload && payload.referenceLinesByVariant) ? payload.referenceLinesByVariant : [];
+            referenceLines = [];
+
+            groups.forEach(function (group) {
+                (group.lines || []).forEach(function (line) {
+                    referenceLines.push(normalizeLine(group, line));
+                });
+            });
+
+            if (lineCount) {
+                lineCount.textContent = String(referenceLines.length) + ' @UiText["common.line"]';
+            }
+
+            if (referenceLines.length === 0) {
+                linesList.innerHTML = '<div class="alert alert-light mb-0">@UiText["inventory.documents.lines.noRecords"]</div>';
+                applyLine(null);
+                return;
+            }
+
+            linesList.innerHTML = referenceLines.map(function (line, index) {
+                var serialCountText = String(getSerialsForLine(line).length);
+                return ''
+                    + '<div class="col-lg-6 mb-3">'
+                    + '<div class="border rounded p-3 h-100 bg-white js-return-reference-line" data-line-index="' + index + '">'
+                    + '<div class="d-flex justify-content-between align-items-start">'
+                    + '<div class="pr-2">'
+                    + '<div class="font-weight-bold">' + escapeHtml(line.variantLabel) + '</div>'
+                    + '<div class="small text-muted">' + escapeHtml(line.lotBatchNo || '@UiText["inventory.documents.line.lotBatch"]') + '</div>'
+                    + '</div>'
+                    + '<button type="button" class="btn btn-outline-primary btn-xs js-return-reference-line-select">@UiText["common.choose"]</button>'
+                    + '</div>'
+                    + '<div class="small text-muted mt-2">'
+                    + '<div>@UiText["common.quantity"]: ' + escapeHtml(String(line.qty || line.baseQty || 0)) + ' ' + escapeHtml(labelUom(line.uomRef || line.baseUomRef || '')) + '</div>'
+                    + '<div>@UiText["common.quality"]: ' + escapeHtml(labelQuality(line.qualityStatusRef || '')) + '</div>'
+                    + '<div>@UiText["inventory.documents.line.sourceLocation"]: ' + escapeHtml(labelLocation(line.sourceLocationRef || '')) + '</div>'
+                    + '<div>@UiText["inventory.documents.line.destinationLocation"]: ' + escapeHtml(labelLocation(line.destinationLocationRef || '')) + '</div>'
+                    + '<div>@UiText["inventory.documents.line.serials"]: ' + escapeHtml(serialCountText) + '</div>'
+                    + '</div>'
+                    + '</div>'
+                    + '</div>';
+            }).join('');
+
+            var defaultIndex = referenceLines.findIndex(lineMatchesDefault);
+            if (defaultIndex < 0) {
+                defaultIndex = 0;
+            }
+
+            linesList.querySelectorAll('.js-return-reference-line-select').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var wrapper = button.closest('.js-return-reference-line');
+                    var index = wrapper ? Number(wrapper.getAttribute('data-line-index') || '-1') : -1;
+                    if (index < 0 || !referenceLines[index]) {
+                        return;
+                    }
+
+                    applyLine(referenceLines[index], index);
+                });
+            });
+
+            applyLine(referenceLines[defaultIndex], defaultIndex);
+        }
+
+        function loadReferenceDocument() {
+            if (!documentId) {
+                if (linesList) {
+                    linesList.innerHTML = '<div class="alert alert-light mb-0">@UiText["inventory.documents.details.noSelection"]</div>';
+                }
+                return;
+            }
+
+            var url = new URL('@Url.Action("GetReturnReferenceDocument", "InventoryManagement")', window.location.origin);
+            url.searchParams.set('documentId', documentId);
+            url.searchParams.set('returnDocumentType', referenceDocumentType);
+
+            if (linesList) {
+                linesList.innerHTML = '<div class="text-muted">@UiText["common.loading"]</div>';
+            }
+
+            fetch(url.toString(), {
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (payload) {
+                    if (!payload || !payload.isSuccess) {
+                        if (linesList) {
+                            linesList.innerHTML = '<div class="alert alert-warning mb-0">' + escapeHtml((payload && payload.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]') + '</div>';
+                        }
+                        return;
+                    }
+
+                    renderReferenceLines(payload);
+                })
+                .catch(function (error) {
+                    console.error(error);
+                    if (linesList) {
+                        linesList.innerHTML = '<div class="alert alert-danger mb-0">@UiText["inventory.documents.action.loadingFailed"]</div>';
+                    }
+                });
+        }
+
+        buildLookupMaps();
+        loadReferenceDocument();
+    })();
+</script>

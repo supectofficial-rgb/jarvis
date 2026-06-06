@@ -2,7 +2,7 @@
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
-    ViewData["Title"] = UiText["inventory.documents.title"];
+    ViewData["Title"] = $"{UiText["inventory.documents.titlePrefix"]} {UiText["inventory.documents.type.adjustment"]}";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
@@ -944,24 +944,6 @@
                     selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
             }
 
-            var renderAdjustmentLocationOptionsSafe = typeof renderAdjustmentLocationOptions === 'function'
-                ? renderAdjustmentLocationOptions
-                : function (form, locations, selectedSourceId, selectedDestinationId) {
-                    if (!form) {
-                        return;
-                    }
-
-                    var locationSelect = getAdjustmentLocationField(form);
-                    var items = Array.isArray(locations) ? locations : [];
-                    setSelectOptions(
-                        locationSelect,
-                        items,
-                        items.length ? '@UiText["inventory.documents.line.selectLocation"]' : '@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]',
-                        'locationId',
-                        'text',
-                        selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
-                };
-
             function renderAdjustmentLotOptions(form, buckets, selectedLocationId, selectedQualityId, selectedLotBatchNo) {
                 if (!form) {
                     return;
@@ -1341,6 +1323,8 @@ for (var i = 0; i < lines.length; i++) {
             var modalTitleSelector = '#adjustment-document-details-modal-title';
             var modalSubtitleSelector = '#adjustment-document-details-modal-subtitle';
             var modalEndpoint = '/InventoryManagement/Documents/Adjustment/Details';
+            var adjustmentDetailsTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize($"{UiText["inventory.documents.details.title"]} {UiText["inventory.documents.type.adjustment"]}"));
+            var adjustmentDetailsSubtitlePrefix = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["common.document"]));
 
             function getModal() {
                 return document.querySelector(modalSelector);
@@ -1363,10 +1347,10 @@ for (var i = 0; i < lines.length; i++) {
                     body.innerHTML = html || '';
                 }
                 if (title) {
-                    title.textContent = documentNo ? ('@UiText["inventory.documents.details.title"] @UiText["inventory.documents.type.adjustment"] ' + documentNo) : '@UiText["inventory.documents.details.title"] @UiText["inventory.documents.type.adjustment"]';
+                    title.textContent = documentNo ? (adjustmentDetailsTitleText + ' ' + documentNo) : adjustmentDetailsTitleText;
                 }
                 if (subtitle) {
-                    subtitle.textContent = documentNo ? ('@UiText["common.document"] ' + documentNo) : '';
+                    subtitle.textContent = documentNo ? (adjustmentDetailsSubtitlePrefix + ' ' + documentNo) : '';
                 }
 
                 if (window.appUi && typeof window.appUi.initSearchableSelects === 'function' && body) {
@@ -1693,7 +1677,7 @@ for (var i = 0; i < lines.length; i++) {
                 var qualityStatusId = qualityField ? qualityField.value : '';
                 var selectedLocationId = currentAdjustmentLocation(form);
                 if (!variantField || !variantField.value) {
-                    renderAdjustmentLocationOptionsSafe(form, [], '', '');
+                    renderAdjustmentLocationOptions(form, [], '', '');
                     renderAdjustmentLotOptions(form, [], '', '', '');
                     renderAdjustmentInventorySummary(form, [], []);
                     return;
@@ -1718,7 +1702,7 @@ for (var i = 0; i < lines.length; i++) {
                     throw new Error((data && data.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]');
                 }
 
-                renderAdjustmentLocationOptionsSafe(
+                renderAdjustmentLocationOptions(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
                     selectedLocationId,

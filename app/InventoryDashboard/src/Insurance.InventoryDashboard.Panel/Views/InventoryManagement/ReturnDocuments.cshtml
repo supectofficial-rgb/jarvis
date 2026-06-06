@@ -2,7 +2,7 @@
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
-    ViewData["Title"] = UiText["inventory.documents.title"];
+    ViewData["Title"] = $"{UiText["inventory.documents.titlePrefix"]} {UiText["inventory.documents.type.return"]}";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;

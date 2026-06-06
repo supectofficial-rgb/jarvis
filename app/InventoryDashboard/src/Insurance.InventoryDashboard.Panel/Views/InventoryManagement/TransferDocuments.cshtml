@@ -5,7 +5,7 @@
 @{
     string DecodeHtmlEntities(string? value) => WebUtility.HtmlDecode(value ?? string.Empty);
 
-    ViewData["Title"] = DecodeHtmlEntities(UiText["inventory.documents.title"]);
+    ViewData["Title"] = $"{DecodeHtmlEntities(UiText["inventory.documents.titlePrefix"])} {DecodeHtmlEntities(UiText["inventory.documents.type.transfer"])}";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
     ViewBag.UserDisplayName = Model.UserName;
     ViewBag.MenuModules = Model.Modules;
