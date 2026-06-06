@@ -604,6 +604,7 @@ public class PostInventoryDocumentCommandHandler
         {
             InventoryDocumentType.Receipt => InventorySourceType.Receipt,
             InventoryDocumentType.ReturnFromSell => InventorySourceType.ReturnRestock,
+            InventoryDocumentType.Transfer => InventorySourceType.Transfer,
             InventoryDocumentType.Adjustment => InventorySourceType.AdjustmentIncrease,
             InventoryDocumentType.Conversion => InventorySourceType.ConversionProduction,
             _ => null

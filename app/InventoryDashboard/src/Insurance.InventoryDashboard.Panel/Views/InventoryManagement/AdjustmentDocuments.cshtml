@@ -1479,19 +1479,19 @@ for (var i = 0; i < lines.length; i++) {
                 }
                 form.dataset.adjustmentCurrentDirection = direction;
 
-                var increaseSection = form.querySelector('.js-adjustment-increase-section');
-                var decreaseSection = form.querySelector('.js-adjustment-decrease-section');
                 var locationSection = form.querySelector('.js-adjustment-location-section');
                 var locationField = getAdjustmentLocationField(form);
                 var locationLabel = form.querySelector('.js-adjustment-location-label');
                 var locationHint = form.querySelector('.js-adjustment-location-hint');
+                var serialSection = form.querySelector('.js-adjustment-serial-section');
+                var serialTitle = form.querySelector('.js-adjustment-serial-title');
+                var serialSummary = form.querySelector('.js-adjustment-serial-summary');
 
                 var isIncrease = direction === 'Increase';
                 var isDecrease = direction === 'Decrease';
 
-                setSectionEnabled(increaseSection, isIncrease);
-                setSectionEnabled(decreaseSection, isDecrease);
                 setSectionEnabled(locationSection, true);
+                setSectionEnabled(serialSection, !!direction);
 
                 if (locationField) {
                     if (direction) {
@@ -1513,6 +1513,21 @@ for (var i = 0; i < lines.length; i++) {
                         ? '@UiText["inventory.documents.line.destinationLocation"]'
                         : isDecrease
                             ? '@UiText["inventory.documents.line.sourceLocation"]'
+                            : '@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]';
+                }
+
+                if (serialTitle) {
+                    serialTitle.textContent = isIncrease
+                        ? '@UiText["inventory.documents.adjustment.increaseSerialsDescription"]'
+                        : isDecrease
+                            ? '@UiText["inventory.documents.adjustment.decreaseSerialsDescription"]'
+                            : '@UiText["inventory.documents.adjustment.selectedSerialsTitle"]';
+                }
+                if (serialSummary) {
+                    serialSummary.textContent = isIncrease
+                        ? '@UiText["inventory.documents.adjustment.increaseSerialsDescription"]'
+                        : isDecrease
+                            ? '@UiText["inventory.documents.adjustment.decreaseSerialsDescription"]'
                             : '@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]';
                 }
 
@@ -1610,43 +1625,35 @@ for (var i = 0; i < lines.length; i++) {
                 var direction = selectedDirection(form);
                 var locationField = getAdjustmentLocationField(form);
                 var locationId = locationField ? locationField.value : '';
-                var decreaseTarget = form.querySelector('.js-adjustment-decrease-serial-list');
-                var increaseTarget = form.querySelector('.js-adjustment-increase-serial-list');
+                var serialTarget = form.querySelector('.js-adjustment-serial-container');
 
                 if (!variantField || !variantField.value || !direction || !locationId) {
-                    if (decreaseTarget) {
-                        decreaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
-                    }
-                    if (increaseTarget) {
-                        increaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
+                    if (serialTarget) {
+                        serialTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
                     }
                     return;
                 }
 
                 if (direction === 'Decrease') {
-                    if (!decreaseTarget) {
+                    if (!serialTarget) {
                         return;
                     }
 
                     var decreaseUrl = '/InventoryManagement/Documents/Adjustment/AvailableSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(locationId);
-                    decreaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
+                    serialTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
                     fetch(decreaseUrl, { credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
                         .then(function (data) {
                             if (!data || !data.isSuccess) {
-                                decreaseTarget.innerHTML = '<div class="alert alert-warning mb-0">' + escapeAttribute(data && data.errorMessage ? data.errorMessage : '@UiText["inventory.documents.action.loadingFailed"]') + '</div>';
+                                serialTarget.innerHTML = '<div class="alert alert-warning mb-0">' + escapeAttribute(data && data.errorMessage ? data.errorMessage : '@UiText["inventory.documents.action.loadingFailed"]') + '</div>';
                                 return;
                             }
 
-                            renderAdjustmentSerialList(form, decreaseTarget, Array.isArray(data.serials) ? data.serials : [], 'js-adjustment-decrease-serial', '@UiText["inventory.documents.line.decrease"]', '@UiText["common.noRecords"]');
+                            renderAdjustmentSerialList(form, serialTarget, Array.isArray(data.serials) ? data.serials : [], 'js-adjustment-decrease-serial', '@UiText["inventory.documents.line.decrease"]', '@UiText["common.noRecords"]');
                         })
                         .catch(function () {
-                            decreaseTarget.innerHTML = '<div class="alert alert-danger mb-0">@UiText["inventory.documents.action.loadingFailed"]</div>';
+                            serialTarget.innerHTML = '<div class="alert alert-danger mb-0">@UiText["inventory.documents.action.loadingFailed"]</div>';
                         });
-
-                    if (increaseTarget) {
-                        increaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
-                    }
 
                     syncAdjustmentHiddenLocation(form);
 
@@ -1654,29 +1661,25 @@ for (var i = 0; i < lines.length; i++) {
                 }
 
                 if (direction === 'Increase') {
-                    if (!increaseTarget) {
+                    if (!serialTarget) {
                         return;
                     }
 
                     var increaseUrl = '/InventoryManagement/Documents/Adjustment/IncreaseSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(locationId);
-                    increaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
+                    serialTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
                     fetch(increaseUrl, { credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
                         .then(function (data) {
                             if (!data || !data.isSuccess) {
-                                increaseTarget.innerHTML = '<div class="alert alert-warning mb-0">' + escapeAttribute(data && data.errorMessage ? data.errorMessage : '@UiText["inventory.documents.action.loadingFailed"]') + '</div>';
+                                serialTarget.innerHTML = '<div class="alert alert-warning mb-0">' + escapeAttribute(data && data.errorMessage ? data.errorMessage : '@UiText["inventory.documents.action.loadingFailed"]') + '</div>';
                                 return;
                             }
 
-                            renderAdjustmentSerialList(form, increaseTarget, Array.isArray(data.serials) ? data.serials : [], 'js-adjustment-increase-serial', '@UiText["inventory.documents.line.increase"]', '@UiText["common.noRecords"]');
+                            renderAdjustmentSerialList(form, serialTarget, Array.isArray(data.serials) ? data.serials : [], 'js-adjustment-increase-serial', '@UiText["inventory.documents.line.increase"]', '@UiText["common.noRecords"]');
                         })
                         .catch(function () {
-                            increaseTarget.innerHTML = '<div class="alert alert-danger mb-0">@UiText["inventory.documents.action.loadingFailed"]</div>';
+                            serialTarget.innerHTML = '<div class="alert alert-danger mb-0">@UiText["inventory.documents.action.loadingFailed"]</div>';
                         });
-
-                    if (decreaseTarget) {
-                        decreaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
-                    }
 
                     syncAdjustmentHiddenLocation(form);
                 }

@@ -98,6 +98,36 @@ internal static class InventoryDocumentLineSourceAllocationHelper
             orderedSourceBalances.Count,
             selectedSerialRefs.Count);
 
+        if (selectedSerialRefs.Count > 0)
+        {
+            var matchingSelectedSerialBalances = orderedSourceBalances
+                .Where(x => x.SerialRef.HasValue && selectedSerialRefs.Contains(x.SerialRef.Value))
+                .ToList();
+
+            logger?.LogWarning(
+                "Source allocation selected-serial matches for line {LineBusinessKey}: matchingCandidates={MatchingCandidates}, selectedSerials={SelectedSerials}, sourceLocation={SourceLocationRef}, lot={LotBatchNo}, quality={QualityStatusRef}.",
+                line.BusinessKey.Value,
+                matchingSelectedSerialBalances.Count,
+                selectedSerialRefs.Count,
+                line.SourceLocationRef,
+                requestedLotBatchNo,
+                requestedQualityStatusRef);
+
+            foreach (var matchedCandidate in matchingSelectedSerialBalances.Take(10))
+            {
+                logger?.LogWarning(
+                    "Matched selected serial source balance for line {LineBusinessKey}: sourceBalance {SourceBalanceBusinessKey} serial {SerialRef} location {LocationRef} lot {LotBatchNo} quality {QualityStatusRef} available {AvailableQty} openedAt {OpenedAt}.",
+                    line.BusinessKey.Value,
+                    matchedCandidate.BusinessKey.Value,
+                    matchedCandidate.SerialRef,
+                    matchedCandidate.LocationRef,
+                    matchedCandidate.LotBatchNo,
+                    matchedCandidate.QualityStatusRef,
+                    matchedCandidate.AvailableQty,
+                    matchedCandidate.OpenedAt);
+            }
+        }
+
         foreach (var candidate in orderedSourceBalances.Take(10))
         {
             logger?.LogWarning(
@@ -115,9 +145,13 @@ internal static class InventoryDocumentLineSourceAllocationHelper
         if (orderedSourceBalances.Count == 0)
         {
             logger?.LogWarning(
-                "No open source balance found for line {LineBusinessKey} on document {DocumentNo}.",
+                "No open source balance found for line {LineBusinessKey} on document {DocumentNo}. sourceLocation={SourceLocationRef} lot={LotBatchNo} quality={QualityStatusRef} selectedSerials={SelectedSerials}.",
                 line.BusinessKey.Value,
-                document.DocumentNo);
+                document.DocumentNo,
+                line.SourceLocationRef,
+                requestedLotBatchNo,
+                requestedQualityStatusRef,
+                string.Join(", ", selectedSerialRefs.Select(x => x.ToString("D"))));
             throw new AggregateStateExceptions("No open source balance found for the selected line.", nameof(line.VariantRef));
         }
 

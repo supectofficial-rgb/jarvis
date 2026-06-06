@@ -6,5 +6,6 @@ public enum InventorySourceType
     ReturnRestock = 2,
     AdjustmentIncrease = 3,
     OpeningBalance = 4,
-    ConversionProduction = 5
+    ConversionProduction = 5,
+    Transfer = 6
 }
