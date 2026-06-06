@@ -254,6 +254,23 @@
         var rawDefaultLine = root.getAttribute('data-default-line-json') || '{}';
         var lookupData = {};
         var defaultLineState = {};
+        var returnSourceLocationLabelText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.line.sourceLocation"]));
+        var returnDestinationLocationLabelText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.line.destinationLocation"]));
+        var returnSerialRequiredHintText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.serial.requiredHint"]));
+        var returnSerialNotRequiredText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.serial.notRequired"]));
+        var returnSerialNoAvailableText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.serial.noAvailable"]));
+        var returnSerialSelectAllText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.serial.selectAll"]));
+        var returnLineEditTitleText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.line.editTitle"]));
+        var returnCommonLineText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["common.line"]));
+        var returnLinesNoRecordsText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.lines.noRecords"]));
+        var returnLotBatchLabelText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.line.lotBatch"]));
+        var returnCommonQuantityText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["common.quantity"]));
+        var returnCommonQualityText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["common.quality"]));
+        var returnChooseText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["common.choose"]));
+        var returnSerialsLabelText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.line.serials"]));
+        var returnNoSelectionText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.details.noSelection"]));
+        var returnLoadingText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["common.loading"]));
+        var returnLoadingFailedText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.action.loadingFailed"]));
 
         try { lookupData = JSON.parse(rawLookups || '{}'); } catch (error) { lookupData = {}; }
         try { defaultLineState = JSON.parse(rawDefaultLine || '{}'); } catch (error) { defaultLineState = {}; }
@@ -407,10 +424,10 @@
         function lineLocationText(line) {
             var parts = [];
             if (line.sourceLocationRef) {
-                parts.push('@UiText["inventory.documents.line.sourceLocation"]' + ': ' + labelLocation(line.sourceLocationRef));
+                parts.push(returnSourceLocationLabelText + ': ' + labelLocation(line.sourceLocationRef));
             }
             if (line.destinationLocationRef) {
-                parts.push('@UiText["inventory.documents.line.destinationLocation"]' + ': ' + labelLocation(line.destinationLocationRef));
+                parts.push(returnDestinationLocationLabelText + ': ' + labelLocation(line.destinationLocationRef));
             }
             return parts.join(' | ') || '-';
         }
@@ -459,14 +476,14 @@
 
             if (!serials.length) {
                 serialCount.textContent = '0';
-                serialHint.textContent = '@UiText["inventory.documents.serial.notRequired"]';
+                serialHint.textContent = returnSerialNotRequiredText;
                 noSerialMessage.classList.remove('d-none');
                 syncQtyFromSerials();
                 return;
             }
 
             noSerialMessage.classList.add('d-none');
-            serialHint.textContent = '@UiText["inventory.documents.serial.selectAll"]';
+            serialHint.textContent = returnSerialSelectAllText;
             serialCount.textContent = String(serials.length);
 
             serials.forEach(function (serial) {
@@ -520,7 +537,7 @@
             }
 
             if (selectedLineHint) {
-                selectedLineHint.textContent = '@UiText["inventory.documents.line.editTitle"]';
+                selectedLineHint.textContent = returnLineEditTitleText;
             }
 
             if (variantInput) {
@@ -648,11 +665,11 @@
             });
 
             if (lineCount) {
-                lineCount.textContent = String(referenceLines.length) + ' @UiText["common.line"]';
+                lineCount.textContent = String(referenceLines.length) + ' ' + returnCommonLineText;
             }
 
             if (referenceLines.length === 0) {
-                linesList.innerHTML = '<div class="alert alert-light mb-0">@UiText["inventory.documents.lines.noRecords"]</div>';
+                linesList.innerHTML = '<div class="alert alert-light mb-0">' + escapeHtml(returnLinesNoRecordsText) + '</div>';
                 applyLine(null);
                 return;
             }
@@ -665,16 +682,16 @@
                     + '<div class="d-flex justify-content-between align-items-start">'
                     + '<div class="pr-2">'
                     + '<div class="font-weight-bold">' + escapeHtml(line.variantLabel) + '</div>'
-                    + '<div class="small text-muted">' + escapeHtml(line.lotBatchNo || '@UiText["inventory.documents.line.lotBatch"]') + '</div>'
+                    + '<div class="small text-muted">' + escapeHtml(line.lotBatchNo || returnLotBatchLabelText) + '</div>'
                     + '</div>'
-                    + '<button type="button" class="btn btn-outline-primary btn-xs js-return-reference-line-select">@UiText["common.choose"]</button>'
+                    + '<button type="button" class="btn btn-outline-primary btn-xs js-return-reference-line-select">' + escapeHtml(returnChooseText) + '</button>'
                     + '</div>'
                     + '<div class="small text-muted mt-2">'
-                    + '<div>@UiText["common.quantity"]: ' + escapeHtml(String(line.qty || line.baseQty || 0)) + ' ' + escapeHtml(labelUom(line.uomRef || line.baseUomRef || '')) + '</div>'
-                    + '<div>@UiText["common.quality"]: ' + escapeHtml(labelQuality(line.qualityStatusRef || '')) + '</div>'
-                    + '<div>@UiText["inventory.documents.line.sourceLocation"]: ' + escapeHtml(labelLocation(line.sourceLocationRef || '')) + '</div>'
-                    + '<div>@UiText["inventory.documents.line.destinationLocation"]: ' + escapeHtml(labelLocation(line.destinationLocationRef || '')) + '</div>'
-                    + '<div>@UiText["inventory.documents.line.serials"]: ' + escapeHtml(serialCountText) + '</div>'
+                    + '<div>' + escapeHtml(returnCommonQuantityText) + ': ' + escapeHtml(String(line.qty || line.baseQty || 0)) + ' ' + escapeHtml(labelUom(line.uomRef || line.baseUomRef || '')) + '</div>'
+                    + '<div>' + escapeHtml(returnCommonQualityText) + ': ' + escapeHtml(labelQuality(line.qualityStatusRef || '')) + '</div>'
+                    + '<div>' + escapeHtml(returnSourceLocationLabelText) + ': ' + escapeHtml(labelLocation(line.sourceLocationRef || '')) + '</div>'
+                    + '<div>' + escapeHtml(returnDestinationLocationLabelText) + ': ' + escapeHtml(labelLocation(line.destinationLocationRef || '')) + '</div>'
+                    + '<div>' + escapeHtml(returnSerialsLabelText) + ': ' + escapeHtml(serialCountText) + '</div>'
                     + '</div>'
                     + '</div>'
                     + '</div>';
@@ -703,7 +720,7 @@
         function loadReferenceDocument() {
             if (!documentId) {
                 if (linesList) {
-                    linesList.innerHTML = '<div class="alert alert-light mb-0">@UiText["inventory.documents.details.noSelection"]</div>';
+                    linesList.innerHTML = '<div class="alert alert-light mb-0">' + escapeHtml(returnNoSelectionText) + '</div>';
                 }
                 return;
             }
@@ -713,7 +730,7 @@
             url.searchParams.set('returnDocumentType', referenceDocumentType);
 
             if (linesList) {
-                linesList.innerHTML = '<div class="text-muted">@UiText["common.loading"]</div>';
+                linesList.innerHTML = '<div class="text-muted">' + escapeHtml(returnLoadingText) + '</div>';
             }
 
             fetch(url.toString(), {
@@ -727,7 +744,7 @@
                 .then(function (payload) {
                     if (!payload || !payload.isSuccess) {
                         if (linesList) {
-                            linesList.innerHTML = '<div class="alert alert-warning mb-0">' + escapeHtml((payload && payload.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]') + '</div>';
+                            linesList.innerHTML = '<div class="alert alert-warning mb-0">' + escapeHtml((payload && payload.errorMessage) || returnLoadingFailedText) + '</div>';
                         }
                         return;
                     }
@@ -737,7 +754,7 @@
                 .catch(function (error) {
                     console.error(error);
                     if (linesList) {
-                        linesList.innerHTML = '<div class="alert alert-danger mb-0">@UiText["inventory.documents.action.loadingFailed"]</div>';
+                        linesList.innerHTML = '<div class="alert alert-danger mb-0">' + escapeHtml(returnLoadingFailedText) + '</div>';
                     }
                 });
         }

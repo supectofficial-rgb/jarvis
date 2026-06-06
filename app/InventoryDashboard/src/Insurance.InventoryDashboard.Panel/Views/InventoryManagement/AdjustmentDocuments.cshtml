@@ -928,6 +928,9 @@
                 });
             }
 
+            var renderAdjustmentInventorySummaryFn = renderAdjustmentInventorySummary;
+            window.renderAdjustmentInventorySummary = renderAdjustmentInventorySummaryFn;
+
             function renderAdjustmentLocationOptions(form, locations, selectedSourceId, selectedDestinationId) {
                 if (!form) {
                     return;
@@ -1768,6 +1771,13 @@ for (var i = 0; i < lines.length; i++) {
                         : (typeof window.renderAdjustmentLotOptions === 'function'
                             ? window.renderAdjustmentLotOptions
                             : function () { }));
+                var renderInventorySummary = typeof renderAdjustmentInventorySummaryFn === 'function'
+                    ? renderAdjustmentInventorySummaryFn
+                    : (typeof renderAdjustmentInventorySummary === 'function'
+                        ? renderAdjustmentInventorySummary
+                        : (typeof window.renderAdjustmentInventorySummary === 'function'
+                            ? window.renderAdjustmentInventorySummary
+                            : function () { }));
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
                 var qualityField = getAdjustmentQualityField(form);
                 var qualityStatusId = qualityField ? qualityField.value : '';
@@ -1775,7 +1785,7 @@ for (var i = 0; i < lines.length; i++) {
                 if (!variantField || !variantField.value) {
                     renderLocationOptions(form, [], '', '');
                     renderLotOptions(form, [], '', '', '');
-                    renderAdjustmentInventorySummary(form, [], []);
+                    renderInventorySummary(form, [], []);
                     return;
                 }
 
@@ -1809,7 +1819,7 @@ for (var i = 0; i < lines.length; i++) {
                     selectedLocationId,
                     qualityStatusId,
                     form.querySelector('.js-transfer-line-lot') ? form.querySelector('.js-transfer-line-lot').value || '' : '');
-                renderAdjustmentInventorySummary(
+                renderInventorySummary(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
                     Array.isArray(data.buckets) ? data.buckets : []);

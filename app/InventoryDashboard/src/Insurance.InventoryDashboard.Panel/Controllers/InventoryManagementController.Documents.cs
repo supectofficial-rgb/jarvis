@@ -2289,17 +2289,17 @@ public sealed partial class InventoryManagementController
     {
         if (!TryGetToken(out var token))
         {
-            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ø§Ø³Ù†Ø§Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+            return Content("شما دسترسی مشاهده اسناد را ندارید.");
         }
 
         if (!IsAuthorizedFor(token, "Inventory.Document.View", "Inventory.Document.Search", "InventoryDocument.Read", "InventoryDocument.Search", "Document.Read"))
         {
-            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ù…Ø´Ø§Ù‡Ø¯Ù‡ Ø§Ø³Ù†Ø§Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+            return Content("شما دسترسی مشاهده اسناد را ندارید.");
         }
 
         if (!Guid.TryParse(documentId, out _))
         {
-            return Content("Ø³Ù†Ø¯ Ù…Ø¹ØªØ¨Ø± Ù†ÛŒØ³Øª.");
+            return Content("سند معتبر نیست.");
         }
 
         var model = await BuildReturnDocumentDetailsModalModelAsync(documentId, token, editingLineId, cancellationToken);
@@ -2332,7 +2332,7 @@ public sealed partial class InventoryManagementController
         if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
         {
             _logger.LogWarning("SaveReturnDocumentLine forbidden for current user. DocumentId={DocumentId}", form.DocumentId);
-            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ ÙˆÛŒØ±Ø§ÛŒØ´ Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+            return Content("شما دسترسی ویرایش آیتم سند را ندارید.");
         }
 
         if (!TryValidateModel(form))
@@ -2418,7 +2418,7 @@ public sealed partial class InventoryManagementController
             lineResult.ErrorMessage);
 
         var refreshedModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
-        refreshedModel.ErrorMessage = lineResult.IsSuccess ? null : lineResult.ErrorMessage ?? "Ø°Ø®ÛŒØ±Ù‡ Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.";
+        refreshedModel.ErrorMessage = lineResult.IsSuccess ? null : lineResult.ErrorMessage ?? "ذخیره آیتم سند انجام نشد.";
         _logger.LogInformation(
             "SaveReturnDocumentLine completed. DocumentId={DocumentId}, LineId={LineId}, FinalError={FinalError}",
             form.DocumentId,
@@ -2438,19 +2438,19 @@ public sealed partial class InventoryManagementController
 
         if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
         {
-            return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ Ø­Ø°Ù Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
+            return Content("شما دسترسی حذف آیتم سند را ندارید.");
         }
 
         if (string.IsNullOrWhiteSpace(documentId) || string.IsNullOrWhiteSpace(lineId))
         {
             var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(documentId, token, null, cancellationToken);
-            invalidModel.ErrorMessage = "Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø¨Ø±Ø§ÛŒ Ø­Ø°Ù Ù…Ø´Ø®Øµ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.";
+            invalidModel.ErrorMessage = "آیتم سند برای حذف مشخص نشده است.";
             return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", invalidModel);
         }
 
         var deleteResult = await _apiService.DeleteInventoryDocumentLineAsync(documentId, lineId, token);
         var refreshedModel = await BuildReturnDocumentDetailsModalModelAsync(documentId, token, null, cancellationToken);
-        refreshedModel.ErrorMessage = deleteResult.IsSuccess ? null : deleteResult.ErrorMessage ?? "Ø­Ø°Ù Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.";
+        refreshedModel.ErrorMessage = deleteResult.IsSuccess ? null : deleteResult.ErrorMessage ?? "حذف آیتم سند انجام نشد.";
         return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", refreshedModel);
     }
 
