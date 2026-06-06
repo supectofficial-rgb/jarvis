@@ -582,7 +582,7 @@
         }
 
         function buildSerialKey(serial) {
-            return normalize(serial && (serial.serialItemBusinessKey || serial.serialRef || serial.serialNo));
+            return normalize(serial && (serial.serialRef || serial.serialItemBusinessKey || serial.serialNo));
         }
 
         function getSerialsForLine(line) {
@@ -656,12 +656,14 @@
 
             serials.forEach(function (serial) {
                 var serialId = buildSerialKey(serial);
+                var serialItemBusinessKey = normalize(serial.serialItemBusinessKey || '');
+                var serialRef = normalize(serial.serialRef || serial.serialItemBusinessKey || '');
                 var serialNo = normalize(serial.serialNo || serial.serialItemBusinessKey || '-');
                 var checked = defaultSelectionKeys.length ? defaultSelectionKeys.indexOf(serialId) >= 0 : true;
                 var wrapper = document.createElement('label');
                 wrapper.className = 'd-flex align-items-start border rounded p-2 mb-2 bg-white';
                 wrapper.innerHTML = ''
-                    + '<input type="checkbox" class="mr-2 mt-1 js-return-line-serial-select" data-serial-id="' + escapeHtml(serialId) + '" data-serial-no="' + escapeHtml(serialNo) + '" ' + (checked ? 'checked' : '') + ' />'
+                    + '<input type="checkbox" class="mr-2 mt-1 js-return-line-serial-select" data-serial-id="' + escapeHtml(serialId) + '" data-serial-item-business-key="' + escapeHtml(serialItemBusinessKey) + '" data-serial-ref="' + escapeHtml(serialRef) + '" data-serial-no="' + escapeHtml(serialNo) + '" ' + (checked ? 'checked' : '') + ' />'
                     + '<div class="flex-grow-1">'
                     + '<div class="font-weight-bold">' + escapeHtml(serialNo) + '</div>'
                     + '<div class="small text-muted">' + escapeHtml([labelLocation(serial.locationRef), labelQuality(serial.qualityStatusRef), normalize(serial.lotBatchNo), normalize(serial.status)].filter(Boolean).join(' / ')) + '</div>'
@@ -674,8 +676,8 @@
                     var selected = [];
                     serialContainer.querySelectorAll('.js-return-line-serial-select:checked').forEach(function (node) {
                         selected.push({
-                            serialItemBusinessKey: node.getAttribute('data-serial-id') || '',
-                            serialRef: node.getAttribute('data-serial-id') || '',
+                            serialItemBusinessKey: node.getAttribute('data-serial-item-business-key') || '',
+                            serialRef: node.getAttribute('data-serial-ref') || '',
                             serialNo: node.getAttribute('data-serial-no') || ''
                         });
                     });
@@ -687,8 +689,8 @@
             var initialSelected = [];
             serialContainer.querySelectorAll('.js-return-line-serial-select:checked').forEach(function (node) {
                 initialSelected.push({
-                    serialItemBusinessKey: node.getAttribute('data-serial-id') || '',
-                    serialRef: node.getAttribute('data-serial-id') || '',
+                    serialItemBusinessKey: node.getAttribute('data-serial-item-business-key') || '',
+                    serialRef: node.getAttribute('data-serial-ref') || '',
                     serialNo: node.getAttribute('data-serial-no') || ''
                 });
             });

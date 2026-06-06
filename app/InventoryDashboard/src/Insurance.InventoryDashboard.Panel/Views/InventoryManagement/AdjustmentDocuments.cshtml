@@ -873,7 +873,7 @@
 
                 select.value = selectedValue || '';
                 if (window.jQuery) {
-                    window.jQuery(select).trigger('change.select2');
+                    window.jQuery(select).trigger('change');
                 }
             }
 
@@ -1811,21 +1811,42 @@ for (var i = 0; i < lines.length; i++) {
                     throw new Error((data && data.errorMessage) || adjustmentLoadingFailedText);
                 }
 
+                var locations = Array.isArray(data.locations) ? data.locations : [];
+                var buckets = Array.isArray(data.buckets) ? data.buckets : [];
+                var lotField = form.querySelector('.js-transfer-line-lot');
+                var selectedLotBatchNo = lotField ? lotField.value || '' : '';
+
                 renderLocationOptions(
                     form,
-                    Array.isArray(data.locations) ? data.locations : [],
+                    locations,
                     selectedLocationId,
                     selectedLocationId);
                 renderLotOptions(
                     form,
-                    Array.isArray(data.buckets) ? data.buckets : [],
+                    buckets,
                     selectedLocationId,
                     qualityStatusId,
-                    form.querySelector('.js-transfer-line-lot') ? form.querySelector('.js-transfer-line-lot').value || '' : '');
+                    selectedLotBatchNo);
                 renderInventorySummary(
                     form,
-                    Array.isArray(data.locations) ? data.locations : [],
-                    Array.isArray(data.buckets) ? data.buckets : []);
+                    locations,
+                    buckets);
+
+                var locationSelect = getAdjustmentLocationField(form);
+                if (locationSelect && locationSelect.options.length <= 1 && locations.length > 0) {
+                    setSelectOptions(
+                        locationSelect,
+                        locations,
+                        '@UiText["inventory.documents.line.selectLocation"]',
+                        'locationId',
+                        'text',
+                        selectedLocationId || '');
+                }
+
+                var locationTarget = form.querySelector('.js-adjustment-location-list');
+                if (locationTarget && !String(locationTarget.innerHTML || '').trim()) {
+                    renderAdjustmentInventorySummary(form, locations, buckets);
+                }
             }
 
             function fetchAdjustmentSerials(form) {

@@ -5995,6 +5995,7 @@ public sealed partial class InventoryManagementController
                 serials.Add(new SerialItemLookupModel
                 {
                     SerialItemBusinessKey = serial.SerialItemBusinessKey ?? string.Empty,
+                    SerialRef = serial.SerialRef,
                     SerialNo = serial.SerialNo ?? string.Empty,
                     VariantRef = line.VariantRef,
                     SellerRef = referenceDocument.SellerRef,
@@ -6089,7 +6090,12 @@ public sealed partial class InventoryManagementController
         InventoryDocumentLineForm form)
     {
         form.Serials = resolvedSerialSelections
-            .Select(x => x.RequestedSerial)
+            .Select(x => new InventoryDocumentLineSerialModel
+            {
+                SerialItemBusinessKey = x.AvailableSerial.SerialItemBusinessKey,
+                SerialRef = x.AvailableSerial.SerialRef ?? x.AvailableSerial.SerialItemBusinessKey,
+                SerialNo = x.AvailableSerial.SerialNo
+            })
             .ToList();
 
         if (string.IsNullOrWhiteSpace(form.LotBatchNo))
@@ -6386,6 +6392,7 @@ public sealed partial class InventoryManagementController
                 .Select(serial => new InventoryDocumentLineSerialModel
                 {
                     SerialItemBusinessKey = serial.SerialItemBusinessKey,
+                    SerialRef = serial.SerialRef,
                     SerialNo = serial.SerialNo
                 })
                 .ToList()

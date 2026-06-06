@@ -96,6 +96,7 @@ public sealed class InventoryDocumentLineSerialModel
 public sealed class SerialItemLookupModel
 {
     public string SerialItemBusinessKey { get; set; } = string.Empty;
+    public string? SerialRef { get; set; }
     public string SerialNo { get; set; } = string.Empty;
     public string VariantRef { get; set; } = string.Empty;
     public string SellerRef { get; set; } = string.Empty;

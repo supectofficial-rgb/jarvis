@@ -632,10 +632,10 @@
             var returnVariantReferenceLineLookup = {};
             var returnLocationMetadataLookup = {};
             var returnActionLabelMap = {
-                approve: '@UiText["inventory.documents.status.approved"]',
-                post: '@UiText["inventory.documents.status.posted"]',
-                reject: '@UiText["inventory.documents.status.rejected"]',
-                cancel: '@UiText["inventory.documents.status.cancelled"]'
+                approve: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.status.approved"])),
+                post: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.status.posted"])),
+                reject: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.status.rejected"])),
+                cancel: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(UiText["inventory.documents.status.cancelled"]))
             };
 
             function normalizeReturnLookupKey(value) {
