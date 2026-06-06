@@ -961,6 +961,8 @@
   "inventory.documents.adjustment.lotListTitle": "لات‌های قابل مشاهده",
   "inventory.documents.adjustment.noLocations": "برای این واریانت لوکیشنی یافت نشد.",
   "inventory.documents.adjustment.noLots": "برای این واریانت لاتی یافت نشد.",
+  "inventory.documents.adjustment.availableLocations": "لوکیشن‌های در دسترس",
+  "inventory.documents.adjustment.availableLots": "لات‌های در دسترس",
   "inventory.documents.adjustment.selectVariantToLoadInventory": "برای مشاهده لوکیشن‌ها و لات‌های مرتبط، واریانت را انتخاب کنید.",
   "inventory.documents.adjustment.selectDirectionToLoadSerials": "برای مشاهده شناسه‌ها، جهت تعدیل و لوکیشن مربوطه را انتخاب کنید.",
   "inventory.documents.adjustment.increaseSerialsDescription": "شناسه‌هایی که قبلاً از این واریانت خارج شده‌اند را برای برگشت انتخاب کنید.",

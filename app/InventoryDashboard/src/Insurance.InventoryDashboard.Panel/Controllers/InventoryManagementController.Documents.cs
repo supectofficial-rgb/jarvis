@@ -2310,18 +2310,38 @@ public sealed partial class InventoryManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveReturnDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation(
+            "SaveReturnDocumentLine started. DocumentId={DocumentId}, LineId={LineId}, DocumentType={DocumentType}, VariantId={VariantId}, Qty={Qty}, SourceLocationRef={SourceLocationRef}, DestinationLocationRef={DestinationLocationRef}, QualityStatusRef={QualityStatusRef}, LotBatchNo={LotBatchNo}, SerialCount={SerialCount}",
+            form.DocumentId,
+            form.LineId,
+            form.DocumentType,
+            form.VariantId,
+            form.Qty,
+            form.SourceLocationRef,
+            form.DestinationLocationRef,
+            form.QualityStatusRef,
+            form.LotBatchNo,
+            form.Serials?.Count ?? 0);
+
         if (!TryGetToken(out var token))
         {
+            _logger.LogWarning("SaveReturnDocumentLine failed because dashboard token was missing. DocumentId={DocumentId}", form.DocumentId);
             return RedirectToAction("Login", "Auth");
         }
 
         if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
         {
+            _logger.LogWarning("SaveReturnDocumentLine forbidden for current user. DocumentId={DocumentId}", form.DocumentId);
             return Content("Ø´Ù…Ø§ Ø¯Ø³ØªØ±Ø³ÛŒ ÙˆÛŒØ±Ø§ÛŒØ´ Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø±Ø§ Ù†Ø¯Ø§Ø±ÛŒØ¯.");
         }
 
         if (!TryValidateModel(form))
         {
+            _logger.LogWarning(
+                "SaveReturnDocumentLine model validation failed. DocumentId={DocumentId}, LineId={LineId}, Error={Error}",
+                form.DocumentId,
+                form.LineId,
+                ExtractModelError(ModelState));
             var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
             invalidModel.ErrorMessage = ExtractModelError(ModelState);
             invalidModel.LineForm = form;
@@ -2331,6 +2351,11 @@ public sealed partial class InventoryManagementController
         var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(form.DocumentId, token);
         if (!documentResult.IsSuccess || documentResult.Data is null)
         {
+            _logger.LogWarning(
+                "SaveReturnDocumentLine could not load return document. DocumentId={DocumentId}, ApiSuccess={ApiSuccess}, Error={Error}",
+                form.DocumentId,
+                documentResult.IsSuccess,
+                documentResult.ErrorMessage);
             var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
             invalidModel.ErrorMessage = documentResult.ErrorMessage ?? "سند برگشت یافت نشد.";
             invalidModel.LineForm = form;
@@ -2340,6 +2365,10 @@ public sealed partial class InventoryManagementController
         var document = documentResult.Data;
         if (!IsReturnDocumentType(document.DocumentType))
         {
+            _logger.LogWarning(
+                "SaveReturnDocumentLine rejected because document type was not a return document. DocumentId={DocumentId}, DocumentType={DocumentType}",
+                form.DocumentId,
+                document.DocumentType);
             var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
             invalidModel.ErrorMessage = "این سند از نوع برگشتی نیست.";
             invalidModel.LineForm = form;
@@ -2349,6 +2378,11 @@ public sealed partial class InventoryManagementController
         var sourceResolutionResult = await TryResolveReturnSourceSelectionAsync(token, document, form, cancellationToken);
         if (!sourceResolutionResult.Success)
         {
+            _logger.LogWarning(
+                "SaveReturnDocumentLine source resolution failed. DocumentId={DocumentId}, DocumentType={DocumentType}, Error={Error}",
+                form.DocumentId,
+                document.DocumentType,
+                sourceResolutionResult.ErrorMessage);
             var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
             invalidModel.ErrorMessage = sourceResolutionResult.ErrorMessage ?? "امکان تعیین منبع برگشت وجود نداشت.";
             invalidModel.LineForm = form;
@@ -2358,6 +2392,13 @@ public sealed partial class InventoryManagementController
         var locationValidationError = ValidateReturnLineLocations(document.DocumentType, form);
         if (!string.IsNullOrWhiteSpace(locationValidationError))
         {
+            _logger.LogWarning(
+                "SaveReturnDocumentLine location validation failed. DocumentId={DocumentId}, DocumentType={DocumentType}, Error={Error}, SourceLocationRef={SourceLocationRef}, DestinationLocationRef={DestinationLocationRef}",
+                form.DocumentId,
+                document.DocumentType,
+                locationValidationError,
+                form.SourceLocationRef,
+                form.DestinationLocationRef);
             var invalidModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, form.LineId, cancellationToken);
             invalidModel.ErrorMessage = locationValidationError;
             invalidModel.LineForm = form;
@@ -2368,8 +2409,21 @@ public sealed partial class InventoryManagementController
             ? await _apiService.AddInventoryDocumentLineAsync(form.DocumentId, form, token)
             : await _apiService.UpdateInventoryDocumentLineAsync(form.DocumentId, form.LineId!, form, token);
 
+        _logger.LogInformation(
+            "SaveReturnDocumentLine API result. DocumentId={DocumentId}, LineId={LineId}, IsCreate={IsCreate}, ApiSuccess={ApiSuccess}, Error={Error}",
+            form.DocumentId,
+            form.LineId,
+            string.IsNullOrWhiteSpace(form.LineId),
+            lineResult.IsSuccess,
+            lineResult.ErrorMessage);
+
         var refreshedModel = await BuildReturnDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
         refreshedModel.ErrorMessage = lineResult.IsSuccess ? null : lineResult.ErrorMessage ?? "Ø°Ø®ÛŒØ±Ù‡ Ø¢ÛŒØªÙ… Ø³Ù†Ø¯ Ø§Ù†Ø¬Ø§Ù… Ù†Ø´Ø¯.";
+        _logger.LogInformation(
+            "SaveReturnDocumentLine completed. DocumentId={DocumentId}, LineId={LineId}, FinalError={FinalError}",
+            form.DocumentId,
+            form.LineId,
+            refreshedModel.ErrorMessage);
         return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", refreshedModel);
     }
 
@@ -3403,18 +3457,41 @@ public sealed partial class InventoryManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveAdjustmentDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation(
+            "SaveAdjustmentDocumentLine started. DocumentId={DocumentId}, LineId={LineId}, DocumentType={DocumentType}, Direction={Direction}, VariantId={VariantId}, Qty={Qty}, SourceLocationRef={SourceLocationRef}, DestinationLocationRef={DestinationLocationRef}, QualityStatusRef={QualityStatusRef}, FromQualityStatusRef={FromQualityStatusRef}, ToQualityStatusRef={ToQualityStatusRef}, LotBatchNo={LotBatchNo}, SerialCount={SerialCount}",
+            form.DocumentId,
+            form.LineId,
+            form.DocumentType,
+            form.AdjustmentDirection,
+            form.VariantId,
+            form.Qty,
+            form.SourceLocationRef,
+            form.DestinationLocationRef,
+            form.QualityStatusRef,
+            form.FromQualityStatusRef,
+            form.ToQualityStatusRef,
+            form.LotBatchNo,
+            form.Serials?.Count ?? 0);
+
         if (!TryGetToken(out var token))
         {
+            _logger.LogWarning("SaveAdjustmentDocumentLine failed because dashboard token was missing. DocumentId={DocumentId}", form.DocumentId);
             return RedirectToAction("Login", "Auth");
         }
 
         if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
         {
+            _logger.LogWarning("SaveAdjustmentDocumentLine forbidden for current user. DocumentId={DocumentId}", form.DocumentId);
             return Content("شما دسترسی ویرایش آیتم سند را ندارید.");
         }
 
         if (!TryValidateModel(form))
         {
+            _logger.LogWarning(
+                "SaveAdjustmentDocumentLine model validation failed. DocumentId={DocumentId}, LineId={LineId}, Error={Error}",
+                form.DocumentId,
+                form.LineId,
+                ExtractModelError(ModelState));
             var invalidModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
             invalidModel.ErrorMessage = ExtractModelError(ModelState);
             invalidModel.LineForm = form;
@@ -3425,6 +3502,11 @@ public sealed partial class InventoryManagementController
         var document = documentResult.Data;
         if (document is null)
         {
+            _logger.LogWarning(
+                "SaveAdjustmentDocumentLine could not load adjustment document. DocumentId={DocumentId}, ApiSuccess={ApiSuccess}, Error={Error}",
+                form.DocumentId,
+                documentResult.IsSuccess,
+                documentResult.ErrorMessage);
             var notFoundModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
             notFoundModel.ErrorMessage = documentResult.ErrorMessage ?? "سند یافت نشد.";
             notFoundModel.LineForm = form;
@@ -3433,6 +3515,7 @@ public sealed partial class InventoryManagementController
 
         if (string.IsNullOrWhiteSpace(form.AdjustmentDirection))
         {
+            _logger.LogWarning("SaveAdjustmentDocumentLine rejected because direction was empty. DocumentId={DocumentId}", form.DocumentId);
             var invalidDirectionModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
             invalidDirectionModel.ErrorMessage = "جهت تعدیل الزامی است.";
             invalidDirectionModel.LineForm = form;
@@ -3449,6 +3532,10 @@ public sealed partial class InventoryManagementController
         var variant = variants.FirstOrDefault(x => string.Equals(x.Id, form.VariantId, StringComparison.OrdinalIgnoreCase));
         if (variant is null)
         {
+            _logger.LogWarning(
+                "SaveAdjustmentDocumentLine rejected because variant was invalid. DocumentId={DocumentId}, VariantId={VariantId}",
+                form.DocumentId,
+                form.VariantId);
             var invalidVariantModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
             invalidVariantModel.ErrorMessage = "واریانت انتخاب شده معتبر نیست.";
             invalidVariantModel.LineForm = form;
@@ -3475,6 +3562,7 @@ public sealed partial class InventoryManagementController
         {
             if (string.IsNullOrWhiteSpace(selectedLocationRef))
             {
+                _logger.LogWarning("SaveAdjustmentDocumentLine increase location validation failed. DocumentId={DocumentId}", form.DocumentId);
                 var invalidLocationModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
                 invalidLocationModel.ErrorMessage = "برای افزایش، لوکیشن مقصد الزامی است.";
                 invalidLocationModel.LineForm = form;
@@ -3488,6 +3576,7 @@ public sealed partial class InventoryManagementController
         {
             if (string.IsNullOrWhiteSpace(selectedLocationRef))
             {
+                _logger.LogWarning("SaveAdjustmentDocumentLine decrease location validation failed. DocumentId={DocumentId}", form.DocumentId);
                 var invalidLocationModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
                 invalidLocationModel.ErrorMessage = "برای کاهش، لوکیشن مبدأ الزامی است.";
                 invalidLocationModel.LineForm = form;
@@ -3504,6 +3593,11 @@ public sealed partial class InventoryManagementController
             var locationResult = await _apiService.GetLocationByBusinessKeyAsync(selectedLocationRef, token);
             if (!locationResult.IsSuccess || locationResult.Data is null)
             {
+                _logger.LogWarning(
+                    "SaveAdjustmentDocumentLine could not load increase location details. DocumentId={DocumentId}, LocationRef={LocationRef}, Error={Error}",
+                    form.DocumentId,
+                    selectedLocationRef,
+                    locationResult.ErrorMessage);
                 var invalidLocationModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
                 invalidLocationModel.ErrorMessage = locationResult.ErrorMessage ?? "اطلاعات لوکیشن مقصد یافت نشد.";
                 invalidLocationModel.LineForm = form;
@@ -3519,6 +3613,12 @@ public sealed partial class InventoryManagementController
                 status: "Issued");
             if (!issuedSerialsResult.IsSuccess)
             {
+                _logger.LogWarning(
+                    "SaveAdjustmentDocumentLine issued serial lookup failed. DocumentId={DocumentId}, VariantId={VariantId}, LocationRef={LocationRef}, Error={Error}",
+                    form.DocumentId,
+                    form.VariantId,
+                    selectedLocationRef,
+                    issuedSerialsResult.ErrorMessage);
                 var serialLookupModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
                 serialLookupModel.ErrorMessage = issuedSerialsResult.ErrorMessage ?? "بارگذاری سریال‌های صادرشده انجام نشد.";
                 serialLookupModel.LineForm = form;
@@ -3536,6 +3636,11 @@ public sealed partial class InventoryManagementController
             var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, variant.Id);
             if (!serialsResult.IsSuccess)
             {
+                _logger.LogWarning(
+                    "SaveAdjustmentDocumentLine available serial lookup failed. DocumentId={DocumentId}, VariantId={VariantId}, Error={Error}",
+                    form.DocumentId,
+                    form.VariantId,
+                    serialsResult.ErrorMessage);
                 var serialLookupModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
                 serialLookupModel.ErrorMessage = serialsResult.ErrorMessage ?? "بارگذاری سریال‌های در دسترس انجام نشد.";
                 serialLookupModel.LineForm = form;
@@ -3551,6 +3656,12 @@ public sealed partial class InventoryManagementController
 
         if (!TryResolveSelectedSerials(form.Serials, selectableSerials, out var resolvedSerialSelections, out var selectedSerialError))
         {
+            _logger.LogWarning(
+                "SaveAdjustmentDocumentLine serial resolution failed. DocumentId={DocumentId}, Direction={Direction}, Error={Error}, RequestedSerialCount={RequestedSerialCount}",
+                form.DocumentId,
+                direction,
+                selectedSerialError,
+                form.Serials?.Count ?? 0);
             var serialSelectionModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
             serialSelectionModel.ErrorMessage = selectedSerialError ?? "انتخاب سریال‌ها معتبر نیست.";
             serialSelectionModel.LineForm = form;
@@ -3573,8 +3684,26 @@ public sealed partial class InventoryManagementController
             ? await _apiService.AddInventoryDocumentLineAsync(form.DocumentId, form, token)
             : await _apiService.UpdateInventoryDocumentLineAsync(form.DocumentId, form.LineId!, form, token);
 
+        _logger.LogInformation(
+            "SaveAdjustmentDocumentLine API result. DocumentId={DocumentId}, LineId={LineId}, IsCreate={IsCreate}, Direction={Direction}, ApiSuccess={ApiSuccess}, Error={Error}, FinalQty={Qty}, FinalSourceLocationRef={SourceLocationRef}, FinalDestinationLocationRef={DestinationLocationRef}, FinalSerialCount={FinalSerialCount}",
+            form.DocumentId,
+            form.LineId,
+            string.IsNullOrWhiteSpace(form.LineId),
+            direction,
+            result.IsSuccess,
+            result.ErrorMessage,
+            form.Qty,
+            form.SourceLocationRef,
+            form.DestinationLocationRef,
+            form.Serials?.Count ?? 0);
+
         var refreshedModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
         refreshedModel.ErrorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "ذخیره آیتم سند انجام نشد.";
+        _logger.LogInformation(
+            "SaveAdjustmentDocumentLine completed. DocumentId={DocumentId}, LineId={LineId}, FinalError={FinalError}",
+            form.DocumentId,
+            form.LineId,
+            refreshedModel.ErrorMessage);
         return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", refreshedModel);
     }
 
@@ -3582,26 +3711,44 @@ public sealed partial class InventoryManagementController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteAdjustmentDocumentLine(string documentId, string lineId, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation(
+            "DeleteAdjustmentDocumentLine started. DocumentId={DocumentId}, LineId={LineId}",
+            documentId,
+            lineId);
         if (!TryGetToken(out var token))
         {
+            _logger.LogWarning("DeleteAdjustmentDocumentLine failed because dashboard token was missing. DocumentId={DocumentId}, LineId={LineId}", documentId, lineId);
             return RedirectToAction("Login", "Auth");
         }
 
         if (!IsAuthorizedFor(token, "Inventory.Document.Create", "InventoryDocument.Create", "Document.Create"))
         {
+            _logger.LogWarning("DeleteAdjustmentDocumentLine forbidden for current user. DocumentId={DocumentId}, LineId={LineId}", documentId, lineId);
             return Content("شما دسترسی حذف آیتم سند را ندارید.");
         }
 
         if (string.IsNullOrWhiteSpace(documentId) || string.IsNullOrWhiteSpace(lineId))
         {
+            _logger.LogWarning("DeleteAdjustmentDocumentLine validation failed due to empty identifiers. DocumentId={DocumentId}, LineId={LineId}", documentId, lineId);
             var invalidModel = await BuildAdjustmentDocumentDetailsModalModelAsync(documentId, token, null, cancellationToken);
             invalidModel.ErrorMessage = "آیتم سند برای حذف مشخص نشده است.";
             return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", invalidModel);
         }
 
         var result = await _apiService.DeleteInventoryDocumentLineAsync(documentId, lineId, token);
+        _logger.LogInformation(
+            "DeleteAdjustmentDocumentLine API result. DocumentId={DocumentId}, LineId={LineId}, ApiSuccess={ApiSuccess}, Error={Error}",
+            documentId,
+            lineId,
+            result.IsSuccess,
+            result.ErrorMessage);
         var refreshedModel = await BuildAdjustmentDocumentDetailsModalModelAsync(documentId, token, null, cancellationToken);
         refreshedModel.ErrorMessage = result.IsSuccess ? null : result.ErrorMessage ?? "حذف آیتم سند انجام نشد.";
+        _logger.LogInformation(
+            "DeleteAdjustmentDocumentLine completed. DocumentId={DocumentId}, LineId={LineId}, FinalError={FinalError}",
+            documentId,
+            lineId,
+            refreshedModel.ErrorMessage);
         return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", refreshedModel);
     }
 

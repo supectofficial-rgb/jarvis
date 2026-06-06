@@ -904,6 +904,19 @@ public class PostInventoryDocumentCommandHandler
                     return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) references serial item '{selectedSerial.SerialRef.Value:D}' which was not found.");
 
                 serialItem.LinkStockDetail(stockDetail.BusinessKey);
+                if (document.DocumentType == InventoryDocumentType.Adjustment)
+                {
+                    _logger.LogInformation(
+                        "Preparing adjustment serial posting transition for document {DocumentNo} line {LineNo} serial {SerialBusinessKey} qtyDelta {BaseQtyDelta} warehouse {WarehouseRef} location {LocationRef} quality {QualityStatusRef} lot {LotBatchNo}.",
+                        document.DocumentNo,
+                        effect.LineNo,
+                        serialItem.BusinessKey.Value,
+                        effect.TransactionLine.BaseQtyDelta,
+                        stockDetail.WarehouseRef,
+                        stockDetail.LocationRef,
+                        stockDetail.QualityStatusRef,
+                        stockDetail.LotBatchNo);
+                }
                 var serialTransitionResult = ApplySerialPostingTransition(
                     document,
                     effect,
@@ -940,6 +953,19 @@ public class PostInventoryDocumentCommandHandler
                     return (false, $"document '{document.DocumentNo}' line {effect.LineNo} ({effect.DocumentLine.BusinessKey.Value:D}) references serial item '{selectedSerial.SerialRef.Value:D}' which was not found.");
 
                 serialItem.LinkStockDetail(stockDetail.BusinessKey);
+                if (document.DocumentType == InventoryDocumentType.Adjustment)
+                {
+                    _logger.LogInformation(
+                        "Preparing adjustment serial posting transition for document {DocumentNo} line {LineNo} serial {SerialBusinessKey} qtyDelta {BaseQtyDelta} warehouse {WarehouseRef} location {LocationRef} quality {QualityStatusRef} lot {LotBatchNo}.",
+                        document.DocumentNo,
+                        effect.LineNo,
+                        serialItem.BusinessKey.Value,
+                        effect.TransactionLine.BaseQtyDelta,
+                        stockDetail.WarehouseRef,
+                        stockDetail.LocationRef,
+                        stockDetail.QualityStatusRef,
+                        stockDetail.LotBatchNo);
+                }
                 var serialTransitionResult = ApplySerialPostingTransition(
                     document,
                     effect,

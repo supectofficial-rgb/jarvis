@@ -3,6 +3,7 @@ using Insurance.InventoryDashboard.Panel.Models;
 using Insurance.InventoryDashboard.Panel.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.Logging;
 
 namespace Insurance.InventoryDashboard.Panel.Controllers;
 
@@ -12,11 +13,16 @@ public sealed partial class InventoryManagementController : Controller
 
     private readonly IApiService _apiService;
     private readonly IDashboardConfigService _dashboardConfigService;
+    private readonly ILogger<InventoryManagementController> _logger;
 
-    public InventoryManagementController(IApiService apiService, IDashboardConfigService dashboardConfigService)
+    public InventoryManagementController(
+        IApiService apiService,
+        IDashboardConfigService dashboardConfigService,
+        ILogger<InventoryManagementController> logger)
     {
         _apiService = apiService;
         _dashboardConfigService = dashboardConfigService;
+        _logger = logger;
     }
 
     [HttpGet]

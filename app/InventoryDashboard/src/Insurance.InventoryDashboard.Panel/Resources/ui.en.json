@@ -950,6 +950,8 @@
   "inventory.documents.adjustment.lotListTitle": "Visible lots",
   "inventory.documents.adjustment.noLocations": "No location was found for this variant.",
   "inventory.documents.adjustment.noLots": "No lot was found for this variant.",
+  "inventory.documents.adjustment.availableLocations": "Available locations",
+  "inventory.documents.adjustment.availableLots": "Available lots",
   "inventory.documents.adjustment.selectVariantToLoadInventory": "Select a variant to load the related locations and lots.",
   "inventory.documents.adjustment.selectDirectionToLoadSerials": "Select the adjustment direction and the related location to load serials.",
   "inventory.documents.adjustment.increaseSerialsDescription": "Select the serials that were previously issued from this variant to bring them back.",
