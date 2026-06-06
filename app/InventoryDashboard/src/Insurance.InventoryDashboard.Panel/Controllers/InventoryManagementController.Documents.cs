@@ -995,14 +995,6 @@ public sealed partial class InventoryManagementController
             return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidQualityModel);
         }
 
-        if (string.Equals(form.SourceLocationRef, form.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
-        {
-            var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
-            invalidLocationModel.ErrorMessage = "لوکیشن مبدأ و مقصد باید متفاوت باشند.";
-            invalidLocationModel.LineForm = form;
-            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidLocationModel);
-        }
-
         var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, variant.Id);
         if (!serialsResult.IsSuccess)
         {
@@ -3728,11 +3720,6 @@ public sealed partial class InventoryManagementController
                         return "برای سند انتقال، لوکیشن مقصد الزامی است.";
                     }
 
-                    if (!string.IsNullOrWhiteSpace(line.SourceLocationRef) &&
-                        string.Equals(line.SourceLocationRef, line.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return "برای سند انتقال، لوکیشن مبدا و مقصد باید متفاوت باشند.";
-                    }
                     break;
 
                 case "Adjustment":

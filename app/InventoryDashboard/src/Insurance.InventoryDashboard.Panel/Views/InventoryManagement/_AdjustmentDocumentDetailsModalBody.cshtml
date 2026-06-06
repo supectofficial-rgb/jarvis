@@ -2,6 +2,19 @@
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
+    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+
+    bool Can(params string[] names)
+    {
+        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
+        {
+            return true;
+        }
+
+        return names.Any(permissionSet.Contains);
+    }
+
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
         var variantName = (variant.Name ?? string.Empty).Trim();
@@ -51,17 +64,6 @@
         return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
     }
 
-    string QualityName(string? qualityId)
-    {
-        if (string.IsNullOrWhiteSpace(qualityId))
-        {
-            return "-";
-        }
-
-        var quality = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, qualityId, StringComparison.OrdinalIgnoreCase));
-        return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
-    }
-
     string UomName(string? uomId)
     {
         if (string.IsNullOrWhiteSpace(uomId))
@@ -75,8 +77,8 @@
 
     string AdjustmentDirectionLabel(string? direction) => direction switch
     {
-        "Increase" => "افزایش",
-        "Decrease" => "کاهش",
+        "Increase" => UiText["inventory.documents.adjustment.increase"],
+        "Decrease" => UiText["inventory.documents.adjustment.decrease"],
         _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
     };
 
@@ -84,6 +86,13 @@
     var selectedDocumentType = selectedDocument?.DocumentType ?? "Adjustment";
     var canEditLines = selectedDocument is not null && string.Equals(selectedDocument.Status, "Draft", StringComparison.OrdinalIgnoreCase);
     var selectedDirection = Model.LineForm.AdjustmentDirection ?? string.Empty;
+    var selectedLocationRef = string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase)
+        ? (string.IsNullOrWhiteSpace(Model.LineForm.DestinationLocationRef) ? Model.LineForm.SourceLocationRef : Model.LineForm.DestinationLocationRef)
+        : string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase)
+            ? (string.IsNullOrWhiteSpace(Model.LineForm.SourceLocationRef) ? Model.LineForm.DestinationLocationRef : Model.LineForm.SourceLocationRef)
+            : !string.IsNullOrWhiteSpace(Model.LineForm.SourceLocationRef)
+                ? Model.LineForm.SourceLocationRef
+                : Model.LineForm.DestinationLocationRef;
 }
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
@@ -164,40 +173,25 @@ else
                     <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" required />
                 </div>
             </div>
+
+            <input type="hidden" asp-for="LineForm.SourceLocationRef" />
+            <input type="hidden" asp-for="LineForm.DestinationLocationRef" />
             <div class="form-row">
-                <div class="form-group col-md-6 js-adjustment-source-section">
-                    <label class="js-adjustment-source-label">@UiText["inventory.documents.line.sourceLocation"]</label>
-                    <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                <div class="form-group col-md-12 js-adjustment-location-section">
+                    <label class="js-adjustment-location-label">@UiText["common.location"]</label>
+                    <select class="form-control js-search-select js-adjustment-location-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
                         <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                         {
-                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.LineForm.SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
+                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == selectedLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
                         }
                     </select>
-                </div>
-                <div class="form-group col-md-6 js-adjustment-destination-section">
-                    <label class="js-adjustment-destination-label">@UiText["inventory.documents.line.destinationLocation"]</label>
-                    <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
-                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
-                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                        {
-                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                        }
-                    </select>
+                    <small class="text-muted d-block mt-1 js-adjustment-location-hint">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</small>
                 </div>
             </div>
+
             <div class="form-row">
-                <div class="form-group col-md-4">
-                    <label>@UiText["common.quality"]</label>
-                    <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]" required>
-                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
-                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
-                        {
-                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
-                        }
-                    </select>
-                </div>
-                <div class="form-group col-md-8">
+                <div class="form-group col-md-12">
                     <label>@UiText["common.reason"]</label>
                     <input asp-for="LineForm.ReasonCode" class="form-control" required />
                 </div>
@@ -205,33 +199,33 @@ else
 
             <div class="border rounded p-3 bg-white mb-3 js-adjustment-increase-section">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong>افزایش شناسه</strong>
-                    <span class="text-muted small">سریال‌هایی که قبلاً از این واریانت خارج شده‌اند را برای برگشت انتخاب کنید.</span>
+                    <strong>@UiText["inventory.documents.adjustment.increaseSerialsDescription"]</strong>
+                    <span class="text-muted small">@UiText["inventory.documents.adjustment.increaseSerialsDescription"]</span>
                 </div>
                 <div class="js-adjustment-increase-serial-list">
-                    <div class="text-muted small">برای مشاهده سریال‌های قابل افزایش، واریانت و لوکیشن مقصد را انتخاب کنید.</div>
+                    <div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>
                 </div>
             </div>
 
             <div class="border rounded p-3 bg-white mb-3 js-adjustment-decrease-section">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong>کاهش از بین سریال‌های موجود</strong>
-                    <span class="text-muted small">فقط سریال‌هایی که در لوکیشن انتخابی موجودند قابل انتخاب هستند.</span>
+                    <strong>@UiText["inventory.documents.adjustment.decreaseSerialsDescription"]</strong>
+                    <span class="text-muted small">@UiText["inventory.documents.adjustment.decreaseSerialsDescription"]</span>
                 </div>
                 <div class="js-adjustment-decrease-serial-list">
-                    <div class="text-muted small">برای مشاهده سریال‌های موجود، واریانت و لوکیشن مبدأ را انتخاب کنید.</div>
+                    <div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>
                 </div>
             </div>
 
             <div class="border rounded p-3 bg-white mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong>سریال‌های انتخاب‌شده</strong>
-                    <span class="text-muted small">این لیست برای هر دو حالت افزایش و کاهش استفاده می‌شود.</span>
+                    <strong>@UiText["inventory.documents.adjustment.selectedSerialsTitle"]</strong>
+                    <span class="text-muted small">@UiText["inventory.documents.adjustment.selectedSerialsDescription"]</span>
                 </div>
                 <div class="js-adjustment-selected-serials">
                     @if (Model.LineForm.Serials.Count == 0)
                     {
-                        <div class="text-muted small">سریالی انتخاب نشده است.</div>
+                        <div class="text-muted small">@UiText["inventory.documents.serial.noSelected"]</div>
                     }
                     else
                     {
@@ -250,7 +244,7 @@ else
             </div>
 
             <div class="d-flex justify-content-end">
-                <button class="btn btn-primary" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "افزودن آیتم" : "ذخیره تغییرات")</button>
+                <button class="btn btn-primary" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["common.add"] : UiText["inventory.documents.action.saveChanges"])</button>
             </div>
         </form>
     </div>
@@ -258,29 +252,29 @@ else
     <div class="border rounded p-3 bg-white">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-                <h5 class="mb-0">اطلاعات سند</h5>
+                <h5 class="mb-0">@UiText["inventory.documents.details.title"]</h5>
                 <div class="text-muted small">@selectedDocument.DocumentNo</div>
             </div>
             <span class="badge badge-pill badge-outline-secondary">@selectedDocument.Status</span>
         </div>
 
-        <p class="mb-1"><strong>شماره:</strong> <span class="text-monospace">@selectedDocument.DocumentNo</span></p>
-        <p class="mb-1"><strong>نوع:</strong> تعدیل</p>
-        <p class="mb-1"><strong>انبار:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.WarehouseRef) ? "-" : selectedDocument.WarehouseRef)</p>
-        <p class="mb-1"><strong>فروشنده:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.SellerRef) ? "-" : selectedDocument.SellerRef)</p>
-        <p class="mb-1"><strong>تاریخ وقوع:</strong> @selectedDocument.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
-        <p class="mb-1"><strong>علت:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.ReasonCode) ? "-" : selectedDocument.ReasonCode)</p>
-        <p class="mb-1"><strong>تاریخ تایید:</strong> @(selectedDocument.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
-        <p class="mb-3"><strong>تاریخ پست:</strong> @(selectedDocument.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+        <p class="mb-1"><strong>@UiText["inventory.documents.details.number"]:</strong> <span class="text-monospace">@selectedDocument.DocumentNo</span></p>
+        <p class="mb-1"><strong>@UiText["inventory.documents.details.type"]:</strong> @UiText["inventory.documents.type.adjustment"]</p>
+        <p class="mb-1"><strong>@UiText["common.warehouse"]:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.WarehouseRef) ? "-" : selectedDocument.WarehouseRef)</p>
+        <p class="mb-1"><strong>@UiText["common.seller"]:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.SellerRef) ? "-" : selectedDocument.SellerRef)</p>
+        <p class="mb-1"><strong>@UiText["inventory.documents.details.occurredAt"]:</strong> @selectedDocument.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
+        <p class="mb-1"><strong>@UiText["inventory.documents.details.reason"]:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.ReasonCode) ? "-" : selectedDocument.ReasonCode)</p>
+        <p class="mb-1"><strong>@UiText["inventory.documents.details.approvedAt"]:</strong> @(selectedDocument.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
+        <p class="mb-3"><strong>@UiText["inventory.documents.details.postedAt"]:</strong> @(selectedDocument.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
 
         <div class="border-top pt-3 mt-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">آیتم‌های سند</h6>
-                <span class="text-muted small">@selectedDocument.Lines.Count ردیف</span>
+                <h6 class="mb-0">@UiText["inventory.documents.lines.title"]</h6>
+                <span class="text-muted small">@selectedDocument.Lines.Count @UiText["common.line"]</span>
             </div>
             @if (selectedDocument.Lines.Count == 0)
             {
-                <div class="alert alert-light mb-0">ردیفی برای این سند ثبت نشده است.</div>
+                <div class="alert alert-light mb-0">@UiText["inventory.documents.lines.noRecords"]</div>
             }
             else
             {
@@ -288,13 +282,14 @@ else
                     <table class="table table-sm table-striped mb-0">
                         <thead>
                             <tr>
-                                <th>واریانت</th>
-                                <th>تعداد</th>
-                                <th>واحد</th>
-                                <th>لوکیشن</th>
-                                <th>جهت</th>
-                                <th>علت</th>
-                                <th class="text-right">عملیات</th>
+                                <th>@UiText["inventory.documents.line.variant"]</th>
+                                <th>@UiText["common.quantity"]</th>
+                                <th>@UiText["inventory.documents.line.uom"]</th>
+                                <th>@UiText["inventory.documents.line.sourceLocation"]</th>
+                                <th>@UiText["inventory.documents.line.destinationLocation"]</th>
+                                <th>@UiText["inventory.documents.line.adjustmentDirection"]</th>
+                                <th>@UiText["common.reason"]</th>
+                                <th class="text-right">@UiText["common.operation"]</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -308,16 +303,8 @@ else
                                         </span>
                                     </td>
                                     <td>@UomName(line.UomRef)</td>
-                                    <td>
-                                        @if (string.Equals(line.AdjustmentDirection, "Increase", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            <span>@LocationName(line.DestinationLocationRef)</span>
-                                        }
-                                        else
-                                        {
-                                            <span>@LocationName(line.SourceLocationRef)</span>
-                                        }
-                                    </td>
+                                    <td>@LocationName(line.SourceLocationRef)</td>
+                                    <td>@LocationName(line.DestinationLocationRef)</td>
                                     <td>@AdjustmentDirectionLabel(line.AdjustmentDirection)</td>
                                     <td>@(string.IsNullOrWhiteSpace(line.ReasonCode) ? "-" : line.ReasonCode)</td>
                                     <td class="text-right">
@@ -326,37 +313,31 @@ else
                                             <button type="button"
                                                     class="btn btn-outline-primary btn-xs js-adjustment-line-edit mr-1"
                                                     data-document-id="@selectedDocument.DocumentBusinessKey"
-                                                    data-line-id="@line.LineBusinessKey">ویرایش</button>
+                                                    data-line-id="@line.LineBusinessKey">@UiText["common.edit"]</button>
                                             <form asp-action="DeleteAdjustmentDocumentLine"
                                                   asp-controller="InventoryManagement"
                                                   method="post"
                                                   class="d-inline"
                                                   data-loading-form
                                                   data-ajax-target="#adjustment-document-details-modal-body"
-                                                  onsubmit="return confirm('این آیتم حذف شود؟');">
+                                                  onsubmit="return confirm('@UiText["inventory.documents.confirm.deleteLine"]');">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
                                                 <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                <button class="btn btn-outline-danger btn-xs" type="submit">حذف</button>
+                                                <button class="btn btn-outline-danger btn-xs" type="submit">@UiText["common.delete"]</button>
                                             </form>
                                         }
                                     </td>
                                 </tr>
-                                @if (line.Serials.Count > 0)
+                                @if (!string.IsNullOrWhiteSpace(line.LotBatchNo) || line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase))
                                 {
                                     <tr>
-                                        <td colspan="7" class="small">
-                                            <div class="d-flex flex-wrap align-items-start">
-                                                <span class="text-muted mr-2">سریال‌های این ردیف:</span>
-                                                <div class="d-flex flex-wrap">
-                                                    @foreach (var serial in line.Serials.OrderBy(x => x.SerialNo))
-                                                    {
-                                                        <span class="badge badge-light border mr-1 mb-1">
-                                                            @(string.IsNullOrWhiteSpace(serial.SerialNo) ? serial.SerialItemBusinessKey : serial.SerialNo)
-                                                        </span>
-                                                    }
-                                                </div>
-                                            </div>
+                                        <td colspan="8" class="text-muted small">
+                                            Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
+                                            @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
+                                            {
+                                                <span> | @UiText["inventory.documents.line.lotBatch"]: @line.LotBatchNo</span>
+                                            }
                                         </td>
                                     </tr>
                                 }
@@ -367,19 +348,51 @@ else
             }
         </div>
 
-        <div class="border-top pt-3 mt-3">
-            <div class="d-flex flex-wrap">
-                <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
+        @if (canEditLines)
+        {
+            var selectedStatus = selectedDocument.Status;
+            var canApproveByStatus = string.Equals(selectedStatus, "Draft", StringComparison.OrdinalIgnoreCase);
+            var canRejectByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase);
+            var canCancelByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase);
+            var canPostByStatus = !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase);
+
+            <div class="border-top pt-3">
+                <div class="mb-2 text-muted small">@UiText["inventory.documents.action.changeStatus"]</div>
+                <div class="d-flex flex-wrap">
+                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
+                        <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>@UiText["inventory.documents.action.approve"]</button>
+                    </form>
+                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
+                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>@UiText["inventory.documents.action.post"]</button>
+                    </form>
+                </div>
+                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
                     @Html.AntiForgeryToken()
-                    <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
-                    <button class="btn btn-outline-info btn-xs" type="submit" @(canEditLines ? null : "disabled")>تأیید</button>
+                    <input type="hidden" name="DocumentId" value="@selectedDocument.DocumentBusinessKey" />
+                    <div class="form-group mb-2">
+                        <label class="small">@UiText["inventory.documents.action.reject"]</label>
+                        <input name="ReasonCode" class="form-control form-control-sm" />
+                    </div>
+                    <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>@UiText["inventory.documents.action.reject"]</button>
                 </form>
-                <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#documents-page-root" data-ajax-close-modal-on-success>
+                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
                     @Html.AntiForgeryToken()
-                    <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
-                    <button class="btn btn-outline-success btn-xs" type="submit" @(canEditLines ? null : "disabled")>پست</button>
+                    <input type="hidden" name="DocumentId" value="@selectedDocument.DocumentBusinessKey" />
+                    <div class="form-group mb-2">
+                        <label class="small">@UiText["inventory.documents.action.cancel"]</label>
+                        <input name="ReasonCode" class="form-control form-control-sm" />
+                    </div>
+                    <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Document.Cancel", "InventoryDocument.Cancel", "Document.Cancel") && canCancelByStatus ? null : "disabled")>@UiText["inventory.documents.action.cancel"]</button>
                 </form>
             </div>
-        </div>
+        }
     </div>
 }

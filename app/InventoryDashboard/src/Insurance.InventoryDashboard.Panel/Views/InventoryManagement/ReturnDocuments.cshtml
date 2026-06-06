@@ -1849,12 +1849,48 @@
                     return;
                 }
 
-                var payload = item.document ? item : await loadReturnReferenceDocument(item.documentBusinessKey);
+                var selectedKey = String(item.documentBusinessKey || '').trim();
+                if (!selectedKey) {
+                    return;
+                }
+
+                if (returnReferenceTypeInput) {
+                    returnReferenceTypeInput.value = returnReferenceDocumentType;
+                }
+                if (returnReferenceIdInput) {
+                    returnReferenceIdInput.value = selectedKey;
+                }
+                if (returnReferenceSelectedLabel) {
+                    returnReferenceSelectedLabel.textContent = String(item.documentNo || item.documentBusinessKey || selectedKey);
+                }
+                if (returnReferenceSelected) {
+                    returnReferenceSelected.classList.remove('d-none');
+                }
+                if (returnReferenceSelect) {
+                    if (window.jQuery) {
+                        var existingOption = returnReferenceSelect.querySelector('option[value="' + selectedKey.replace(/"/g, '\\"') + '"]');
+                        if (!existingOption) {
+                            var option = getReturnReferenceSelectItem({
+                                id: selectedKey,
+                                text: buildReturnReferenceDocumentText(item),
+                                document: item.document || item
+                            });
+                            if (option) {
+                                window.jQuery(returnReferenceSelect).append(option);
+                            }
+                        }
+                        window.jQuery(returnReferenceSelect).val(selectedKey).trigger('change');
+                    } else {
+                        returnReferenceSelect.value = selectedKey;
+                    }
+                }
+
+                var payload = item.document ? item : await loadReturnReferenceDocument(selectedKey);
                 var document = payload.document || payload;
                 var previousReferenceKey = returnSourceDocument
                     ? String(returnSourceDocument.documentBusinessKey || returnSourceDocument.businessKey || '')
                     : '';
-                var nextReferenceKey = String(document.documentBusinessKey || item.documentBusinessKey || '');
+                var nextReferenceKey = String(document.documentBusinessKey || selectedKey || '');
                 var shouldResetDraftLines = !!previousReferenceKey && previousReferenceKey !== nextReferenceKey;
 
                 returnSourceDocument = document;
@@ -1864,13 +1900,13 @@
                     returnReferenceTypeInput.value = returnReferenceDocumentType;
                 }
                 if (returnReferenceIdInput) {
-                    returnReferenceIdInput.value = document.documentBusinessKey || item.documentBusinessKey;
+                    returnReferenceIdInput.value = String(document.documentBusinessKey || selectedKey);
                 }
                 if (returnReferenceSelect && window.jQuery) {
-                    var existingOption = returnReferenceSelect.querySelector('option[value="' + (document.documentBusinessKey || item.documentBusinessKey) + '"]');
+                    var existingOption = returnReferenceSelect.querySelector('option[value="' + (document.documentBusinessKey || selectedKey).replace(/"/g, '\\"') + '"]');
                     if (!existingOption) {
                         var option = getReturnReferenceSelectItem({
-                            id: document.documentBusinessKey || item.documentBusinessKey,
+                            id: document.documentBusinessKey || selectedKey,
                             text: buildReturnReferenceDocumentText(document),
                             document: document
                         });
@@ -1878,7 +1914,7 @@
                             window.jQuery(returnReferenceSelect).append(option);
                         }
                     }
-                    window.jQuery(returnReferenceSelect).val(document.documentBusinessKey || item.documentBusinessKey).trigger('change');
+                    window.jQuery(returnReferenceSelect).val(document.documentBusinessKey || selectedKey).trigger('change');
                 }
                 if (createWarehouseInput) {
                     createWarehouseInput.value = String(document.warehouseRef || '');
@@ -1887,7 +1923,7 @@
                     createSellerInput.value = String(document.sellerRef || '');
                 }
                 if (returnReferenceSelectedLabel) {
-                    returnReferenceSelectedLabel.textContent = (document.documentNo || item.documentNo || document.documentBusinessKey);
+                    returnReferenceSelectedLabel.textContent = (document.documentNo || item.documentNo || document.documentBusinessKey || selectedKey);
                 }
                 if (returnReferenceSelected) {
                     returnReferenceSelected.classList.remove('d-none');

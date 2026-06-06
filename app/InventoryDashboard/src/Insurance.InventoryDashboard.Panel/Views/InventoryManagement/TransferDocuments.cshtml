@@ -1120,11 +1120,6 @@ for (var i = 0; i < lines.length; i++) {
                         return false;
                     }
 
-                    if (!config.exclusiveFlow && config.source && config.destination && source && destination && source.value && source.value === destination.value) {
-                        showValidation(lineTitle + ': @UiText["inventory.documents.validation.locationsDifferent"]', destination);
-                        return false;
-                    }
-
                     if (config.transferQuality) {
                         if (!destinationQuality || !destinationQuality.value) {
                             showValidation(lineTitle + ': @UiText["inventory.documents.line.toQuality"]', destinationQuality);

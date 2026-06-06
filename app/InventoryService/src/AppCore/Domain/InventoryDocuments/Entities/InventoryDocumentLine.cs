@@ -44,11 +44,6 @@ public sealed class InventoryDocumentLine : Aggregate
             throw new ArgumentOutOfRangeException(nameof(qty), "Qty must be greater than zero.");
         if (baseQty <= 0)
             throw new ArgumentOutOfRangeException(nameof(baseQty), "BaseQty must be greater than zero.");
-        if (sourceLocationRef.HasValue && destinationLocationRef.HasValue && sourceLocationRef == destinationLocationRef)
-            throw new InvalidOperationException("Source and destination locations cannot be the same.");
-        if (fromQualityStatusRef.HasValue && toQualityStatusRef.HasValue && fromQualityStatusRef == toQualityStatusRef)
-            throw new InvalidOperationException("From and to quality statuses cannot be the same.");
-
         VariantRef = variantRef;
         Qty = qty;
         UomRef = uomRef;
@@ -135,11 +130,6 @@ public sealed class InventoryDocumentLine : Aggregate
             throw new ArgumentOutOfRangeException(nameof(qty), "Qty must be greater than zero.");
         if (baseQty <= 0)
             throw new ArgumentOutOfRangeException(nameof(baseQty), "BaseQty must be greater than zero.");
-        if (sourceLocationRef.HasValue && destinationLocationRef.HasValue && sourceLocationRef == destinationLocationRef)
-            throw new InvalidOperationException("Source and destination locations cannot be the same.");
-        if (fromQualityStatusRef.HasValue && toQualityStatusRef.HasValue && fromQualityStatusRef == toQualityStatusRef)
-            throw new InvalidOperationException("From and to quality statuses cannot be the same.");
-
         VariantRef = variantRef;
         Qty = qty;
         UomRef = uomRef;

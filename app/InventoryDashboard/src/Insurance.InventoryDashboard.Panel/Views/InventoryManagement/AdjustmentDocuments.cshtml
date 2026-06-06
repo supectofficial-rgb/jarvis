@@ -933,23 +933,15 @@
                     return;
                 }
 
-                var sourceSelect = form.querySelector('[name="LineForm.SourceLocationRef"]');
-                var destinationSelect = form.querySelector('[name="LineForm.DestinationLocationRef"]');
+                var locationSelect = getAdjustmentLocationField(form);
                 var items = Array.isArray(locations) ? locations : [];
                 setSelectOptions(
-                    sourceSelect,
+                    locationSelect,
                     items,
                     items.length ? '@UiText["inventory.documents.line.selectLocation"]' : '@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]',
                     'locationId',
                     'text',
-                    selectedSourceId || (sourceSelect ? sourceSelect.value : ''));
-                setSelectOptions(
-                    destinationSelect,
-                    items,
-                    items.length ? '@UiText["inventory.documents.line.selectLocation"]' : '@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]',
-                    'locationId',
-                    'text',
-                    selectedDestinationId || (destinationSelect ? destinationSelect.value : ''));
+                    selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
             }
 
             function clearValidation() {
@@ -1393,6 +1385,62 @@ for (var i = 0; i < lines.length; i++) {
                 });
             }
 
+            function getAdjustmentLocationField(form) {
+                return form ? form.querySelector('.js-adjustment-location-select') : null;
+            }
+
+            function currentAdjustmentLocation(form) {
+                var locationField = getAdjustmentLocationField(form);
+                if (locationField && locationField.value) {
+                    return locationField.value;
+                }
+
+                var sourceField = form ? form.querySelector('[name="LineForm.SourceLocationRef"]') : null;
+                var destinationField = form ? form.querySelector('[name="LineForm.DestinationLocationRef"]') : null;
+                var direction = selectedDirection(form);
+
+                if (direction === 'Increase') {
+                    return (destinationField && destinationField.value) || (sourceField && sourceField.value) || '';
+                }
+
+                if (direction === 'Decrease') {
+                    return (sourceField && sourceField.value) || (destinationField && destinationField.value) || '';
+                }
+
+                return (sourceField && sourceField.value) || (destinationField && destinationField.value) || '';
+            }
+
+            function syncAdjustmentHiddenLocation(form) {
+                if (!form) {
+                    return;
+                }
+
+                var locationField = getAdjustmentLocationField(form);
+                var locationId = locationField ? locationField.value : '';
+                var direction = selectedDirection(form);
+                var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
+                var destinationField = form.querySelector('[name="LineForm.DestinationLocationRef"]');
+
+                if (direction === 'Increase') {
+                    if (sourceField) {
+                        sourceField.value = '';
+                    }
+                    if (destinationField) {
+                        destinationField.value = locationId;
+                    }
+                    return;
+                }
+
+                if (direction === 'Decrease') {
+                    if (sourceField) {
+                        sourceField.value = locationId;
+                    }
+                    if (destinationField) {
+                        destinationField.value = '';
+                    }
+                }
+            }
+
             function selectedDirection(form) {
                 var directionField = form ? form.querySelector('[name="LineForm.AdjustmentDirection"]') : null;
                 var direction = directionField ? directionField.value : '';
@@ -1433,34 +1481,42 @@ for (var i = 0; i < lines.length; i++) {
 
                 var increaseSection = form.querySelector('.js-adjustment-increase-section');
                 var decreaseSection = form.querySelector('.js-adjustment-decrease-section');
-                var sourceSection = form.querySelector('.js-adjustment-source-section');
-                var destinationSection = form.querySelector('.js-adjustment-destination-section');
-                var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
-                var destinationField = form.querySelector('[name="LineForm.DestinationLocationRef"]');
-                var sourceLabel = form.querySelector('.js-adjustment-source-label');
-                var destinationLabel = form.querySelector('.js-adjustment-destination-label');
+                var locationSection = form.querySelector('.js-adjustment-location-section');
+                var locationField = getAdjustmentLocationField(form);
+                var locationLabel = form.querySelector('.js-adjustment-location-label');
+                var locationHint = form.querySelector('.js-adjustment-location-hint');
 
                 var isIncrease = direction === 'Increase';
                 var isDecrease = direction === 'Decrease';
 
                 setSectionEnabled(increaseSection, isIncrease);
                 setSectionEnabled(decreaseSection, isDecrease);
-                setSectionEnabled(sourceSection, true);
-                setSectionEnabled(destinationSection, true);
+                setSectionEnabled(locationSection, true);
 
-                if (sourceField && isIncrease) {
-                    sourceField.value = '';
-                }
-                if (destinationField && isDecrease) {
-                    destinationField.value = '';
+                if (locationField) {
+                    if (direction) {
+                        locationField.setAttribute('required', 'required');
+                    } else {
+                        locationField.removeAttribute('required');
+                    }
                 }
 
-                if (sourceLabel) {
-                    sourceLabel.textContent = '@UiText["inventory.documents.line.sourceLocation"]';
+                if (locationLabel) {
+                    locationLabel.textContent = isIncrease
+                        ? '@UiText["inventory.documents.line.destinationLocation"]'
+                        : isDecrease
+                            ? '@UiText["inventory.documents.line.sourceLocation"]'
+                            : '@UiText["common.location"]';
                 }
-                if (destinationLabel) {
-                    destinationLabel.textContent = '@UiText["inventory.documents.line.destinationLocation"]';
+                if (locationHint) {
+                    locationHint.textContent = isIncrease
+                        ? '@UiText["inventory.documents.line.destinationLocation"]'
+                        : isDecrease
+                            ? '@UiText["inventory.documents.line.sourceLocation"]'
+                            : '@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]';
                 }
+
+                syncAdjustmentHiddenLocation(form);
             }
 
             function bindAdjustmentSerialCheckboxes(form, selector, chipLabel) {
@@ -1538,13 +1594,11 @@ for (var i = 0; i < lines.length; i++) {
                     throw new Error((data && data.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]');
                 }
 
-                var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
-                var destinationField = form.querySelector('[name="LineForm.DestinationLocationRef"]');
                 renderAdjustmentLocationOptions(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
-                    sourceField ? sourceField.value : '',
-                    destinationField ? destinationField.value : '');
+                    currentAdjustmentLocation(form),
+                    currentAdjustmentLocation(form));
                 renderAdjustmentInventorySummary(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
@@ -1554,12 +1608,12 @@ for (var i = 0; i < lines.length; i++) {
             function fetchAdjustmentSerials(form) {
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
                 var direction = selectedDirection(form);
-                var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
-                var destinationField = form.querySelector('[name="LineForm.DestinationLocationRef"]');
+                var locationField = getAdjustmentLocationField(form);
+                var locationId = locationField ? locationField.value : '';
                 var decreaseTarget = form.querySelector('.js-adjustment-decrease-serial-list');
                 var increaseTarget = form.querySelector('.js-adjustment-increase-serial-list');
 
-                if (!variantField || !variantField.value || !direction) {
+                if (!variantField || !variantField.value || !direction || !locationId) {
                     if (decreaseTarget) {
                         decreaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
                     }
@@ -1570,14 +1624,11 @@ for (var i = 0; i < lines.length; i++) {
                 }
 
                 if (direction === 'Decrease') {
-                    if (!sourceField || !sourceField.value || !decreaseTarget) {
-                        if (decreaseTarget) {
-                            decreaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
-                        }
+                    if (!decreaseTarget) {
                         return;
                     }
 
-                    var decreaseUrl = '/InventoryManagement/Documents/Adjustment/AvailableSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(sourceField.value);
+                    var decreaseUrl = '/InventoryManagement/Documents/Adjustment/AvailableSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(locationId);
                     decreaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
                     fetch(decreaseUrl, { credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
@@ -1597,18 +1648,17 @@ for (var i = 0; i < lines.length; i++) {
                         increaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
                     }
 
+                    syncAdjustmentHiddenLocation(form);
+
                     return;
                 }
 
                 if (direction === 'Increase') {
-                    if (!destinationField || !destinationField.value || !increaseTarget) {
-                        if (increaseTarget) {
-                            increaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
-                        }
+                    if (!increaseTarget) {
                         return;
                     }
 
-                    var increaseUrl = '/InventoryManagement/Documents/Adjustment/IncreaseSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(destinationField.value);
+                    var increaseUrl = '/InventoryManagement/Documents/Adjustment/IncreaseSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(locationId);
                     increaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
                     fetch(increaseUrl, { credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
@@ -1627,6 +1677,8 @@ for (var i = 0; i < lines.length; i++) {
                     if (decreaseTarget) {
                         decreaseTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
                     }
+
+                    syncAdjustmentHiddenLocation(form);
                 }
             }
 
@@ -1650,10 +1702,14 @@ for (var i = 0; i < lines.length; i++) {
                 if (directionField) {
                     directionField.addEventListener('change', function () {
                         syncAdjustmentLineMode(form);
-                        loadAdjustmentVariantInventory(form).catch(function (error) {
-                            console.error(error);
-                        });
-                        fetchAdjustmentSerials(form);
+                        loadAdjustmentVariantInventory(form)
+                            .then(function () {
+                                syncAdjustmentHiddenLocation(form);
+                                fetchAdjustmentSerials(form);
+                            })
+                            .catch(function (error) {
+                                console.error(error);
+                            });
                     });
                 }
 
@@ -1661,25 +1717,22 @@ for (var i = 0; i < lines.length; i++) {
                 if (variantField) {
                     variantField.addEventListener('change', function () {
                         syncAdjustmentLineMode(form);
-                        loadAdjustmentVariantInventory(form).catch(function (error) {
-                            console.error(error);
-                        });
-                        fetchAdjustmentSerials(form);
+                        loadAdjustmentVariantInventory(form)
+                            .then(function () {
+                                syncAdjustmentHiddenLocation(form);
+                                fetchAdjustmentSerials(form);
+                            })
+                            .catch(function (error) {
+                                console.error(error);
+                            });
                     });
                 }
 
-                var sourceField = form.querySelector('[name="LineForm.SourceLocationRef"]');
-                if (sourceField) {
-                    sourceField.addEventListener('change', function () {
+                var locationField = getAdjustmentLocationField(form);
+                if (locationField) {
+                    locationField.addEventListener('change', function () {
                         syncAdjustmentLineMode(form);
-                        fetchAdjustmentSerials(form);
-                    });
-                }
-
-                var destinationField = form.querySelector('[name="LineForm.DestinationLocationRef"]');
-                if (destinationField) {
-                    destinationField.addEventListener('change', function () {
-                        syncAdjustmentLineMode(form);
+                        syncAdjustmentHiddenLocation(form);
                         fetchAdjustmentSerials(form);
                     });
                 }
@@ -1694,10 +1747,14 @@ for (var i = 0; i < lines.length; i++) {
                 });
 
                 syncAdjustmentLineMode(form);
-                loadAdjustmentVariantInventory(form).catch(function (error) {
-                    console.error(error);
-                });
-                fetchAdjustmentSerials(form);
+                loadAdjustmentVariantInventory(form)
+                    .then(function () {
+                        syncAdjustmentHiddenLocation(form);
+                        fetchAdjustmentSerials(form);
+                    })
+                    .catch(function (error) {
+                        console.error(error);
+                    });
             }
 
             document.addEventListener('click', function (event) {
