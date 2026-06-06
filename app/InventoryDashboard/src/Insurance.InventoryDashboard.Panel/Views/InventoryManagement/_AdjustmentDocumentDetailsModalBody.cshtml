@@ -93,15 +93,15 @@
 
 @if (selectedDocument is null)
 {
-    <div class="alert alert-light mb-0">سندی برای نمایش انتخاب نشده است.</div>
+    <div class="alert alert-light mb-0">@UiText["inventory.documents.adjustment.noDocumentSelected"]</div>
 }
 else
 {
     <div class="border rounded p-3 bg-light mb-3">
         <div class="d-flex justify-content-between align-items-start mb-3">
             <div>
-                <h5 class="mb-1">@(Model.LineForm.LineId is null ? "افزودن آیتم سند" : "ویرایش آیتم سند")</h5>
-                <div class="text-muted small">برای تعدیل، فرم بالا برای ثبت یا ویرایش آیتم استفاده می‌شود و لاین‌های ثبت‌شده پایین صفحه دیده می‌شوند.</div>
+                <h5 class="mb-1">@(Model.LineForm.LineId is null ? UiText["inventory.documents.adjustment.line.addTitle"] : UiText["inventory.documents.adjustment.line.editTitle"])</h5>
+                <div class="text-muted small">@UiText["inventory.documents.adjustment.line.description"]</div>
             </div>
             <span class="badge badge-pill badge-outline-secondary">@selectedDocument.Status</span>
         </div>
@@ -114,6 +114,27 @@ else
             <span>@(string.IsNullOrWhiteSpace(selectedDocument.ReasonCode) ? "-" : selectedDocument.ReasonCode)</span>
         </div>
 
+        <div class="border rounded p-3 bg-white mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>@UiText["inventory.documents.adjustment.inventorySummaryTitle"]</strong>
+                <span class="text-muted small">@UiText["inventory.documents.adjustment.inventorySummaryDescription"]</span>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="small text-muted mb-2">@UiText["inventory.documents.adjustment.locationListTitle"]</div>
+                    <div class="js-adjustment-location-list">
+                        <div class="text-muted small">@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="small text-muted mb-2">@UiText["inventory.documents.adjustment.lotListTitle"]</div>
+                    <div class="js-adjustment-lot-list">
+                        <div class="text-muted small">@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <form asp-action="SaveAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" id="adjustment-document-line-form">
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="LineForm.DocumentId" value="@selectedDocument.DocumentBusinessKey" />
@@ -121,17 +142,17 @@ else
             <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
             <div class="form-row">
                 <div class="form-group col-md-3">
-                    <label>جهت تعدیل</label>
+                    <label>@UiText["inventory.documents.line.adjustmentDirection"]</label>
                     <select asp-for="LineForm.AdjustmentDirection" class="form-control js-adjustment-direction-select" required>
-                        <option value="">انتخاب</option>
-                        <option value="Increase" selected="@(string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">افزایش</option>
-                        <option value="Decrease" selected="@(string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">کاهش</option>
+                        <option value="">@UiText["common.select"]</option>
+                        <option value="Increase" selected="@(string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.adjustment.increase"]</option>
+                        <option value="Decrease" selected="@(string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.adjustment.decrease"]</option>
                     </select>
                 </div>
                 <div class="form-group col-md-6">
-                    <label>واریانت</label>
-                    <select asp-for="LineForm.VariantId" class="form-control js-search-select js-adjustment-variant-select" data-placeholder="جستجو با کد یا نام واریانت" required>
-                        <option value="">انتخاب واریانت</option>
+                    <label>@UiText["inventory.documents.line.variant"]</label>
+                    <select asp-for="LineForm.VariantId" class="form-control js-search-select js-adjustment-variant-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" required>
+                        <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
                         @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                         {
                             <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
@@ -139,15 +160,15 @@ else
                     </select>
                 </div>
                 <div class="form-group col-md-3">
-                    <label>تعداد</label>
+                    <label>@UiText["common.quantity"]</label>
                     <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" required />
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group col-md-6 js-adjustment-source-section">
-                    <label class="js-adjustment-source-label">لوکیشن مبدأ</label>
-                    <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
-                        <option value="">انتخاب لوکیشن</option>
+                    <label class="js-adjustment-source-label">@UiText["inventory.documents.line.sourceLocation"]</label>
+                    <select asp-for="LineForm.SourceLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                         {
                             <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.LineForm.SourceLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -155,9 +176,9 @@ else
                     </select>
                 </div>
                 <div class="form-group col-md-6 js-adjustment-destination-section">
-                    <label class="js-adjustment-destination-label">لوکیشن مقصد</label>
-                    <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="انتخاب لوکیشن">
-                        <option value="">انتخاب لوکیشن</option>
+                    <label class="js-adjustment-destination-label">@UiText["inventory.documents.line.destinationLocation"]</label>
+                    <select asp-for="LineForm.DestinationLocationRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
+                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
                         @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
                         {
                             <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == Model.LineForm.DestinationLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
@@ -167,9 +188,9 @@ else
             </div>
             <div class="form-row">
                 <div class="form-group col-md-4">
-                    <label>کیفیت</label>
-                    <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="انتخاب کیفیت" required>
-                        <option value="">انتخاب کیفیت</option>
+                    <label>@UiText["common.quality"]</label>
+                    <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder="@UiText["inventory.documents.line.selectQuality"]" required>
+                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
                         @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
                         {
                             <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
@@ -177,7 +198,7 @@ else
                     </select>
                 </div>
                 <div class="form-group col-md-8">
-                    <label>علت</label>
+                    <label>@UiText["common.reason"]</label>
                     <input asp-for="LineForm.ReasonCode" class="form-control" required />
                 </div>
             </div>

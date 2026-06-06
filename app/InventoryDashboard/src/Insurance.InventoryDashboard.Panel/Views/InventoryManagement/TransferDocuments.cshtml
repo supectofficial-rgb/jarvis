@@ -1173,10 +1173,6 @@ for (var i = 0; i < lines.length; i++) {
                         return false;
                     }
 
-                    if (config.qualityChange && fromQuality && toQuality && fromQuality.value && fromQuality.value === toQuality.value) {
-                        showValidation(lineTitle + ': @UiText["inventory.documents.validation.qualitiesDifferent"]', toQuality);
-                        return false;
-                    }
                 }
 
                 return true;

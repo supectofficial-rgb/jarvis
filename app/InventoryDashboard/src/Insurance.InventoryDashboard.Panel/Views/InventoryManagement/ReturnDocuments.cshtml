@@ -1696,7 +1696,7 @@
                 }
 
                 if (window.jQuery) {
-                    window.jQuery(returnReferenceSelect).val(selectedValue).trigger('change.select2');
+                    window.jQuery(returnReferenceSelect).val(selectedValue).trigger('change');
                 } else {
                     returnReferenceSelect.value = selectedValue;
                 }
@@ -1831,7 +1831,7 @@
 
                 if (option) {
                     if (window.jQuery) {
-                        window.jQuery(returnReferenceSelect).append(option).trigger('change.select2');
+                        window.jQuery(returnReferenceSelect).append(option).trigger('change');
                     } else {
                         returnReferenceSelect.appendChild(option);
                     }
@@ -1878,7 +1878,7 @@
                             window.jQuery(returnReferenceSelect).append(option);
                         }
                     }
-                    window.jQuery(returnReferenceSelect).val(document.documentBusinessKey || item.documentBusinessKey).trigger('change.select2');
+                    window.jQuery(returnReferenceSelect).val(document.documentBusinessKey || item.documentBusinessKey).trigger('change');
                 }
                 if (createWarehouseInput) {
                     createWarehouseInput.value = String(document.warehouseRef || '');
