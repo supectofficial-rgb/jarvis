@@ -944,6 +944,24 @@
                     selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
             }
 
+            var renderAdjustmentLocationOptionsSafe = typeof renderAdjustmentLocationOptions === 'function'
+                ? renderAdjustmentLocationOptions
+                : function (form, locations, selectedSourceId, selectedDestinationId) {
+                    if (!form) {
+                        return;
+                    }
+
+                    var locationSelect = getAdjustmentLocationField(form);
+                    var items = Array.isArray(locations) ? locations : [];
+                    setSelectOptions(
+                        locationSelect,
+                        items,
+                        items.length ? '@UiText["inventory.documents.line.selectLocation"]' : '@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]',
+                        'locationId',
+                        'text',
+                        selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
+                };
+
             function renderAdjustmentLotOptions(form, buckets, selectedLocationId, selectedQualityId, selectedLotBatchNo) {
                 if (!form) {
                     return;
@@ -1675,7 +1693,7 @@ for (var i = 0; i < lines.length; i++) {
                 var qualityStatusId = qualityField ? qualityField.value : '';
                 var selectedLocationId = currentAdjustmentLocation(form);
                 if (!variantField || !variantField.value) {
-                    renderAdjustmentLocationOptions(form, [], '', '');
+                    renderAdjustmentLocationOptionsSafe(form, [], '', '');
                     renderAdjustmentLotOptions(form, [], '', '', '');
                     renderAdjustmentInventorySummary(form, [], []);
                     return;
@@ -1700,7 +1718,7 @@ for (var i = 0; i < lines.length; i++) {
                     throw new Error((data && data.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]');
                 }
 
-                renderAdjustmentLocationOptions(
+                renderAdjustmentLocationOptionsSafe(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
                     selectedLocationId,

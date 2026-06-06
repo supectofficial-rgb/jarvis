@@ -166,7 +166,7 @@
 
     @if (document is null)
     {
-        <div class="alert alert-light mb-0">Ø³Ù†Ø¯ÛŒ Ø¨Ø±Ø§ÛŒ Ù†Ù…Ø§ÛŒØ´ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.</div>
+        <div class="alert alert-light mb-0">@UiText["inventory.documents.action.noDocumentSelected"]</div>
     }
     else
     {
@@ -180,11 +180,11 @@
 
         <div class="row mb-3">
             <div class="col-md-6 mb-2">
-                <div class="text-muted small">ØªØ§Ø±ÛŒØ® ÙˆÙ‚ÙˆØ¹</div>
+                <div class="text-muted small">@UiText["inventory.documents.details.occurredAt"]</div>
                 <div>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</div>
             </div>
             <div class="col-md-6 mb-2">
-                <div class="text-muted small">Ù…Ø±Ø¬Ø¹</div>
+                <div class="text-muted small">@UiText["inventory.documents.details.reference"]</div>
                 <div>@(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</div>
                 <div>@(string.IsNullOrWhiteSpace(document.ExternalReferenceNo) ? "-" : document.ExternalReferenceNo)</div>
             </div>
@@ -195,8 +195,8 @@
             <div class="card mb-3">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "Ø§ÙØ²ÙˆØ¯Ù† Ø¢ÛŒØªÙ…" : "ÙˆÛŒØ±Ø§ÛŒØ´ Ø¢ÛŒØªÙ…")</h6>
-                        <button type="button" class="btn btn-outline-secondary btn-xs js-transfer-line-cancel d-none">Ù„ØºÙˆ ÙˆÛŒØ±Ø§ÛŒØ´</button>
+                        <h6 class="mb-0">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.line.addTitle"] : UiText["inventory.documents.line.editTitle"])</h6>
+                        <button type="button" class="btn btn-outline-secondary btn-xs js-transfer-line-cancel d-none">@UiText["inventory.documents.line.cancelEdit"]</button>
                     </div>
                     <form asp-action="SaveAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" class="mb-0">
                         @Html.AntiForgeryToken()
@@ -292,8 +292,8 @@
                             </div>
                             <div class="form-group col-md-4">
                                 <label>@UiText["inventory.documents.line.variant"]</label>
-                                <select asp-for="LineForm.VariantId" class="form-control js-search-select js-transfer-line-variant" data-placeholder="Ø¬Ø³ØªØ¬Ùˆ Ø¨Ø§ Ú©Ø¯ ÛŒØ§ Ù†Ø§Ù… ÙˆØ§Ø±ÛŒØ§Ù†Øª" data-ajax-url='@Url.Action("SearchVariantLookup", "InventoryManagement")' required>
-                                    <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª</option>
+                                <select asp-for="LineForm.VariantId" class="form-control js-search-select js-transfer-line-variant" data-placeholder='@UiText["inventory.documents.line.selectVariant"]' data-ajax-url='@Url.Action("SearchVariantLookup", "InventoryManagement")' required>
+                                    <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
                                     @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
                                     {
                                         <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
@@ -307,9 +307,9 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <label>Ù„Ø§Øª/Ø¨Ú†</label>
-                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-transfer-line-lot" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ù„Ø§Øª/Ø¨Ú†">
-                                    <option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ù„Ø§Øª/Ø¨Ú†</option>
+                                <label>@UiText["inventory.documents.line.lotBatch"]</label>
+                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-transfer-line-lot" data-placeholder='@UiText["inventory.documents.line.lotBatch"]'>
+                                    <option value="">@UiText["inventory.documents.line.selectOption"]</option>
                                 </select>
                             </div>
                             <div class="form-group col-12 col-lg-8 js-adjustment-serial-section d-none">
@@ -330,18 +330,18 @@
         }
         else
         {
-            <div class="alert alert-light border mb-3">Ø§ÛŒÙ† Ø³Ù†Ø¯ Ø¯Ø± ÙˆØ¶Ø¹ÛŒØª Ù¾ÛŒØ´â€ŒÙ†ÙˆÛŒØ³ Ù†ÛŒØ³Øª Ùˆ Ø¢ÛŒØªÙ…â€ŒÙ‡Ø§ Ù‚Ø§Ø¨Ù„ ÙˆÛŒØ±Ø§ÛŒØ´ Ù†ÛŒØ³ØªÙ†Ø¯.</div>
+            <div class="alert alert-light border mb-3">@UiText["inventory.documents.action.documentNotEditable"]</div>
         }
 
         <div class="border-top pt-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">Ø¢ÛŒØªÙ… Ù‡Ø§ÛŒ Ø³Ù†Ø¯</h6>
-                <span class="text-muted small">@document.Lines.Count Ø±Ø¯ÛŒÙ</span>
+                <h6 class="mb-0">@UiText["inventory.documents.lines.title"]</h6>
+                <span class="text-muted small">@document.Lines.Count @UiText["common.line"]</span>
             </div>
 
             @if (document.Lines.Count == 0)
             {
-                <div class="alert alert-light mb-0">Ø±Ø¯ÛŒÙÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø³Ù†Ø¯ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</div>
+                <div class="alert alert-light mb-0">@UiText["inventory.documents.lines.noRecords"]</div>
             }
             else
             {
@@ -349,13 +349,13 @@
                     <table class="table table-sm table-striped mb-0">
                         <thead>
                             <tr>
-                                <th>ÙˆØ§Ø±ÛŒØ§Ù†Øª</th>
-                                <th>ØªØ¹Ø¯Ø§Ø¯</th>
-                                <th>ÙˆØ§Ø­Ø¯</th>
-                                <th>Ú©ÛŒÙÛŒØª</th>
-                                <th>Ù…Ø¨Ø¯Ø§</th>
-                                <th>Ù…Ù‚ØµØ¯</th>
-                                <th class="text-right">Ø¹Ù…Ù„ÛŒØ§Øª</th>
+                                <th>@UiText["inventory.documents.line.variant"]</th>
+                                <th>@UiText["common.quantity"]</th>
+                                <th>@UiText["inventory.documents.line.uom"]</th>
+                                <th>@UiText["common.quality"]</th>
+                                <th>@UiText["inventory.documents.line.sourceLocation"]</th>
+                                <th>@UiText["inventory.documents.line.destinationLocation"]</th>
+                                <th class="text-right">@UiText["common.operation"]</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -394,17 +394,17 @@
                                                     data-destination-quality-id="@line.ToQualityStatusRef"
                                                     data-quality-id="@line.QualityStatusRef"
                                                     data-qty="@line.Qty.ToString("0.####")"
-                                                    data-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>ÙˆÛŒØ±Ø§ÛŒØ´</button>
-                                            <form asp-action="DeleteAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" onsubmit="return confirm('Ø§ÛŒÙ† Ø¢ÛŒØªÙ… Ø­Ø°Ù Ø´ÙˆØ¯ØŸ');">
+                                                    data-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>@UiText["common.edit"]</button>
+                                            <form asp-action="DeleteAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" onsubmit="return confirm('@UiText["inventory.documents.confirm.deleteLine"]');">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
                                                 <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                <button class="btn btn-outline-danger btn-xs" type="submit">Ø­Ø°Ù</button>
+                                                <button class="btn btn-outline-danger btn-xs" type="submit">@UiText["common.delete"]</button>
                                             </form>
                                         }
                                         else
                                         {
-                                            <span class="text-muted small">ØºÛŒØ± Ù‚Ø§Ø¨Ù„ ÙˆÛŒØ±Ø§ÛŒØ´</span>
+                                            <span class="text-muted small">@UiText["inventory.documents.line.notEditable"]</span>
                                         }
                                     </td>
                                 </tr>
@@ -415,7 +415,7 @@
                                             Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
                                             @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
                                             {
-                                                <span> | Ù„Ø§Øª/Ø¨Ú†: @line.LotBatchNo</span>
+                                                <span> | @UiText["inventory.documents.line.lotBatch"]: @line.LotBatchNo</span>
                                             }
                                         </td>
                                     </tr>
@@ -425,7 +425,7 @@
                                     <tr>
                                         <td colspan="7" class="small">
                                             <div class="d-flex flex-wrap align-items-start">
-                                                <span class="text-muted mr-2">Ø³Ø±ÛŒØ§Ù„â€ŒÙ‡Ø§ÛŒ Ø§ÛŒÙ† Ø±Ø¯ÛŒÙ:</span>
+                                                <span class="text-muted mr-2">@UiText["inventory.documents.line.serials"]:</span>
                                                 <div class="d-flex flex-wrap">
                                                     @foreach (var serial in line.Serials.OrderBy(x => x.SerialNo))
                                                     {
