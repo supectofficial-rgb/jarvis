@@ -877,6 +877,9 @@
                 }
             }
 
+            var setSelectOptionsFn = setSelectOptions;
+            window.setSelectOptions = setSelectOptionsFn;
+
             function renderAdjustmentList(container, items, emptyText, itemRenderer) {
                 if (!container) {
                     return;
@@ -1757,6 +1760,13 @@ for (var i = 0; i < lines.length; i++) {
             }
 
             async function loadAdjustmentVariantInventory(form) {
+                var applySelectOptions = typeof setSelectOptionsFn === 'function'
+                    ? setSelectOptionsFn
+                    : (typeof setSelectOptions === 'function'
+                        ? setSelectOptions
+                        : (typeof window.setSelectOptions === 'function'
+                            ? window.setSelectOptions
+                            : function () { }));
                 var renderLocationOptions = typeof renderAdjustmentLocationOptionsFn === 'function'
                     ? renderAdjustmentLocationOptionsFn
                     : (typeof renderAdjustmentLocationOptions === 'function'
@@ -1834,7 +1844,7 @@ for (var i = 0; i < lines.length; i++) {
 
                 var locationSelect = getAdjustmentLocationField(form);
                 if (locationSelect && locationSelect.options.length <= 1 && locations.length > 0) {
-                    setSelectOptions(
+                    applySelectOptions(
                         locationSelect,
                         locations,
                         '@UiText["inventory.documents.line.selectLocation"]',
