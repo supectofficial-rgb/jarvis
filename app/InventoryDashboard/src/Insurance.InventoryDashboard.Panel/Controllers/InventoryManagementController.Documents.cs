@@ -987,6 +987,14 @@ public sealed partial class InventoryManagementController
             return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidLocationModel);
         }
 
+        if (string.IsNullOrWhiteSpace(form.ToQualityStatusRef))
+        {
+            var invalidQualityModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
+            invalidQualityModel.ErrorMessage = "برای سند انتقال، وضعیت کیفیت مقصد الزامی است.";
+            invalidQualityModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_TransferDocumentDetailsModalBody.cshtml", invalidQualityModel);
+        }
+
         if (string.Equals(form.SourceLocationRef, form.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
         {
             var invalidLocationModel = await BuildTransferDocumentDetailsModalModelAsync(form.DocumentId, token);
@@ -1048,6 +1056,7 @@ public sealed partial class InventoryManagementController
                         splitForm.Qty = allocation.BaseQty;
                         splitForm.SourceLocationRef = allocation.Bucket.LocationRef.ToString("D");
                         splitForm.QualityStatusRef = allocation.Bucket.QualityStatusRef.ToString("D");
+                        splitForm.FromQualityStatusRef = splitForm.QualityStatusRef;
                         splitForm.LotBatchNo = allocation.Bucket.LotBatchNo;
                         splitForm.Serials = allocation.Serials
                             .Select(item => new InventoryDocumentLineSerialModel
@@ -1075,6 +1084,7 @@ public sealed partial class InventoryManagementController
                 var resolvedAllocation = autoAllocationResult.Allocations[0];
                 form.SourceLocationRef = resolvedAllocation.Bucket.LocationRef.ToString("D");
                 form.QualityStatusRef = resolvedAllocation.Bucket.QualityStatusRef.ToString("D");
+                form.FromQualityStatusRef = form.QualityStatusRef;
                 form.LotBatchNo = resolvedAllocation.Bucket.LotBatchNo;
                 form.Qty = resolvedAllocation.BaseQty;
                 form.Serials = resolvedAllocation.Serials
@@ -1125,6 +1135,7 @@ public sealed partial class InventoryManagementController
                     splitForm.SourceLocationRef = string.IsNullOrWhiteSpace(group.Key.LocationRef) ? null : group.Key.LocationRef;
                     splitForm.LotBatchNo = string.IsNullOrWhiteSpace(group.Key.LotBatchNo) ? null : NormalizeLotBatchNo(group.Key.LotBatchNo);
                     splitForm.QualityStatusRef = string.IsNullOrWhiteSpace(group.Key.QualityStatusRef) ? null : group.Key.QualityStatusRef;
+                    splitForm.FromQualityStatusRef = splitForm.QualityStatusRef;
                     splitForm.Serials = group
                         .Select(item => new InventoryDocumentLineSerialModel
                         {
@@ -1180,6 +1191,7 @@ public sealed partial class InventoryManagementController
                 ? resolvedSerialGroup.Key.QualityStatusRef
                 : form.QualityStatusRef;
             form.QualityStatusRef = string.IsNullOrWhiteSpace(resolvedQualityStatusRef) ? null : resolvedQualityStatusRef;
+            form.FromQualityStatusRef = form.QualityStatusRef;
             form.Qty = resolvedSerialSelections.Count;
             form.Serials = resolvedSerialGroup
                 .Select(item => new InventoryDocumentLineSerialModel
@@ -1967,6 +1979,7 @@ public sealed partial class InventoryManagementController
                     splitForm.SourceLocationRef = string.IsNullOrWhiteSpace(group.Key.LocationRef) ? null : group.Key.LocationRef;
                     splitForm.LotBatchNo = string.IsNullOrWhiteSpace(group.Key.LotBatchNo) ? null : NormalizeLotBatchNo(group.Key.LotBatchNo);
                     splitForm.QualityStatusRef = string.IsNullOrWhiteSpace(group.Key.QualityStatusRef) ? null : group.Key.QualityStatusRef;
+                    splitForm.FromQualityStatusRef = splitForm.QualityStatusRef;
                     splitForm.Serials = group
                         .Select(item => new InventoryDocumentLineSerialModel
                         {
@@ -3694,19 +3707,6 @@ public sealed partial class InventoryManagementController
 
     private static string? ValidateDocumentFormAgainstBackendRules(CreateInventoryDocumentForm form)
     {
-        if (string.Equals(form.DocumentType, "Conversion", StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.IsNullOrWhiteSpace(form.WarehouseRef))
-            {
-                return "انتخاب انبار برای سند تبدیل الزامی است.";
-            }
-
-            if (string.IsNullOrWhiteSpace(form.SellerRef))
-            {
-                return "انتخاب فروشنده برای سند تبدیل الزامی است.";
-            }
-        }
-
         foreach (var line in form.Lines)
         {
             switch (form.DocumentType)
@@ -4306,12 +4306,14 @@ public sealed partial class InventoryManagementController
             ReferenceType = isEditMode ? existingDocument?.ReferenceType : null,
             ReferenceBusinessId = isEditMode ? existingDocument?.ReferenceBusinessId?.ToString() : null,
             WarehouseRef = isConversionDocument
-                ? isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty
-                : isReceiptDocument || isAdjustmentDocument
+                ? isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : string.Empty
+                : isAdjustmentDocument
+                    ? isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty
+                : isReceiptDocument
                     ? string.Empty
                 : isEditMode ? existingDocument?.WarehouseRef ?? string.Empty : warehouseId ?? string.Empty,
             SellerRef = isConversionDocument
-                ? isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty
+                ? isEditMode ? existingDocument?.SellerRef ?? string.Empty : string.Empty
                 : isEditMode ? existingDocument?.SellerRef ?? string.Empty : sellerId ?? string.Empty,
             ReceivedBy = isEditMode ? existingDocument?.ReceivedBy : null,
             DeliveredBy = isEditMode ? existingDocument?.DeliveredBy : null,
@@ -4569,10 +4571,6 @@ public sealed partial class InventoryManagementController
         await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, qualityStatusLookupTask, uomsTask);
 
         var lineForm = BuildLineForm(document, documentId, null, "Transfer");
-        if (string.IsNullOrWhiteSpace(lineForm.QualityStatusRef))
-        {
-            lineForm.QualityStatusRef = qualityStatusLookupTask.Result.Data?.FirstOrDefault()?.QualityStatusBusinessKey;
-        }
         if (string.IsNullOrWhiteSpace(lineForm.FromQualityStatusRef))
         {
             lineForm.FromQualityStatusRef = lineForm.QualityStatusRef;

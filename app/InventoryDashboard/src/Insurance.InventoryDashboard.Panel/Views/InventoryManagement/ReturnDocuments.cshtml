@@ -1679,8 +1679,26 @@
                 }
 
                 var selectedValue = String(returnReferenceSelect.value || '').trim();
+                if (!selectedValue && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                    var select2Data = window.jQuery(returnReferenceSelect).select2('data');
+                    if (select2Data && select2Data.length) {
+                        var selectedItem = select2Data[0] || {};
+                        selectedValue = String(selectedItem.id || selectedItem.documentBusinessKey || (selectedItem.document && selectedItem.document.documentBusinessKey) || '').trim();
+                    }
+                }
+
+                if (!selectedValue && returnSourceDocument) {
+                    selectedValue = String(returnSourceDocument.documentBusinessKey || returnSourceDocument.businessKey || '').trim();
+                }
+
                 if (!selectedValue) {
                     return false;
+                }
+
+                if (window.jQuery) {
+                    window.jQuery(returnReferenceSelect).val(selectedValue).trigger('change.select2');
+                } else {
+                    returnReferenceSelect.value = selectedValue;
                 }
 
                 if (returnReferenceIdInput) {
@@ -2221,6 +2239,7 @@ for (var i = 0; i < lines.length; i++) {
 
             if (createForm) {
                 createForm.addEventListener('submit', function (event) {
+                    syncReturnReferenceInputsFromSelect();
                     if (!validateDocumentForm()) {
                         event.preventDefault();
                         event.stopPropagation();

@@ -262,25 +262,11 @@
                                     </div>
                                 </div>
                                 @await Html.PartialAsync("_DocumentReferenceLookup", Model, new ViewDataDictionary(ViewData) { ["ReferenceLookupPrefix"] = "conversion-reference" })
-                                <div class="form-group col-md-3">
-                                    <label>@UiText["inventory.documents.warehouse"]</label>
-                                    <select asp-for="CreateForm.WarehouseRef" class="form-control js-search-select" id="create-warehouse-select" required>
-                                        <option value="">@UiText["inventory.documents.selectWarehouse"]</option>
-                                        @foreach (var warehouse in Model.WarehouseLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@warehouse.WarehouseBusinessKey" selected="@(string.Equals(warehouse.WarehouseBusinessKey, Model.CreateForm.WarehouseRef, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@warehouse.Code - @warehouse.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="form-group col-md-3">
-                                    <label>@UiText["inventory.documents.seller"]</label>
-                                    <select asp-for="CreateForm.SellerRef" class="form-control js-search-select" required>
-                                        <option value="">@UiText["inventory.documents.selectSeller"]</option>
-                                        @foreach (var seller in Model.SellerLookup.OrderBy(x => x.Code))
-                                        {
-                                            <option value="@seller.SellerBusinessKey" selected="@(string.Equals(seller.SellerBusinessKey, Model.CreateForm.SellerRef, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@seller.Code - @seller.Name</option>
-                                        }
-                                    </select>
+                                <div class="form-group col-md-6">
+                                    <label>انبار و فروشنده</label>
+                                    <div class="alert alert-light border small mb-0 py-2">
+                                        انبار و فروشنده سند تبدیل به‌صورت خودکار از recipe و seller/quality مشترک تعیین می‌شوند و نیازی به انتخاب دستی ندارند.
+                                    </div>
                                 </div>
                             </div>
 

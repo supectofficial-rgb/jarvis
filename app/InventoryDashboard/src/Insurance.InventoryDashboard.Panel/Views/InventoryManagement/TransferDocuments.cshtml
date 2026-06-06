@@ -201,6 +201,7 @@
 
     var showListTab = string.Equals(Model.SelectedTab, "list", StringComparison.OrdinalIgnoreCase);
     var currentDocumentType = string.IsNullOrWhiteSpace(Model.DocumentTypeFilter) ? "Receipt" : Model.DocumentTypeFilter;
+    var showTransferQualityColumns = string.Equals(currentDocumentType, "Transfer", StringComparison.OrdinalIgnoreCase);
     var showConversionQuality = string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
     var showQualityChangeFields = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase);
     var documentAction = ViewBag.DocumentAction as string ?? "Documents";
@@ -398,6 +399,7 @@
                         else
                         {
                             var selectedDocumentType = Model.SelectedDocumentDetails.DocumentType;
+                            var selectedDocumentIsTransfer = string.Equals(selectedDocumentType, "Transfer", StringComparison.OrdinalIgnoreCase);
                             var showQualityColumn = string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase)
                                 || string.Equals(selectedDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
                             var canEditLines = string.Equals(Model.SelectedDocumentDetails.Status, "Draft", StringComparison.OrdinalIgnoreCase);
@@ -422,7 +424,30 @@
                                         <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
                                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
                                         <div class="form-row">
-                                            @if (showQualityColumn)
+                                                    @if (selectedDocumentIsTransfer)
+                                            {
+                                                <div class="form-group col-md-2 line-quality">
+                                                    <label>@UiText["inventory.documents.line.quality"]</label>
+                                                    <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                        {
+                                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-2 line-to-quality">
+                                                    <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                                    <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]' required>
+                                                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                                        {
+                                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                            }
+                                            else if (showQualityColumn)
                                             {
                                                 @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
                                                 {
@@ -548,9 +573,9 @@
                                                     <th>@UiText["inventory.documents.line.variant"]</th>
                                                     <th>@UiText["common.quantity"]</th>
                                                     <th>@UiText["common.name"]</th>
-                                        <th>@UiText["inventory.documents.line.sourceLocation"]</th>
-                                        <th>@UiText["inventory.documents.line.destinationLocation"]</th>
-                                                    @if (showQualityColumn)
+                                                    <th>@UiText["inventory.documents.line.sourceLocation"]</th>
+                                                    <th>@UiText["inventory.documents.line.destinationLocation"]</th>
+                                                    @if (showQualityColumn || selectedDocumentIsTransfer)
                                                     {
                                                         <th>@UiText["common.quality"]</th>
                                                     }
@@ -585,10 +610,14 @@
                                                         <td>@UomName(line.UomRef)</td>
                                                         <td>@LocationName(line.SourceLocationRef)</td>
                                                          <td>@LocationName(line.DestinationLocationRef)</td>
-                                                        @if (showQualityColumn)
+                                                        @if (showQualityColumn || selectedDocumentIsTransfer)
                                                         {
                                                             <td>
-                                                                @if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
+                                                                @if (selectedDocumentIsTransfer)
+                                                                {
+                                                                    <span>@QualityName(line.QualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
+                                                                }
+                                                                else if (string.Equals(selectedDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
                                                                 {
                                                                     <span>@QualityName(line.FromQualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
                                                                 }
@@ -616,7 +645,7 @@
                                                     @if (!string.IsNullOrWhiteSpace(line.LotBatchNo) || line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase))
                                                     {
                                                         <tr>
-                                                            <td colspan="@(showQualityColumn ? 8 : 7)" class="text-muted small">
+                                                            <td colspan="@((showQualityColumn || selectedDocumentIsTransfer) ? 8 : 7)" class="text-muted small">
                                                                 Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
                                                                 @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
                                                                 {
@@ -800,11 +829,12 @@
                     title: '@UiText["inventory.documents.info.transfer.title"]',
                     text: '@UiText["inventory.documents.info.transfer.description"]',
                     source: true,
-                    destination: false,
+                    destination: true,
                     quality: false,
                     qualityChange: false,
                     adjustment: false,
-                    lineReason: false
+                    lineReason: false,
+                    transferQuality: true
                 },
                 Adjustment: {
                     title: '@UiText["inventory.documents.info.adjustment.title"]',
@@ -916,8 +946,9 @@
                     line.querySelectorAll('.line-source').forEach(function (el) { el.style.display = config.source ? '' : 'none'; });
                     line.querySelectorAll('.line-destination').forEach(function (el) { el.style.display = config.destination ? '' : 'none'; });
                     line.querySelectorAll('.line-adjustment').forEach(function (el) { el.style.display = config.adjustment ? '' : 'none'; });
-                    line.querySelectorAll('.line-quality').forEach(function (el) { el.style.display = config.quality ? '' : 'none'; });
-                    line.querySelectorAll('.line-from-quality, .line-to-quality').forEach(function (el) { el.style.display = config.qualityChange ? '' : 'none'; });
+                    line.querySelectorAll('.line-quality').forEach(function (el) { el.style.display = (config.quality || config.transferQuality) ? '' : 'none'; });
+                    line.querySelectorAll('.line-from-quality').forEach(function (el) { el.style.display = config.qualityChange ? '' : 'none'; });
+                    line.querySelectorAll('.line-to-quality').forEach(function (el) { el.style.display = (config.qualityChange || config.transferQuality) ? '' : 'none'; });
                     line.querySelectorAll('.line-reason').forEach(function (el) { el.style.display = config.lineReason ? '' : 'none'; });
 
                     setRequired(['.source-location-select'], false, line);
@@ -926,6 +957,7 @@
                     setRequired(['.line-reason input'], config.lineReason, line);
                     setRequired(['.line-from-quality select', '.line-to-quality select'], config.qualityChange, line);
                     setRequired(['.line-quality select'], !!config.quality && !config.qualityChange, line);
+                    setRequired(['.line-to-quality select'], !!config.transferQuality, line);
                 });
             }
 
@@ -1066,6 +1098,8 @@ for (var i = 0; i < lines.length; i++) {
                     var qty = firstField(line, 'input[name$=".Qty"]');
                     var source = firstField(line, '.source-location-select');
                     var destination = firstField(line, '.destination-location-select');
+                    var sourceQuality = firstField(line, '.line-quality select');
+                    var destinationQuality = firstField(line, '.line-to-quality select');
                     var adjustment = firstField(line, '.line-adjustment select');
                     var reason = firstField(line, '.line-reason input');
                     var fromQuality = firstField(line, '.line-from-quality select');
@@ -1089,6 +1123,18 @@ for (var i = 0; i < lines.length; i++) {
                     if (!config.exclusiveFlow && config.source && config.destination && source && destination && source.value && source.value === destination.value) {
                         showValidation(lineTitle + ': @UiText["inventory.documents.validation.locationsDifferent"]', destination);
                         return false;
+                    }
+
+                    if (config.transferQuality) {
+                        if (!destinationQuality || !destinationQuality.value) {
+                            showValidation(lineTitle + ': @UiText["inventory.documents.line.toQuality"]', destinationQuality);
+                            return false;
+                        }
+
+                        if (sourceQuality && sourceQuality.value && destinationQuality && destinationQuality.value && sourceQuality.value === destinationQuality.value) {
+                            showValidation(lineTitle + ': @UiText["inventory.documents.validation.qualitiesDifferent"]', destinationQuality);
+                            return false;
+                        }
                     }
 
                     if (config.exclusiveFlow) {
@@ -1273,6 +1319,7 @@ for (var i = 0; i < lines.length; i++) {
                     variantSelect: root.querySelector('select[name="LineForm.VariantId"]'),
                     sourceSelect: root.querySelector('select[name="LineForm.SourceLocationRef"]'),
                     qualitySelect: root.querySelector('select[name="LineForm.QualityStatusRef"]'),
+                    destinationQualitySelect: root.querySelector('select[name="LineForm.ToQualityStatusRef"]'),
                     lotSelect: root.querySelector('select[name="LineForm.LotBatchNo"]'),
                     warehouseSelect: root.querySelector('select[name="LineForm.WarehouseRef"]'),
                     destinationSelect: root.querySelector('select[name="LineForm.DestinationLocationRef"]'),
@@ -2057,13 +2104,15 @@ for (var i = 0; i < lines.length; i++) {
                 var sourceSelect = modal.querySelector('select[name="LineForm.SourceLocationRef"]');
                 var warehouseSelect = modal.querySelector('select[name="LineForm.WarehouseRef"]');
                 var destinationSelect = modal.querySelector('select[name="LineForm.DestinationLocationRef"]');
-                var qualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
+                var sourceQualitySelect = modal.querySelector('select[name="LineForm.QualityStatusRef"]');
+                var destinationQualitySelect = modal.querySelector('select[name="LineForm.ToQualityStatusRef"]');
                 var lotSelect = modal.querySelector('select[name="LineForm.LotBatchNo"]');
                 var qtyInput = modal.querySelector('input[name="LineForm.Qty"]');
                 var submitButton = modal.querySelector('.js-transfer-line-submit');
                 var cancelButton = modal.querySelector('.js-transfer-line-cancel');
                 var destinationLocationId = trigger.getAttribute('data-destination-location-id') || '';
-                var qualityId = trigger.getAttribute('data-quality-id') || '';
+                var sourceQualityId = trigger.getAttribute('data-source-quality-id') || trigger.getAttribute('data-quality-id') || '';
+                var destinationQualityId = trigger.getAttribute('data-destination-quality-id') || sourceQualityId;
                 var serialsJson = trigger.getAttribute('data-serials-json') || '';
                 var selectedSerialIds = parseTransferSerialSelectionJson(serialsJson).map(function (item) {
                     return item.serialItemBusinessKey;
@@ -2090,10 +2139,17 @@ for (var i = 0; i < lines.length; i++) {
                     }
                 }
 
-                if (qualitySelect) {
-                    qualitySelect.value = qualityId;
+                if (sourceQualitySelect) {
+                    sourceQualitySelect.value = sourceQualityId;
                     if (window.jQuery) {
-                        window.jQuery(qualitySelect).trigger('change.select2');
+                        window.jQuery(sourceQualitySelect).trigger('change.select2');
+                    }
+                }
+
+                if (destinationQualitySelect) {
+                    destinationQualitySelect.value = destinationQualityId;
+                    if (window.jQuery) {
+                        window.jQuery(destinationQualitySelect).trigger('change.select2');
                     }
                 }
 

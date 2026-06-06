@@ -5,6 +5,7 @@
     var document = Model.SelectedDocumentDetails;
     var currentDocumentType = document?.DocumentType ?? "Transfer";
     var canEditLines = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+    var showTransferQualityColumns = string.Equals(currentDocumentType, "Transfer", StringComparison.OrdinalIgnoreCase);
     var showQualityColumn = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase)
         || string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
 
@@ -195,7 +196,32 @@
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
 
-                        @if (showQualityColumn)
+                        @if (showTransferQualityColumns)
+                        {
+                            <div class="form-row mb-3">
+                                <div class="form-group col-md-3 line-quality">
+                                    <label>@UiText["inventory.documents.line.quality"]</label>
+                                    <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-3 line-to-quality">
+                                    <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                    <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]' required>
+                                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        }
+                        else if (showQualityColumn)
                         {
                             <div class="form-row mb-3">
                                 @if (string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
@@ -345,7 +371,20 @@
                                     <td>@VariantName(line.VariantRef)</td>
                                     <td>@line.Qty.ToString("0.####")</td>
                                     <td>@UomName(line.UomRef)</td>
-                                    <td>@QualityName(line.QualityStatusRef)</td>
+                                    <td>
+                                        @if (showTransferQualityColumns)
+                                        {
+                                            <span>@QualityName(line.QualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
+                                        }
+                                        else if (string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span>@QualityName(line.FromQualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@QualityName(line.QualityStatusRef)</span>
+                                        }
+                                    </td>
                                     <td>@LocationName(line.SourceLocationRef)</td>
                                     <td>@LocationName(line.DestinationLocationRef)</td>
                                     <td class="text-right">
@@ -357,6 +396,8 @@
                                                     data-variant-id="@line.VariantRef"
                                                     data-source-location-id="@line.SourceLocationRef"
                                                     data-destination-location-id="@line.DestinationLocationRef"
+                                                    data-source-quality-id="@line.QualityStatusRef"
+                                                    data-destination-quality-id="@line.ToQualityStatusRef"
                                                     data-quality-id="@line.QualityStatusRef"
                                                     data-qty="@line.Qty.ToString("0.####")"
                                                     data-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>ویرایش</button>

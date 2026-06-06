@@ -705,7 +705,7 @@ public class PostInventoryDocumentCommandHandler
                             -line.BaseQty,
                               line.BaseUomRef,
                               sourceLocationRef: line.SourceLocationRef,
-                              oldQualityStatusRef: line.QualityStatusRef,
+                              oldQualityStatusRef: line.FromQualityStatusRef ?? line.QualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
                               lotBatchNo: lotBatchNo,
@@ -723,7 +723,7 @@ public class PostInventoryDocumentCommandHandler
                             line.BaseQty,
                               line.BaseUomRef,
                               destinationLocationRef: line.DestinationLocationRef,
-                              newQualityStatusRef: line.QualityStatusRef,
+                              newQualityStatusRef: line.ToQualityStatusRef ?? line.QualityStatusRef,
                               serialRef: serialRef,
                               serials: serialTuples,
                               lotBatchNo: lotBatchNo,
@@ -1035,6 +1035,11 @@ public class PostInventoryDocumentCommandHandler
                             stockDetail.LocationRef,
                             stockDetail.QualityStatusRef,
                             stockDetail.LotBatchNo);
+
+                        if (serialItem.Status == SerialItemStatus.Reserved)
+                        {
+                            serialItem.ReleaseReservation();
+                        }
                     }
                     break;
             }
