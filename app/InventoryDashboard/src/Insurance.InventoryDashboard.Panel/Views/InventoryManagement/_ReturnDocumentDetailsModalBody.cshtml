@@ -744,46 +744,5 @@
         buildLookupMaps();
         loadReferenceDocument();
 
-        var returnLineEditorForm = root.querySelector('#return-line-editor-form');
-        if (returnLineEditorForm && !returnLineEditorForm.dataset.returnSubmitBound) {
-            returnLineEditorForm.dataset.returnSubmitBound = '1';
-            returnLineEditorForm.addEventListener('submit', function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                var form = event.currentTarget;
-                var submitUrl = form.getAttribute('action') || window.location.href;
-                var submitData = new FormData(form);
-                var documentNo = root.getAttribute('data-return-reference-document-no') || documentId || '';
-
-                fetch(submitUrl, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
-                    },
-                    body: submitData
-                })
-                    .then(function (response) { return response.text(); })
-                    .then(function (html) {
-                        if (typeof window.returnDocumentsReplaceDetailsModalBody === 'function') {
-                            window.returnDocumentsReplaceDetailsModalBody(html, documentId, documentNo);
-                            if (typeof window.returnDocumentsShowDetailsModal === 'function') {
-                                window.returnDocumentsShowDetailsModal();
-                            }
-                            return;
-                        }
-
-                        root.innerHTML = html;
-                    })
-                    .catch(function (error) {
-                        console.error(error);
-                        if (serialHint) {
-                            serialHint.textContent = '@UiText["inventory.documents.action.loadingFailed"]';
-                        }
-                    });
-            });
-        }
     })();
 </script>

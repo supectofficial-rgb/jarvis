@@ -1043,6 +1043,21 @@ public class PostInventoryDocumentCommandHandler
                         }
                     }
                     break;
+
+                case InventoryDocumentType.Adjustment:
+                    if (effect.TransactionLine.BaseQtyDelta > 0)
+                    {
+                        serialItem.ReturnToAvailable(
+                            stockDetail.WarehouseRef,
+                            stockDetail.LocationRef,
+                            stockDetail.QualityStatusRef,
+                            stockDetail.LotBatchNo);
+                    }
+                    else if (effect.TransactionLine.BaseQtyDelta < 0)
+                    {
+                        serialItem.Issue(transactionBusinessKey);
+                    }
+                    break;
             }
         }
         catch (Exception ex)

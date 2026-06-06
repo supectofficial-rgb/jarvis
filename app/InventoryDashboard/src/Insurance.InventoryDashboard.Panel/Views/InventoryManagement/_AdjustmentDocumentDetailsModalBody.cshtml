@@ -410,7 +410,8 @@
                                         @if (canEditLines)
                                         {
                                             <button type="button"
-                                                    class="btn btn-outline-primary btn-xs js-transfer-line-edit"
+                                                    class="btn btn-outline-primary btn-xs js-adjustment-line-edit"
+                                                    data-document-id="@document.DocumentBusinessKey"
                                                     data-line-id="@line.LineBusinessKey"
                                                     data-variant-id="@line.VariantRef"
                                                     data-source-location-id="@line.SourceLocationRef"

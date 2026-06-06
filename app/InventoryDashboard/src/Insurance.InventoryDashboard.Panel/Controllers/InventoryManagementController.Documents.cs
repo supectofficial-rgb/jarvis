@@ -3421,6 +3421,16 @@ public sealed partial class InventoryManagementController
             return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", invalidModel);
         }
 
+        var documentResult = await _apiService.GetInventoryDocumentByBusinessKeyAsync(form.DocumentId, token);
+        var document = documentResult.Data;
+        if (document is null)
+        {
+            var notFoundModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
+            notFoundModel.ErrorMessage = documentResult.ErrorMessage ?? "سند یافت نشد.";
+            notFoundModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", notFoundModel);
+        }
+
         if (string.IsNullOrWhiteSpace(form.AdjustmentDirection))
         {
             var invalidDirectionModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
@@ -3431,31 +3441,132 @@ public sealed partial class InventoryManagementController
 
         if (string.IsNullOrWhiteSpace(form.ReasonCode))
         {
-            var invalidReasonModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
-            invalidReasonModel.ErrorMessage = "علت ردیف الزامی است.";
-            invalidReasonModel.LineForm = form;
-            return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", invalidReasonModel);
+            form.ReasonCode = document.ReasonCode;
         }
 
-        if (string.Equals(form.AdjustmentDirection, "Increase", StringComparison.OrdinalIgnoreCase))
+        var variantsResult = await _apiService.SearchVariantsAsync(token, page: 1, pageSize: 2000);
+        var variants = variantsResult.Data ?? new List<ProductVariantSummaryModel>();
+        var variant = variants.FirstOrDefault(x => string.Equals(x.Id, form.VariantId, StringComparison.OrdinalIgnoreCase));
+        if (variant is null)
         {
-            if (string.IsNullOrWhiteSpace(form.DestinationLocationRef))
+            var invalidVariantModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
+            invalidVariantModel.ErrorMessage = "واریانت انتخاب شده معتبر نیست.";
+            invalidVariantModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", invalidVariantModel);
+        }
+
+        form.UomRef = variant.BaseUomRef;
+        form.BaseUomRef = variant.BaseUomRef;
+        if (string.IsNullOrWhiteSpace(form.FromQualityStatusRef))
+        {
+            form.FromQualityStatusRef = form.QualityStatusRef;
+        }
+        if (string.IsNullOrWhiteSpace(form.ToQualityStatusRef))
+        {
+            form.ToQualityStatusRef = form.QualityStatusRef;
+        }
+
+        var direction = form.AdjustmentDirection.Trim();
+        var selectedLocationRef = string.Equals(direction, "Increase", StringComparison.OrdinalIgnoreCase)
+            ? form.DestinationLocationRef
+            : form.SourceLocationRef;
+
+        if (string.Equals(direction, "Increase", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(selectedLocationRef))
             {
                 var invalidLocationModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
                 invalidLocationModel.ErrorMessage = "برای افزایش، لوکیشن مقصد الزامی است.";
                 invalidLocationModel.LineForm = form;
                 return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", invalidLocationModel);
             }
+
+            form.SourceLocationRef = string.Empty;
+            form.DestinationLocationRef = selectedLocationRef;
         }
-        else if (string.Equals(form.AdjustmentDirection, "Decrease", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(direction, "Decrease", StringComparison.OrdinalIgnoreCase))
         {
-            if (string.IsNullOrWhiteSpace(form.SourceLocationRef))
+            if (string.IsNullOrWhiteSpace(selectedLocationRef))
             {
                 var invalidLocationModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
                 invalidLocationModel.ErrorMessage = "برای کاهش، لوکیشن مبدأ الزامی است.";
                 invalidLocationModel.LineForm = form;
                 return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", invalidLocationModel);
             }
+
+            form.SourceLocationRef = selectedLocationRef;
+            form.DestinationLocationRef = string.Empty;
+        }
+
+        IReadOnlyList<SerialItemLookupModel> selectableSerials;
+        if (string.Equals(direction, "Increase", StringComparison.OrdinalIgnoreCase))
+        {
+            var locationResult = await _apiService.GetLocationByBusinessKeyAsync(selectedLocationRef, token);
+            if (!locationResult.IsSuccess || locationResult.Data is null)
+            {
+                var invalidLocationModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
+                invalidLocationModel.ErrorMessage = locationResult.ErrorMessage ?? "اطلاعات لوکیشن مقصد یافت نشد.";
+                invalidLocationModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", invalidLocationModel);
+            }
+
+            var issuedSerialsResult = await _apiService.SearchSerialItemsAsync(
+                token,
+                variant.Id,
+                warehouseId: locationResult.Data.WarehouseId,
+                locationId: selectedLocationRef,
+                qualityStatusId: form.QualityStatusRef,
+                status: "Issued");
+            if (!issuedSerialsResult.IsSuccess)
+            {
+                var serialLookupModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
+                serialLookupModel.ErrorMessage = issuedSerialsResult.ErrorMessage ?? "بارگذاری سریال‌های صادرشده انجام نشد.";
+                serialLookupModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", serialLookupModel);
+            }
+
+            selectableSerials = FilterAvailableSerialsForLine(
+                issuedSerialsResult.Data ?? new List<SerialItemLookupModel>(),
+                selectedLocationRef,
+                form.QualityStatusRef,
+                form.LotBatchNo);
+        }
+        else
+        {
+            var serialsResult = await _apiService.GetAvailableSerialItemsAsync(token, variant.Id);
+            if (!serialsResult.IsSuccess)
+            {
+                var serialLookupModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
+                serialLookupModel.ErrorMessage = serialsResult.ErrorMessage ?? "بارگذاری سریال‌های در دسترس انجام نشد.";
+                serialLookupModel.LineForm = form;
+                return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", serialLookupModel);
+            }
+
+            selectableSerials = FilterAvailableSerialsForLine(
+                serialsResult.Data ?? new List<SerialItemLookupModel>(),
+                selectedLocationRef,
+                form.QualityStatusRef,
+                form.LotBatchNo);
+        }
+
+        if (!TryResolveSelectedSerials(form.Serials, selectableSerials, out var resolvedSerialSelections, out var selectedSerialError))
+        {
+            var serialSelectionModel = await BuildAdjustmentDocumentDetailsModalModelAsync(form.DocumentId, token, null, cancellationToken);
+            serialSelectionModel.ErrorMessage = selectedSerialError ?? "انتخاب سریال‌ها معتبر نیست.";
+            serialSelectionModel.LineForm = form;
+            return PartialView("~/Views/InventoryManagement/_AdjustmentDocumentDetailsModalBody.cshtml", serialSelectionModel);
+        }
+
+        if (resolvedSerialSelections.Count > 0)
+        {
+            form.Qty = resolvedSerialSelections.Count;
+            form.Serials = resolvedSerialSelections
+                .Select(item => new InventoryDocumentLineSerialModel
+                {
+                    SerialItemBusinessKey = item.AvailableSerial.SerialItemBusinessKey,
+                    SerialNo = item.AvailableSerial.SerialNo
+                })
+                .ToList();
         }
 
         var result = string.IsNullOrWhiteSpace(form.LineId)

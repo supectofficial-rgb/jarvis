@@ -1454,6 +1454,36 @@ for (var i = 0; i < lines.length; i++) {
                 return items;
             }
 
+            function syncAdjustmentQtyFromSerialSelection(form, serialMode) {
+                if (!form) {
+                    return;
+                }
+
+                var qtyInput = form.querySelector('input[name="LineForm.Qty"]');
+                if (!qtyInput) {
+                    return;
+                }
+
+                if (!serialMode) {
+                    qtyInput.removeAttribute('readonly');
+                    return;
+                }
+
+                var serialContainer = form.querySelector('.js-adjustment-serial-container');
+                if (!serialContainer || !serialContainer.querySelector('input[type="checkbox"]')) {
+                    qtyInput.removeAttribute('readonly');
+                    return;
+                }
+
+                var selectedCount = readSelectedSerials(form.querySelector('.js-adjustment-selected-serials')).length;
+                if (selectedCount > 0) {
+                    qtyInput.value = String(selectedCount);
+                    qtyInput.setAttribute('readonly', 'readonly');
+                } else {
+                    qtyInput.removeAttribute('readonly');
+                }
+            }
+
             function setSectionEnabled(section, enabled) {
                 if (!section) {
                     return;
@@ -1548,6 +1578,7 @@ for (var i = 0; i < lines.length; i++) {
                 if (serialContainer) {
                     serialContainer.innerHTML = '';
                 }
+                syncAdjustmentQtyFromSerialSelection(form, false);
             }
 
             function selectedDirection(form) {
@@ -1660,6 +1691,8 @@ for (var i = 0; i < lines.length; i++) {
                         else if (!checkbox.checked && existing) {
                             existing.remove();
                         }
+
+                        syncAdjustmentQtyFromSerialSelection(form, true);
                     });
                 });
             }
@@ -1677,6 +1710,7 @@ for (var i = 0; i < lines.length; i++) {
 
                 if (!serials || serials.length === 0) {
                     target.innerHTML = '<div class="alert alert-light mb-0">' + escapeAttribute(emptyMessage || '@UiText["common.noRecords"]') + '</div>';
+                    syncAdjustmentQtyFromSerialSelection(form, false);
                     return;
                 }
 
@@ -1695,6 +1729,7 @@ for (var i = 0; i < lines.length; i++) {
                 }).join('');
 
                 bindAdjustmentSerialCheckboxes(form, '.' + checkboxClass, chipLabel);
+                syncAdjustmentQtyFromSerialSelection(form, true);
             }
 
             async function loadAdjustmentVariantInventory(form) {
@@ -1767,6 +1802,7 @@ for (var i = 0; i < lines.length; i++) {
                     if (serialTarget) {
                         serialTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>';
                     }
+                    syncAdjustmentQtyFromSerialSelection(form, false);
                     return;
                 }
 
@@ -1843,9 +1879,21 @@ for (var i = 0; i < lines.length; i++) {
                 }
                 form.dataset.adjustmentBound = '1';
 
+                function bindSelect2Chain(field, handler) {
+                    if (!field || !window.jQuery) {
+                        return;
+                    }
+
+                    window.jQuery(field)
+                        .off('select2:select.adjustmentChain select2:clear.adjustmentChain')
+                        .on('select2:select.adjustmentChain select2:clear.adjustmentChain', function () {
+                            window.setTimeout(handler, 0);
+                        });
+                }
+
                 var directionField = form.querySelector('[name="LineForm.AdjustmentDirection"]');
                 if (directionField) {
-                    directionField.addEventListener('change', function () {
+                    var onDirectionChange = function () {
                         clearAdjustmentSelectedSerials(form);
                         syncAdjustmentLineMode(form);
                         loadAdjustmentVariantInventory(form)
@@ -1856,12 +1904,15 @@ for (var i = 0; i < lines.length; i++) {
                             .catch(function (error) {
                                 console.error(error);
                             });
-                    });
+                    };
+
+                    directionField.addEventListener('change', onDirectionChange);
+                    bindSelect2Chain(directionField, onDirectionChange);
                 }
 
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
                 if (variantField) {
-                    variantField.addEventListener('change', function () {
+                    var onVariantChange = function () {
                         clearAdjustmentSelectedSerials(form);
                         syncAdjustmentLineMode(form);
                         loadAdjustmentVariantInventory(form)
@@ -1872,12 +1923,15 @@ for (var i = 0; i < lines.length; i++) {
                             .catch(function (error) {
                                 console.error(error);
                             });
-                    });
+                    };
+
+                    variantField.addEventListener('change', onVariantChange);
+                    bindSelect2Chain(variantField, onVariantChange);
                 }
 
                 var qualityField = getAdjustmentQualityField(form);
                 if (qualityField) {
-                    qualityField.addEventListener('change', function () {
+                    var onQualityChange = function () {
                         clearAdjustmentSelectedSerials(form);
                         syncAdjustmentLineMode(form);
                         loadAdjustmentVariantInventory(form)
@@ -1888,12 +1942,15 @@ for (var i = 0; i < lines.length; i++) {
                             .catch(function (error) {
                                 console.error(error);
                             });
-                    });
+                    };
+
+                    qualityField.addEventListener('change', onQualityChange);
+                    bindSelect2Chain(qualityField, onQualityChange);
                 }
 
                 var locationField = getAdjustmentLocationField(form);
                 if (locationField) {
-                    locationField.addEventListener('change', function () {
+                    var onLocationChange = function () {
                         clearAdjustmentSelectedSerials(form);
                         syncAdjustmentLineMode(form);
                         syncAdjustmentHiddenLocation(form);
@@ -1905,15 +1962,21 @@ for (var i = 0; i < lines.length; i++) {
                             .catch(function (error) {
                                 console.error(error);
                             });
-                    });
+                    };
+
+                    locationField.addEventListener('change', onLocationChange);
+                    bindSelect2Chain(locationField, onLocationChange);
                 }
 
                 var lotField = form.querySelector('.js-transfer-line-lot');
                 if (lotField) {
-                    lotField.addEventListener('change', function () {
+                    var onLotChange = function () {
                         clearAdjustmentSelectedSerials(form);
                         fetchAdjustmentSerials(form);
-                    });
+                    };
+
+                    lotField.addEventListener('change', onLotChange);
+                    bindSelect2Chain(lotField, onLotChange);
                 }
 
                 form.querySelectorAll('.js-adjustment-selected-serial .js-adjustment-remove-serial').forEach(function (button) {
