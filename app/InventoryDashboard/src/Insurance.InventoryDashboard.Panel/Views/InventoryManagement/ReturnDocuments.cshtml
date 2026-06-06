@@ -1761,6 +1761,9 @@
                 }
 
                 var subtitleElement = document.querySelector(detailsSubtitleSelector);
+                var parser = new DOMParser();
+                var parsed = parser.parseFromString(html || '', 'text/html');
+
                 currentBody.innerHTML = html;
                 if (subtitleElement) {
                     subtitleElement.textContent = documentNo || documentId || '';
@@ -1768,6 +1771,28 @@
                 if (window.appUi && typeof window.appUi.initSearchableSelects === 'function') {
                     window.appUi.initSearchableSelects(currentBody);
                 }
+
+                parsed.querySelectorAll('script[data-ajax-reinit]').forEach(function (script) {
+                    if (script.src) {
+                        return;
+                    }
+
+                    var scriptType = (script.getAttribute('type') || '').toLowerCase();
+                    if (scriptType && scriptType !== 'text/javascript' && scriptType !== 'application/javascript' && scriptType !== 'module') {
+                        return;
+                    }
+
+                    var code = script.textContent || '';
+                    if (!code.trim()) {
+                        return;
+                    }
+
+                    try {
+                        (new Function(code)).call(window);
+                    } catch (error) {
+                        console.error('Failed to execute return details script.', error);
+                    }
+                });
             }
 
             async function loadReturnDetails(documentId, documentNo) {

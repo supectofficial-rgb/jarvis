@@ -944,6 +944,8 @@
                     selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
             }
 
+            window.renderAdjustmentLocationOptions = renderAdjustmentLocationOptions;
+
             function renderAdjustmentLotOptions(form, buckets, selectedLocationId, selectedQualityId, selectedLotBatchNo) {
                 if (!form) {
                     return;
@@ -1677,7 +1679,7 @@ for (var i = 0; i < lines.length; i++) {
                 var qualityStatusId = qualityField ? qualityField.value : '';
                 var selectedLocationId = currentAdjustmentLocation(form);
                 if (!variantField || !variantField.value) {
-                    renderAdjustmentLocationOptions(form, [], '', '');
+                    window.renderAdjustmentLocationOptions(form, [], '', '');
                     renderAdjustmentLotOptions(form, [], '', '', '');
                     renderAdjustmentInventorySummary(form, [], []);
                     return;
@@ -1702,7 +1704,7 @@ for (var i = 0; i < lines.length; i++) {
                     throw new Error((data && data.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]');
                 }
 
-                renderAdjustmentLocationOptions(
+                window.renderAdjustmentLocationOptions(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
                     selectedLocationId,
