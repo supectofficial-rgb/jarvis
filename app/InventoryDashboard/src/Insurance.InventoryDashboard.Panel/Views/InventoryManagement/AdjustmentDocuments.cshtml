@@ -944,7 +944,8 @@
                     selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
             }
 
-            window.renderAdjustmentLocationOptions = renderAdjustmentLocationOptions;
+            var renderAdjustmentLocationOptionsFn = renderAdjustmentLocationOptions;
+            window.renderAdjustmentLocationOptions = renderAdjustmentLocationOptionsFn;
 
             function renderAdjustmentLotOptions(form, buckets, selectedLocationId, selectedQualityId, selectedLotBatchNo) {
                 if (!form) {
@@ -1345,6 +1346,7 @@ for (var i = 0; i < lines.length; i++) {
                 var body = document.querySelector(modalBodySelector);
                 var title = document.querySelector(modalTitleSelector);
                 var subtitle = document.querySelector(modalSubtitleSelector);
+                var parsed = new DOMParser().parseFromString(html || '', 'text/html');
                 if (body) {
                     body.innerHTML = html || '';
                 }
@@ -1358,6 +1360,28 @@ for (var i = 0; i < lines.length; i++) {
                 if (window.appUi && typeof window.appUi.initSearchableSelects === 'function' && body) {
                     window.appUi.initSearchableSelects(body);
                 }
+
+                parsed.querySelectorAll('script[data-ajax-reinit]').forEach(function (script) {
+                    if (script.src) {
+                        return;
+                    }
+
+                    var scriptType = (script.getAttribute('type') || '').toLowerCase();
+                    if (scriptType && scriptType !== 'text/javascript' && scriptType !== 'application/javascript' && scriptType !== 'module') {
+                        return;
+                    }
+
+                    var code = script.textContent || '';
+                    if (!code.trim()) {
+                        return;
+                    }
+
+                    try {
+                        (new Function(code)).call(window);
+                    } catch (error) {
+                        console.error('Failed to execute adjustment details script.', error);
+                    }
+                });
             }
 
             function loadDocumentDetails(documentId, documentNo, editingLineId) {
@@ -1679,7 +1703,7 @@ for (var i = 0; i < lines.length; i++) {
                 var qualityStatusId = qualityField ? qualityField.value : '';
                 var selectedLocationId = currentAdjustmentLocation(form);
                 if (!variantField || !variantField.value) {
-                    window.renderAdjustmentLocationOptions(form, [], '', '');
+                    renderAdjustmentLocationOptionsFn(form, [], '', '');
                     renderAdjustmentLotOptions(form, [], '', '', '');
                     renderAdjustmentInventorySummary(form, [], []);
                     return;
@@ -1704,7 +1728,7 @@ for (var i = 0; i < lines.length; i++) {
                     throw new Error((data && data.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]');
                 }
 
-                window.renderAdjustmentLocationOptions(
+                renderAdjustmentLocationOptionsFn(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
                     selectedLocationId,

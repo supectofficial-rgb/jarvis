@@ -1795,6 +1795,10 @@
                 });
             }
 
+            window.returnDocumentsReplaceDetailsModalBody = replaceReturnDetailsModalBody;
+            window.returnDocumentsShowDetailsModal = showReturnDetailsModal;
+            window.returnDocumentsLoadDetails = loadReturnDetails;
+
             async function loadReturnDetails(documentId, documentNo) {
                 if (!documentId) {
                     return;
