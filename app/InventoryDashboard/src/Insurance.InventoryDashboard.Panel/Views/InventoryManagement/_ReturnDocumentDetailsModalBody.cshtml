@@ -50,6 +50,97 @@
         _ => "badge-secondary"
     };
 
+    string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
+    {
+        var variantName = (variant.Name ?? string.Empty).Trim();
+        var variantSku = (variant.Sku ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(variantName) && !string.IsNullOrWhiteSpace(variantSku) && !string.Equals(variantName, variantSku, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{variantName} ({variantSku})";
+        }
+
+        if (!string.IsNullOrWhiteSpace(variantName))
+        {
+            return variantName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variantSku))
+        {
+            return variantSku;
+        }
+
+        if (!string.IsNullOrWhiteSpace(variant.Barcode))
+        {
+            return variant.Barcode.Trim();
+        }
+
+        return variant.Id;
+    }
+
+    string VariantName(string? variantId)
+    {
+        if (string.IsNullOrWhiteSpace(variantId))
+        {
+            return "-";
+        }
+
+        var variant = Model.VariantLookup.FirstOrDefault(x => string.Equals(x.Id, variantId, StringComparison.OrdinalIgnoreCase));
+        return variant is null ? variantId : VariantLabel(variant);
+    }
+
+    string UomName(string? uomId)
+    {
+        if (string.IsNullOrWhiteSpace(uomId))
+        {
+            return "-";
+        }
+
+        var uom = Model.UnitOfMeasureLookup.FirstOrDefault(x => string.Equals(x.Id, uomId, StringComparison.OrdinalIgnoreCase));
+        return uom is null ? uomId : $"{uom.Code} - {uom.Name}";
+    }
+
+    string QualityName(string? qualityId)
+    {
+        if (string.IsNullOrWhiteSpace(qualityId))
+        {
+            return "-";
+        }
+
+        var quality = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, qualityId, StringComparison.OrdinalIgnoreCase));
+        return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
+    }
+
+    string WarehouseName(string? warehouseId)
+    {
+        if (string.IsNullOrWhiteSpace(warehouseId))
+        {
+            return "-";
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, warehouseId, StringComparison.OrdinalIgnoreCase));
+        return warehouse is null ? warehouseId : $"{warehouse.Code} - {warehouse.Name}";
+    }
+
+    string LocationName(string? locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            return "-";
+        }
+
+        var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
+        if (location is null)
+        {
+            return locationId;
+        }
+
+        var warehouseLabel = WarehouseName(location.WarehouseRef);
+        var locationLabel = string.IsNullOrWhiteSpace(location.LocationType)
+            ? location.LocationCode
+            : $"{location.LocationCode} ({location.LocationType})";
+        return string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}";
+    }
+
     var lookupData = new
     {
         warehouses = Model.WarehouseLookup.Select(x => new
@@ -228,9 +319,82 @@
             </div>
         }
 
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <strong>@UiText["inventory.documents.lines.title"]</strong>
+                <span class="text-muted small">@document.Lines.Count @UiText["common.line"]</span>
+            </div>
+            <div class="card-body">
+                @if (document.Lines.Count == 0)
+                {
+                    <div class="alert alert-light mb-0">@UiText["inventory.documents.lines.noRecords"]</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>@UiText["inventory.documents.line.variant"]</th>
+                                    <th>@UiText["common.quantity"]</th>
+                                    <th>@UiText["inventory.documents.line.lotBatch"]</th>
+                                    <th>@UiText["common.quality"]</th>
+                                    <th>@UiText["inventory.documents.line.sourceLocation"]</th>
+                                    <th>@UiText["inventory.documents.line.destinationLocation"]</th>
+                                    <th>@UiText["inventory.documents.line.serials"]</th>
+                                    @if (isDraft)
+                                    {
+                                        <th class="text-right">@UiText["common.operation"]</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var line in document.Lines)
+                                {
+                                    <tr>
+                                        <td>@VariantName(line.VariantRef)</td>
+                                        <td>@line.Qty.ToString("0.####") @UomName(line.UomRef)</td>
+                                        <td>@(string.IsNullOrWhiteSpace(line.LotBatchNo) ? "-" : line.LotBatchNo)</td>
+                                        <td>@QualityName(line.QualityStatusRef)</td>
+                                        <td>@LocationName(line.SourceLocationRef)</td>
+                                        <td>@LocationName(line.DestinationLocationRef)</td>
+                                        <td>@line.Serials.Count</td>
+                                        @if (isDraft)
+                                        {
+                                            <td class="text-right text-nowrap">
+                                                <button type="button"
+                                                        class="btn btn-outline-primary btn-xs js-return-line-edit mr-1"
+                                                        data-document-id="@document.DocumentBusinessKey"
+                                                        data-document-no="@document.DocumentNo"
+                                                        data-line-id="@line.LineBusinessKey">
+                                                    @UiText["common.edit"]
+                                                </button>
+                                                <form action="/InventoryManagement/Documents/Return/DeleteLine"
+                                                      method="post"
+                                                      class="d-inline"
+                                                      data-loading-form
+                                                      data-ajax-target="#return-document-details-modal-body">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
+                                                    <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
+                                                    <button type="button" class="btn btn-outline-danger btn-xs js-return-line-delete">
+                                                        @UiText["common.delete"]
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong>@UiText["inventory.documents.details.reference"]</strong>
                 <span class="text-muted small" id="return-reference-line-count">0 @UiText["common.line"]</span>
             </div>
             <div class="card-body">

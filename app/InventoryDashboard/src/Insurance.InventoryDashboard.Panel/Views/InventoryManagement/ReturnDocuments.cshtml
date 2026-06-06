@@ -1799,13 +1799,16 @@
             window.returnDocumentsShowDetailsModal = showReturnDetailsModal;
             window.returnDocumentsLoadDetails = loadReturnDetails;
 
-            async function loadReturnDetails(documentId, documentNo) {
+            async function loadReturnDetails(documentId, documentNo, editingLineId) {
                 if (!documentId) {
                     return;
                 }
 
                 var url = new URL(returnDocumentDetailsUrl, window.location.origin);
                 url.searchParams.set('documentId', documentId);
+                if (editingLineId) {
+                    url.searchParams.set('editingLineId', editingLineId);
+                }
 
                 var response = await fetch(url.toString(), {
                     headers: {
@@ -2328,7 +2331,20 @@ for (var i = 0; i < lines.length; i++) {
                     event.preventDefault();
                     loadReturnDetails(
                         detailsTrigger.getAttribute('data-document-id') || '',
-                        detailsTrigger.getAttribute('data-document-no') || '').catch(function (error) {
+                        detailsTrigger.getAttribute('data-document-no') || '',
+                        null).catch(function (error) {
+                            console.error(error);
+                        });
+                    return;
+                }
+
+                var editButton = event.target && event.target.closest ? event.target.closest('.js-return-line-edit') : null;
+                if (editButton) {
+                    event.preventDefault();
+                    loadReturnDetails(
+                        editButton.getAttribute('data-document-id') || '',
+                        editButton.getAttribute('data-document-no') || '',
+                        editButton.getAttribute('data-line-id') || '').catch(function (error) {
                             console.error(error);
                         });
                     return;
