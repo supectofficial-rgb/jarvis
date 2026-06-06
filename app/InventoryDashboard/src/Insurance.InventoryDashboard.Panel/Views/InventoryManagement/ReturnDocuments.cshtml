@@ -1854,6 +1854,14 @@
                     return;
                 }
 
+                if (!returnSourceDocument) {
+                    returnSourceDocument = {
+                        documentBusinessKey: selectedKey
+                    };
+                } else {
+                    returnSourceDocument.documentBusinessKey = selectedKey;
+                }
+
                 if (returnReferenceTypeInput) {
                     returnReferenceTypeInput.value = returnReferenceDocumentType;
                 }
@@ -1902,6 +1910,7 @@
                 if (returnReferenceIdInput) {
                     returnReferenceIdInput.value = String(document.documentBusinessKey || selectedKey);
                 }
+                returnSourceDocument = document;
                 if (returnReferenceSelect && window.jQuery) {
                     var existingOption = returnReferenceSelect.querySelector('option[value="' + (document.documentBusinessKey || selectedKey).replace(/"/g, '\\"') + '"]');
                     if (!existingOption) {

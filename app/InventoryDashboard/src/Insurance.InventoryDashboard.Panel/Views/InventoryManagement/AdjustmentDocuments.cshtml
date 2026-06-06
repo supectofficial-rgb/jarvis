@@ -792,7 +792,7 @@
                     quality: false,
                     qualityChange: false,
                     adjustment: true,
-                    lineReason: true
+                    lineReason: false
                 },
                 Return: {
                     title: '@UiText["inventory.documents.info.return.title"]',
@@ -942,6 +942,68 @@
                     'locationId',
                     'text',
                     selectedSourceId || selectedDestinationId || (locationSelect ? locationSelect.value : ''));
+            }
+
+            function renderAdjustmentLotOptions(form, buckets, selectedLocationId, selectedQualityId, selectedLotBatchNo) {
+                if (!form) {
+                    return;
+                }
+
+                var lotSelect = form.querySelector('.js-transfer-line-lot');
+                if (!lotSelect) {
+                    return;
+                }
+
+                var variantField = form.querySelector('[name="LineForm.VariantId"]');
+                if (!variantField || !variantField.value) {
+                    setSelectOptions(lotSelect, [], '@UiText["inventory.documents.action.selectVariantAndLocation"]', 'id', 'text', '');
+                    lotSelect.disabled = true;
+                    return;
+                }
+
+                var locationKey = String(selectedLocationId || '').toLowerCase();
+                var qualityKey = String(selectedQualityId || '').toLowerCase();
+                var items = (Array.isArray(buckets) ? buckets : [])
+                    .filter(function (bucket) {
+                        var bucketLocation = String(bucket && (bucket.locationRef || bucket.LocationRef || '')).toLowerCase();
+                        if (locationKey && bucketLocation !== locationKey) {
+                            return false;
+                        }
+
+                        if (qualityKey) {
+                            var bucketQuality = String(bucket && (bucket.qualityStatusRef || bucket.QualityStatusRef || '')).toLowerCase();
+                            if (bucketQuality !== qualityKey) {
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    })
+                    .map(function (bucket) {
+                        var lotBatchNo = String(bucket && (bucket.lotBatchNo || bucket.LotBatchNo || '') || '');
+                        var quantityOnHand = bucket && (bucket.quantityOnHand ?? bucket.QuantityOnHand);
+                        var text = lotBatchNo || '@UiText["inventory.documents.line.lotBatch"]';
+                        if (quantityOnHand !== undefined && quantityOnHand !== null) {
+                            text += ' (' + quantityOnHand + ')';
+                        }
+
+                        return {
+                            id: lotBatchNo,
+                            text: text
+                        };
+                    });
+
+                setSelectOptions(
+                    lotSelect,
+                    items,
+                    items.length ? '@UiText["inventory.documents.line.selectLotBatch"]' : '@UiText["inventory.documents.adjustment.noLots"]',
+                    'id',
+                    'text',
+                    selectedLotBatchNo || '');
+                lotSelect.disabled = items.length === 0;
+                if (window.jQuery) {
+                    window.jQuery(lotSelect).trigger('change.select2');
+                }
             }
 
             function clearValidation() {
@@ -1389,6 +1451,10 @@ for (var i = 0; i < lines.length; i++) {
                 return form ? form.querySelector('.js-adjustment-location-select') : null;
             }
 
+            function getAdjustmentQualityField(form) {
+                return form ? form.querySelector('[name="LineForm.QualityStatusRef"]') : null;
+            }
+
             function currentAdjustmentLocation(form) {
                 var locationField = getAdjustmentLocationField(form);
                 if (locationField && locationField.value) {
@@ -1438,6 +1504,21 @@ for (var i = 0; i < lines.length; i++) {
                     if (destinationField) {
                         destinationField.value = '';
                     }
+                }
+            }
+
+            function clearAdjustmentSelectedSerials(form) {
+                if (!form) {
+                    return;
+                }
+
+                var hiddenContainer = form.querySelector('.js-adjustment-selected-serials');
+                var serialContainer = form.querySelector('.js-adjustment-serial-container');
+                if (hiddenContainer) {
+                    hiddenContainer.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.noSelected"]</div>';
+                }
+                if (serialContainer) {
+                    serialContainer.innerHTML = '';
                 }
             }
 
@@ -1574,11 +1655,14 @@ for (var i = 0; i < lines.length; i++) {
                 target.innerHTML = serials.map(function (serial) {
                     var serialId = String(serial.serialItemBusinessKey || '');
                     var checked = selectedLookup[serialId] ? ' checked' : '';
+                    var lotLabel = String(serial.lotBatchNo || serial.LotBatchNo || '').trim();
+                    var qualityLabel = String(serial.qualityStatusRef || serial.QualityStatusRef || '').trim();
+                    var statusLabel = String(serial.status || serial.Status || '').trim();
                     return ''
                         + '<label class="d-block border rounded p-2 mb-2 bg-white">'
                         + '<input type="checkbox" class="mr-2 ' + escapeAttribute(checkboxClass) + '" data-serial-id="' + escapeAttribute(serialId) + '" data-serial-no="' + escapeAttribute(serial.serialNo || '') + '"' + checked + ' />'
                         + '<span class="font-weight-bold">' + escapeAttribute(serial.serialNo || serialId || '-') + '</span>'
-                        + '<span class="text-muted d-block small">' + escapeAttribute(serial.warehouseRef || '') + ' / ' + escapeAttribute(serial.locationRef || '') + ' / ' + escapeAttribute(serial.status || '') + '</span>'
+                        + '<span class="text-muted d-block small">' + escapeAttribute([serial.warehouseRef || '', serial.locationRef || '', qualityLabel, lotLabel, statusLabel].filter(Boolean).join(' / ')) + '</span>'
                         + '</label>';
                 }).join('');
 
@@ -1587,14 +1671,21 @@ for (var i = 0; i < lines.length; i++) {
 
             async function loadAdjustmentVariantInventory(form) {
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
+                var qualityField = getAdjustmentQualityField(form);
+                var qualityStatusId = qualityField ? qualityField.value : '';
+                var selectedLocationId = currentAdjustmentLocation(form);
                 if (!variantField || !variantField.value) {
                     renderAdjustmentLocationOptions(form, [], '', '');
+                    renderAdjustmentLotOptions(form, [], '', '', '');
                     renderAdjustmentInventorySummary(form, [], []);
                     return;
                 }
 
                 var url = new URL(variantInventoryLookupUrl, window.location.origin);
                 url.searchParams.set('variantId', variantField.value);
+                if (qualityStatusId) {
+                    url.searchParams.set('qualityStatusId', qualityStatusId);
+                }
 
                 var response = await fetch(url.toString(), {
                     credentials: 'same-origin',
@@ -1612,8 +1703,14 @@ for (var i = 0; i < lines.length; i++) {
                 renderAdjustmentLocationOptions(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
-                    currentAdjustmentLocation(form),
-                    currentAdjustmentLocation(form));
+                    selectedLocationId,
+                    selectedLocationId);
+                renderAdjustmentLotOptions(
+                    form,
+                    Array.isArray(data.buckets) ? data.buckets : [],
+                    selectedLocationId,
+                    qualityStatusId,
+                    form.querySelector('.js-transfer-line-lot') ? form.querySelector('.js-transfer-line-lot').value || '' : '');
                 renderAdjustmentInventorySummary(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
@@ -1624,7 +1721,11 @@ for (var i = 0; i < lines.length; i++) {
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
                 var direction = selectedDirection(form);
                 var locationField = getAdjustmentLocationField(form);
+                var qualityField = getAdjustmentQualityField(form);
+                var lotField = form.querySelector('.js-transfer-line-lot');
                 var locationId = locationField ? locationField.value : '';
+                var qualityStatusId = qualityField ? qualityField.value : '';
+                var lotBatchNo = lotField ? lotField.value : '';
                 var serialTarget = form.querySelector('.js-adjustment-serial-container');
 
                 if (!variantField || !variantField.value || !direction || !locationId) {
@@ -1639,7 +1740,10 @@ for (var i = 0; i < lines.length; i++) {
                         return;
                     }
 
-                    var decreaseUrl = '/InventoryManagement/Documents/Adjustment/AvailableSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(locationId);
+                    var decreaseUrl = '/InventoryManagement/Documents/Adjustment/AvailableSerialLookup?variantId=' + encodeURIComponent(variantField.value)
+                        + '&locationId=' + encodeURIComponent(locationId)
+                        + '&qualityStatusId=' + encodeURIComponent(qualityStatusId || '')
+                        + '&lotBatchNo=' + encodeURIComponent(lotBatchNo || '');
                     serialTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
                     fetch(decreaseUrl, { credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
@@ -1665,7 +1769,10 @@ for (var i = 0; i < lines.length; i++) {
                         return;
                     }
 
-                    var increaseUrl = '/InventoryManagement/Documents/Adjustment/IncreaseSerialLookup?variantId=' + encodeURIComponent(variantField.value) + '&locationId=' + encodeURIComponent(locationId);
+                    var increaseUrl = '/InventoryManagement/Documents/Adjustment/IncreaseSerialLookup?variantId=' + encodeURIComponent(variantField.value)
+                        + '&locationId=' + encodeURIComponent(locationId)
+                        + '&qualityStatusId=' + encodeURIComponent(qualityStatusId || '')
+                        + '&lotBatchNo=' + encodeURIComponent(lotBatchNo || '');
                     serialTarget.innerHTML = '<div class="text-muted small">@UiText["inventory.documents.serial.loading"]</div>';
                     fetch(increaseUrl, { credentials: 'same-origin' })
                         .then(function (response) { return response.json(); })
@@ -1704,6 +1811,7 @@ for (var i = 0; i < lines.length; i++) {
                 var directionField = form.querySelector('[name="LineForm.AdjustmentDirection"]');
                 if (directionField) {
                     directionField.addEventListener('change', function () {
+                        clearAdjustmentSelectedSerials(form);
                         syncAdjustmentLineMode(form);
                         loadAdjustmentVariantInventory(form)
                             .then(function () {
@@ -1719,6 +1827,23 @@ for (var i = 0; i < lines.length; i++) {
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
                 if (variantField) {
                     variantField.addEventListener('change', function () {
+                        clearAdjustmentSelectedSerials(form);
+                        syncAdjustmentLineMode(form);
+                        loadAdjustmentVariantInventory(form)
+                            .then(function () {
+                                syncAdjustmentHiddenLocation(form);
+                                fetchAdjustmentSerials(form);
+                            })
+                            .catch(function (error) {
+                                console.error(error);
+                            });
+                    });
+                }
+
+                var qualityField = getAdjustmentQualityField(form);
+                if (qualityField) {
+                    qualityField.addEventListener('change', function () {
+                        clearAdjustmentSelectedSerials(form);
                         syncAdjustmentLineMode(form);
                         loadAdjustmentVariantInventory(form)
                             .then(function () {
@@ -1734,8 +1859,24 @@ for (var i = 0; i < lines.length; i++) {
                 var locationField = getAdjustmentLocationField(form);
                 if (locationField) {
                     locationField.addEventListener('change', function () {
+                        clearAdjustmentSelectedSerials(form);
                         syncAdjustmentLineMode(form);
                         syncAdjustmentHiddenLocation(form);
+                        loadAdjustmentVariantInventory(form)
+                            .then(function () {
+                                syncAdjustmentHiddenLocation(form);
+                                fetchAdjustmentSerials(form);
+                            })
+                            .catch(function (error) {
+                                console.error(error);
+                            });
+                    });
+                }
+
+                var lotField = form.querySelector('.js-transfer-line-lot');
+                if (lotField) {
+                    lotField.addEventListener('change', function () {
+                        clearAdjustmentSelectedSerials(form);
                         fetchAdjustmentSerials(form);
                     });
                 }

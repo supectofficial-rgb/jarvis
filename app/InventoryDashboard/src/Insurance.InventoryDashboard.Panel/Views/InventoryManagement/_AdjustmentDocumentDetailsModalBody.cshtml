@@ -1,19 +1,53 @@
-@using System
+﻿@using System
 @using System.Linq
 @model Insurance.InventoryDashboard.Panel.Models.InventoryDocumentManagementPageViewModel
 @{
-    var permissionSet = Model.Permissions?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    var isAdmin = Model.Roles.Any(x => string.Equals(x, "Admin", StringComparison.OrdinalIgnoreCase) || string.Equals(x, "SysAdmin", StringComparison.OrdinalIgnoreCase));
+    var document = Model.SelectedDocumentDetails;
+    var currentDocumentType = document?.DocumentType ?? "Transfer";
+    var canEditLines = document is not null && string.Equals(document.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+    var selectedDirection = Model.LineForm.AdjustmentDirection ?? string.Empty;
+    var selectedLocationRef = string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase)
+        ? (string.IsNullOrWhiteSpace(Model.LineForm.DestinationLocationRef) ? Model.LineForm.SourceLocationRef : Model.LineForm.DestinationLocationRef)
+        : string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase)
+            ? (string.IsNullOrWhiteSpace(Model.LineForm.SourceLocationRef) ? Model.LineForm.DestinationLocationRef : Model.LineForm.SourceLocationRef)
+            : !string.IsNullOrWhiteSpace(Model.LineForm.SourceLocationRef)
+                ? Model.LineForm.SourceLocationRef
+                : Model.LineForm.DestinationLocationRef;
+    var showTransferQualityColumns = string.Equals(currentDocumentType, "Transfer", StringComparison.OrdinalIgnoreCase);
+    var showQualityColumn = string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(currentDocumentType, "Conversion", StringComparison.OrdinalIgnoreCase);
 
-    bool Can(params string[] names)
+    string TypeLabel(string? type) => type switch
     {
-        if (isAdmin || permissionSet.Count == 0 || permissionSet.Contains("*"))
-        {
-            return true;
-        }
+        "Receipt" => UiText["inventory.documents.type.receipt"],
+        "Issue" => UiText["inventory.documents.type.issue"],
+        "Transfer" => UiText["inventory.documents.type.transfer"],
+        "Adjustment" => UiText["inventory.documents.type.adjustment"],
+        "Return" => UiText["inventory.documents.type.return"],
+        "QualityChange" => UiText["inventory.documents.type.qualityChange"],
+        "Conversion" => UiText["inventory.documents.type.conversion"],
+        _ => type ?? "-"
+    };
 
-        return names.Any(permissionSet.Contains);
-    }
+    string StatusLabel(string? status) => status switch
+    {
+        "Draft" => UiText["inventory.documents.status.draft"],
+        "Approved" => UiText["inventory.documents.status.approved"],
+        "Rejected" => UiText["inventory.documents.status.rejected"],
+        "Cancelled" => UiText["inventory.documents.status.cancelled"],
+        "Posted" => UiText["inventory.documents.status.posted"],
+        _ => status ?? "-"
+    };
+
+    string StatusClass(string? status) => status switch
+    {
+        "Draft" => "badge-outline-secondary",
+        "Approved" => "badge-info",
+        "Rejected" => "badge-danger",
+        "Cancelled" => "badge-warning",
+        "Posted" => "badge-success",
+        _ => "badge-secondary"
+    };
 
     string VariantLabel(Insurance.InventoryDashboard.Panel.Models.ProductVariantSummaryModel variant)
     {
@@ -53,17 +87,6 @@
         return variant is null ? variantId : VariantLabel(variant);
     }
 
-    string LocationName(string? locationId)
-    {
-        if (string.IsNullOrWhiteSpace(locationId))
-        {
-            return "-";
-        }
-
-        var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
-        return location is null ? locationId : $"{location.LocationCode} ({location.LocationType})";
-    }
-
     string UomName(string? uomId)
     {
         if (string.IsNullOrWhiteSpace(uomId))
@@ -75,196 +98,250 @@
         return uom is null ? uomId : $"{uom.Code} - {uom.Name}";
     }
 
-    string AdjustmentDirectionLabel(string? direction) => direction switch
+    string QualityName(string? qualityId)
     {
-        "Increase" => UiText["inventory.documents.adjustment.increase"],
-        "Decrease" => UiText["inventory.documents.adjustment.decrease"],
-        _ => string.IsNullOrWhiteSpace(direction) ? "-" : direction
-    };
+        if (string.IsNullOrWhiteSpace(qualityId))
+        {
+            return "-";
+        }
 
-    var selectedDocument = Model.SelectedDocumentDetails;
-    var selectedDocumentType = selectedDocument?.DocumentType ?? "Adjustment";
-    var canEditLines = selectedDocument is not null && string.Equals(selectedDocument.Status, "Draft", StringComparison.OrdinalIgnoreCase);
-    var selectedDirection = Model.LineForm.AdjustmentDirection ?? string.Empty;
-    var selectedLocationRef = string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase)
-        ? (string.IsNullOrWhiteSpace(Model.LineForm.DestinationLocationRef) ? Model.LineForm.SourceLocationRef : Model.LineForm.DestinationLocationRef)
-        : string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase)
-            ? (string.IsNullOrWhiteSpace(Model.LineForm.SourceLocationRef) ? Model.LineForm.DestinationLocationRef : Model.LineForm.SourceLocationRef)
-            : !string.IsNullOrWhiteSpace(Model.LineForm.SourceLocationRef)
-                ? Model.LineForm.SourceLocationRef
-                : Model.LineForm.DestinationLocationRef;
+        var quality = Model.QualityStatusLookup.FirstOrDefault(x => string.Equals(x.QualityStatusBusinessKey, qualityId, StringComparison.OrdinalIgnoreCase));
+        return quality is null ? qualityId : $"{quality.Code} - {quality.Name}";
+    }
+
+    string LocationName(string? locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId))
+        {
+            return "-";
+        }
+
+        var location = Model.LocationLookup.FirstOrDefault(x => string.Equals(x.LocationBusinessKey, locationId, StringComparison.OrdinalIgnoreCase));
+        if (location is null)
+        {
+            return locationId;
+        }
+
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, location.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+        var warehouseLabel = warehouse is null ? location.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+        var locationLabel = string.IsNullOrWhiteSpace(location.LocationType)
+            ? location.LocationCode
+            : $"{location.LocationCode} ({location.LocationType})";
+        return string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}";
+    }
+
+    var transferDestinationLocationOptions = Model.LocationLookup.Select(location =>
+    {
+        var warehouse = Model.WarehouseLookup.FirstOrDefault(x => string.Equals(x.WarehouseBusinessKey, location.WarehouseRef, StringComparison.OrdinalIgnoreCase));
+        var warehouseLabel = warehouse is null ? location.WarehouseRef : $"{warehouse.Code} - {warehouse.Name}";
+        var locationLabel = string.IsNullOrWhiteSpace(location.LocationType)
+            ? location.LocationCode
+            : $"{location.LocationCode} ({location.LocationType})";
+
+        return new
+        {
+            id = location.LocationBusinessKey,
+            locationId = location.LocationBusinessKey,
+            warehouseId = location.WarehouseRef,
+            warehouseText = warehouseLabel,
+            locationText = locationLabel,
+            text = string.IsNullOrWhiteSpace(warehouseLabel) ? locationLabel : $"{warehouseLabel} - {locationLabel}"
+        };
+    }).ToList();
+
 }
 
-@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
-{
-    <div class="alert alert-warning">@Model.ErrorMessage</div>
-}
+<div id="adjustment-document-details-modal-body"
+     class="modal-body adjustment-document-details-modal"
+      data-location-options='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(transferDestinationLocationOptions))'
+      data-default-source-location-id="@Model.LineForm.SourceLocationRef"
+      data-default-destination-location-id="@Model.LineForm.DestinationLocationRef"
+      data-default-warehouse-id="@Model.LineForm.WarehouseRef"
+      data-default-lot-batch-no="@Model.LineForm.LotBatchNo"
+      data-default-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LineForm.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning">@Model.ErrorMessage</div>
+    }
 
-@if (selectedDocument is null)
-{
-    <div class="alert alert-light mb-0">@UiText["inventory.documents.adjustment.noDocumentSelected"]</div>
-}
-else
-{
-    <div class="border rounded p-3 bg-light mb-3">
+    @if (document is null)
+    {
+        <div class="alert alert-light mb-0">Ø³Ù†Ø¯ÛŒ Ø¨Ø±Ø§ÛŒ Ù†Ù…Ø§ÛŒØ´ Ù¾ÛŒØ¯Ø§ Ù†Ø´Ø¯.</div>
+    }
+    else
+    {
         <div class="d-flex justify-content-between align-items-start mb-3">
             <div>
-                <h5 class="mb-1">@(Model.LineForm.LineId is null ? UiText["inventory.documents.adjustment.line.addTitle"] : UiText["inventory.documents.adjustment.line.editTitle"])</h5>
-                <div class="text-muted small">@UiText["inventory.documents.adjustment.line.description"]</div>
+                <div class="text-monospace h5 mb-1">@document.DocumentNo</div>
+                <div class="text-muted small">@TypeLabel(currentDocumentType)</div>
             </div>
-            <span class="badge badge-pill badge-outline-secondary">@selectedDocument.Status</span>
+            <span class="badge badge-pill @StatusClass(document.Status)">@StatusLabel(document.Status)</span>
         </div>
 
-        <div class="small text-muted mb-3">
-            <span class="text-monospace">@selectedDocument.DocumentNo</span>
-            <span class="mx-2">|</span>
-            <span>@selectedDocument.OccurredAt.ToString("yyyy/MM/dd HH:mm")</span>
-            <span class="mx-2">|</span>
-            <span>@(string.IsNullOrWhiteSpace(selectedDocument.ReasonCode) ? "-" : selectedDocument.ReasonCode)</span>
+        <div class="row mb-3">
+            <div class="col-md-6 mb-2">
+                <div class="text-muted small">ØªØ§Ø±ÛŒØ® ÙˆÙ‚ÙˆØ¹</div>
+                <div>@document.OccurredAt.ToString("yyyy/MM/dd HH:mm")</div>
+            </div>
+            <div class="col-md-6 mb-2">
+                <div class="text-muted small">Ù…Ø±Ø¬Ø¹</div>
+                <div>@(string.IsNullOrWhiteSpace(document.ReferenceType) ? "-" : $"{document.ReferenceType} / {document.ReferenceBusinessId}")</div>
+                <div>@(string.IsNullOrWhiteSpace(document.ExternalReferenceNo) ? "-" : document.ExternalReferenceNo)</div>
+            </div>
         </div>
 
-        <div class="border rounded p-3 bg-white mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <strong>@UiText["inventory.documents.adjustment.inventorySummaryTitle"]</strong>
-                <span class="text-muted small">@UiText["inventory.documents.adjustment.inventorySummaryDescription"]</span>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="small text-muted mb-2">@UiText["inventory.documents.adjustment.locationListTitle"]</div>
-                    <div class="js-adjustment-location-list">
-                        <div class="text-muted small">@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]</div>
+        @if (canEditLines)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? "Ø§ÙØ²ÙˆØ¯Ù† Ø¢ÛŒØªÙ…" : "ÙˆÛŒØ±Ø§ÛŒØ´ Ø¢ÛŒØªÙ…")</h6>
+                        <button type="button" class="btn btn-outline-secondary btn-xs js-transfer-line-cancel d-none">Ù„ØºÙˆ ÙˆÛŒØ±Ø§ÛŒØ´</button>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="small text-muted mb-2">@UiText["inventory.documents.adjustment.lotListTitle"]</div>
-                    <div class="js-adjustment-lot-list">
-                        <div class="text-muted small">@UiText["inventory.documents.adjustment.selectVariantToLoadInventory"]</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                    <form asp-action="SaveAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" class="mb-0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
+                        <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
+                        <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
 
-        <form asp-action="SaveAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" id="adjustment-document-line-form">
-            @Html.AntiForgeryToken()
-            <input type="hidden" asp-for="LineForm.DocumentId" value="@selectedDocument.DocumentBusinessKey" />
-            <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />
-            <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
-            <div class="form-row">
-                <div class="form-group col-md-3">
-                    <label>@UiText["inventory.documents.line.adjustmentDirection"]</label>
-                    <select asp-for="LineForm.AdjustmentDirection" class="form-control js-adjustment-direction-select" required>
-                        <option value="">@UiText["common.select"]</option>
-                        <option value="Increase" selected="@(string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.adjustment.increase"]</option>
-                        <option value="Decrease" selected="@(string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.adjustment.decrease"]</option>
-                    </select>
-                </div>
-                <div class="form-group col-md-6">
-                    <label>@UiText["inventory.documents.line.variant"]</label>
-                    <select asp-for="LineForm.VariantId" class="form-control js-search-select js-adjustment-variant-select" data-placeholder="@UiText["inventory.documents.line.selectVariant"]" required>
-                        <option value="">@UiText["inventory.documents.line.selectVariant"]</option>
-                        @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+                        @if (showTransferQualityColumns)
                         {
-                            <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
-                        }
-                    </select>
-                </div>
-                <div class="form-group col-md-3">
-                    <label>@UiText["common.quantity"]</label>
-                    <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" required />
-                </div>
-            </div>
-
-            <input type="hidden" asp-for="LineForm.SourceLocationRef" />
-            <input type="hidden" asp-for="LineForm.DestinationLocationRef" />
-            <div class="form-row">
-                <div class="form-group col-md-12 js-adjustment-location-section">
-                    <label class="js-adjustment-location-label">@UiText["common.location"]</label>
-                    <select class="form-control js-search-select js-adjustment-location-select" data-placeholder="@UiText["inventory.documents.line.selectLocation"]">
-                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
-                        @foreach (var location in Model.LocationLookup.OrderBy(x => x.LocationCode))
-                        {
-                            <option value="@location.LocationBusinessKey" data-warehouse-ref="@location.WarehouseRef" selected="@(location.LocationBusinessKey == selectedLocationRef ? "selected" : null)">@location.LocationCode (@location.LocationType)</option>
-                        }
-                    </select>
-                    <small class="text-muted d-block mt-1 js-adjustment-location-hint">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</small>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group col-md-12">
-                    <label>@UiText["common.reason"]</label>
-                    <input asp-for="LineForm.ReasonCode" class="form-control" required />
-                </div>
-            </div>
-
-            <div class="border rounded p-3 bg-white mb-3 js-adjustment-serial-section">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong class="js-adjustment-serial-title">@UiText["inventory.documents.adjustment.selectedSerialsTitle"]</strong>
-                    <span class="text-muted small js-adjustment-serial-summary">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</span>
-                </div>
-                <div class="js-adjustment-serial-container">
-                    <div class="text-muted small">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>
-                </div>
-            </div>
-
-            <div class="border rounded p-3 bg-white mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong>@UiText["inventory.documents.adjustment.selectedSerialsTitle"]</strong>
-                    <span class="text-muted small">@UiText["inventory.documents.adjustment.selectedSerialsDescription"]</span>
-                </div>
-                <div class="js-adjustment-selected-serials">
-                    @if (Model.LineForm.Serials.Count == 0)
-                    {
-                        <div class="text-muted small">@UiText["inventory.documents.serial.noSelected"]</div>
-                    }
-                    else
-                    {
-                        foreach (var serial in Model.LineForm.Serials)
-                        {
-                            <div class="badge badge-light border d-inline-flex align-items-center mr-2 mb-2 py-2 px-3 js-adjustment-selected-serial" data-serial-id="@serial.SerialItemBusinessKey">
-                                <span class="font-weight-bold">@serial.SerialNo</span>
-                                <button type="button" class="btn btn-link btn-sm text-danger ml-2 p-0 js-adjustment-remove-serial">&times;</button>
-                                <input type="hidden" name="LineForm.Serials.Index" value="@serial.SerialItemBusinessKey" />
-                                <input type="hidden" name="LineForm.Serials[@serial.SerialItemBusinessKey].SerialItemBusinessKey" value="@serial.SerialItemBusinessKey" />
-                                <input type="hidden" name="LineForm.Serials[@serial.SerialItemBusinessKey].SerialNo" value="@serial.SerialNo" />
+                            <div class="form-row mb-3">
+                                <div class="form-group col-md-3 line-quality">
+                                    <label>@UiText["inventory.documents.line.quality"]</label>
+                                    <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-3 line-to-quality">
+                                    <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                    <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]' required>
+                                        <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                        @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                        {
+                                            <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                        }
+                                    </select>
+                                </div>
                             </div>
                         }
-                    }
+                        else if (showQualityColumn)
+                        {
+                            <div class="form-row mb-3">
+                                @if (string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <div class="form-group col-md-3 line-from-quality">
+                                        <label>@UiText["inventory.documents.line.fromQuality"]</label>
+                                        <select asp-for="LineForm.FromQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.FromQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-3 line-to-quality">
+                                        <label>@UiText["inventory.documents.line.toQuality"]</label>
+                                        <select asp-for="LineForm.ToQualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.ToQualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="form-group col-md-3 line-quality">
+                                        <label>@UiText["inventory.documents.line.quality"]</label>
+                                        <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                            <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                            @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                            {
+                                                <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label>@UiText["inventory.documents.line.adjustmentDirection"]</label>
+                                <select asp-for="LineForm.AdjustmentDirection" class="form-control js-search-select" required>
+                                    <option value="">@UiText["common.select"]</option>
+                                    <option value="Increase" selected="@(string.Equals(selectedDirection, "Increase", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.adjustment.increase"]</option>
+                                    <option value="Decrease" selected="@(string.Equals(selectedDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@UiText["inventory.documents.adjustment.decrease"]</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>@UiText["common.quality"]</label>
+                                <select asp-for="LineForm.QualityStatusRef" class="form-control js-search-select js-adjustment-quality-select" data-placeholder='@UiText["inventory.documents.line.selectQuality"]'>
+                                    <option value="">@UiText["inventory.documents.line.selectQuality"]</option>
+                                    @foreach (var quality in Model.QualityStatusLookup.OrderBy(x => x.Code))
+                                    {
+                                        <option value="@quality.QualityStatusBusinessKey" selected="@(quality.QualityStatusBusinessKey == Model.LineForm.QualityStatusRef ? "selected" : null)">@quality.Code - @quality.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>@UiText["inventory.documents.line.variant"]</label>
+                                <select asp-for="LineForm.VariantId" class="form-control js-search-select js-transfer-line-variant" data-placeholder="Ø¬Ø³ØªØ¬Ùˆ Ø¨Ø§ Ú©Ø¯ ÛŒØ§ Ù†Ø§Ù… ÙˆØ§Ø±ÛŒØ§Ù†Øª" data-ajax-url='@Url.Action("SearchVariantLookup", "InventoryManagement")' required>
+                                    <option value="">Ø§Ù†ØªØ®Ø§Ø¨ ÙˆØ§Ø±ÛŒØ§Ù†Øª</option>
+                                    @foreach (var variant in Model.VariantLookup.OrderBy(x => x.Sku))
+                                    {
+                                        <option value="@variant.Id" selected="@(variant.Id == Model.LineForm.VariantId ? "selected" : null)">@VariantLabel(variant)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label>@UiText["common.quantity"]</label>
+                                <input asp-for="LineForm.Qty" type="number" step="0.0001" min="0.0001" class="form-control" required />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>Ù„Ø§Øª/Ø¨Ú†</label>
+                                <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-transfer-line-lot" data-placeholder="Ø§Ù†ØªØ®Ø§Ø¨ Ù„Ø§Øª/Ø¨Ú†">
+                                    <option value="">Ø§Ù†ØªØ®Ø§Ø¨ Ù„Ø§Øª/Ø¨Ú†</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-12 col-lg-8 js-adjustment-serial-section d-none">
+                                <label class="js-adjustment-serial-title">@UiText["inventory.documents.serial.title"]</label>
+                                <div class="text-muted small js-adjustment-serial-summary mb-2" data-select-prompt="@UiText["inventory.documents.action.selectVariantAndLocation"]" data-required-hint="@UiText["inventory.documents.serial.requiredHint"]" data-no-available="@UiText["inventory.documents.serial.noAvailable"]">@UiText["inventory.documents.serial.requiredHint"]</div>
+                                <div class="list-group js-adjustment-serial-container" style="max-height: 240px; overflow:auto;"></div>
+                                <div class="js-adjustment-selected-serials js-adjustment-serial-hidden d-none"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-12 d-flex justify-content-end">
+                                <button class="btn btn-primary js-transfer-line-submit" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["inventory.documents.action.addItem"] : UiText["inventory.documents.action.saveChanges"])</button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
+        }
+        else
+        {
+            <div class="alert alert-light border mb-3">Ø§ÛŒÙ† Ø³Ù†Ø¯ Ø¯Ø± ÙˆØ¶Ø¹ÛŒØª Ù¾ÛŒØ´â€ŒÙ†ÙˆÛŒØ³ Ù†ÛŒØ³Øª Ùˆ Ø¢ÛŒØªÙ…â€ŒÙ‡Ø§ Ù‚Ø§Ø¨Ù„ ÙˆÛŒØ±Ø§ÛŒØ´ Ù†ÛŒØ³ØªÙ†Ø¯.</div>
+        }
 
-            <div class="d-flex justify-content-end">
-                <button class="btn btn-primary" type="submit">@(string.IsNullOrWhiteSpace(Model.LineForm.LineId) ? UiText["common.add"] : UiText["inventory.documents.action.saveChanges"])</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="border rounded p-3 bg-white">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h5 class="mb-0">@UiText["inventory.documents.details.title"]</h5>
-                <div class="text-muted small">@selectedDocument.DocumentNo</div>
-            </div>
-            <span class="badge badge-pill badge-outline-secondary">@selectedDocument.Status</span>
-        </div>
-
-        <p class="mb-1"><strong>@UiText["inventory.documents.details.number"]:</strong> <span class="text-monospace">@selectedDocument.DocumentNo</span></p>
-        <p class="mb-1"><strong>@UiText["inventory.documents.details.type"]:</strong> @UiText["inventory.documents.type.adjustment"]</p>
-        <p class="mb-1"><strong>@UiText["common.warehouse"]:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.WarehouseRef) ? "-" : selectedDocument.WarehouseRef)</p>
-        <p class="mb-1"><strong>@UiText["common.seller"]:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.SellerRef) ? "-" : selectedDocument.SellerRef)</p>
-        <p class="mb-1"><strong>@UiText["inventory.documents.details.occurredAt"]:</strong> @selectedDocument.OccurredAt.ToString("yyyy/MM/dd HH:mm")</p>
-        <p class="mb-1"><strong>@UiText["inventory.documents.details.reason"]:</strong> @(string.IsNullOrWhiteSpace(selectedDocument.ReasonCode) ? "-" : selectedDocument.ReasonCode)</p>
-        <p class="mb-1"><strong>@UiText["inventory.documents.details.approvedAt"]:</strong> @(selectedDocument.ApprovedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
-        <p class="mb-3"><strong>@UiText["inventory.documents.details.postedAt"]:</strong> @(selectedDocument.PostedAt?.ToString("yyyy/MM/dd HH:mm") ?? "-")</p>
-
-        <div class="border-top pt-3 mt-3">
+        <div class="border-top pt-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">@UiText["inventory.documents.lines.title"]</h6>
-                <span class="text-muted small">@selectedDocument.Lines.Count @UiText["common.line"]</span>
+                <h6 class="mb-0">Ø¢ÛŒØªÙ… Ù‡Ø§ÛŒ Ø³Ù†Ø¯</h6>
+                <span class="text-muted small">@document.Lines.Count Ø±Ø¯ÛŒÙ</span>
             </div>
-            @if (selectedDocument.Lines.Count == 0)
+
+            @if (document.Lines.Count == 0)
             {
-                <div class="alert alert-light mb-0">@UiText["inventory.documents.lines.noRecords"]</div>
+                <div class="alert alert-light mb-0">Ø±Ø¯ÛŒÙÛŒ Ø¨Ø±Ø§ÛŒ Ø§ÛŒÙ† Ø³Ù†Ø¯ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª.</div>
             }
             else
             {
@@ -272,62 +349,92 @@ else
                     <table class="table table-sm table-striped mb-0">
                         <thead>
                             <tr>
-                                <th>@UiText["inventory.documents.line.variant"]</th>
-                                <th>@UiText["common.quantity"]</th>
-                                <th>@UiText["inventory.documents.line.uom"]</th>
-                                <th>@UiText["inventory.documents.line.sourceLocation"]</th>
-                                <th>@UiText["inventory.documents.line.destinationLocation"]</th>
-                                <th>@UiText["inventory.documents.line.adjustmentDirection"]</th>
-                                <th>@UiText["common.reason"]</th>
-                                <th class="text-right">@UiText["common.operation"]</th>
+                                <th>ÙˆØ§Ø±ÛŒØ§Ù†Øª</th>
+                                <th>ØªØ¹Ø¯Ø§Ø¯</th>
+                                <th>ÙˆØ§Ø­Ø¯</th>
+                                <th>Ú©ÛŒÙÛŒØª</th>
+                                <th>Ù…Ø¨Ø¯Ø§</th>
+                                <th>Ù…Ù‚ØµØ¯</th>
+                                <th class="text-right">Ø¹Ù…Ù„ÛŒØ§Øª</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var line in selectedDocument.Lines)
+                            @foreach (var line in document.Lines)
                             {
                                 <tr>
                                     <td>@VariantName(line.VariantRef)</td>
-                                    <td>
-                                        <span class="text-monospace">
-                                            @(string.Equals(line.AdjustmentDirection, "Decrease", StringComparison.OrdinalIgnoreCase) ? "-" : "+")@line.Qty.ToString("0.####")
-                                        </span>
-                                    </td>
+                                    <td>@line.Qty.ToString("0.####")</td>
                                     <td>@UomName(line.UomRef)</td>
+                                    <td>
+                                        @if (showTransferQualityColumns)
+                                        {
+                                            <span>@QualityName(line.QualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
+                                        }
+                                        else if (string.Equals(currentDocumentType, "QualityChange", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span>@QualityName(line.FromQualityStatusRef) -> @QualityName(line.ToQualityStatusRef)</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@QualityName(line.QualityStatusRef)</span>
+                                        }
+                                    </td>
                                     <td>@LocationName(line.SourceLocationRef)</td>
                                     <td>@LocationName(line.DestinationLocationRef)</td>
-                                    <td>@AdjustmentDirectionLabel(line.AdjustmentDirection)</td>
-                                    <td>@(string.IsNullOrWhiteSpace(line.ReasonCode) ? "-" : line.ReasonCode)</td>
                                     <td class="text-right">
                                         @if (canEditLines)
                                         {
                                             <button type="button"
-                                                    class="btn btn-outline-primary btn-xs js-adjustment-line-edit mr-1"
-                                                    data-document-id="@selectedDocument.DocumentBusinessKey"
-                                                    data-line-id="@line.LineBusinessKey">@UiText["common.edit"]</button>
-                                            <form asp-action="DeleteAdjustmentDocumentLine"
-                                                  asp-controller="InventoryManagement"
-                                                  method="post"
-                                                  class="d-inline"
-                                                  data-loading-form
-                                                  data-ajax-target="#adjustment-document-details-modal-body"
-                                                  onsubmit="return confirm('@UiText["inventory.documents.confirm.deleteLine"]');">
+                                                    class="btn btn-outline-primary btn-xs js-transfer-line-edit"
+                                                    data-line-id="@line.LineBusinessKey"
+                                                    data-variant-id="@line.VariantRef"
+                                                    data-source-location-id="@line.SourceLocationRef"
+                                                    data-destination-location-id="@line.DestinationLocationRef"
+                                                    data-source-quality-id="@line.QualityStatusRef"
+                                                    data-destination-quality-id="@line.ToQualityStatusRef"
+                                                    data-quality-id="@line.QualityStatusRef"
+                                                    data-qty="@line.Qty.ToString("0.####")"
+                                                    data-serials-json='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(line.Serials.Select(serial => new { serialItemBusinessKey = serial.SerialItemBusinessKey, serialNo = serial.SerialNo })))'>ÙˆÛŒØ±Ø§ÛŒØ´</button>
+                                            <form asp-action="DeleteAdjustmentDocumentLine" asp-controller="InventoryManagement" method="post" class="d-inline" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" onsubmit="return confirm('Ø§ÛŒÙ† Ø¢ÛŒØªÙ… Ø­Ø°Ù Ø´ÙˆØ¯ØŸ');">
                                                 @Html.AntiForgeryToken()
-                                                <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
+                                                <input type="hidden" name="documentId" value="@document.DocumentBusinessKey" />
                                                 <input type="hidden" name="lineId" value="@line.LineBusinessKey" />
-                                                <button class="btn btn-outline-danger btn-xs" type="submit">@UiText["common.delete"]</button>
+                                                <button class="btn btn-outline-danger btn-xs" type="submit">Ø­Ø°Ù</button>
                                             </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">ØºÛŒØ± Ù‚Ø§Ø¨Ù„ ÙˆÛŒØ±Ø§ÛŒØ´</span>
                                         }
                                     </td>
                                 </tr>
-                                @if (!string.IsNullOrWhiteSpace(line.LotBatchNo) || line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase))
+                                @if (line.BaseQty != line.Qty || !string.Equals(line.BaseUomRef, line.UomRef, StringComparison.OrdinalIgnoreCase) || !string.IsNullOrWhiteSpace(line.LotBatchNo))
                                 {
                                     <tr>
-                                        <td colspan="8" class="text-muted small">
+                                        <td colspan="7" class="text-muted small">
                                             Base: @line.BaseQty.ToString("0.####") @UomName(line.BaseUomRef)
                                             @if (!string.IsNullOrWhiteSpace(line.LotBatchNo))
                                             {
-                                                <span> | @UiText["inventory.documents.line.lotBatch"]: @line.LotBatchNo</span>
+                                                <span> | Ù„Ø§Øª/Ø¨Ú†: @line.LotBatchNo</span>
                                             }
+                                        </td>
+                                    </tr>
+                                }
+                                @if (line.Serials.Count > 0)
+                                {
+                                    <tr>
+                                        <td colspan="7" class="small">
+                                            <div class="d-flex flex-wrap align-items-start">
+                                                <span class="text-muted mr-2">Ø³Ø±ÛŒØ§Ù„â€ŒÙ‡Ø§ÛŒ Ø§ÛŒÙ† Ø±Ø¯ÛŒÙ:</span>
+                                                <div class="d-flex flex-wrap">
+                                                    @foreach (var serial in line.Serials.OrderBy(x => x.SerialNo))
+                                                    {
+                                                        <span class="badge badge-light border mr-1 mb-1">
+                                                            @(string.IsNullOrWhiteSpace(serial.SerialNo) ? serial.SerialItemBusinessKey : serial.SerialNo)
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 }
@@ -337,52 +444,17 @@ else
                 </div>
             }
         </div>
+    }
+</div>
 
-        @if (canEditLines)
-        {
-            var selectedStatus = selectedDocument.Status;
-            var canApproveByStatus = string.Equals(selectedStatus, "Draft", StringComparison.OrdinalIgnoreCase);
-            var canRejectByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase);
-            var canCancelByStatus = !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase);
-            var canPostByStatus = !string.Equals(selectedStatus, "Cancelled", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Rejected", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(selectedStatus, "Posted", StringComparison.OrdinalIgnoreCase);
-
-            <div class="border-top pt-3">
-                <div class="mb-2 text-muted small">@UiText["inventory.documents.action.changeStatus"]</div>
-                <div class="d-flex flex-wrap">
-                    <form asp-action="ApproveDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
-                        <button class="btn btn-outline-info btn-xs" type="submit" @(Can("Inventory.Document.Approve", "InventoryDocument.Approve", "Document.Approve") && canApproveByStatus ? null : "disabled")>@UiText["inventory.documents.action.approve"]</button>
-                    </form>
-                    <form asp-action="PostDocument" asp-controller="InventoryManagement" method="post" class="mr-1 mb-1" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="documentId" value="@selectedDocument.DocumentBusinessKey" />
-                        <button class="btn btn-outline-success btn-xs" type="submit" @(Can("Inventory.Document.Post", "InventoryDocument.Post", "Document.Post") && canPostByStatus ? null : "disabled")>@UiText["inventory.documents.action.post"]</button>
-                    </form>
-                </div>
-                <form asp-action="RejectDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="DocumentId" value="@selectedDocument.DocumentBusinessKey" />
-                    <div class="form-group mb-2">
-                        <label class="small">@UiText["inventory.documents.action.reject"]</label>
-                        <input name="ReasonCode" class="form-control form-control-sm" />
-                    </div>
-                    <button class="btn btn-outline-danger btn-xs" type="submit" @(Can("Inventory.Document.Reject", "InventoryDocument.Reject", "Document.Reject") && canRejectByStatus ? null : "disabled")>@UiText["inventory.documents.action.reject"]</button>
-                </form>
-                <form asp-action="CancelDocument" asp-controller="InventoryManagement" method="post" class="mt-2" data-loading-form data-ajax-target="#adjustment-document-details-modal-body" data-ajax-close-modal-on-success>
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="DocumentId" value="@selectedDocument.DocumentBusinessKey" />
-                    <div class="form-group mb-2">
-                        <label class="small">@UiText["inventory.documents.action.cancel"]</label>
-                        <input name="ReasonCode" class="form-control form-control-sm" />
-                    </div>
-                    <button class="btn btn-outline-warning btn-xs" type="submit" @(Can("Inventory.Document.Cancel", "InventoryDocument.Cancel", "Document.Cancel") && canCancelByStatus ? null : "disabled")>@UiText["inventory.documents.action.cancel"]</button>
-                </form>
-            </div>
+<script data-ajax-reinit="adjustment-document-details-body">
+    (function () {
+        var root = document.getElementById('adjustment-document-details-modal-body');
+        if (!root || !window.appUi || typeof window.appUi.initSearchableSelects !== 'function') {
+            return;
         }
-    </div>
-}
+
+        window.appUi.initSearchableSelects(root);
+    })();
+</script>
+

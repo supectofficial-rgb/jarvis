@@ -1279,7 +1279,7 @@ public sealed partial class InventoryManagementController
     }
 
     [HttpGet("/InventoryManagement/Documents/Adjustment/VariantInventoryLookup")]
-    public async Task<IActionResult> SearchAdjustmentVariantInventoryLookup(string variantId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> SearchAdjustmentVariantInventoryLookup(string variantId, string? qualityStatusId, CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
         {
@@ -1314,6 +1314,15 @@ public sealed partial class InventoryManagementController
             return Json(new { isSuccess = false, errorMessage = stockBucketsResult.ErrorMessage });
         }
 
+        var stockBuckets = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>()).ToList();
+        if (Guid.TryParse(qualityStatusId, out var parsedQualityStatusId))
+        {
+            var qualityKey = parsedQualityStatusId.ToString("D");
+            stockBuckets = stockBuckets
+                .Where(x => string.Equals(x.QualityStatusRef.ToString("D"), qualityKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         var warehouseLookupResult = await _apiService.GetWarehouseLookupAsync(token, includeInactive: true);
         var locationLookupResult = await _apiService.GetLocationLookupAsync(token, warehouseId: null, includeInactive: true);
         if (!warehouseLookupResult.IsSuccess || !locationLookupResult.IsSuccess)
@@ -1330,7 +1339,7 @@ public sealed partial class InventoryManagementController
         var locationLookup = (locationLookupResult.Data ?? new List<LocationLookupItemModel>())
             .ToDictionary(x => x.LocationBusinessKey, x => x, StringComparer.OrdinalIgnoreCase);
 
-        var allowedLocationIds = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+        var allowedLocationIds = stockBuckets
             .Select(x => x.LocationRef.ToString("D"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -1362,7 +1371,7 @@ public sealed partial class InventoryManagementController
             .Where(x => x is not null)
             .ToList();
 
-        var buckets = (stockBucketsResult.Data?.Items ?? new List<StockDetailBucketModel>())
+        var buckets = stockBuckets
             .Select(bucket => new
             {
                 warehouseRef = bucket.WarehouseRef.ToString("D"),
@@ -1447,6 +1456,8 @@ public sealed partial class InventoryManagementController
     public async Task<IActionResult> SearchAdjustmentAvailableSerialLookup(
         string variantId,
         string? locationId,
+        string? qualityStatusId,
+        string? lotBatchNo,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
@@ -1489,6 +1500,20 @@ public sealed partial class InventoryManagementController
             serials = serials.Where(x => string.Equals(x.LocationRef, locationKey, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
+        if (Guid.TryParse(qualityStatusId, out var parsedQualityStatusId))
+        {
+            var qualityKey = parsedQualityStatusId.ToString("D");
+            serials = serials.Where(x => string.Equals(x.QualityStatusRef, qualityKey, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        var normalizedLotBatchNo = NormalizeLotBatchNo(lotBatchNo);
+        if (!string.IsNullOrWhiteSpace(normalizedLotBatchNo))
+        {
+            serials = serials
+                .Where(x => string.Equals(NormalizeLotBatchNo(x.LotBatchNo), normalizedLotBatchNo, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         return Json(new
         {
             isSuccess = true,
@@ -1509,6 +1534,8 @@ public sealed partial class InventoryManagementController
     public async Task<IActionResult> SearchAdjustmentIncreaseSerialLookup(
         string variantId,
         string? locationId,
+        string? qualityStatusId,
+        string? lotBatchNo,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetToken(out var token))
@@ -1571,6 +1598,20 @@ public sealed partial class InventoryManagementController
         var serials = (serialsResult.Data ?? new List<SerialItemLookupModel>())
             .Where(x => string.Equals(x.LocationRef, locationId, StringComparison.OrdinalIgnoreCase))
             .ToList();
+
+        if (Guid.TryParse(qualityStatusId, out var parsedQualityStatusId))
+        {
+            var qualityKey = parsedQualityStatusId.ToString("D");
+            serials = serials.Where(x => string.Equals(x.QualityStatusRef, qualityKey, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        var normalizedLotBatchNo = NormalizeLotBatchNo(lotBatchNo);
+        if (!string.IsNullOrWhiteSpace(normalizedLotBatchNo))
+        {
+            serials = serials
+                .Where(x => string.Equals(NormalizeLotBatchNo(x.LotBatchNo), normalizedLotBatchNo, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
 
         return Json(new
         {
@@ -4657,10 +4698,6 @@ public sealed partial class InventoryManagementController
         await Task.WhenAll(variantsTask, productsTask, warehousesTask, sellersTask, locationsTask, qualityStatusLookupTask, uomsTask);
 
         var lineForm = BuildLineForm(document, documentId, editingLineId, "Adjustment");
-        if (string.IsNullOrWhiteSpace(lineForm.QualityStatusRef))
-        {
-            lineForm.QualityStatusRef = qualityStatusLookupTask.Result.Data?.FirstOrDefault()?.QualityStatusBusinessKey;
-        }
         if (string.IsNullOrWhiteSpace(lineForm.WarehouseRef) && !string.IsNullOrWhiteSpace(lineForm.SourceLocationRef))
         {
             lineForm.WarehouseRef = locationsTask.Result.Data?
@@ -4672,6 +4709,10 @@ public sealed partial class InventoryManagementController
             lineForm.WarehouseRef = locationsTask.Result.Data?
                 .FirstOrDefault(x => string.Equals(x.LocationBusinessKey, lineForm.DestinationLocationRef, StringComparison.OrdinalIgnoreCase))
                 ?.WarehouseRef;
+        }
+        if (string.IsNullOrWhiteSpace(lineForm.ReasonCode))
+        {
+            lineForm.ReasonCode = document?.ReasonCode;
         }
 
         return new InventoryDocumentManagementPageViewModel
