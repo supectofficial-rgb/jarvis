@@ -2306,7 +2306,7 @@ public sealed partial class InventoryManagementController
         return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", model);
     }
 
-    [HttpPost]
+    [HttpPost("/InventoryManagement/Documents/Return/SaveLine")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveReturnDocumentLine([Bind(Prefix = "LineForm")] InventoryDocumentLineForm form, CancellationToken cancellationToken = default)
     {
@@ -2373,7 +2373,7 @@ public sealed partial class InventoryManagementController
         return PartialView("~/Views/InventoryManagement/_ReturnDocumentDetailsModalBody.cshtml", refreshedModel);
     }
 
-    [HttpPost]
+    [HttpPost("/InventoryManagement/Documents/Return/DeleteLine")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteReturnDocumentLine(string documentId, string lineId, CancellationToken cancellationToken = default)
     {

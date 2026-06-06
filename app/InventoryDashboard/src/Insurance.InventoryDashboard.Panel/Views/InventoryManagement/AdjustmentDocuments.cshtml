@@ -1698,12 +1698,19 @@ for (var i = 0; i < lines.length; i++) {
             }
 
             async function loadAdjustmentVariantInventory(form) {
+                var renderLocationOptions = typeof renderAdjustmentLocationOptionsFn === 'function'
+                    ? renderAdjustmentLocationOptionsFn
+                    : (typeof renderAdjustmentLocationOptions === 'function'
+                        ? renderAdjustmentLocationOptions
+                        : (typeof window.renderAdjustmentLocationOptions === 'function'
+                            ? window.renderAdjustmentLocationOptions
+                            : function () { }));
                 var variantField = form.querySelector('[name="LineForm.VariantId"]');
                 var qualityField = getAdjustmentQualityField(form);
                 var qualityStatusId = qualityField ? qualityField.value : '';
                 var selectedLocationId = currentAdjustmentLocation(form);
                 if (!variantField || !variantField.value) {
-                    renderAdjustmentLocationOptionsFn(form, [], '', '');
+                    renderLocationOptions(form, [], '', '');
                     renderAdjustmentLotOptions(form, [], '', '', '');
                     renderAdjustmentInventorySummary(form, [], []);
                     return;
@@ -1728,7 +1735,7 @@ for (var i = 0; i < lines.length; i++) {
                     throw new Error((data && data.errorMessage) || '@UiText["inventory.documents.action.loadingFailed"]');
                 }
 
-                renderAdjustmentLocationOptionsFn(
+                renderLocationOptions(
                     form,
                     Array.isArray(data.locations) ? data.locations : [],
                     selectedLocationId,

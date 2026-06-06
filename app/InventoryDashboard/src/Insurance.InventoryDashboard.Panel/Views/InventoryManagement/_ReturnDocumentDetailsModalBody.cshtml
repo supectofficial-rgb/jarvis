@@ -165,7 +165,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <form asp-action="SaveReturnDocumentLine" asp-controller="InventoryManagement" method="post" class="mb-0" data-loading-form data-ajax-target="#return-document-details-modal-body" id="return-line-editor-form">
+                    <form action="/InventoryManagement/Documents/Return/SaveLine" method="post" class="mb-0" data-loading-form data-ajax-target="#return-document-details-modal-body" id="return-line-editor-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@selectedDocumentType" />

@@ -203,6 +203,8 @@
                         <input type="hidden" asp-for="LineForm.DocumentId" value="@document.DocumentBusinessKey" />
                         <input type="hidden" asp-for="LineForm.DocumentType" value="@currentDocumentType" />
                         <input type="hidden" asp-for="LineForm.LineId" value="@Model.LineForm.LineId" />
+                        <input type="hidden" asp-for="LineForm.SourceLocationRef" value="@Model.LineForm.SourceLocationRef" />
+                        <input type="hidden" asp-for="LineForm.DestinationLocationRef" value="@Model.LineForm.DestinationLocationRef" />
 
                         @if (showTransferQualityColumns)
                         {
@@ -307,12 +309,35 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-4">
+                                <label class="js-adjustment-location-label">@UiText["common.location"]</label>
+                                <div class="text-muted small js-adjustment-location-hint mb-2">@UiText["inventory.documents.adjustment.selectDirectionToLoadSerials"]</div>
+                                <div class="js-adjustment-location-section">
+                                    <select class="form-control js-search-select js-adjustment-location-select" data-placeholder='@UiText["inventory.documents.line.selectLocation"]'>
+                                        <option value="">@UiText["inventory.documents.line.selectLocation"]</option>
+                                        @if (!string.IsNullOrWhiteSpace(selectedLocationRef))
+                                        {
+                                            <option value="@selectedLocationRef" selected="selected">@LocationName(selectedLocationRef)</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group col-md-4">
                                 <label>@UiText["inventory.documents.line.lotBatch"]</label>
                                 <select asp-for="LineForm.LotBatchNo" class="form-control js-search-select js-transfer-line-lot" data-placeholder='@UiText["inventory.documents.line.lotBatch"]'>
                                     <option value="">@UiText["inventory.documents.line.selectOption"]</option>
                                 </select>
                             </div>
-                            <div class="form-group col-12 col-lg-8 js-adjustment-serial-section d-none">
+                            <div class="form-group col-12 col-lg-4">
+                                <label>@UiText["inventory.documents.adjustment.availableLocations"]</label>
+                                <div class="js-adjustment-location-list"></div>
+                            </div>
+                        </div>
+                        <div class="form-row mb-2">
+                            <div class="form-group col-12 col-lg-6">
+                                <label>@UiText["inventory.documents.adjustment.availableLots"]</label>
+                                <div class="js-adjustment-lot-list"></div>
+                            </div>
+                            <div class="form-group col-12 col-lg-6 js-adjustment-serial-section d-none">
                                 <label class="js-adjustment-serial-title">@UiText["inventory.documents.serial.title"]</label>
                                 <div class="text-muted small js-adjustment-serial-summary mb-2" data-select-prompt="@UiText["inventory.documents.action.selectVariantAndLocation"]" data-required-hint="@UiText["inventory.documents.serial.requiredHint"]" data-no-available="@UiText["inventory.documents.serial.noAvailable"]">@UiText["inventory.documents.serial.requiredHint"]</div>
                                 <div class="list-group js-adjustment-serial-container" style="max-height: 240px; overflow:auto;"></div>
